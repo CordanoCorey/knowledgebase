@@ -18,7 +18,17 @@ type PasswordFlow = "signIn" | "signUp";
 type AuthMethod = "password" | "resend";
 type PendingProvider = "google" | "password" | "resend" | null;
 
-export function AuthPanel() {
+type AuthPanelProps = {
+  onSignInComplete?: () => void;
+  redirectTo?: string;
+  surface?: "app" | "editor";
+};
+
+export function AuthPanel({
+  onSignInComplete,
+  redirectTo,
+  surface = "editor",
+}: AuthPanelProps) {
   const { signIn } = useAuthActions();
   const authAvailability = useQuery(api.authAvailability.get);
   const [error, setError] = useState<string | null>(null);
@@ -55,8 +65,8 @@ export function AuthPanel() {
     resendAvailable,
   ]);
 
-  function redirectToCurrentPage() {
-    return window.location.pathname + window.location.search + window.location.hash;
+  function getRedirectTo() {
+    return redirectTo ?? window.location.pathname + window.location.search + window.location.hash;
   }
 
   function resetFeedback() {
@@ -80,7 +90,7 @@ export function AuthPanel() {
     setPendingProvider("google");
 
     try {
-      await signIn("google", { redirectTo: redirectToCurrentPage() });
+      await signIn("google", { redirectTo: getRedirectTo() });
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Google sign-in failed");
       setPendingProvider(null);
@@ -102,8 +112,9 @@ export function AuthPanel() {
       if (provider === "password") {
         formData.set("flow", passwordFlow);
         await signIn("password", formData);
+        onSignInComplete?.();
       } else {
-        formData.set("redirectTo", redirectToCurrentPage());
+        formData.set("redirectTo", getRedirectTo());
         await signIn("resend", formData);
         setSentTo(email);
       }
@@ -124,9 +135,11 @@ export function AuthPanel() {
       ? LogIn
       : UserPlus
     : Mail;
+  const authContextLabel = surface === "app" ? "Secure workspace" : "Secure editor";
+  const sessionLabel = surface === "app" ? "Account required" : "Session required";
 
   return (
-    <section className="editor-panel editor-auth-panel">
+    <section className={`editor-panel editor-auth-panel editor-auth-panel-${surface}`}>
       <div className="editor-auth-layout">
         <aside className="editor-auth-brand" aria-label="Knowledgebase">
           <div className="editor-auth-brand-main">
@@ -141,13 +154,13 @@ export function AuthPanel() {
               alt="Arche Press"
             />
             <div>
-              <p className="eyebrow">Secure editor</p>
+              <p className="eyebrow">{authContextLabel}</p>
               <h2>Knowledgebase</h2>
             </div>
           </div>
           <div className="editor-auth-brand-footer">
             <LockKeyhole aria-hidden="true" />
-            <span>Session required</span>
+            <span>{sessionLabel}</span>
           </div>
         </aside>
 

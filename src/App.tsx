@@ -6,12 +6,14 @@ import {
   type MouseEvent,
   type ReactNode,
 } from "react";
+import { useConvexAuth } from "@convex-dev/auth/react";
 import {
   Bell,
   CalendarDays,
   Compass,
   Landmark,
   LayoutDashboard,
+  LoaderCircle,
   Moon,
   Search,
   Settings,
@@ -19,6 +21,7 @@ import {
   Tag,
   UserCircle,
 } from "lucide-react";
+import { AuthPanel, SignOutButton } from "./auth/AuthPanel";
 import archePressIconUrl from "./assets/arche-press_icon-full.svg";
 import archePressHorizontalLogoDarkUrl from "./assets/arche-press_logo-horizontal-full-dark.svg";
 import archePressHorizontalLogoUrl from "./assets/arche-press_logo-horizontal-full.svg";
@@ -178,6 +181,7 @@ const PRIMARY_ROUTE_IDS: PageId[] = [
 const USER_ROUTE_IDS: PageId[] = ["calendar", "settings"];
 
 export default function App() {
+  const { isAuthenticated, isLoading } = useConvexAuth();
   const [theme, setTheme] = useState<ThemePreference>(readStoredTheme);
   const [routeState, setRouteState] = useState<RouteState>(() => getRouteState(window.location));
 
@@ -207,6 +211,34 @@ export default function App() {
 
   function toggleTheme() {
     setTheme((currentTheme) => (currentTheme === "dark" ? "light" : "dark"));
+  }
+
+  function goToDashboard() {
+    window.history.replaceState({}, "", "/");
+    setRouteState(getRouteState(window.location));
+  }
+
+  if (isLoading) {
+    return (
+      <main className="kb-auth-page" data-theme={theme} aria-busy="true">
+        <section className="editor-panel editor-loading">
+          <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
+          <span>Checking session</span>
+        </section>
+      </main>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <main className="kb-auth-page" data-theme={theme}>
+        <AuthPanel
+          onSignInComplete={goToDashboard}
+          redirectTo="/"
+          surface="app"
+        />
+      </main>
+    );
   }
 
   return (
@@ -464,6 +496,7 @@ function TopBar({
         >
           <Bell aria-hidden="true" />
         </a>
+        <SignOutButton />
         <label className="kb-search">
           <Search aria-hidden="true" />
           <input type="text" placeholder="Search categories, settings, etc." />

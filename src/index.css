@@ -972,6 +972,22 @@ input {
   color: var(--kb-primary-dark);
 }
 
+.kb-auth-page {
+  display: grid;
+  min-height: 100vh;
+  padding: 24px;
+  color: var(--kb-text);
+  background: var(--kb-gradient-surface);
+}
+
+.kb-auth-page .editor-panel {
+  min-height: calc(100vh - 48px);
+}
+
+.kb-topbar-actions .editor-sign-out {
+  white-space: nowrap;
+}
+
 .app-frame,
 .component-frame {
   display: grid;
@@ -1794,10 +1810,12 @@ h1 {
   }
 
   .app-frame,
+  .kb-auth-page,
   .component-frame {
     padding: 12px;
   }
 
+  .kb-auth-page .editor-panel,
   .app-frame .editor-panel,
   .component-frame .editor-panel,
   .component-frame .editor-loading {
