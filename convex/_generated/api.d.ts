@@ -9,6 +9,8 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as authAvailability from "../authAvailability.js";
+import type * as authProviderConfig from "../authProviderConfig.js";
 import type * as editor from "../editor.js";
 import type * as http from "../http.js";
 
@@ -20,6 +22,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  authAvailability: typeof authAvailability;
+  authProviderConfig: typeof authProviderConfig;
   editor: typeof editor;
   http: typeof http;
 }>;
