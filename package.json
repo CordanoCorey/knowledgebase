@@ -9,8 +9,10 @@
     "build:component": "vite build --config vite.component.config.ts",
     "build:static": "npm run build && npm run build:component",
     "preview": "vite preview --host 0.0.0.0",
+    "test": "vitest run",
     "convex:dev": "convex dev",
-    "convex:deploy": "convex deploy --cmd \"npm run build:static\""
+    "convex:deploy": "convex deploy --cmd \"npm run build:static\"",
+    "seed:scripture": "node scripts/seed-scripture.mjs"
   },
   "dependencies": {
     "@auth/core": "^0.41.2",
@@ -26,9 +28,12 @@
     "vite": "latest"
   },
   "devDependencies": {
+    "@edge-runtime/vm": "^5.0.0",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
-    "typescript": "latest"
+    "convex-test": "^0.0.53",
+    "typescript": "latest",
+    "vitest": "^4.1.8"
   }
 }
