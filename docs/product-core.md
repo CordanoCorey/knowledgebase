@@ -14,9 +14,17 @@ Knowledge Entries are rated by Human Weight on a Slop to Soul scale from 0 to 10
 
 ## Core Model
 
-A Knowledge Entry is a typed, contextualized unit of knowledge. It represents one primary Referent and references other Referents through its Tags. Those Tags constitute the entry's Knowledge Context.
+A Knowledge Entry is a typed, contextualized unit of knowledge. It represents one Referent of the same Knowledge Type and references other Referents through its Tags. Those Tags constitute the entry's Knowledge Context.
+
+The canonical Tag for a Knowledge Entry's Represented Referent should be included among the entry's Tags. This lets one Tag relationship model both the entry's own navigable identity and the other Referents it references in its Knowledge Context.
 
 A Tag is a named, typed pointer to a Referent and to the intended set of knowledge about that Referent. A Referent is identified by name plus Knowledge Type, so similarly named things remain distinct, such as `Charlotte's Web, book` and `Charlotte's Web, essay`.
+
+Referents, Tags, and Knowledge Entries should remain distinct. A Referent is the stable identity of the thing being pointed at, a Tag is the navigable handle that points to that Referent, and a Knowledge Entry is content or work that represents one same-typed Referent and references other Referents through Tags. A Referent may exist without any Knowledge Entry representing it, and a Referent may have at most one Knowledge Entry that represents it.
+
+Tags should be canonical per Referent, not duplicated per user or organization. User and organization relationships to a Tag should be represented through Recognized Context, subscriptions, aliases, visibility, or other local relationships rather than by creating separate Tags for the same Referent.
+
+The first schema pass should include Tag Recognition so users and organizations can record that a canonical Tag is meaningful to them without creating local duplicate Tags.
 
 The base Knowledge Type is Words. When the application does not yet understand a more specific type, a Referent may be represented as Words until that type is added. Later, Type Reclassification can refine the Tag from Words to a more specific Knowledge Type when the Referent's identity is the same.
 
@@ -31,9 +39,17 @@ The product loop has two main user actions:
 
 Explore and Contribute should happen in the same place. Wherever users see Answers, they should also be able to add the missing future Answer that belongs in that Knowledge Context.
 
-The user-facing place for this loop is a Context Page. A Context Page is determined by the current setting of the Knowledge Navigator: the active Tags define the current Knowledge Context. When no Tags are active in the Knowledge Navigator, the current location is the Global Knowledge Context.
+The user-facing place for this loop depends on how many Tags are active in the Knowledge Navigator. The Dashboard is used when no Tags are active and the user is located in the Global Knowledge Context. A Referent Page is used when exactly one Tag is active and the user is focused on the Referent that Tag points to. A Context Page is used when two or more Tags are active and the user is exploring their combined Knowledge Context.
 
-Topic should be reserved for a named subject of discussion, such as `atonement`, `friendship`, or `Christian education`. Topic is an MVP Knowledge Type, but it should not mean the Context Page itself. A Context Page can include one Topic Tag, many Tags, or no active Tags in the Global Knowledge Context case.
+Referent Pages should be reached through Tags rather than Knowledge Entry IDs. In the MVP, non-Scripture Referent Pages may use a route such as `/goto/:tagId`; Bible Passage Referent Pages should use Scripture's familiar citation language with a route such as `/scripture/:passageString`, while still behaving like a one-Tag Referent Page.
+
+Bible Passage Tags and Referents may be created lazily. Visiting `/scripture/:passageString` should not by itself require a persisted Tag or Referent, but analytics should still record the visit against the parsed, normalized passage target so the app can report commonly visited Bible passages before those passages have been tagged or contributed around.
+
+Analytics should distinguish Referent Page visits from Knowledge Navigator usage. A visit records that a user opened a page for a target such as `John 3:16`; Navigator usage records that the user selected a Tag as part of the Knowledge Context for Explore or Contribute.
+
+Analytics should keep raw page visit events separately from aggregate visit stats. Raw events preserve useful history for debugging and future analysis, while aggregate stats support product queries such as commonly visited Bible passages without scanning event history.
+
+Topic should be reserved for a named subject of discussion, such as `atonement`, `friendship`, or `Christian education`. Topic is an MVP Knowledge Type, but it should not mean the Context Page or Referent Page itself. A Topic Tag can be the active Tag for a Referent Page or one of multiple active Tags for a Context Page.
 
 Doctrines should be represented as Topics in the MVP. Doctrine may become a more specific Knowledge Type later if the product needs confession-specific behavior, doctrinal positions, church statements, or theological taxonomies.
 
@@ -71,6 +87,8 @@ Collection is not an MVP Knowledge Type. Series covers named curated or ordered 
 
 Smart Storage is the AI-assisted process of preserving a Source, identifying relevant Tags, and refining that Source toward one or more pieces of structured knowledge the application understands.
 
+When a user creates or refines a Knowledge Entry, the creation flow should first search for existing Tags and Referents before creating new ones. The accepted behavior is to reuse the canonical Tag when the intended Referent already exists, and to create a new Tag only when the app cannot confidently match an existing Referent or the user confirms the proposed new Referent is distinct.
+
 The bronze, silver, and gold progression describes the degree to which useful information has been extracted, cleaned, structured, and shaped from the original Source:
 
 - The Bronze Layer preserves submitted Sources as close as possible to their original form.
@@ -85,9 +103,11 @@ Source is not an MVP Knowledge Type. A Source belongs to the Bronze Layer as raw
 
 Media formats such as audio, video, image, and file are not MVP Knowledge Types. They belong to Sources, attachments, or representations of Knowledge Entries. For example, a Sermon may be represented by audio, video, transcript, or notes, but its Knowledge Type remains Sermon.
 
+Long-form or rich editable content belongs to Entry Representations rather than to type-specific detail rows. Words has no separate type detail table; its full content is represented through an Entry Representation while Knowledge Entries retain the bounded text needed for cards and search.
+
 ## Knowledge Slots
 
-A Knowledge Slot is a predefined request for one or more Knowledge Entries of a specified Knowledge Type within a specified Knowledge Context. It is the app's way to request future Answers from users.
+A Knowledge Slot is a predefined request for one Knowledge Entry of a specified Knowledge Type within a specified Knowledge Context. It is the app's way to request future Answers from users.
 
 Examples:
 
@@ -95,9 +115,9 @@ Examples:
 - A user creates an Event entry and invites people to fulfill RSVP slots.
 - A Knowledge Request maps to a Knowledge Context with no existing Answers; the user creates a Knowledge Slot directed to an expert, a group, an organization network, or an open audience until an Answer is contributed.
 
-Fulfillment is the state of a Knowledge Slot after the requested Knowledge Entry or Entries exist.
+Fulfillment is the state of a Knowledge Slot after the requested Knowledge Entry exists.
 
-The MVP should classify calls to action generically as Knowledge Slots rather than adding an Assignment Knowledge Type. For example, a teacher assigning an Essay, a user requesting an expert Answer, or an Event asking for RSVP entries are all Knowledge Slots requesting future Knowledge Entries within a specified Knowledge Context.
+The MVP should classify calls to action generically as Knowledge Slots rather than adding an Assignment Knowledge Type. For example, a teacher assigning an Essay, a user requesting an expert Answer, or an Event asking for RSVP entries are all Knowledge Slots requesting future Knowledge Entries within specified Knowledge Contexts.
 
 Task and Todo are not MVP Knowledge Types. Calls to action that request future Knowledge Entries should be represented as Knowledge Slots; tasks that do not request knowledge are outside the MVP.
 
@@ -116,6 +136,8 @@ Tags and Referents become visible indirectly through visible Knowledge Entries t
 ## MVP Direction
 
 The MVP Knowledge Type set is locked as: Words, Bible Passage, Topic, Series, Question, Quote, Sermon, Essay, Poem, Song, Book, Short Story, Lesson, Comment, Prayer Request, Event, RSVP, Person, Organization, Group, and Place. New Knowledge Types should be deferred unless they prove required for one of the MVP loops.
+
+Bible Passage is an MVP Knowledge Type for Referents and Tags, but it is not an authorable Knowledge Entry type in the MVP. Scripture text belongs to the Bible structure and Bible verse text tables, while user-created entries such as notes, sermons, lessons, comments, or questions reference Bible Passage Tags in their Knowledge Context.
 
 Sermon Clip should be deferred unless a later workflow needs quote-like Type Behavior specifically for sermon media.
 
@@ -191,11 +213,11 @@ Notification is not a Knowledge Type. Notifications are reactions to existing Kn
 
 Reaction is not a Knowledge Type. Reactions are interaction state attached to Knowledge Entries or Comments.
 
-Bookmark is not a Knowledge Type. A bookmark is a User relationship to a Knowledge Entry or Context Page, used to create saved views and possibly subscription-style notifications.
+Bookmark is not a Knowledge Type. A bookmark is a User relationship to a Knowledge Entry, Referent Page, or Context Page, used to create saved views and possibly subscription-style notifications.
 
-Subscription is not a Knowledge Type. A subscription is a User relationship to a Context Page, Tag, Knowledge Entry, Group, Event, or Organization that affects notification behavior.
+Subscription is not a Knowledge Type. A subscription is a User relationship to a Referent Page, Context Page, Tag, Knowledge Entry, Group, Event, or Organization that affects notification behavior.
 
-Context Page is not a Knowledge Type. It is a user-facing place or view determined by the Knowledge Navigator's active Tags.
+Dashboard, Referent Page, and Context Page are not Knowledge Types. They are user-facing places or views determined by the number of active Tags in the Knowledge Navigator.
 
 Knowledge Context is not a Knowledge Type. It is the set of Tags that locates Knowledge Entries and Knowledge Requests.
 
@@ -203,11 +225,11 @@ Visibility Scope is not a Knowledge Type. It is access or audience metadata on a
 
 Lesson is an MVP Knowledge Type because schools and church classes need planned teaching material that can be connected to Events. The user experience should feel like working with a lesson plan, but the canonical Knowledge Type is Lesson. A reusable Lesson may be connected to many scheduled uses over time, such as teaching the same lesson in different years.
 
-Person is an MVP Knowledge Type because churches and schools need to reference authors, teachers, students, speakers, invitees, commenters, and other participants. A Person may optionally link to a User account, but Person and User are not the same thing. For example, C.S. Lewis can be a Person who authored a Book without ever being a User, while a student can be both a User and the Person who authored an Essay.
+Person is an MVP Knowledge Type because churches and schools need to reference authors, teachers, students, speakers, invitees, commenters, and other participants. Every User must be linked to exactly one Person Knowledge Entry so the User can be tagged through that Person, but Person and User are not the same thing. For example, C.S. Lewis can be a Person who authored a Book without ever being a User, while a student is both a User and the Person who authored an Essay.
 
 Account is not a Knowledge Type. Account is authentication and access infrastructure for a User.
 
-User is not a Knowledge Type. User is the account or access identity that may link to a Person; Person is the Knowledge Type.
+User is not a Knowledge Type. User is the account or access identity that must link to a Person Knowledge Entry; Person is the Knowledge Type.
 
 Profile is not a Knowledge Type. A profile is a view or presentation of a Person, User, Organization, Group, or related referent.
 
@@ -221,15 +243,17 @@ Author is not an MVP Knowledge Type. Author is a Role of a Person in relation to
 
 Speaker, Preacher, Teacher, and Student are not MVP Knowledge Types. They are Roles of a Person in relation to a Sermon, Lesson, Event, Group, Organization, Knowledge Slot, or other Knowledge Entry.
 
+The MVP should use direct type-detail fields for known single-person relationships, such as a quoted person on a Quote or a respondent on an RSVP. A separate cross-type Person-role table should be deferred until the first UI or query needs role-based search across Knowledge Types.
+
 Denomination should be deferred as a Knowledge Type. It may begin as an Organization attribute or Topic and can become a Knowledge Type later if denominational affiliation needs first-class discovery, visibility, or trust behavior.
 
 Ministry is not an MVP Knowledge Type. A ministry may be represented as a Group, Organization-related body, Topic, Series, or Event context depending on how it is used, until distinct ministry behavior is needed.
 
-Organization is an MVP Knowledge Type, but the MVP should understand only four Organization kinds: School, Church, Family, and Community. To sign up, a User must be associated with a School or Church. Users can also be grouped into Families and can specify a hometown to become a de facto member of a Community. Deeper organization networks, permissions, and membership workflows should be reserved for later.
+Organization is an MVP Knowledge Type, but the MVP should understand only four Organization kinds: School, Church, Family, and Community. To use the app, a User must be a member of at least one Organization, and initial signup must associate the User's Person with a School or Church. Users can also be grouped into Families and can specify a hometown to become a de facto member of a Community. Deeper organization networks, permissions, and membership workflows should be reserved for later.
 
 Network should be a Phase 2 Knowledge Type or organization capability. In the MVP, Organization plus Visibility Scope is enough; named networks of organizations can be added when cross-organization behavior becomes first-class.
 
-Group is an MVP Knowledge Type for a collection of People, not a collection of Users. Since a User may link to a Person, user-based participation can still be represented through Person membership, while Groups can also include people who are not application Users. Group should cover informal or temporary collections such as classes, teams, committees, or volunteer cohorts without forcing them to become Organizations.
+Group is an MVP Knowledge Type for a collection of People, not a collection of Users. Since every User links to a Person, user-based participation can still be represented through Person membership, while Groups can also include people who are not application Users. Group should cover informal or temporary collections such as classes, teams, committees, or volunteer cohorts without forcing them to become Organizations.
 
 Groups can receive Knowledge Slots, but fulfillment is performed by Users. When a Knowledge Slot is directed to a Group, the expected fulfillers are Users linked to People in that Group. People who are not linked to Users can still belong to Groups as historical or referential members, but they cannot perform user actions until linked to an account.
 
@@ -244,6 +268,28 @@ Address is not a Knowledge Type. Address is an attribute or locator for a Place,
 Time and Date are not Knowledge Types. They are scheduling attributes of Events and other scheduled entries.
 
 The MVP should present Scripture references through one Knowledge Type: Bible Passage. Bible Passage can represent one verse, many verses, a chapter, a larger passage, or a set of passages across multiple books of the Bible. The application must understand subset relationships between Bible Passage Referents, such as `Matthew 24:1` being part of both `Matthew 24:1-25:46` and `Matthew 24:1-25:46; Mark 13:1-37; Luke 21:5-36`.
+
+Bible Passage Referents and Tags are not created by users as Knowledge Entries. A user-created entry can reference a Bible Passage through its Tags, but the entry's Represented Referent should be a same-typed Referent such as Words, Sermon, Lesson, Question, Comment, or another authorable Knowledge Type.
+
+Bible Passage identity should be based on normalized canonical verse ranges, not raw citation strings. User-entered or URL passage strings such as `Romans 8:28` or `Matthew 24:1-25:46; Mark 13:1-37; Luke 21:5-36` should be parsed into canonical locations that can support display, lookup, and subset checks. The MVP should assume a single 66-book Protestant versification for these canonical locations, with alternate canons or versification systems deferred until they become required.
+
+Bible Passage range identity should sort ranges into canonical Bible order and merge overlapping or adjacent ranges. Different user-entered orderings or equivalent split ranges should resolve to the same Referent, while the original input may still be retained for display history or analytics.
+
+The persisted canonical key for a Bible Passage should be based on normalized verse ordinal ranges, while human-readable labels should be generated from canonical structure. For example, an internal key may represent `23145-23145`, while the display label is `Romans 8:28`.
+
+In the MVP, Bible Passage Referents should store their normalized range array inline, with a reasonable cap on passage-set size to avoid unbounded arrays. A separate range table should be deferred until the app needs very large passage sets or independent querying of range components.
+
+Bible Passage subset and containment relationships should be computed dynamically from normalized verse ordinal ranges in the MVP. Persisted relationship rows should be deferred until the app needs curated relationship labels, manual cross-reference relationships, or proven performance improvements.
+
+One Bible Passage Referent may contain multiple verse ranges across multiple books when the intended referent is the combined passage set. For example, `Matthew 24:1-25:46; Mark 13:1-37; Luke 21:5-36` can be one Referent for the Olivet Discourse across books. Adding another Scripture Tag through the Knowledge Navigator creates a multi-Tag Context Page for cross-reference or comparison, even if the first Tag already contains several Bible books internally.
+
+The first Scripture seed should include Bible structure before translation text: books, chapters, verses, and canonical verse positions. Full translation text should be seeded only from a clearly licensed or public-domain source present in the repository. If a vetted KJV source is present, the first pass may seed KJV verse text; otherwise KJV should be represented as known translation metadata until a source is added.
+
+The app should seed known Bible Translation metadata separately from verse text availability. The translation registry may include metadata-only entries for translations and source texts the app knows about, including English translations, Greek source texts, Hebrew source texts, and Latin texts, even when the application does not yet store their full verse text.
+
+Bible Translation records should have internal database IDs for relationships and stable unique short codes for import, lookup, display, and migration. Examples include `KJV` for King James Version, `TR1894` for Scrivener's Textus Receptus, and `VULGATE` for Biblia Sacra Vulgata.
+
+Bible verse structure and Bible verse text should be stored separately. Canonical verse records should identify the book, chapter, verse number, and verse position used for passage lookup. Translation-specific verse text records should point to a Bible Translation and a canonical verse, allowing structure to be seeded before any full translation text is available.
 
 Verse is not an MVP Knowledge Type. A single verse is represented as a Bible Passage.
 
@@ -287,6 +333,131 @@ The MVP should prove the core loop:
 - A user can Contribute from that same place.
 - Smart Storage can preserve Sources and produce one or more Knowledge Entries.
 - Knowledge Slots can request missing future Answers.
+
+## Schema Invariants
+
+These invariants are implied by the MVP domain model and `convex/schema.ts`. Convex validators and indexes document the shape, but most cross-document rules must be enforced in mutations, migrations, seed scripts, and tests.
+
+### Referents and Tags
+
+- A Referent is uniquely identified by `knowledgeType` and `canonicalKey`.
+- A Referent's `knowledgeType` must match the type of the thing it identifies.
+- A Tag is canonical to exactly one Referent through `referentId`.
+- A Referent should have at most one canonical Tag.
+- A Tag's `knowledgeType` must match its Referent's `knowledgeType`.
+- Tag `lookupKey` values should be normalized consistently before lookup or insert.
+- Tag aliases must point to canonical Tags, not create local duplicate Tags.
+- A tag alias's `knowledgeType` must match the referenced Tag's `knowledgeType`.
+- User and organization recognition of a Tag belongs in `tagRecognitions`, not in duplicate Tags.
+- A `tagRecognitions` row must identify exactly one recognizer: either a User or an Organization.
+
+### Knowledge Entries
+
+- A Knowledge Entry represents exactly one Referent through `representedReferentId`.
+- A Referent may have at most one Knowledge Entry representing it.
+- A Knowledge Entry's `knowledgeType` must match its represented Referent's `knowledgeType`.
+- `knowledgeEntries.knowledgeType` must never be `biblePassage` in the MVP.
+- `primaryTagId` must point to the canonical Tag for `representedReferentId`.
+- Each Knowledge Entry must have exactly one `entryTags` row with `tagPurpose: "represented"`.
+- The represented `entryTags` row must use the same Tag as `primaryTagId`.
+- All other Knowledge Context Tags for an entry should use `tagPurpose: "context"`.
+- `contextPreviewTagLabels` is denormalized card data and must stay bounded.
+- `searchText`, `previewText`, and `publicPreviewText` must stay bounded enough for card/search use.
+- Long or rich content must live in `entryRepresentations`, not directly on `knowledgeEntries`.
+- `humanWeight` should stay within the product scale of 0 through 100.
+- `createdAt` should be set once; `updatedAt` should move forward when entry-visible data changes.
+- Discoverability and visibility are separate: a public preview may exist without read access to the full entry.
+- When `publicPreviewText` is exposed through discovery, it must be safe to show to that discoverability audience.
+
+### Type Detail Tables
+
+- Words has no one-to-one detail table; the common `knowledgeEntries` row is the Words-level shape.
+- Bible Passage has no authorable detail table in the MVP.
+- Every non-Words authorable Knowledge Type should have at most one matching type-detail row.
+- A type-detail row's `entryId` must point to a Knowledge Entry of the matching `knowledgeType`.
+- Empty-ish detail tables with only `entryId` are acceptable until a type has real MVP-specific fields.
+- `commentEntries.parentEntryId` must point to the entry being answered or discussed.
+- A Comment should not use itself as its parent.
+- `quoteEntries.quotedPersonReferentId`, when present, must point to a Person Referent.
+- `quoteEntries.sourceEntryId`, when present, must point to the larger entry/source represented by the Quote.
+- `eventEntries.locationPlaceReferentId`, when present, must point to a Place Referent.
+- Event times should be coherent: `endsAt`, when present, should not be earlier than `startsAt`.
+- `rsvpEntries.eventEntryId` must point to an Event Knowledge Entry.
+- `rsvpEntries.personReferentId` must point to a Person Referent.
+- An RSVP should be unique per Event and Person unless the product later supports response history.
+- `organizationEntries.organizationKind` must be one of School, Church, Family, or Community.
+
+### Entry Representations and Sources
+
+- An Entry Representation belongs to exactly one Knowledge Entry.
+- A Knowledge Entry should have at most one primary representation per representation need.
+- `prosemirrorDocumentId` remains an arbitrary string compatible with the collaborative editor.
+- File, audio, video, URL, and plain text representations should use the fields matching their `representationKind`.
+- A Source is Bronze Layer raw material, not a Knowledge Type and not a Knowledge Entry.
+- A Source may produce many Knowledge Entries through `sourceOutputs`.
+- A `sourceOutputs` row must point to an existing Source and an existing produced or derived Knowledge Entry.
+- Formal Silver Layer tables are intentionally deferred until review, retry, or partial acceptance workflows need them.
+
+### Bible Passage and Scripture
+
+- Bible Passage is a Referent and Tag Knowledge Type, but not an authorable Knowledge Entry type in the MVP.
+- Bible Passage identity must be based on normalized verse ordinal ranges, not raw citation strings.
+- Bible Passage ranges should be sorted in canonical Bible order.
+- Overlapping or adjacent Bible Passage ranges should be merged before computing `canonicalKey`.
+- Equivalent passage strings must resolve to the same Bible Passage Referent.
+- Bible Passage range arrays must stay bounded; use a range table later if passage sets become large.
+- Bible structure records identify canonical books, chapters, verses, and verse ordinals.
+- Bible verse text is translation-specific and must stay separate from canonical verse structure.
+- A `bibleVerseTexts` row must be unique for a translation and canonical verse.
+- Translation text should only be seeded from a vetted source with acceptable licensing.
+- Lazy Bible Passage navigation may record analytics for a normalized passage target before a persisted Tag or Referent exists.
+
+### Users, People, Organizations, and Memberships
+
+- User is authentication/access infrastructure, not a Knowledge Type.
+- Every signed-up User must link to exactly one Person Knowledge Entry through `userProfiles`.
+- Not every Person Referent or Person Entry has a User.
+- `userProfiles.personEntryId` must point to a Person Knowledge Entry.
+- `userProfiles.personReferentId` must be the represented Referent for `personEntryId`.
+- `userProfiles.personTagId` must be the canonical Tag for `personReferentId`.
+- A User should have exactly one active `userProfiles` row.
+- A Person may be a member of Organizations and Groups through `memberships`.
+- `memberships.personReferentId` must point to a Person Referent.
+- A membership target must identify exactly one target matching `targetKind`.
+- For `targetKind: "organization"`, `organizationReferentId` must be present and `groupReferentId` absent.
+- For `targetKind: "group"`, `groupReferentId` must be present and `organizationReferentId` absent.
+- Organization membership targets must point to Organization Referents.
+- Group membership targets must point to Group Referents.
+- When `memberUserId` is present, it should match the User linked to `personReferentId`.
+- The onboarding rule that a User belongs to at least one Organization is required later, but not enforced by schema alone.
+
+### Knowledge Slots
+
+- A Knowledge Slot is a workflow request, not a Knowledge Type.
+- Each Knowledge Slot requests exactly one Knowledge Entry type through `requestedKnowledgeType`.
+- `requestedKnowledgeType` must be an authorable entry type, so it must never be `biblePassage`.
+- Slot Tags are the frozen Knowledge Context for the requested entry.
+- Slot fulfillment should point to at most one `fulfilledEntryId`.
+- A fulfilled entry's `knowledgeType` must match the slot's `requestedKnowledgeType`.
+- A fulfilled entry should include the frozen Slot Tags in its Knowledge Context unless a future workflow explicitly changes that rule.
+- A Knowledge Slot target must identify exactly one target matching `targetKind`.
+- For `targetKind: "user"`, `targetUserId` must be present and the other target fields absent.
+- For `targetKind: "person"`, `targetPersonReferentId` must be present and the other target fields absent.
+- For `targetKind: "organization"`, `targetOrganizationReferentId` must be present and the other target fields absent.
+- For `targetKind: "group"`, `targetGroupReferentId` must be present and the other target fields absent.
+- For `targetKind: "public"`, no target ID fields should be present.
+- Slot status transitions should be coherent: only fulfilled slots should have `fulfilledEntryId`.
+- `dueAt` is optional; overdue status should be derived or maintained consistently by workflow code.
+
+### Series and Deferred Relationships
+
+- Series is a Knowledge Type; ordered membership is represented by `seriesItems`.
+- A `seriesItems` row belongs to one Series Knowledge Entry.
+- A `seriesItems` row must identify exactly one item matching `itemKind`.
+- `position` should be unique within a Series unless the product later supports ties.
+- Generic `entryRelations` are intentionally deferred.
+- Cross-type person-role search through `entryPeople` is intentionally deferred.
+- Thumbnail or image asset tables are intentionally deferred.
 
 ## Open Questions
 

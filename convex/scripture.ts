@@ -8,7 +8,6 @@ import {
 
 const DEFAULT_TRANSLATION_CODE = "KJV";
 const MAX_PASSAGE_VERSES = 300;
-const MAX_SUGGESTIONS = 5;
 
 type ResolvedRange = {
   endOrdinal: number;
@@ -20,29 +19,6 @@ type TranslationSummary = {
   name: string;
   textStatus: "metadataOnly" | "available";
 };
-
-export const searchPassageSuggestions = query({
-  args: {
-    limit: v.optional(v.number()),
-    query: v.string(),
-  },
-  handler: async (_ctx, args) => {
-    const limit = clampLimit(args.limit ?? 3, MAX_SUGGESTIONS);
-    const parsedPassage = parseBiblePassageReference(args.query);
-    if (!parsedPassage || limit < 1) {
-      return [];
-    }
-
-    return [
-      {
-        href: `/scripture/${parsedPassage.slug}`,
-        kind: "biblePassage",
-        label: parsedPassage.label,
-        passageString: parsedPassage.slug,
-      },
-    ].slice(0, limit);
-  },
-});
 
 export const getPassage = query({
   args: {
@@ -82,7 +58,7 @@ export const getPassage = query({
     const translation = await selectTranslation(ctx, args.translationCode);
     const { isTruncated, verses } = await getVersesForRanges(ctx, normalizedRanges);
     const textByOrdinal = translation
-      ? await getVerseTextByOrdinal(ctx, translation._id, normalizedRanges)
+      ? await getVerseTextByOrdinal(ctx, translation._id, verses)
       : new Map<number, string>();
     const verseRows = await buildVerseRows(ctx, verses, textByOrdinal);
     const hasText = verseRows.some((verse) => verse.text !== null);
@@ -101,10 +77,6 @@ export const getPassage = query({
     };
   },
 });
-
-function clampLimit(limit: number, max: number) {
-  return Math.max(0, Math.min(Math.floor(limit), max));
-}
 
 async function resolveRange(
   ctx: QueryCtx,
@@ -356,11 +328,13 @@ async function getVersesForRanges(ctx: QueryCtx, ranges: ResolvedRange[]) {
 async function getVerseTextByOrdinal(
   ctx: QueryCtx,
   translationId: Id<"bibleTranslations">,
-  ranges: ResolvedRange[],
+  verses: Doc<"bibleVerses">[],
 ) {
   const textByOrdinal = new Map<number, string>();
+  const ordinalRanges = getContiguousOrdinalRanges(verses);
 
-  for (const range of ranges) {
+  for (const range of ordinalRanges) {
+    const limit = range.endOrdinal - range.startOrdinal + 1;
     const verseTexts = await ctx.db
       .query("bibleVerseTexts")
       .withIndex("by_translationId_and_verseOrdinal", (q) =>
@@ -369,7 +343,7 @@ async function getVerseTextByOrdinal(
           .gte("verseOrdinal", range.startOrdinal)
           .lte("verseOrdinal", range.endOrdinal),
       )
-      .take(MAX_PASSAGE_VERSES + 1);
+      .take(limit);
 
     for (const verseText of verseTexts) {
       textByOrdinal.set(verseText.verseOrdinal, verseText.text);
@@ -377,6 +351,24 @@ async function getVerseTextByOrdinal(
   }
 
   return textByOrdinal;
+}
+
+function getContiguousOrdinalRanges(verses: Doc<"bibleVerses">[]) {
+  const ranges: ResolvedRange[] = [];
+
+  for (const verse of verses) {
+    const previousRange = ranges.at(-1);
+    if (previousRange && verse.ordinal === previousRange.endOrdinal + 1) {
+      previousRange.endOrdinal = verse.ordinal;
+    } else {
+      ranges.push({
+        endOrdinal: verse.ordinal,
+        startOrdinal: verse.ordinal,
+      });
+    }
+  }
+
+  return ranges;
 }
 
 async function buildVerseRows(

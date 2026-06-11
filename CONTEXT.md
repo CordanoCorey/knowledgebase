@@ -13,16 +13,20 @@ The Knowledge Context available to every user and organization by default, conta
 _Avoid_: Global Scripture Context, public folder, Bible folder
 
 **Tag**:
-A named, typed pointer to a Referent and the intended set of all knowledge about it, including content already stored in the application and relevant knowledge that has not yet been stored or tagged.
-_Avoid_: Label, keyword
+A named, typed pointer to a Referent and the intended set of all knowledge about it, including content already stored in the application and relevant knowledge that has not yet been stored or tagged. A Tag is canonical to its Referent rather than scoped separately per user or organization.
+_Avoid_: Label, keyword, local tag
 
 **Knowledge Type**:
 A typed shape of knowledge the application understands, such as a Bible Passage, Question, Quote, Sermon, Lesson, Event, Person, Organization, Group, Place, or Words. Knowledge Types may be added over time as the application learns to recognize more specific kinds of Referents.
 _Avoid_: Schema, entity type, file type
 
 **Knowledge Entry**:
-A typed, contextualized unit of knowledge in the application, whether created directly by a user or produced through Smart Storage. A Knowledge Entry's Knowledge Context is constituted by its Tags.
+A typed, contextualized unit of knowledge in the application, whether created directly by a user or produced through Smart Storage. A Knowledge Entry represents one Referent of the same Knowledge Type and its Knowledge Context is constituted by its Tags.
 _Avoid_: File, document, source, post
+
+**Entry Representation**:
+A content form or media form through which a Knowledge Entry is expressed, such as editable rich text, plain text, audio, video, an external URL, or a stored file. An Entry Representation does not change the Knowledge Type or Referent represented by the Knowledge Entry.
+_Avoid_: Source, Knowledge Type, file type
 
 **Visibility Scope**:
 The audience allowed to access a Knowledge Entry, such as one user, an organization, a group, a network of organizations, or everyone.
@@ -52,6 +56,10 @@ _Avoid_: Prompt, query
 The set of Knowledge Requests that could meaningfully be asked within a Knowledge Context.
 _Avoid_: Search space, prompt space, chat history
 
+**Dashboard**:
+The user-facing place for Explore and Contribute when the Knowledge Navigator has no active Tags and the user is located in the Global Knowledge Context.
+_Avoid_: Home page, global context page
+
 **Topic**:
 A Knowledge Type for a named subject of discussion that Knowledge Entries can address, argue about, explain, illustrate, or apply.
 _Avoid_: Context page, forum, category
@@ -61,8 +69,12 @@ A Knowledge Type for a named collection or sequence of related Knowledge Entries
 _Avoid_: Topic, folder, collection
 
 **Context Page**:
-A user-facing place for Explore and Contribute within the Knowledge Context determined by the Knowledge Navigator's active Tags.
-_Avoid_: Topic, channel, folder
+A user-facing place for Explore and Contribute within a Knowledge Context determined by two or more active Tags in the Knowledge Navigator.
+_Avoid_: Topic, channel, folder, Dashboard, Referent Page
+
+**Referent Page**:
+The user-facing place for Explore and Contribute focused on one active Tag and the Referent it points to. A Referent Page is reached by going to a Tag rather than by opening a Knowledge Entry.
+_Avoid_: Knowledge Entry page, Tag page, Folder View
 
 **Knowledge Navigator**:
 The user-facing control for selecting active Tags and thereby determining the current Knowledge Context. When no Tags are active in the Knowledge Navigator, the current location is the Global Knowledge Context.
@@ -73,8 +85,12 @@ The base Knowledge Type used for a Referent when no more specific Knowledge Type
 _Avoid_: Text, document, generic
 
 **Bible Passage**:
-A Knowledge Type for Scripture references, including a single verse, one verse range, a chapter, a larger passage, or a set of passages across multiple books of the Bible. A Bible Passage Referent may be a subset of another Bible Passage Referent.
-_Avoid_: Bible verse, Scripture tag
+A Knowledge Type for Scripture references, independent of translation wording and citation-string formatting, including a single verse, one verse range, a chapter, a larger passage, or a set of passages across multiple books of the Bible. A Bible Passage Referent may be a subset of another Bible Passage Referent.
+_Avoid_: Bible verse, Scripture tag, translation-specific passage, raw citation string
+
+**Bible Translation**:
+A textual rendering, edition, or source text of Scripture that may represent the words of a Bible Passage without changing the identity of the Bible Passage Referent. A Bible Translation may be known to the application before its full text is available.
+_Avoid_: Translation Knowledge Type, separate passage
 
 **Quote**:
 A Knowledge Type for a cited excerpt from a larger Source or Knowledge Entry that can stand as its own Referent within a Knowledge Context.
@@ -133,7 +149,7 @@ The relation of a Person to a Knowledge Type or Knowledge Entry, such as author,
 _Avoid_: Knowledge Type, user type
 
 **User**:
-A person with access to the application through an account. A User may be linked to a Person Referent, but not every Person is a User.
+A person with access to the application through an account. Every User is linked to one Person Knowledge Entry so the User can be tagged through that Person, but not every Person is a User.
 _Avoid_: Person, author, participant
 
 **Organization**:
@@ -169,20 +185,20 @@ The refinement of a Tag from Words to a more specific Knowledge Type when the Re
 _Avoid_: Retagging, duplicate tag
 
 **Referent**:
-The thing a Tag points to, identified by both name and Knowledge Type so similarly named things remain distinct.
-_Avoid_: Entity, item
+The thing a Tag points to, identified by both name and Knowledge Type so similarly named things remain distinct. A Referent may exist before any Knowledge Entry represents it.
+_Avoid_: Entity, item, entry
+
+**Represented Referent**:
+The same-typed Referent a Knowledge Entry uniquely expresses or records. A Referent may have at most one Knowledge Entry that represents it.
+_Avoid_: Primary Referent, subject, entity
 
 **Represents**:
-The relationship between a Knowledge Entry and the Referent it primarily expresses or records.
+The relationship between a Knowledge Entry and its Represented Referent.
 _Avoid_: Is, contains, owns
 
 **References**:
 The relationship created when a Knowledge Entry includes a Tag in its Knowledge Context, pointing from that entry to another Referent.
 _Avoid_: Contains, belongs to, filed under
-
-**Folder View**:
-A browseable view over knowledge related to a Referent.
-_Avoid_: Folder, directory
 
 **Virtual File System**:
 The user-facing model in which Tags behave like folders and Knowledge Entries behave like files that can appear in many folders at once.
@@ -197,11 +213,11 @@ To add a future Answer to the knowledgebase, either by submitting a Source, crea
 _Avoid_: Upload, post, store, work
 
 **Knowledge Slot**:
-A predefined request for one or more Knowledge Entries of a specified Knowledge Type within a specified Knowledge Context. A Knowledge Slot directs a user, group, organization, network, or open audience to Contribute a missing future Answer.
+A predefined request for one Knowledge Entry of a specified Knowledge Type within a specified Knowledge Context. A Knowledge Slot directs a user, group, organization, network, or open audience to Contribute a missing future Answer.
 _Avoid_: Todo, assignment, prompt, bounty, call to action
 
 **Fulfillment**:
-The state of a Knowledge Slot after it has received the requested Knowledge Entry or Entries.
+The state of a Knowledge Slot after it has received the requested Knowledge Entry.
 _Avoid_: Completion, submission, done
 
 **Subscription**:
