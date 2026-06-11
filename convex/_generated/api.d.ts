@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as answerFeed from "../answerFeed.js";
 import type * as auth from "../auth.js";
 import type * as authAvailability from "../authAvailability.js";
 import type * as authProviderConfig from "../authProviderConfig.js";
@@ -25,6 +26,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  answerFeed: typeof answerFeed;
   auth: typeof auth;
   authAvailability: typeof authAvailability;
   authProviderConfig: typeof authProviderConfig;

@@ -142,6 +142,10 @@ export function resolveTag(tagId: string): ActiveTag {
   return TAGS_BY_ID.get(tagId) ?? tagFixture(tagId, labelFromTagId(tagId), "words");
 }
 
+export function resolveTags(tagIds: string[]): ActiveTag[] {
+  return sortTagsById(tagIds.map(resolveTag));
+}
+
 export function sortTagIds(tagIds: string[]) {
   return Array.from(new Set(tagIds)).sort(compareTagIds);
 }

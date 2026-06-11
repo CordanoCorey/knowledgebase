@@ -6,6 +6,7 @@ import {
   Tag,
   UserCircle,
 } from "lucide-react";
+import type { MouseEvent } from "react";
 import {
   formatKnowledgeTypeLabel,
   type KnowledgeEntrySummary,
@@ -20,6 +21,7 @@ type KnowledgeEntryCardProps = {
 
 type KnowledgeSlotCardProps = {
   className?: string;
+  onContribute?: (slot: KnowledgeSlotSummary) => void;
   slot: KnowledgeSlotSummary;
 };
 
@@ -88,11 +90,24 @@ export function KnowledgeEntryCard({ className, entry }: KnowledgeEntryCardProps
   );
 }
 
-export function KnowledgeSlotCard({ className, slot }: KnowledgeSlotCardProps) {
+export function KnowledgeSlotCard({
+  className,
+  onContribute,
+  slot,
+}: KnowledgeSlotCardProps) {
   const requestedTypeLabel = formatKnowledgeTypeLabel(slot.requestedKnowledgeType);
   const statusLabel = SLOT_STATUS_LABELS[slot.status];
   const promptText =
     slot.promptText?.trim() || "Contribution requested for this Knowledge Context.";
+
+  function handleContributeClick(event: MouseEvent<HTMLAnchorElement>) {
+    if (!onContribute) {
+      return;
+    }
+
+    event.preventDefault();
+    onContribute(slot);
+  }
 
   return (
     <article
@@ -144,7 +159,11 @@ export function KnowledgeSlotCard({ className, slot }: KnowledgeSlotCardProps) {
       />
 
       <footer className="kb-card-footer">
-        <a className="kb-card-action kb-card-action-primary" href={slot.href}>
+        <a
+          className="kb-card-action kb-card-action-primary"
+          href={slot.href}
+          onClick={handleContributeClick}
+        >
           <FolderPlus aria-hidden="true" />
           Contribute {requestedTypeLabel}
         </a>

@@ -5,7 +5,6 @@ import {
   type ChangeEvent,
   type ElementType,
   type FocusEvent,
-  type FormEvent,
   type KeyboardEvent,
   type MouseEvent,
   type ReactNode,
@@ -24,7 +23,6 @@ import {
   Plus,
   Search,
   Settings,
-  Sparkles,
   Tag,
   UserCircle,
   X,
@@ -37,10 +35,16 @@ import archePressHorizontalLogoDarkUrl from "./assets/arche-press_logo-horizonta
 import archePressHorizontalLogoUrl from "./assets/arche-press_logo-horizontal-full.svg";
 import profilePlaceholderUrl from "./assets/profile-placeholder.png";
 import { AnswerFeed as AnswerFeedSurface } from "./AnswerFeed";
+import { ContributionEditor as ContributionEditorSurface } from "./ContributionEditor";
+import { KnowledgeRequestComposer } from "./KnowledgeRequestComposer";
 import { KnowledgeSlotCard } from "./components/KnowledgeCards";
 import {
   ANSWER_FEED_FIXTURE,
-  getPrimarySlotForContext,
+  type AnswerFeedFixtureItem,
+  getFixtureContextTags,
+  getPrimarySlotItemForContext,
+  isAnswerFeedSlot,
+  selectAnswerFeedItems,
 } from "./answerFeedData";
 import {
   addActiveTag,
@@ -51,7 +55,12 @@ import {
   removeActiveTag,
 } from "./knowledgeContext";
 import type { ActiveTag } from "./knowledgeContext";
-import type { KnowledgeSlotSummary } from "./knowledgeContracts";
+import type {
+  AuthorableKnowledgeType,
+  ContributionInput,
+  ContributionResult,
+  KnowledgeSlotSummary,
+} from "./knowledgeContracts";
 import { LayoutPrototype } from "./prototypes/LayoutPrototype";
 
 const THEME_STORAGE_KEY = "knowledgebase-theme";
@@ -78,7 +87,7 @@ type PageId =
 type CoreComponentId =
   | "knowledge-navigator"
   | "answer-feed"
-  | "question-composer"
+  | "knowledge-request-composer"
   | "contribution-editor"
   | "knowledge-entry-card"
   | "knowledge-slot-card";
@@ -109,7 +118,7 @@ const ROUTES: RouteDefinition[] = [
     components: [
       "knowledge-navigator",
       "answer-feed",
-      "question-composer",
+      "knowledge-request-composer",
       "contribution-editor",
       "knowledge-entry-card",
       "knowledge-slot-card",
@@ -124,7 +133,7 @@ const ROUTES: RouteDefinition[] = [
     components: [
       "knowledge-navigator",
       "answer-feed",
-      "question-composer",
+      "knowledge-request-composer",
       "contribution-editor",
       "knowledge-entry-card",
       "knowledge-slot-card",
@@ -139,7 +148,7 @@ const ROUTES: RouteDefinition[] = [
     components: [
       "knowledge-navigator",
       "answer-feed",
-      "question-composer",
+      "knowledge-request-composer",
       "contribution-editor",
       "knowledge-entry-card",
       "knowledge-slot-card",
@@ -154,7 +163,7 @@ const ROUTES: RouteDefinition[] = [
     components: [
       "knowledge-navigator",
       "answer-feed",
-      "question-composer",
+      "knowledge-request-composer",
       "contribution-editor",
       "knowledge-entry-card",
       "knowledge-slot-card",
@@ -168,7 +177,7 @@ const ROUTES: RouteDefinition[] = [
     icon: Landmark,
     components: [
       "answer-feed",
-      "question-composer",
+      "knowledge-request-composer",
       "contribution-editor",
       "knowledge-entry-card",
       "knowledge-slot-card",
@@ -182,7 +191,7 @@ const ROUTES: RouteDefinition[] = [
     icon: UserCircle,
     components: [
       "answer-feed",
-      "question-composer",
+      "knowledge-request-composer",
       "contribution-editor",
       "knowledge-entry-card",
       "knowledge-slot-card",
@@ -742,6 +751,7 @@ function PageScaffold({
           activeTags={activeTags}
           components={route.components}
           label={route.label}
+          onNavigateToHref={onNavigateToHref}
         />
       ) : (
         <PagePlaceholder route={route} />
@@ -761,38 +771,118 @@ function ComponentScaffold({
   activeTags,
   components,
   label,
+  onNavigateToHref,
 }: {
   activeTags: ActiveTag[];
   components: CoreComponentId[];
   label: string;
+  onNavigateToHref: (href: string) => void;
 }) {
-  const primarySlot = getPrimarySlotForContext(ANSWER_FEED_FIXTURE, activeTags);
+  const [selectedContributionKnowledgeType, setSelectedContributionKnowledgeType] =
+    useState<AuthorableKnowledgeType | null>(null);
+  const [feedItems, setFeedItems] =
+    useState<AnswerFeedFixtureItem[]>(ANSWER_FEED_FIXTURE);
+  const [selectedContributionSlotId, setSelectedContributionSlotId] =
+    useState<string | null>(null);
+  const activeContextKey = getKnowledgeContextKey(activeTags);
+  const matchingFeedItems = useMemo(
+    () => selectAnswerFeedItems(feedItems, activeTags),
+    [activeTags, feedItems],
+  );
+  const primarySlotItem = getPrimarySlotItemForContext(feedItems, activeTags);
+  const selectedSlotItem = selectedContributionSlotId
+    ? matchingFeedItems.find(
+        (item): item is AnswerFeedFixtureItem & { kind: "slot" } =>
+          isAnswerFeedSlot(item) && item.slot.id === selectedContributionSlotId,
+      )
+    : undefined;
+  const primarySlot = primarySlotItem?.slot;
+  const selectedSlot = selectedSlotItem?.slot;
+  const contributionContext = selectedSlotItem
+    ? getFixtureContextTags(selectedSlotItem.contextTagIds)
+    : activeTags;
+
+  useEffect(() => {
+    setSelectedContributionSlotId(null);
+  }, [activeContextKey]);
+
+  function handleSubmitContribution(
+    input: ContributionInput,
+  ): Promise<ContributionResult> {
+    const contributionItem = createDeterministicContributionFeedItem(input);
+
+    setFeedItems((currentItems) => [
+      contributionItem,
+      ...currentItems.filter(
+        (item) =>
+          item.kind === "answer"
+            ? item.entry.id !== contributionItem.entry.id
+            : true,
+      ),
+    ]);
+
+    return Promise.resolve({
+      entryId: contributionItem.entry.id,
+      status: "submitted",
+    });
+  }
+
+  function handleApplyMappedTags(mappedTags: ActiveTag[]) {
+    onNavigateToHref(getCanonicalKnowledgeContextHref(mappedTags));
+  }
+
+  function handleContributeToSlot(slot: KnowledgeSlotSummary) {
+    setSelectedContributionSlotId(slot.id);
+  }
 
   return (
     <section className="kb-scaffold-grid" aria-label={`${label} component scaffold`}>
       {components.includes("answer-feed") ? (
         <AnswerFeedSurface
           activeTags={activeTags}
-          items={ANSWER_FEED_FIXTURE}
+          items={feedItems}
+          onContributeToSlot={handleContributeToSlot}
         />
       ) : null}
 
       <aside className="kb-component-rail" aria-label="Secondary placeholders">
         {components.includes("knowledge-slot-card") ? (
-          <KnowledgeSlotRail slot={primarySlot} />
+          <KnowledgeSlotRail
+            onContributeToSlot={handleContributeToSlot}
+            slot={primarySlot}
+          />
         ) : null}
-        {components.includes("question-composer") ? <QuestionComposer /> : null}
+        {components.includes("knowledge-request-composer") ? (
+          <PlaceholderBlock code="C3" title="Knowledge Request Composer">
+            <KnowledgeRequestComposer
+              activeTags={activeTags}
+              onApplyMappedTags={handleApplyMappedTags}
+            />
+          </PlaceholderBlock>
+        ) : null}
         {components.includes("contribution-editor") ? (
-          <ContributionEditor />
+          <ContributionEditorSurface
+            context={contributionContext}
+            onKnowledgeTypeChange={setSelectedContributionKnowledgeType}
+            onSubmitSource={handleSubmitContribution}
+            selectedKnowledgeType={selectedContributionKnowledgeType}
+            slot={selectedSlot}
+          />
         ) : null}
       </aside>
     </section>
   );
 }
 
-function KnowledgeSlotRail({ slot }: { slot?: KnowledgeSlotSummary }) {
+function KnowledgeSlotRail({
+  onContributeToSlot,
+  slot,
+}: {
+  onContributeToSlot: (slot: KnowledgeSlotSummary) => void;
+  slot?: KnowledgeSlotSummary;
+}) {
   if (slot) {
-    return <KnowledgeSlotCard slot={slot} />;
+    return <KnowledgeSlotCard onContribute={onContributeToSlot} slot={slot} />;
   }
 
   return (
@@ -800,6 +890,42 @@ function KnowledgeSlotRail({ slot }: { slot?: KnowledgeSlotSummary }) {
       <p className="kb-rail-empty">No Knowledge Slots in this Knowledge Context.</p>
     </PlaceholderBlock>
   );
+}
+
+const DETERMINISTIC_CONTRIBUTION_UPDATED_AT = Date.UTC(2026, 5, 1, 12);
+const DETERMINISTIC_CONTRIBUTION_HUMAN_WEIGHT = 82;
+
+function createDeterministicContributionFeedItem(
+  input: ContributionInput,
+): AnswerFeedFixtureItem & { kind: "answer" } {
+  const entryId = `simulated-${slugifyContributionId(input.slotId ?? input.title)}`;
+  const contextPreviewTagLabels = input.contextTags.map((tag) => tag.label);
+
+  return {
+    kind: "answer",
+    contextTagIds: input.contextTags.map((tag) => tag.id),
+    entry: {
+      id: entryId,
+      title: input.title,
+      knowledgeType: input.knowledgeType,
+      previewText: input.body.trim().slice(0, 220),
+      primaryTagLabel: contextPreviewTagLabels[0] ?? input.title,
+      contextPreviewTagLabels,
+      humanWeight: DETERMINISTIC_CONTRIBUTION_HUMAN_WEIGHT,
+      href: `/entries/${entryId}`,
+      updatedAt: DETERMINISTIC_CONTRIBUTION_UPDATED_AT,
+    },
+  };
+}
+
+function slugifyContributionId(value: string) {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return slug || "contribution";
 }
 
 function BiblePassagePage({
@@ -949,6 +1075,7 @@ function BiblePassagePage({
         activeTags={activeTags}
         components={getRoute("scripture").components}
         label={passage.label}
+        onNavigateToHref={onNavigateToHref}
       />
     </main>
   );
@@ -1087,52 +1214,6 @@ function KnowledgeNavigator({
         </span>
       </div>
     </PlaceholderBlock>
-  );
-}
-
-function QuestionComposer() {
-  return (
-    <PlaceholderBlock code="C3" title="Question Composer">
-      <AssistantInput
-        label="Question Composer"
-        placeholder="Ask Assistant..."
-      />
-    </PlaceholderBlock>
-  );
-}
-
-function ContributionEditor() {
-  return (
-    <PlaceholderBlock code="C4" title="Contribution Editor">
-      <AssistantInput
-        label="Contribution Editor"
-        placeholder="Ask Assistant..."
-      />
-    </PlaceholderBlock>
-  );
-}
-
-function AssistantInput({
-  label,
-  placeholder,
-}: {
-  label: string;
-  placeholder: string;
-}) {
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-  }
-
-  return (
-    <form className="kb-assistant-input" onSubmit={handleSubmit}>
-      <label>
-        <span>{label}</span>
-        <input type="text" placeholder={placeholder} />
-      </label>
-      <button type="submit" aria-label={label}>
-        <Sparkles aria-hidden="true" />
-      </button>
-    </form>
   );
 }
 

@@ -1,4 +1,4 @@
-import type { ActiveTag } from "./knowledgeContext";
+import { resolveTags, type ActiveTag } from "./knowledgeContext";
 import type {
   AnswerFeedItem,
   KnowledgeEntrySummary,
@@ -31,6 +31,22 @@ export const ANSWER_FEED_FIXTURE: AnswerFeedFixtureItem[] = [
       humanWeight: 94,
       href: "/entries/entry-romans-8-spirit-sermon",
       updatedAt: Date.UTC(2026, 3, 18, 12),
+    },
+  },
+  {
+    kind: "answer",
+    contextTagIds: ["romans-8-28", "holy-spirit"],
+    entry: {
+      id: "entry-romans-8-spirit-note",
+      title: "Spirit-led Hope in Hard Providences",
+      knowledgeType: "words",
+      previewText:
+        "A pastoral note on how the Spirit helps believers receive Romans 8:28 with patience.",
+      primaryTagLabel: "Romans 8:28",
+      contextPreviewTagLabels: ["Romans 8:28", "Holy Spirit"],
+      humanWeight: 68,
+      href: "/entries/entry-romans-8-spirit-note",
+      updatedAt: Date.UTC(2026, 3, 12, 12),
     },
   },
   {
@@ -189,7 +205,18 @@ export function getPrimarySlotForContext(
   items: AnswerFeedFixtureItem[],
   activeTags: ActiveTag[],
 ) {
-  return selectAnswerFeedItems(items, activeTags).find(isAnswerFeedSlot)?.slot;
+  return getPrimarySlotItemForContext(items, activeTags)?.slot;
+}
+
+export function getPrimarySlotItemForContext(
+  items: AnswerFeedFixtureItem[],
+  activeTags: ActiveTag[],
+) {
+  return selectAnswerFeedItems(items, activeTags).find(isAnswerFeedSlot);
+}
+
+export function getFixtureContextTags(contextTagIds: string[]) {
+  return resolveTags(contextTagIds);
 }
 
 export function getAnswerFeedItemId(item: AnswerFeedItem) {

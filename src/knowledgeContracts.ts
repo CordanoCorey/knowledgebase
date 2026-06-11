@@ -23,6 +23,29 @@ export type KnowledgeType =
 
 export type AuthorableKnowledgeType = Exclude<KnowledgeType, "biblePassage">;
 
+export const AUTHORABLE_KNOWLEDGE_TYPES = [
+  "words",
+  "topic",
+  "series",
+  "question",
+  "quote",
+  "sermon",
+  "essay",
+  "poem",
+  "song",
+  "book",
+  "shortStory",
+  "lesson",
+  "comment",
+  "prayerRequest",
+  "event",
+  "rsvp",
+  "person",
+  "organization",
+  "group",
+  "place",
+] as const satisfies readonly AuthorableKnowledgeType[];
+
 export type KnowledgeLocationKind =
   | "dashboard"
   | "biblePassageReferent"
@@ -70,6 +93,19 @@ export type KnowledgeSlotSummary = {
   href: string;
 };
 
+export type ContributionInput = {
+  body: string;
+  contextTags: ActiveTag[];
+  knowledgeType: AuthorableKnowledgeType;
+  slotId?: string;
+  title: string;
+};
+
+export type ContributionResult = {
+  entryId?: string;
+  status: "submitted";
+};
+
 export type AnswerFeedItem =
   | { kind: "answer"; entry: KnowledgeEntrySummary }
   | { kind: "slot"; slot: KnowledgeSlotSummary };
@@ -107,4 +143,17 @@ const KNOWLEDGE_TYPE_LABELS: Record<KnowledgeType, string> = {
 
 export function formatKnowledgeTypeLabel(knowledgeType: KnowledgeType) {
   return KNOWLEDGE_TYPE_LABELS[knowledgeType];
+}
+
+const AUTHORABLE_KNOWLEDGE_TYPE_SET = new Set<KnowledgeType>(
+  AUTHORABLE_KNOWLEDGE_TYPES,
+);
+
+export function isAuthorableKnowledgeType(
+  knowledgeType: KnowledgeType | string | null | undefined,
+): knowledgeType is AuthorableKnowledgeType {
+  return (
+    typeof knowledgeType === "string" &&
+    AUTHORABLE_KNOWLEDGE_TYPE_SET.has(knowledgeType as KnowledgeType)
+  );
 }

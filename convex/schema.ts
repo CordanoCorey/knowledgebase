@@ -238,6 +238,7 @@ export default defineSchema({
     .index("by_knowledgeType", ["knowledgeType"])
     .index("by_knowledgeType_and_createdAt", ["knowledgeType", "createdAt"])
     .index("by_knowledgeType_and_updatedAt", ["knowledgeType", "updatedAt"])
+    .index("by_humanWeight_and_updatedAt", ["humanWeight", "updatedAt"])
     .index("by_createdByUserId", ["createdByUserId"])
     .index("by_createdByUserId_and_createdAt", [
       "createdByUserId",

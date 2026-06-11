@@ -8,15 +8,18 @@ import {
   isAnswerFeedSlot,
   selectAnswerFeedItems,
 } from "./answerFeedData";
+import type { KnowledgeSlotSummary } from "./knowledgeContracts";
 
 type AnswerFeedProps = {
   activeTags: ActiveTag[];
   items?: AnswerFeedFixtureItem[];
+  onContributeToSlot?: (slot: KnowledgeSlotSummary) => void;
 };
 
 export function AnswerFeed({
   activeTags,
   items = ANSWER_FEED_FIXTURE,
+  onContributeToSlot,
 }: AnswerFeedProps) {
   const feedItems = selectAnswerFeedItems(items, activeTags);
   const answerCount = feedItems.filter(isAnswerFeedAnswer).length;
@@ -51,7 +54,10 @@ export function AnswerFeed({
               {item.kind === "answer" ? (
                 <KnowledgeEntryCard entry={item.entry} />
               ) : (
-                <KnowledgeSlotCard slot={item.slot} />
+                <KnowledgeSlotCard
+                  onContribute={onContributeToSlot}
+                  slot={item.slot}
+                />
               )}
             </li>
           ))}
