@@ -1,42 +1,72 @@
 import {
   useEffect,
+  useMemo,
   useState,
+  type ChangeEvent,
   type ElementType,
+  type FocusEvent,
   type FormEvent,
+  type KeyboardEvent,
   type MouseEvent,
   type ReactNode,
 } from "react";
 import { useConvexAuth } from "@convex-dev/auth/react";
+import { useQuery } from "convex/react";
 import {
   Bell,
+  BookOpen,
   CalendarDays,
   Compass,
   Landmark,
   LayoutDashboard,
   LoaderCircle,
   Moon,
+  Plus,
   Search,
   Settings,
   Sparkles,
   Tag,
   UserCircle,
+  X,
 } from "lucide-react";
+import { api } from "../convex/_generated/api";
+import { parseBiblePassageReference } from "../convex/lib/scriptureReferences";
 import { AuthPanel, SignOutButton } from "./auth/AuthPanel";
 import archePressIconUrl from "./assets/arche-press_icon-full.svg";
 import archePressHorizontalLogoDarkUrl from "./assets/arche-press_logo-horizontal-full-dark.svg";
 import archePressHorizontalLogoUrl from "./assets/arche-press_logo-horizontal-full.svg";
 import profilePlaceholderUrl from "./assets/profile-placeholder.png";
+import { AnswerFeed as AnswerFeedSurface } from "./AnswerFeed";
+import { KnowledgeSlotCard } from "./components/KnowledgeCards";
+import {
+  ANSWER_FEED_FIXTURE,
+  getPrimarySlotForContext,
+} from "./answerFeedData";
+import {
+  addActiveTag,
+  getActiveTagsFromRoute,
+  getCanonicalKnowledgeContextHref,
+  getInactiveNavigatorTags,
+  getKnowledgeContextKey,
+  removeActiveTag,
+} from "./knowledgeContext";
+import type { ActiveTag } from "./knowledgeContext";
+import type { KnowledgeSlotSummary } from "./knowledgeContracts";
+import { LayoutPrototype } from "./prototypes/LayoutPrototype";
 
 const THEME_STORAGE_KEY = "knowledgebase-theme";
 
-const SAMPLE_TAG_ID = "scripture";
+const SAMPLE_TAG_ID = "holy-spirit";
 const SAMPLE_ORG_ID = "my-church";
-const SAMPLE_CONTEXT_TAG_IDS = "scripture,romans-8";
+const SAMPLE_CONTEXT_TAG_IDS = "holy-spirit,romans-8-28";
+const SAMPLE_SCRIPTURE_PASSAGE = "john-3-16";
+const MAX_PASSAGE_SUGGESTIONS = 5;
 
 type ThemePreference = "light" | "dark";
 
 type PageId =
   | "dashboard"
+  | "scripture"
   | "tag"
   | "explore-context"
   | "organization-home"
@@ -86,10 +116,25 @@ const ROUTES: RouteDefinition[] = [
     ],
   },
   {
+    id: "scripture",
+    label: "Bible Passage",
+    href: `/scripture/${SAMPLE_SCRIPTURE_PASSAGE}`,
+    pattern: "/scripture/:passageString",
+    icon: BookOpen,
+    components: [
+      "knowledge-navigator",
+      "answer-feed",
+      "question-composer",
+      "contribution-editor",
+      "knowledge-entry-card",
+      "knowledge-slot-card",
+    ],
+  },
+  {
     id: "tag",
-    label: "Tag",
-    href: `/${SAMPLE_TAG_ID}`,
-    pattern: "/:tagId",
+    label: "Referent Page",
+    href: `/goto/${SAMPLE_TAG_ID}`,
+    pattern: "/goto/:tagId",
     icon: Tag,
     components: [
       "knowledge-navigator",
@@ -205,6 +250,10 @@ export default function App() {
 
   function navigate(event: MouseEvent<HTMLAnchorElement>, href: string) {
     event.preventDefault();
+    navigateToHref(href);
+  }
+
+  function navigateToHref(href: string) {
     window.history.pushState({}, "", href);
     setRouteState(getRouteState(window.location));
   }
@@ -216,6 +265,10 @@ export default function App() {
   function goToDashboard() {
     window.history.replaceState({}, "", "/");
     setRouteState(getRouteState(window.location));
+  }
+
+  if (isLayoutPrototypeRoute()) {
+    return <LayoutPrototype onToggleTheme={toggleTheme} theme={theme} />;
   }
 
   if (isLoading) {
@@ -245,11 +298,16 @@ export default function App() {
     <KnowledgebaseShell
       activePageId={routeState.route.id}
       onNavigate={navigate}
+      onNavigateToHref={navigateToHref}
       onToggleTheme={toggleTheme}
       routeState={routeState}
       theme={theme}
     >
-      <PageScaffold routeState={routeState} onNavigate={navigate} />
+      <PageScaffold
+        onNavigate={navigate}
+        onNavigateToHref={navigateToHref}
+        routeState={routeState}
+      />
     </KnowledgebaseShell>
   );
 }
@@ -280,6 +338,14 @@ function matchRoute(pathname: string) {
     return getRoute("explore-context");
   }
 
+  if (pathname === "/scripture" || pathname.startsWith("/scripture/")) {
+    return getRoute("scripture");
+  }
+
+  if (pathname === "/goto" || pathname.startsWith("/goto/")) {
+    return getRoute("tag");
+  }
+
   if (pathname.startsWith("/orgs/")) {
     return getRoute("organization-home");
   }
@@ -291,7 +357,7 @@ function matchRoute(pathname: string) {
     return staticRoute;
   }
 
-  return getRoute("tag");
+  return getRoute("dashboard");
 }
 
 function getRoute(pageId: PageId) {
@@ -315,10 +381,18 @@ function readStoredTheme(): ThemePreference {
   }
 }
 
+function isLayoutPrototypeRoute() {
+  return (
+    !import.meta.env.PROD &&
+    new URLSearchParams(window.location.search).get("prototype") === "layout"
+  );
+}
+
 function KnowledgebaseShell({
   activePageId,
   children,
   onNavigate,
+  onNavigateToHref,
   onToggleTheme,
   routeState,
   theme,
@@ -326,6 +400,7 @@ function KnowledgebaseShell({
   activePageId: PageId;
   children: ReactNode;
   onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+  onNavigateToHref: (href: string) => void;
   onToggleTheme: () => void;
   routeState: RouteState;
   theme: ThemePreference;
@@ -336,6 +411,7 @@ function KnowledgebaseShell({
       <div className="kb-host-column">
         <TopBar
           onNavigate={onNavigate}
+          onNavigateToHref={onNavigateToHref}
           onToggleTheme={onToggleTheme}
           routeState={routeState}
           theme={theme}
@@ -443,18 +519,92 @@ function ProfileRouteLink({
 
 function TopBar({
   onNavigate,
+  onNavigateToHref,
   onToggleTheme,
   routeState,
   theme,
 }: {
   onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+  onNavigateToHref: (href: string) => void;
   onToggleTheme: () => void;
   routeState: RouteState;
   theme: ThemePreference;
 }) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
   const nextTheme = theme === "dark" ? "light" : "dark";
   const brandLogoUrl =
     theme === "dark" ? archePressHorizontalLogoDarkUrl : archePressHorizontalLogoUrl;
+  const trimmedSearchQuery = searchQuery.trim();
+  const suggestions = useMemo(
+    () => getPassageSuggestions(trimmedSearchQuery, 4),
+    [trimmedSearchQuery],
+  );
+  const isSuggestionListOpen =
+    isSearchFocused && trimmedSearchQuery.length > 0 && suggestions.length > 0;
+
+  useEffect(() => {
+    setActiveSuggestionIndex(0);
+  }, [suggestions[0]?.href]);
+
+  function handleSearchChange(event: ChangeEvent<HTMLInputElement>) {
+    setSearchQuery(event.currentTarget.value);
+  }
+
+  function handleSearchBlur(event: FocusEvent<HTMLDivElement>) {
+    const nextTarget = event.relatedTarget;
+    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) {
+      return;
+    }
+
+    setIsSearchFocused(false);
+  }
+
+  function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (!isSuggestionListOpen) {
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveSuggestionIndex((currentIndex) =>
+        Math.min(currentIndex + 1, suggestions.length - 1),
+      );
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveSuggestionIndex((currentIndex) => Math.max(currentIndex - 1, 0));
+      return;
+    }
+
+    if (event.key === "Escape") {
+      setIsSearchFocused(false);
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      const suggestion = suggestions[activeSuggestionIndex];
+      if (suggestion) {
+        navigateToSuggestion(suggestion.href);
+      }
+    }
+  }
+
+  function navigateToSuggestion(href: string) {
+    onNavigateToHref(href);
+    setSearchQuery("");
+    setIsSearchFocused(false);
+  }
+
+  function handleSuggestionClick(event: MouseEvent<HTMLAnchorElement>, href: string) {
+    onNavigate(event, href);
+    setSearchQuery("");
+    setIsSearchFocused(false);
+  }
 
   return (
     <header className="kb-topbar">
@@ -497,10 +647,51 @@ function TopBar({
           <Bell aria-hidden="true" />
         </a>
         <SignOutButton />
-        <label className="kb-search">
-          <Search aria-hidden="true" />
-          <input type="text" placeholder="Search categories, settings, etc." />
-        </label>
+        <div className="kb-search-wrap" onBlur={handleSearchBlur}>
+          <label className="kb-search">
+            <Search aria-hidden="true" />
+            <input
+              aria-activedescendant={
+                isSuggestionListOpen
+                  ? `kb-search-suggestion-${activeSuggestionIndex}`
+                  : undefined
+              }
+              aria-autocomplete="list"
+              aria-controls="kb-search-suggestions"
+              aria-expanded={isSuggestionListOpen}
+              onChange={handleSearchChange}
+              onFocus={() => setIsSearchFocused(true)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Search Scripture, people, topics, etc."
+              type="text"
+              value={searchQuery}
+            />
+          </label>
+          {isSuggestionListOpen ? (
+            <div
+              className="kb-search-suggestions"
+              id="kb-search-suggestions"
+              role="listbox"
+            >
+              {suggestions.map((suggestion, index) => (
+                <a
+                  aria-selected={index === activeSuggestionIndex}
+                  href={suggestion.href}
+                  id={`kb-search-suggestion-${index}`}
+                  key={suggestion.href}
+                  onClick={(event) => handleSuggestionClick(event, suggestion.href)}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onMouseEnter={() => setActiveSuggestionIndex(index)}
+                  role="option"
+                >
+                  <BookOpen aria-hidden="true" />
+                  <span>{suggestion.label}</span>
+                  <small>Bible Passage</small>
+                </a>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </div>
     </header>
   );
@@ -508,12 +699,24 @@ function TopBar({
 
 function PageScaffold({
   onNavigate,
+  onNavigateToHref,
   routeState,
 }: {
   onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+  onNavigateToHref: (href: string) => void;
   routeState: RouteState;
 }) {
   const { route } = routeState;
+  const activeTags = getActiveTagsFromRoute(routeState);
+  if (route.id === "scripture") {
+    return (
+      <BiblePassagePage
+        onNavigateToHref={onNavigateToHref}
+        routeState={routeState}
+      />
+    );
+  }
+
   const hasNavigator = route.components.includes("knowledge-navigator");
   const hasWorkingLayout = route.components.length > 0;
 
@@ -527,24 +730,19 @@ function PageScaffold({
         <RouteMeta routeState={routeState} />
       </header>
 
-      {hasNavigator ? <KnowledgeNavigator /> : null}
+      {hasNavigator ? (
+        <KnowledgeNavigator
+          onNavigateToHref={onNavigateToHref}
+          routeState={routeState}
+        />
+      ) : null}
 
       {hasWorkingLayout ? (
-        <section className="kb-scaffold-grid" aria-label={`${route.label} component scaffold`}>
-          {route.components.includes("answer-feed") ? (
-            <AnswerFeed
-              showEntryCard={route.components.includes("knowledge-entry-card")}
-            />
-          ) : null}
-
-          <aside className="kb-component-rail" aria-label="Secondary placeholders">
-            {route.components.includes("knowledge-slot-card") ? <KnowledgeSlotCard /> : null}
-            {route.components.includes("question-composer") ? <QuestionComposer /> : null}
-            {route.components.includes("contribution-editor") ? (
-              <ContributionEditor />
-            ) : null}
-          </aside>
-        </section>
+        <ComponentScaffold
+          activeTags={activeTags}
+          components={route.components}
+          label={route.label}
+        />
       ) : (
         <PagePlaceholder route={route} />
       )}
@@ -557,6 +755,247 @@ function PageScaffold({
       ) : null}
     </main>
   );
+}
+
+function ComponentScaffold({
+  activeTags,
+  components,
+  label,
+}: {
+  activeTags: ActiveTag[];
+  components: CoreComponentId[];
+  label: string;
+}) {
+  const primarySlot = getPrimarySlotForContext(ANSWER_FEED_FIXTURE, activeTags);
+
+  return (
+    <section className="kb-scaffold-grid" aria-label={`${label} component scaffold`}>
+      {components.includes("answer-feed") ? (
+        <AnswerFeedSurface
+          activeTags={activeTags}
+          items={ANSWER_FEED_FIXTURE}
+        />
+      ) : null}
+
+      <aside className="kb-component-rail" aria-label="Secondary placeholders">
+        {components.includes("knowledge-slot-card") ? (
+          <KnowledgeSlotRail slot={primarySlot} />
+        ) : null}
+        {components.includes("question-composer") ? <QuestionComposer /> : null}
+        {components.includes("contribution-editor") ? (
+          <ContributionEditor />
+        ) : null}
+      </aside>
+    </section>
+  );
+}
+
+function KnowledgeSlotRail({ slot }: { slot?: KnowledgeSlotSummary }) {
+  if (slot) {
+    return <KnowledgeSlotCard slot={slot} />;
+  }
+
+  return (
+    <PlaceholderBlock code="C6" title="Knowledge Slot Card">
+      <p className="kb-rail-empty">No Knowledge Slots in this Knowledge Context.</p>
+    </PlaceholderBlock>
+  );
+}
+
+function BiblePassagePage({
+  onNavigateToHref,
+  routeState,
+}: {
+  onNavigateToHref: (href: string) => void;
+  routeState: RouteState;
+}) {
+  const passageString = getScripturePassageString(routeState.pathname);
+  const activeTags = getActiveTagsFromRoute(routeState);
+  const passage = useQuery(
+    api.scripture.getPassage,
+    passageString ? { passageString } : "skip",
+  );
+
+  if (!passageString) {
+    return (
+      <main className="kb-main kb-scripture-main" aria-labelledby="kb-scripture-heading">
+        <header className="kb-route-header">
+          <div>
+            <p className="kb-eyebrow">Bible Passage Referent Page</p>
+            <h1 id="kb-scripture-heading">Scripture</h1>
+          </div>
+          <RouteMeta routeState={routeState} />
+        </header>
+        <section className="kb-scripture-empty" role="status">
+          Add a passage after `/scripture/`.
+        </section>
+      </main>
+    );
+  }
+
+  if (passage === undefined) {
+    return (
+      <main
+        aria-busy="true"
+        aria-labelledby="kb-scripture-heading"
+        className="kb-main kb-scripture-main"
+      >
+        <header className="kb-route-header">
+          <div>
+            <p className="kb-eyebrow">Bible Passage Referent Page</p>
+            <h1 id="kb-scripture-heading">Opening Scripture</h1>
+          </div>
+          <RouteMeta routeState={routeState} />
+        </header>
+        <section className="kb-scripture-empty" role="status">
+          <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
+          <span>Loading passage</span>
+        </section>
+      </main>
+    );
+  }
+
+  if (passage.status === "invalid") {
+    return (
+      <main className="kb-main kb-scripture-main" aria-labelledby="kb-scripture-heading">
+        <header className="kb-route-header">
+          <div>
+            <p className="kb-eyebrow">Bible Passage Referent Page</p>
+            <h1 id="kb-scripture-heading">Scripture</h1>
+          </div>
+          <RouteMeta routeState={routeState} />
+        </header>
+        <section className="kb-scripture-empty" role="alert">
+          {passage.message}
+        </section>
+      </main>
+    );
+  }
+
+  if (passage.status === "missingStructure") {
+    return (
+      <main className="kb-main kb-scripture-main" aria-labelledby="kb-scripture-heading">
+        <header className="kb-route-header">
+          <div>
+            <p className="kb-eyebrow">Bible Passage Referent Page</p>
+            <h1 id="kb-scripture-heading">{passage.label}</h1>
+          </div>
+          <RouteMeta routeState={routeState} />
+        </header>
+        <KnowledgeNavigator
+          onNavigateToHref={onNavigateToHref}
+          routeState={routeState}
+        />
+        <section className="kb-scripture-empty" role="status">
+          {passage.message}
+        </section>
+      </main>
+    );
+  }
+
+  const translationLabel = passage.translation
+    ? `${passage.translation.name} (${passage.translation.code})`
+    : "No translation selected";
+
+  return (
+    <main className="kb-main kb-scripture-main" aria-labelledby="kb-scripture-heading">
+      <header className="kb-route-header">
+        <div>
+          <p className="kb-eyebrow">Bible Passage Referent Page</p>
+          <h1 id="kb-scripture-heading">{passage.label}</h1>
+        </div>
+        <RouteMeta routeState={routeState} />
+      </header>
+
+      <KnowledgeNavigator
+        onNavigateToHref={onNavigateToHref}
+        routeState={routeState}
+      />
+
+      <section className="kb-scripture-panel" aria-label={`${passage.label} passage text`}>
+        <header>
+          <div>
+            <p className="kb-eyebrow">Scripture Text</p>
+            <h2>{translationLabel}</h2>
+          </div>
+          <span>{passage.canonicalKey}</span>
+        </header>
+
+        {!passage.hasText ? (
+          <div className="kb-scripture-empty" role="status">
+            {passage.translation
+              ? `Verse text for ${passage.translation.code} is not available yet.`
+              : "No Bible translation metadata is available yet."}
+          </div>
+        ) : (
+          <div className="kb-verse-list">
+            {passage.verses.map((verse) => (
+              <p className="kb-verse-row" key={verse.ordinal}>
+                <span className="kb-verse-ref">{formatVerseReference(verse)}</span>
+                <span>{verse.text ?? "Text unavailable"}</span>
+              </p>
+            ))}
+          </div>
+        )}
+
+        {passage.isTruncated ? (
+          <p className="kb-scripture-note" role="status">
+            Showing the first 300 verses.
+          </p>
+        ) : null}
+      </section>
+
+      <ComponentScaffold
+        activeTags={activeTags}
+        components={getRoute("scripture").components}
+        label={passage.label}
+      />
+    </main>
+  );
+}
+
+function getScripturePassageString(pathname: string) {
+  if (!pathname.startsWith("/scripture/")) {
+    return "";
+  }
+
+  try {
+    return decodeURIComponent(pathname.slice("/scripture/".length));
+  } catch {
+    return pathname.slice("/scripture/".length);
+  }
+}
+
+function getPassageSuggestions(query: string, limit: number) {
+  const suggestionLimit = Math.max(
+    0,
+    Math.min(Math.floor(limit), MAX_PASSAGE_SUGGESTIONS),
+  );
+  if (!query || suggestionLimit < 1) {
+    return [];
+  }
+
+  const parsedPassage = parseBiblePassageReference(query);
+  if (!parsedPassage) {
+    return [];
+  }
+
+  return [
+    {
+      href: `/scripture/${parsedPassage.slug}`,
+      kind: "biblePassage",
+      label: parsedPassage.label,
+      passageString: parsedPassage.slug,
+    },
+  ].slice(0, suggestionLimit);
+}
+
+function formatVerseReference(verse: {
+  bookShortName: string;
+  chapterNumber: number;
+  verseNumber: number;
+}) {
+  return `${verse.bookShortName} ${verse.chapterNumber}:${verse.verseNumber}`;
 }
 
 function RouteMeta({ routeState }: { routeState: RouteState }) {
@@ -574,25 +1013,79 @@ function RouteMeta({ routeState }: { routeState: RouteState }) {
   );
 }
 
-function KnowledgeNavigator() {
+function KnowledgeNavigator({
+  onNavigateToHref,
+  routeState,
+}: {
+  onNavigateToHref: (href: string) => void;
+  routeState: RouteState;
+}) {
+  const activeTags = useMemo(
+    () => getActiveTagsFromRoute(routeState),
+    [routeState.pathname, routeState.search],
+  );
+  const inactiveTags = useMemo(
+    () => getInactiveNavigatorTags(activeTags),
+    [activeTags],
+  );
+  const contextKey = getKnowledgeContextKey(activeTags);
+
+  function navigateToTags(nextTags: ActiveTag[]) {
+    onNavigateToHref(getCanonicalKnowledgeContextHref(nextTags));
+  }
+
+  function handleAddTag(tag: ActiveTag) {
+    navigateToTags(addActiveTag(activeTags, tag));
+  }
+
+  function handleRemoveTag(tagId: string) {
+    navigateToTags(removeActiveTag(activeTags, tagId));
+  }
+
   return (
     <PlaceholderBlock code="C1" title="Knowledge Navigator">
-      <div className="kb-placeholder-control-row">
-        <button type="button" disabled>
-          Add Tag
-        </button>
-        <button type="button" disabled>
-          Remove Tag
-        </button>
-      </div>
-    </PlaceholderBlock>
-  );
-}
+      <div className="kb-navigator-panel">
+        <div className="kb-active-tag-list" aria-label="Active Tags">
+          {activeTags.length > 0 ? (
+            activeTags.map((tag) => (
+              <button
+                aria-label={`Remove ${tag.label}`}
+                className="kb-active-tag-chip"
+                key={tag.id}
+                onClick={() => handleRemoveTag(tag.id)}
+                title={`Remove ${tag.label}`}
+                type="button"
+              >
+                <Tag aria-hidden="true" />
+                <span>{tag.label}</span>
+                <X aria-hidden="true" />
+              </button>
+            ))
+          ) : (
+            <p className="kb-navigator-empty">Global Knowledge Context</p>
+          )}
+        </div>
 
-function AnswerFeed({ showEntryCard }: { showEntryCard: boolean }) {
-  return (
-    <PlaceholderBlock code="C2" title="Answer Feed" variant="primary">
-      {showEntryCard ? <KnowledgeEntryCard /> : null}
+        <div className="kb-add-tag-list" aria-label="Available Tags">
+          {inactiveTags.map((tag) => (
+            <button
+              aria-label={`Add ${tag.label}`}
+              className="kb-add-tag-button"
+              key={tag.id}
+              onClick={() => handleAddTag(tag)}
+              title={`Add ${tag.label}`}
+              type="button"
+            >
+              <Plus aria-hidden="true" />
+              <span>{tag.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <span aria-live="polite" className="kb-sr-only">
+          {contextKey}
+        </span>
+      </div>
     </PlaceholderBlock>
   );
 }
@@ -640,20 +1133,6 @@ function AssistantInput({
         <Sparkles aria-hidden="true" />
       </button>
     </form>
-  );
-}
-
-function KnowledgeEntryCard() {
-  return <PlaceholderBlock code="C5" title="Knowledge Entry Card" />;
-}
-
-function KnowledgeSlotCard() {
-  return (
-    <PlaceholderBlock code="C6" title="Knowledge Slot Card">
-      <button type="button" disabled>
-        Slot CTA
-      </button>
-    </PlaceholderBlock>
   );
 }
 

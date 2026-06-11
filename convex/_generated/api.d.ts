@@ -13,6 +13,10 @@ import type * as authAvailability from "../authAvailability.js";
 import type * as authProviderConfig from "../authProviderConfig.js";
 import type * as editor from "../editor.js";
 import type * as http from "../http.js";
+import type * as lib_scriptureReferences from "../lib/scriptureReferences.js";
+import type * as scripture from "../scripture.js";
+import type * as seedScripture from "../seedScripture.js";
+import type * as seedScriptureAction from "../seedScriptureAction.js";
 
 import type {
   ApiFromModules,
@@ -26,6 +30,10 @@ declare const fullApi: ApiFromModules<{
   authProviderConfig: typeof authProviderConfig;
   editor: typeof editor;
   http: typeof http;
+  "lib/scriptureReferences": typeof lib_scriptureReferences;
+  scripture: typeof scripture;
+  seedScripture: typeof seedScripture;
+  seedScriptureAction: typeof seedScriptureAction;
 }>;
 
 /**

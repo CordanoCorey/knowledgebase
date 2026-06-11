@@ -1,63 +1,160 @@
-// PROTOTYPE: Three layout variants, switchable via ?variant=, on the existing app shell.
-import { useCallback, useEffect, useMemo, useState, type ComponentType } from "react";
+// PROTOTYPE: Three general-page layout variants, switchable via ?variant=, on the existing app shell.
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type ComponentType,
+  type ReactNode,
+} from "react";
 import {
   BarChart3,
   Bell,
-  BookmarkPlus,
   BookOpen,
+  BookmarkPlus,
   ChevronLeft,
   ChevronRight,
+  Compass,
   FolderPlus,
   HelpCircle,
   Info,
   LayoutGrid,
-  Mail,
   MessageSquare,
   Moon,
   Search,
+  Send,
   Settings,
-  UserSearch,
+  Sparkles,
+  Sun,
+  Tag,
+  UserCircle,
   Users,
 } from "lucide-react";
 import archePressIconUrl from "../assets/arche-press_icon-full.svg";
+import archePressHorizontalLogoDarkUrl from "../assets/arche-press_logo-horizontal-full-dark.svg";
+import archePressHorizontalLogoUrl from "../assets/arche-press_logo-horizontal-full.svg";
 import "./layoutPrototype.css";
 
 type VariantKey = "A" | "B" | "C";
+type ThemePreference = "light" | "dark";
+type PrototypeThemeControls = {
+  onToggleTheme: () => void;
+  theme: ThemePreference;
+};
 
 type VariantDefinition = {
   label: string;
-  component: ComponentType;
+  component: ComponentType<PrototypeThemeControls>;
+};
+
+type IconComponent = ComponentType<{ "aria-hidden"?: "true"; className?: string }>;
+
+type KnowledgeTag = {
+  detail: string;
+  label: string;
+  type: string;
+};
+
+type KnowledgeEntry = {
+  context: string;
+  excerpt: string;
+  humanWeight: number;
+  label: string;
+  source: string;
+  status: string;
+  tags: string[];
+  type: string;
 };
 
 const VARIANT_ORDER: VariantKey[] = ["A", "B", "C"];
 
-const SUPPORTED_QUESTIONS = [
-  "What are my top 10 donors ready for an ask right now?",
-  "Who should I reach out to this week?",
-  "Which donors have given in the last 5 years?",
-  "Who gave their largest gift ever in the past 12 months?",
+const ACTIVE_TAGS: KnowledgeTag[] = [
+  {
+    type: "Bible Passage",
+    label: "Romans 8",
+    detail: "Global Knowledge Context",
+  },
+  {
+    type: "Topic",
+    label: "Suffering and hope",
+    detail: "4 active Answers",
+  },
+  {
+    type: "Organization",
+    label: "Arche Press cohort",
+    detail: "Shared Visibility Scope",
+  },
 ];
 
-const FOLLOW_UPS = [
-  "Which of these donors haven't been contacted recently?",
-  "Which of these donors gave the most in the last year?",
-  "Who has the highest propensity score?",
+const SUGGESTED_TAGS = ["Adoption", "Sanctification", "Youth lesson", "Prayer request"];
+
+const KNOWLEDGE_ENTRIES: KnowledgeEntry[] = [
+  {
+    type: "Question",
+    label: "How should Romans 8 shape pastoral care for suffering?",
+    source: "Stored Question",
+    context: "Romans 8 + Suffering and hope",
+    excerpt:
+      "Connects suffering, groaning, adoption, and intercession into a pastoral-care frame for future Answers.",
+    humanWeight: 86,
+    status: "Answered by 6 entries",
+    tags: ["Romans 8", "Pastoral care", "Question Space"],
+  },
+  {
+    type: "Lesson",
+    label: "Middle school discussion guide: Hope in the Spirit",
+    source: "Arche Press cohort",
+    context: "Romans 8 + Youth lesson",
+    excerpt:
+      "A reusable lesson outline with warm-up prompts, Scripture reading, and reflection questions for small groups.",
+    humanWeight: 74,
+    status: "Ready to use",
+    tags: ["Lesson", "Youth", "Suffering and hope"],
+  },
+  {
+    type: "Quote",
+    label: "Calvin on the Spirit's witness",
+    source: "Institutes excerpt",
+    context: "Romans 8 + Adoption",
+    excerpt:
+      "A cited quote that helps distinguish assurance, adoption, and the inner testimony of the Holy Spirit.",
+    humanWeight: 92,
+    status: "Needs citation check",
+    tags: ["Quote", "Adoption", "Assurance"],
+  },
+  {
+    type: "Sermon",
+    label: "Groaning with creation, hoping with Christ",
+    source: "Sunday teaching transcript",
+    context: "Romans 8 + Church",
+    excerpt:
+      "A sermon transcript segment organized around present weakness, future glory, and prayer when words fail.",
+    humanWeight: 81,
+    status: "Draft representation",
+    tags: ["Sermon", "Prayer", "Church"],
+  },
 ];
 
-const DONORS = [
-  { name: "Avery Donor", amount: "$5,000" },
-  { name: "Casey Donor", amount: "$7,500" },
-  { name: "Dana Donor", amount: "$3,200" },
-  { name: "Morgan Donor", amount: "$4,400" },
+const RECENT_REQUESTS = [
+  "What Answers already exist for Romans 8 and suffering?",
+  "Where are we missing a lesson for youth leaders?",
+  "Which Entries need citation review before publishing?",
 ];
 
-const VARIANTS: Record<VariantKey, VariantDefinition> = {
-  A: { label: "Home layout", component: HomeVariant },
-  B: { label: "Results layout", component: ResultsVariant },
-  C: { label: "Editor hybrid", component: EditorHybridVariant },
+const SLOT = {
+  title: "Lesson for Romans 8:18-30",
+  requestedType: "Lesson",
+  target: "Youth teachers",
+  context: "Romans 8 + Suffering and hope",
+  due: "Open this week",
 };
 
-export function LayoutPrototype() {
+const VARIANTS: Record<VariantKey, VariantDefinition> = {
+  A: { label: "Command center", component: CommandCenterVariant },
+  B: { label: "Navigator rail", component: NavigatorRailVariant },
+  C: { label: "Entry studio", component: EntryStudioVariant },
+};
+
+export function LayoutPrototype({ onToggleTheme, theme }: PrototypeThemeControls) {
   const [variant, setVariant] = useState<VariantKey>(() => readVariantFromUrl());
   const activeVariant = VARIANTS[variant];
   const ActiveVariant = activeVariant.component;
@@ -107,7 +204,7 @@ export function LayoutPrototype() {
 
   return (
     <>
-      <ActiveVariant />
+      <ActiveVariant onToggleTheme={onToggleTheme} theme={theme} />
       <PrototypeSwitcher
         current={variant}
         label={activeVariant.label}
@@ -165,157 +262,122 @@ function PrototypeSwitcher({
   );
 }
 
-function HomeVariant() {
+function CommandCenterVariant({ onToggleTheme, theme }: PrototypeThemeControls) {
   return (
-    <HostShell contentClassName="rp-host-content rp-host-content-home">
-      <main className="rp-home-main">
-        <section className="rp-home-copy" aria-labelledby="rp-home-title">
-          <h1 id="rp-home-title" className="rp-home-title">
-            Good morning, Jordan
-          </h1>
-          <p className="rp-home-subtitle">
-            What can I help you prioritize in your portfolio today?
-          </p>
-          <p className="rp-home-helper">
-            AI-assisted guidance to support your judgment - you stay in control of outreach
-            decisions.
-          </p>
-
-          <AssistantInput className="rp-home-input" />
-          <SupportedQuestions />
-        </section>
-      </main>
-    </HostShell>
-  );
-}
-
-function ResultsVariant() {
-  return (
-    <HostShell contentClassName="rp-host-content rp-host-content-results">
-      <main className="rp-results-main">
-        <section className="rp-results-panel" aria-labelledby="rp-results-title">
-          <h1 id="rp-results-title" className="rp-results-title">
-            What are my top 10 donors ready for an ask right now?
-          </h1>
-          <div className="rp-results-toolbar">
-            <p>Recommended donors</p>
-            <div className="rp-action-row">
-              <button type="button">
-                <BookmarkPlus aria-hidden="true" />
-                Save Search
-              </button>
-              <button type="button">
-                <FolderPlus aria-hidden="true" />
-                Save Portfolio
-              </button>
-            </div>
-          </div>
-          <div className="rp-donor-list" aria-label="Recommended donors">
-            {DONORS.map((donor) => (
-              <DonorCard key={donor.name} donor={donor} />
-            ))}
-          </div>
-        </section>
-
-        <aside className="rp-side-panel" aria-label="Assistant follow-up panel">
-          <AssistantInput className="rp-side-input" />
-          <FollowUps />
-          <SupportedQuestions compact />
-        </aside>
-      </main>
-    </HostShell>
-  );
-}
-
-function EditorHybridVariant() {
-  return (
-    <HostShell contentClassName="rp-host-content rp-host-content-hybrid">
-      <main className="rp-hybrid-main">
-        <section className="rp-hybrid-assistant" aria-labelledby="rp-hybrid-title">
+    <PrototypeShell onToggleTheme={onToggleTheme} theme={theme}>
+      <main className="rp-page rp-command-page" aria-labelledby="rp-command-title">
+        <section className="rp-command-hero">
           <div>
-            <h1 id="rp-hybrid-title" className="rp-hybrid-title">
-              Knowledge priorities
-            </h1>
-            <p>Ask the assistant to organize this workspace before editing.</p>
+            <p className="rp-eyebrow">General page</p>
+            <h1 id="rp-command-title">Explore and contribute from one Knowledge Context</h1>
           </div>
-          <AssistantInput className="rp-hybrid-input" />
+          <KnowledgeRequestComposer mode="hero" />
         </section>
 
-        <section className="rp-hybrid-grid" aria-label="Knowledgebase working layout">
-          <article className="rp-document-panel">
-            <p className="rp-eyebrow">Live document</p>
-            <h2>Collaborative Editor</h2>
-            <div className="rp-editor-toolbar">
-              <span />
-              <span />
-              <span />
-              <span />
-              <span />
-            </div>
-            <div className="rp-document-lines" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-              <span />
-              <span />
-            </div>
-          </article>
+        <KnowledgeNavigator mode="horizontal" />
 
-          <aside className="rp-context-panel" aria-label="Assistant context">
-            <h2>Suggested questions</h2>
-            <SupportedQuestions compact />
+        <section className="rp-command-grid" aria-label="Knowledge workspace">
+          <AnswerFeed />
+          <aside className="rp-side-stack" aria-label="Contribution tools">
+            <KnowledgeSlotCard />
+            <ContributionEditor />
           </aside>
         </section>
       </main>
-    </HostShell>
+    </PrototypeShell>
   );
 }
 
-function HostShell({
-  children,
-  contentClassName,
-}: {
-  children: React.ReactNode;
-  contentClassName: string;
-}) {
+function NavigatorRailVariant({ onToggleTheme, theme }: PrototypeThemeControls) {
   return (
-    <div className="layout-prototype">
-      <HostSidebar />
+    <PrototypeShell onToggleTheme={onToggleTheme} theme={theme}>
+      <main className="rp-page rp-rail-page" aria-labelledby="rp-rail-title">
+        <KnowledgeNavigator mode="rail" />
+
+        <section className="rp-rail-center" aria-label="Knowledge request and Answers">
+          <header className="rp-page-heading">
+            <p className="rp-eyebrow">Context Page</p>
+            <h1 id="rp-rail-title">Romans 8 with suffering and hope</h1>
+          </header>
+          <KnowledgeRequestComposer mode="compact" />
+          <AnswerFeed density="compact" />
+        </section>
+
+        <aside className="rp-rail-editor" aria-label="Contribution editor and slot">
+          <KnowledgeSlotCard compact />
+          <ContributionEditor compact />
+        </aside>
+      </main>
+    </PrototypeShell>
+  );
+}
+
+function EntryStudioVariant({ onToggleTheme, theme }: PrototypeThemeControls) {
+  return (
+    <PrototypeShell onToggleTheme={onToggleTheme} theme={theme}>
+      <main className="rp-page rp-studio-page" aria-labelledby="rp-studio-title">
+        <header className="rp-studio-header">
+          <div>
+            <p className="rp-eyebrow">Knowledge studio</p>
+            <h1 id="rp-studio-title">Shape a future Answer while browsing what already exists</h1>
+          </div>
+          <KnowledgeRequestComposer mode="compact" />
+        </header>
+
+        <KnowledgeNavigator mode="strip" />
+
+        <section className="rp-studio-grid" aria-label="Entry-focused workspace">
+          <AnswerFeed density="timeline" />
+          <ContributionEditor mode="expanded" />
+          <aside className="rp-studio-aside" aria-label="Open Knowledge Slot">
+            <KnowledgeSlotCard compact />
+            <EntryCard entry={KNOWLEDGE_ENTRIES[1]} pinned />
+          </aside>
+        </section>
+      </main>
+    </PrototypeShell>
+  );
+}
+
+function PrototypeShell({
+  children,
+  onToggleTheme,
+  theme,
+}: {
+  children: ReactNode;
+} & PrototypeThemeControls) {
+  return (
+    <div className="layout-prototype" data-theme={theme}>
+      <PrototypeSidebar />
       <div className="rp-host-column">
-        <HostTopBar />
-        <div className={contentClassName}>{children}</div>
+        <PrototypeTopBar onToggleTheme={onToggleTheme} theme={theme} />
+        <div className="rp-host-content">{children}</div>
       </div>
       <button className="rp-floating-spark" type="button" aria-label="Open assistant">
-        <SparkGlyph aria-hidden="true" />
+        <Sparkles aria-hidden="true" />
       </button>
     </div>
   );
 }
 
-function HostSidebar() {
-  const primaryItems = useMemo(
-    () => [
-      { label: "Assistant", icon: SparkGlyph, active: true },
-      { label: "Dashboard", icon: LayoutGrid },
-      { label: "Reports", icon: BarChart3 },
-      { label: "Donors", icon: Users },
-      { label: "Messages", icon: MessageSquare },
-    ],
-    [],
-  );
-  const secondaryItems = useMemo(
-    () => [
-      { label: "Settings", icon: Settings },
-      { label: "Saved", icon: BookOpen },
-      { label: "Help", icon: HelpCircle },
-    ],
-    [],
-  );
+function PrototypeSidebar() {
+  const primaryItems: Array<{ label: string; icon: IconComponent; active?: boolean }> = [
+    { label: "Dashboard", icon: LayoutGrid, active: true },
+    { label: "Knowledge Navigator", icon: Compass },
+    { label: "Answer Feed", icon: BookOpen },
+    { label: "Contribute", icon: MessageSquare },
+    { label: "People", icon: Users },
+  ];
+  const secondaryItems: Array<{ label: string; icon: IconComponent }> = [
+    { label: "Settings", icon: Settings },
+    { label: "Analytics", icon: BarChart3 },
+    { label: "Help", icon: HelpCircle },
+  ];
 
   return (
     <aside className="rp-sidebar" aria-label="Primary navigation">
-      <button className="rp-logo-button" type="button" aria-label="Home">
-        <BrandMark />
+      <button className="rp-logo-button" type="button" aria-label="Dashboard">
+        <img className="rp-brand-icon" src={archePressIconUrl} alt="" aria-hidden="true" />
       </button>
       <nav className="rp-nav-stack" aria-label="Main">
         {primaryItems.map((item) => (
@@ -327,10 +389,9 @@ function HostSidebar() {
           <NavButton key={item.label} {...item} />
         ))}
         <span className="rp-nav-divider" aria-hidden="true" />
-        <span className="rp-avatar" aria-label="Jordan user profile" role="img">
-          J
-          <span aria-hidden="true" />
-        </span>
+        <button className="rp-avatar-button" type="button" aria-label="User profile">
+          <UserCircle aria-hidden="true" />
+        </button>
       </nav>
     </aside>
   );
@@ -342,30 +403,46 @@ function NavButton({
   active = false,
 }: {
   label: string;
-  icon: ComponentType<{ "aria-hidden": "true" }>;
+  icon: IconComponent;
   active?: boolean;
 }) {
   return (
     <button
+      aria-label={label}
       className={active ? "rp-nav-button rp-nav-button-active" : "rp-nav-button"}
       title={label}
       type="button"
-      aria-label={label}
     >
       <Icon aria-hidden="true" />
     </button>
   );
 }
 
-function HostTopBar() {
+function PrototypeTopBar({ onToggleTheme, theme }: PrototypeThemeControls) {
+  const nextTheme = theme === "dark" ? "light" : "dark";
+  const ThemeIcon = theme === "dark" ? Sun : Moon;
+  const brandLogoUrl =
+    theme === "dark" ? archePressHorizontalLogoDarkUrl : archePressHorizontalLogoUrl;
+
   return (
     <header className="rp-topbar">
-      <a className="rp-brand" href="#prototype-home" aria-label="Go to home">
-        <BrandMark />
+      <a
+        className="rp-brand"
+        href="/?prototype=layout&variant=A"
+        aria-label="Go to dashboard"
+      >
+        <img className="rp-brand-logo" src={brandLogoUrl} alt="" aria-hidden="true" />
       </a>
       <div className="rp-topbar-actions">
-        <button className="rp-icon-button" title="Theme" type="button" aria-label="Theme">
-          <Moon aria-hidden="true" />
+        <button
+          aria-label={`Switch to ${nextTheme} theme`}
+          aria-pressed={theme === "dark"}
+          className="rp-icon-button rp-theme-button"
+          onClick={onToggleTheme}
+          title={`Switch to ${nextTheme} theme`}
+          type="button"
+        >
+          <ThemeIcon aria-hidden="true" />
         </button>
         <button
           className="rp-icon-button"
@@ -377,111 +454,226 @@ function HostTopBar() {
         </button>
         <label className="rp-search">
           <Search aria-hidden="true" />
-          <input type="text" placeholder="Search Categories, Settings, etc." />
+          <input type="text" placeholder="Search knowledge..." />
         </label>
       </div>
     </header>
   );
 }
 
-function BrandMark() {
+function KnowledgeNavigator({ mode }: { mode: "horizontal" | "rail" | "strip" }) {
   return (
-    <img className="rp-brand-logo" src={archePressIconUrl} alt="" aria-hidden="true" />
+    <section className={`rp-navigator rp-navigator-${mode}`} aria-labelledby={`rp-nav-${mode}`}>
+      <header>
+        <div>
+          <p className="rp-eyebrow">Knowledge Navigator</p>
+          <h2 id={`rp-nav-${mode}`}>Active Knowledge Context</h2>
+        </div>
+        <button type="button">
+          <Tag aria-hidden="true" />
+          Add Tag
+        </button>
+      </header>
+
+      <div className="rp-active-tags" aria-label="Active Tags">
+        {ACTIVE_TAGS.map((tag) => (
+          <button className="rp-tag-card" key={tag.label} type="button">
+            <span>{tag.type}</span>
+            <strong>{tag.label}</strong>
+            <small>{tag.detail}</small>
+          </button>
+        ))}
+      </div>
+
+      <div className="rp-suggested-tags" aria-label="Suggested Tags">
+        {SUGGESTED_TAGS.map((tag) => (
+          <button key={tag} type="button">
+            {tag}
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 
-function SparkGlyph({ "aria-hidden": ariaHidden }: { "aria-hidden"?: "true" }) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden={ariaHidden}>
-      <path
-        fill="currentColor"
-        d="M12 2l1.9 5.6a4 4 0 0 0 2.5 2.5L22 12l-5.6 1.9a4 4 0 0 0-2.5 2.5L12 22l-1.9-5.6a4 4 0 0 0-2.5-2.5L2 12l5.6-1.9a4 4 0 0 0 2.5-2.5L12 2z"
-      />
-    </svg>
-  );
-}
+function KnowledgeRequestComposer({ mode }: { mode: "hero" | "compact" }) {
+  const placeholder =
+    mode === "hero" ? "Ask from this Knowledge Context..." : "Ask...";
 
-function AssistantInput({ className }: { className?: string }) {
   return (
-    <form className={["rp-assistant-input", className].filter(Boolean).join(" ")}>
+    <form
+      className={mode === "hero" ? "rp-request-composer rp-request-hero" : "rp-request-composer"}
+      onSubmit={(event) => event.preventDefault()}
+    >
       <label>
-        <span>Ask Assistant</span>
-        <input type="text" placeholder="Ask Assistant..." />
+        <span>Knowledge Request Composer</span>
+        <input type="text" placeholder={placeholder} />
       </label>
-      <button type="submit" aria-label="Submit question">
-        <SparkGlyph aria-hidden="true" />
+      <button type="submit" aria-label="Send Knowledge Request">
+        <Send aria-hidden="true" />
       </button>
     </form>
   );
 }
 
-function SupportedQuestions({ compact = false }: { compact?: boolean }) {
+function AnswerFeed({ density = "default" }: { density?: "default" | "compact" | "timeline" }) {
+  const entries = density === "timeline" ? KNOWLEDGE_ENTRIES.slice(0, 3) : KNOWLEDGE_ENTRIES;
+
+  return (
+    <section className={`rp-answer-feed rp-answer-feed-${density}`} aria-labelledby="rp-feed-title">
+      <header className="rp-feed-header">
+        <div>
+          <p className="rp-eyebrow">Answer Feed</p>
+          <h2 id="rp-feed-title">Answers for the current Knowledge Request</h2>
+        </div>
+        <span>{entries.length} Knowledge Entries</span>
+      </header>
+
+      <div className="rp-request-summary">
+        <Sparkles aria-hidden="true" />
+        <p>What should we teach from Romans 8 when people are suffering?</p>
+      </div>
+
+      <div className="rp-entry-list">
+        {entries.map((entry) => (
+          <EntryCard entry={entry} key={entry.label} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function EntryCard({ entry, pinned = false }: { entry: KnowledgeEntry; pinned?: boolean }) {
+  return (
+    <article className={pinned ? "rp-entry-card rp-entry-card-pinned" : "rp-entry-card"}>
+      <div className="rp-entry-topline">
+        <span className="rp-entry-type">{entry.type}</span>
+        <span className="rp-human-weight">Human Weight {entry.humanWeight}</span>
+      </div>
+      <h3>{entry.label}</h3>
+      <p>{entry.excerpt}</p>
+      <dl>
+        <div>
+          <dt>Source</dt>
+          <dd>{entry.source}</dd>
+        </div>
+        <div>
+          <dt>Status</dt>
+          <dd>{entry.status}</dd>
+        </div>
+      </dl>
+      <div className="rp-card-tags" aria-label={`${entry.label} Tags`}>
+        {entry.tags.map((tag) => (
+          <span key={tag}>{tag}</span>
+        ))}
+      </div>
+      <footer>
+        <button type="button">
+          <BookOpen aria-hidden="true" />
+          Open Entry
+        </button>
+        <button type="button">
+          <BookmarkPlus aria-hidden="true" />
+          Use in Editor
+        </button>
+      </footer>
+    </article>
+  );
+}
+
+function KnowledgeSlotCard({ compact = false }: { compact?: boolean }) {
   return (
     <section
-      className={compact ? "rp-supported rp-supported-compact" : "rp-supported"}
-      aria-labelledby={compact ? "rp-supported-compact-title" : "rp-supported-title"}
+      className={compact ? "rp-slot-card rp-slot-card-compact" : "rp-slot-card"}
+      aria-labelledby="rp-slot-title"
     >
-      <h2 id={compact ? "rp-supported-compact-title" : "rp-supported-title"}>
-        Supported questions
-      </h2>
-      <div className="rp-supported-list">
-        {SUPPORTED_QUESTIONS.map((question) => (
-          <button key={question} type="button" className="rp-question-chip">
-            <SparkGlyph aria-hidden="true" />
-            <span>{question}</span>
-          </button>
-        ))}
-      </div>
+      <header>
+        <div>
+          <p className="rp-eyebrow">Knowledge Slot Card</p>
+          <h2 id="rp-slot-title">{SLOT.title}</h2>
+        </div>
+        <span>Open</span>
+      </header>
+      <dl>
+        <div>
+          <dt>Requested Type</dt>
+          <dd>{SLOT.requestedType}</dd>
+        </div>
+        <div>
+          <dt>Target</dt>
+          <dd>{SLOT.target}</dd>
+        </div>
+        <div>
+          <dt>Knowledge Context</dt>
+          <dd>{SLOT.context}</dd>
+        </div>
+        <div>
+          <dt>Timing</dt>
+          <dd>{SLOT.due}</dd>
+        </div>
+      </dl>
+      <button type="button">
+        <FolderPlus aria-hidden="true" />
+        Start contribution
+      </button>
     </section>
   );
 }
 
-function FollowUps() {
+function ContributionEditor({
+  compact = false,
+  mode = "default",
+}: {
+  compact?: boolean;
+  mode?: "default" | "expanded";
+}) {
   return (
-    <section className="rp-followups" aria-labelledby="rp-followups-title">
-      <h2 id="rp-followups-title">Suggested follow-ups</h2>
-      <div className="rp-followup-list">
-        {FOLLOW_UPS.map((question) => (
-          <button key={question} type="button" className="rp-followup-button">
-            <MessageSquare aria-hidden="true" />
-            <span>{question}</span>
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function DonorCard({ donor }: { donor: { name: string; amount: string } }) {
-  return (
-    <article className="rp-donor-card" aria-label={donor.name}>
-      <div className="rp-donor-card-top">
-        <div className="rp-donor-identity">
-          <h2>{donor.name}</h2>
-          <span className="rp-score-pill">
-            <span>Donor score</span>
-            <strong>N/A</strong>
-          </span>
+    <section
+      className={[
+        "rp-contribution-editor",
+        compact ? "rp-contribution-editor-compact" : "",
+        mode === "expanded" ? "rp-contribution-editor-expanded" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      aria-labelledby="rp-editor-title"
+    >
+      <header>
+        <div>
+          <p className="rp-eyebrow">Contribution Editor</p>
+          <h2 id="rp-editor-title">Draft a future Answer</h2>
         </div>
-        <div className="rp-confidence">
-          <span>Confidence: High</span>
-          <Info aria-hidden="true" />
-        </div>
+        <span>Visibility: Cohort</span>
+      </header>
+      <div className="rp-editor-toolbar" aria-label="Editor tools">
+        <button type="button" aria-label="Format as heading">
+          H
+        </button>
+        <button type="button" aria-label="Bold">
+          B
+        </button>
+        <button type="button" aria-label="Insert quote">
+          <MessageSquare aria-hidden="true" />
+        </button>
+        <button type="button" aria-label="Add reference">
+          <Tag aria-hidden="true" />
+        </button>
       </div>
-      <p className="rp-gift-line">
-        <strong>{donor.amount}</strong>
-        <span>Expected gift amount</span>
-      </p>
-      <div className="rp-donor-actions">
+      <textarea defaultValue="Romans 8 teaches believers to name present suffering without surrendering future hope. The groaning of creation, the intercession of the Spirit, and the promise of conformity to Christ belong together..." />
+      <div className="rp-editor-meta">
+        <span>Represented Referent: Lesson draft</span>
+        <span>Entry Representation: Rich text</span>
+      </div>
+      <footer>
         <button type="button">
-          <UserSearch aria-hidden="true" />
-          Open Donor Preview
+          <Info aria-hidden="true" />
+          Preview
         </button>
-        <button type="button" disabled>
-          <Mail aria-hidden="true" />
-          Send First Draft
+        <button type="button">
+          <Sparkles aria-hidden="true" />
+          Store as Answer
         </button>
-      </div>
-    </article>
+      </footer>
+    </section>
   );
 }
