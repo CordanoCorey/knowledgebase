@@ -1,4 +1,4 @@
-// PROTOTYPE: Three general-page layout variants, switchable via ?variant=, on the existing app shell.
+// PROTOTYPE: General-page layout variants, switchable via ?variant=, on the existing app shell.
 import {
   useCallback,
   useEffect,
@@ -28,13 +28,45 @@ import {
   Tag,
   UserCircle,
   Users,
+  X,
 } from "lucide-react";
 import archePressIconUrl from "../assets/arche-press_icon-full.svg";
 import archePressHorizontalLogoDarkUrl from "../assets/arche-press_logo-horizontal-full-dark.svg";
 import archePressHorizontalLogoUrl from "../assets/arche-press_logo-horizontal-full.svg";
+import { KnowledgeTypeIcon } from "../components/KnowledgeTypeIcon";
+import {
+  formatKnowledgeTypeLabel,
+  type KnowledgeType,
+} from "../knowledgeContracts";
 import "./layoutPrototype.css";
 
-type VariantKey = "A" | "B" | "C";
+const VARIANT_ORDER = [
+  "A",
+  "B",
+  "C",
+  "D",
+  "E",
+  "F",
+  "G",
+  "H",
+  "I",
+  "J",
+  "K",
+  "L",
+  "M",
+  "N",
+] as const;
+type VariantKey = (typeof VARIANT_ORDER)[number];
+type EntryFeedStyle =
+  | "default"
+  | "rows"
+  | "source"
+  | "seminar"
+  | "split"
+  | "annotated"
+  | "masonry"
+  | "waterfall";
+type FeedCardSpan = "standard" | "featured" | "tall" | "compact" | "wide";
 type ThemePreference = "light" | "dark";
 type PrototypeThemeControls = {
   onToggleTheme: () => void;
@@ -51,107 +83,185 @@ type IconComponent = ComponentType<{ "aria-hidden"?: "true"; className?: string 
 type KnowledgeTag = {
   detail: string;
   label: string;
-  type: string;
+  knowledgeType: KnowledgeType;
+};
+
+type SuggestedKnowledgeTag = {
+  label: string;
+  knowledgeType: KnowledgeType;
 };
 
 type KnowledgeEntry = {
   context: string;
   excerpt: string;
   humanWeight: number;
+  knowledgeType: KnowledgeType;
   label: string;
   source: string;
   status: string;
   tags: string[];
-  type: string;
 };
 
-const VARIANT_ORDER: VariantKey[] = ["A", "B", "C"];
+type KnowledgeSlot = {
+  context: string;
+  due: string;
+  note: string;
+  requestedType: string;
+  status: string;
+  tags: string[];
+  target: string;
+  title: string;
+};
+
+type MixedFeedItem =
+  | { entry: KnowledgeEntry; kind: "entry"; span: FeedCardSpan }
+  | { kind: "slot"; slot: KnowledgeSlot; span: FeedCardSpan };
 
 const ACTIVE_TAGS: KnowledgeTag[] = [
   {
-    type: "Bible Passage",
-    label: "Romans 8",
+    knowledgeType: "biblePassage",
+    label: "Daniel 2:20-22",
     detail: "Global Knowledge Context",
   },
   {
-    type: "Topic",
-    label: "Suffering and hope",
-    detail: "4 active Answers",
+    knowledgeType: "topic",
+    label: "Crusades",
+    detail: "6 active Answers",
   },
   {
-    type: "Organization",
-    label: "Arche Press cohort",
-    detail: "Shared Visibility Scope",
+    knowledgeType: "organization",
+    label: "Arche Classical Academy",
+    detail: "School Visibility Scope",
   },
 ];
 
-const SUGGESTED_TAGS = ["Adoption", "Sanctification", "Youth lesson", "Prayer request"];
+const SUGGESTED_TAGS: SuggestedKnowledgeTag[] = [
+  { knowledgeType: "biblePassage", label: "Joshua 1:6-9" },
+  { knowledgeType: "biblePassage", label: "Revelation 11:15" },
+  { knowledgeType: "book", label: "The City of God" },
+  { knowledgeType: "organization", label: "Ruler of Kings Church" },
+];
 
 const KNOWLEDGE_ENTRIES: KnowledgeEntry[] = [
   {
-    type: "Question",
-    label: "How should Romans 8 shape pastoral care for suffering?",
+    knowledgeType: "question",
+    label: "How should we teach the First Crusade without flattening Christian courage or sin?",
     source: "Stored Question",
-    context: "Romans 8 + Suffering and hope",
+    context: "Daniel 2:20-22 + Crusades",
     excerpt:
-      "Connects suffering, groaning, adoption, and intercession into a pastoral-care frame for future Answers.",
-    humanWeight: 86,
-    status: "Answered by 6 entries",
-    tags: ["Romans 8", "Pastoral care", "Question Space"],
+      "Frames the unit around Christ's rule over kingdoms, repentance for disorder, and honest treatment of courage, folly, and violence.",
+    humanWeight: 88,
+    status: "Answered by 7 entries",
+    tags: ["Daniel 2:20-22", "Crusades", "9th Church History"],
   },
   {
-    type: "Lesson",
-    label: "Middle school discussion guide: Hope in the Spirit",
-    source: "Arche Press cohort",
-    context: "Romans 8 + Youth lesson",
+    knowledgeType: "lesson",
+    label: "Grade 9 seminar: Augustine, kingdoms, and the Crusades",
+    source: "Arche Classical Academy",
+    context: "The City of God + Crusades",
     excerpt:
-      "A reusable lesson outline with warm-up prompts, Scripture reading, and reflection questions for small groups.",
-    humanWeight: 74,
+      "A reusable lesson plan comparing earthly cities, holy war rhetoric, and the limits of political Christendom.",
+    humanWeight: 82,
     status: "Ready to use",
-    tags: ["Lesson", "Youth", "Suffering and hope"],
+    tags: ["Matthew 5:9", "The City of God", "Arche Classical Academy"],
   },
   {
-    type: "Quote",
-    label: "Calvin on the Spirit's witness",
-    source: "Institutes excerpt",
-    context: "Romans 8 + Adoption",
+    knowledgeType: "quote",
+    label: "Boethius on providence and fortune",
+    source: "The Consolation of Philosophy",
+    context: "Medieval Literature + Providence",
     excerpt:
-      "A cited quote that helps distinguish assurance, adoption, and the inner testimony of the Holy Spirit.",
+      "A cited passage for 10th grade discussion on providence, apparent disorder, and the moral training of desire.",
     humanWeight: 92,
-    status: "Needs citation check",
-    tags: ["Quote", "Adoption", "Assurance"],
+    status: "Citation checked",
+    tags: ["Romans 8:28", "Boethius", "10th Medieval Literature"],
   },
   {
-    type: "Sermon",
-    label: "Groaning with creation, hoping with Christ",
-    source: "Sunday teaching transcript",
-    context: "Romans 8 + Church",
+    knowledgeType: "sermon",
+    label: "Daniel sermon: kingdoms that rise and fall",
+    source: "Ruler of Kings Church",
+    context: "Daniel series + Revelation",
     excerpt:
-      "A sermon transcript segment organized around present weakness, future glory, and prayer when words fail.",
-    humanWeight: 81,
+      "A sermon segment connecting Nebuchadnezzar's dream to the kingdom that shall never be destroyed.",
+    humanWeight: 84,
     status: "Draft representation",
-    tags: ["Sermon", "Prayer", "Church"],
+    tags: ["Daniel 2:44", "Revelation 11:15", "Ruler of Kings Church"],
+  },
+  {
+    knowledgeType: "prayerRequest",
+    label: "Deacon note: courage for the Harding family",
+    source: "Ruler of Kings Church",
+    context: "Joshua series + Pastoral care",
+    excerpt:
+      "A church-visible request for prayer and practical care after a difficult diagnosis, anchored to courage under the Lord's presence.",
+    humanWeight: 79,
+    status: "Elder visibility",
+    tags: ["Joshua 1:9", "Pastoral care", "Ruler of Kings Church"],
   },
 ];
 
 const RECENT_REQUESTS = [
-  "What Answers already exist for Romans 8 and suffering?",
-  "Where are we missing a lesson for youth leaders?",
-  "Which Entries need citation review before publishing?",
+  "What Answers already exist for teaching the Crusades under Christ's kingdom?",
+  "Which Daniel and Revelation passages belong in the 9th grade church history unit?",
+  "Where are we missing student essays on just war and repentance?",
 ];
 
-const SLOT = {
-  title: "Lesson for Romans 8:18-30",
-  requestedType: "Lesson",
-  target: "Youth teachers",
-  context: "Romans 8 + Suffering and hope",
-  due: "Open this week",
+const SLOT: KnowledgeSlot = {
+  title: "Student essay on just war and the First Crusade",
+  requestedType: "Essay",
+  target: "Grade 9 Church History",
+  context: "Matthew 5:9 + Crusades",
+  due: "Friday",
+  status: "Open slot",
+  note: "Needs a student-facing thesis frame and evidence paragraph that handles zeal, repentance, and just war carefully.",
+  tags: ["Matthew 5:9", "Crusades", "Student essay"],
 };
+
+const KNOWLEDGE_SLOTS: KnowledgeSlot[] = [
+  SLOT,
+  {
+    title: "Primary source annotation for Urban II and Augustine",
+    requestedType: "Annotated Source",
+    target: "Grade 9 Church History",
+    context: "Urban II + The City of God",
+    due: "Next week",
+    status: "Needs source link",
+    note: "Pull one short source excerpt, attach two guardrail questions, and connect it back to ordered love.",
+    tags: ["Urban II", "The City of God", "Primary Source"],
+  },
+];
+
+const MIXED_FEED_ITEMS: MixedFeedItem[] = [
+  { kind: "entry", entry: KNOWLEDGE_ENTRIES[0], span: "featured" },
+  { kind: "slot", slot: KNOWLEDGE_SLOTS[0], span: "compact" },
+  { kind: "entry", entry: KNOWLEDGE_ENTRIES[1], span: "tall" },
+  { kind: "entry", entry: KNOWLEDGE_ENTRIES[2], span: "standard" },
+  { kind: "slot", slot: KNOWLEDGE_SLOTS[1], span: "wide" },
+  { kind: "entry", entry: KNOWLEDGE_ENTRIES[3], span: "standard" },
+  { kind: "entry", entry: KNOWLEDGE_ENTRIES[4], span: "tall" },
+];
+
+const WATERFALL_FEED_COLUMNS: MixedFeedItem[][] = [
+  [MIXED_FEED_ITEMS[0], MIXED_FEED_ITEMS[5]],
+  [MIXED_FEED_ITEMS[1], MIXED_FEED_ITEMS[2], MIXED_FEED_ITEMS[6]],
+  [MIXED_FEED_ITEMS[3], MIXED_FEED_ITEMS[4]],
+];
 
 const VARIANTS: Record<VariantKey, VariantDefinition> = {
   A: { label: "Command center", component: CommandCenterVariant },
   B: { label: "Navigator rail", component: NavigatorRailVariant },
   C: { label: "Entry studio", component: EntryStudioVariant },
+  D: { label: "Context desk", component: ContextDeskVariant },
+  E: { label: "Compose canvas", component: ComposeCanvasVariant },
+  F: { label: "Focus flow", component: FocusFlowVariant },
+  G: { label: "Rail focus", component: RailFocusVariant },
+  H: { label: "Rail focus rows", component: RailFocusRowsVariant },
+  I: { label: "Rail focus source", component: RailFocusSourceVariant },
+  J: { label: "Rail focus seminar", component: RailFocusSeminarVariant },
+  K: { label: "Rail focus split", component: RailFocusSplitVariant },
+  L: { label: "Rail focus notes", component: RailFocusAnnotatedVariant },
+  M: { label: "Rail focus masonry", component: RailFocusMasonryVariant },
+  N: { label: "Rail focus waterfall", component: RailFocusWaterfallVariant },
 };
 
 export function LayoutPrototype({ onToggleTheme, theme }: PrototypeThemeControls) {
@@ -221,7 +331,22 @@ function readVariantFromUrl(): VariantKey {
 }
 
 function isVariantKey(value: string | null): value is VariantKey {
-  return value === "A" || value === "B" || value === "C";
+  return (
+    value === "A" ||
+    value === "B" ||
+    value === "C" ||
+    value === "D" ||
+    value === "E" ||
+    value === "F" ||
+    value === "G" ||
+    value === "H" ||
+    value === "I" ||
+    value === "J" ||
+    value === "K" ||
+    value === "L" ||
+    value === "M" ||
+    value === "N"
+  );
 }
 
 function isTextEntryTarget(target: EventTarget | null) {
@@ -297,7 +422,7 @@ function NavigatorRailVariant({ onToggleTheme, theme }: PrototypeThemeControls) 
         <section className="rp-rail-center" aria-label="Knowledge request and Answers">
           <header className="rp-page-heading">
             <p className="rp-eyebrow">Context Page</p>
-            <h1 id="rp-rail-title">Romans 8 with suffering and hope</h1>
+            <h1 id="rp-rail-title">Crusades, kingdoms, and Christian courage</h1>
           </header>
           <KnowledgeRequestComposer mode="compact" />
           <AnswerFeed density="compact" />
@@ -333,6 +458,221 @@ function EntryStudioVariant({ onToggleTheme, theme }: PrototypeThemeControls) {
             <KnowledgeSlotCard compact />
             <EntryCard entry={KNOWLEDGE_ENTRIES[1]} pinned />
           </aside>
+        </section>
+      </main>
+    </PrototypeShell>
+  );
+}
+
+function ContextDeskVariant({ onToggleTheme, theme }: PrototypeThemeControls) {
+  return (
+    <PrototypeShell onToggleTheme={onToggleTheme} theme={theme}>
+      <main className="rp-page rp-desk-page" aria-labelledby="rp-desk-title">
+        <section className="rp-desk-layout" aria-label="Context desk workspace">
+          <aside className="rp-desk-context" aria-label="Knowledge context controls">
+            <KnowledgeNavigator mode="rail" />
+            <RecentRequestQueue />
+          </aside>
+
+          <section className="rp-desk-workspace" aria-label="Knowledge request and contribution">
+            <header className="rp-desk-header">
+              <div>
+                <p className="rp-eyebrow">Context Page</p>
+                <h1 id="rp-desk-title">Crusades, kingdoms, and Christian courage</h1>
+              </div>
+              <div className="rp-desk-context-pills" aria-label="Active Knowledge Context">
+                {ACTIVE_TAGS.map((tag) => (
+                  <span key={tag.label}>{tag.label}</span>
+                ))}
+              </div>
+            </header>
+
+            <KnowledgeRequestComposer mode="compact" />
+
+            <div className="rp-desk-feed-grid">
+              <AnswerFeed density="compact" />
+              <aside className="rp-desk-tools" aria-label="Contribution tools">
+                <KnowledgeSlotCard compact />
+                <ContributionEditor compact />
+              </aside>
+            </div>
+          </section>
+        </section>
+      </main>
+    </PrototypeShell>
+  );
+}
+
+function ComposeCanvasVariant({ onToggleTheme, theme }: PrototypeThemeControls) {
+  return (
+    <PrototypeShell onToggleTheme={onToggleTheme} theme={theme}>
+      <main className="rp-page rp-compose-page" aria-labelledby="rp-compose-title">
+        <header className="rp-compose-header">
+          <div>
+            <p className="rp-eyebrow">Context Page</p>
+            <h1 id="rp-compose-title">Crusades, kingdoms, and Christian courage</h1>
+          </div>
+          <div className="rp-compose-trail" aria-label="Active Knowledge Context">
+            {ACTIVE_TAGS.map((tag) => (
+              <span key={tag.label}>
+                <small>{formatKnowledgeTypeLabel(tag.knowledgeType)}</small>
+                {tag.label}
+              </span>
+            ))}
+          </div>
+        </header>
+
+        <KnowledgeNavigator mode="strip" />
+
+        <section className="rp-compose-workspace" aria-label="Ask and contribute in this context">
+          <section className="rp-compose-search-stack" aria-label="Knowledge search and Answers">
+            <AskInContextPanel />
+            <div className="rp-answer-frame">
+              <AnswerFeed density="compact" />
+            </div>
+          </section>
+
+          <section className="rp-compose-editor-canvas" aria-label="Contribution Editor">
+            <header className="rp-editor-anchor">
+              <div>
+                <p className="rp-eyebrow">Contribute</p>
+                <h2>Contribution Editor</h2>
+              </div>
+              <span>Daniel 2:20-22 + Crusades</span>
+            </header>
+            <ContributionEditor mode="expanded" />
+            <KnowledgeSlotCard compact />
+          </section>
+        </section>
+      </main>
+    </PrototypeShell>
+  );
+}
+
+function FocusFlowVariant({ onToggleTheme, theme }: PrototypeThemeControls) {
+  return (
+    <PrototypeShell onToggleTheme={onToggleTheme} theme={theme}>
+      <main className="rp-page rp-focus-page" aria-labelledby="rp-focus-title">
+        <ContextSearchNavigator />
+        <section className="rp-focus-workspace" aria-label="Contribute and read Answers">
+          <ExpandableContributionComposer />
+          <MinimalAnswerFeed />
+        </section>
+      </main>
+    </PrototypeShell>
+  );
+}
+
+function RailFocusVariant({ onToggleTheme, theme }: PrototypeThemeControls) {
+  return (
+    <RailFocusLayout
+      feedStyle="default"
+      heading="Crusades, kingdoms, and Christian courage"
+      onToggleTheme={onToggleTheme}
+      theme={theme}
+    />
+  );
+}
+
+function RailFocusRowsVariant({ onToggleTheme, theme }: PrototypeThemeControls) {
+  return (
+    <RailFocusLayout
+      feedStyle="rows"
+      heading="Crusades, kingdoms, and Christian courage"
+      onToggleTheme={onToggleTheme}
+      theme={theme}
+    />
+  );
+}
+
+function RailFocusSourceVariant({ onToggleTheme, theme }: PrototypeThemeControls) {
+  return (
+    <RailFocusLayout
+      feedStyle="source"
+      heading="Crusades, kingdoms, and Christian courage"
+      onToggleTheme={onToggleTheme}
+      theme={theme}
+    />
+  );
+}
+
+function RailFocusSeminarVariant({ onToggleTheme, theme }: PrototypeThemeControls) {
+  return (
+    <RailFocusLayout
+      feedStyle="seminar"
+      heading="Crusades, kingdoms, and Christian courage"
+      onToggleTheme={onToggleTheme}
+      theme={theme}
+    />
+  );
+}
+
+function RailFocusSplitVariant({ onToggleTheme, theme }: PrototypeThemeControls) {
+  return (
+    <RailFocusLayout
+      feedStyle="split"
+      heading="Crusades, kingdoms, and Christian courage"
+      onToggleTheme={onToggleTheme}
+      theme={theme}
+    />
+  );
+}
+
+function RailFocusAnnotatedVariant({ onToggleTheme, theme }: PrototypeThemeControls) {
+  return (
+    <RailFocusLayout
+      feedStyle="annotated"
+      heading="Crusades, kingdoms, and Christian courage"
+      onToggleTheme={onToggleTheme}
+      theme={theme}
+    />
+  );
+}
+
+function RailFocusMasonryVariant({ onToggleTheme, theme }: PrototypeThemeControls) {
+  return (
+    <RailFocusLayout
+      feedStyle="masonry"
+      heading="Crusades, kingdoms, and Christian courage"
+      onToggleTheme={onToggleTheme}
+      theme={theme}
+    />
+  );
+}
+
+function RailFocusWaterfallVariant({ onToggleTheme, theme }: PrototypeThemeControls) {
+  return (
+    <RailFocusLayout
+      feedStyle="waterfall"
+      heading="Crusades, kingdoms, and Christian courage"
+      onToggleTheme={onToggleTheme}
+      theme={theme}
+    />
+  );
+}
+
+function RailFocusLayout({
+  feedStyle,
+  heading,
+  onToggleTheme,
+  theme,
+}: {
+  feedStyle: EntryFeedStyle;
+  heading: string;
+} & PrototypeThemeControls) {
+  return (
+    <PrototypeShell onToggleTheme={onToggleTheme} theme={theme}>
+      <main className="rp-page rp-rail-focus-page" aria-labelledby="rp-rail-focus-title">
+        <aside className="rp-rail-focus-context" aria-label="Knowledge context and search">
+          <ContextSearchRail />
+        </aside>
+        <section className="rp-rail-focus-workspace" aria-label="Contribute and read Answers">
+          <header className="rp-rail-focus-heading">
+            <p className="rp-eyebrow">Context Page</p>
+            <h1 id="rp-rail-focus-title">{heading}</h1>
+          </header>
+          <ExpandableContributionComposer />
+          <MinimalAnswerFeed style={feedStyle} />
         </section>
       </main>
     </PrototypeShell>
@@ -477,23 +817,250 @@ function KnowledgeNavigator({ mode }: { mode: "horizontal" | "rail" | "strip" })
 
       <div className="rp-active-tags" aria-label="Active Tags">
         {ACTIVE_TAGS.map((tag) => (
-          <button className="rp-tag-card" key={tag.label} type="button">
-            <span>{tag.type}</span>
-            <strong>{tag.label}</strong>
-            <small>{tag.detail}</small>
+          <button
+            aria-label={`Remove ${tag.label}`}
+            className="rp-tag-card"
+            key={tag.label}
+            title={`${formatKnowledgeTypeLabel(tag.knowledgeType)} - ${tag.detail}`}
+            type="button"
+          >
+            <KnowledgeTypeIcon knowledgeType={tag.knowledgeType} />
+            <span>{tag.label}</span>
+            <X aria-hidden="true" />
           </button>
         ))}
       </div>
 
       <div className="rp-suggested-tags" aria-label="Suggested Tags">
         {SUGGESTED_TAGS.map((tag) => (
-          <button key={tag} type="button">
-            {tag}
+          <button
+            aria-label={`Add ${tag.label}`}
+            key={tag.label}
+            title={`Add ${tag.label}`}
+            type="button"
+          >
+            <KnowledgeTypeIcon knowledgeType={tag.knowledgeType} />
+            <span>{tag.label}</span>
           </button>
         ))}
       </div>
     </section>
   );
+}
+
+function RecentRequestQueue() {
+  return (
+    <section className="rp-recent-requests" aria-labelledby="rp-recent-title">
+      <header>
+        <p className="rp-eyebrow">Recent Requests</p>
+        <h2 id="rp-recent-title">Open threads</h2>
+      </header>
+      <div>
+        {RECENT_REQUESTS.map((request) => (
+          <button key={request} type="button">
+            <MessageSquare aria-hidden="true" />
+            <span>{request}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function AskInContextPanel() {
+  return (
+    <section className="rp-ask-panel" aria-labelledby="rp-ask-title">
+      <header>
+        <p className="rp-eyebrow">Ask</p>
+        <h2 id="rp-ask-title">Search this Knowledge Context</h2>
+      </header>
+      <KnowledgeRequestComposer mode="compact" />
+    </section>
+  );
+}
+
+function ContextSearchNavigator() {
+  return (
+    <section className="rp-focus-navigator" aria-labelledby="rp-focus-title">
+      <div className="rp-focus-context-line">
+        <h1 id="rp-focus-title">Crusades, kingdoms, and Christian courage</h1>
+        <div className="rp-focus-tags" aria-label="Active Knowledge Context">
+          {ACTIVE_TAGS.map((tag) => (
+            <span key={tag.label}>
+              <small>{formatKnowledgeTypeLabel(tag.knowledgeType)}</small>
+              {tag.label}
+            </span>
+          ))}
+        </div>
+      </div>
+      <KnowledgeRequestComposer mode="compact" />
+    </section>
+  );
+}
+
+function ContextSearchRail() {
+  return (
+    <section className="rp-focus-rail" aria-labelledby="rp-focus-rail-title">
+      <header>
+        <div>
+          <p className="rp-eyebrow">Knowledge Navigator</p>
+          <h2 id="rp-focus-rail-title">Active Knowledge Context</h2>
+        </div>
+        <button type="button">
+          <Tag aria-hidden="true" />
+          Add Tag
+        </button>
+      </header>
+      <div className="rp-focus-rail-tags" aria-label="Active Tags">
+        {ACTIVE_TAGS.map((tag) => (
+          <button
+            aria-label={`Remove ${tag.label}`}
+            className="rp-tag-card"
+            key={tag.label}
+            title={`${formatKnowledgeTypeLabel(tag.knowledgeType)} - ${tag.detail}`}
+            type="button"
+          >
+            <KnowledgeTypeIcon knowledgeType={tag.knowledgeType} />
+            <span>{tag.label}</span>
+            <X aria-hidden="true" />
+          </button>
+        ))}
+      </div>
+      <KnowledgeRequestComposer mode="compact" />
+      <div className="rp-suggested-tags" aria-label="Suggested Tags">
+        {SUGGESTED_TAGS.map((tag) => (
+          <button
+            aria-label={`Add ${tag.label}`}
+            key={tag.label}
+            title={`Add ${tag.label}`}
+            type="button"
+          >
+            <KnowledgeTypeIcon knowledgeType={tag.knowledgeType} />
+            <span>{tag.label}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ExpandableContributionComposer() {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <form
+      className={
+        expanded
+          ? "rp-focus-contribution rp-focus-contribution-expanded"
+          : "rp-focus-contribution"
+      }
+      onSubmit={(event) => event.preventDefault()}
+    >
+      <label>
+        <span>Contribution Editor</span>
+        <textarea
+          defaultValue=""
+          onClick={() => setExpanded(true)}
+          onFocus={() => setExpanded(true)}
+          placeholder="Contribute an answer in this context..."
+        />
+      </label>
+      <button type="submit" aria-label="Store as Answer">
+        <Sparkles aria-hidden="true" />
+      </button>
+    </form>
+  );
+}
+
+function MinimalAnswerFeed({ style = "default" }: { style?: EntryFeedStyle }) {
+  const mixedFeed = style === "masonry" || style === "waterfall";
+  const countLabel = mixedFeed
+    ? `${KNOWLEDGE_ENTRIES.length} entries + ${KNOWLEDGE_SLOTS.length} slots`
+    : `${KNOWLEDGE_ENTRIES.length} entries`;
+
+  return (
+    <section
+      className={`rp-minimal-answer-feed rp-minimal-answer-feed-${style}`}
+      aria-labelledby="rp-minimal-feed-title"
+    >
+      <header>
+        <h2 id="rp-minimal-feed-title">Answers</h2>
+        <span>{countLabel}</span>
+      </header>
+      {style === "waterfall" ? (
+        <WaterfallAnswerFeed />
+      ) : (
+        <div className={`rp-entry-list rp-entry-list-${style}`}>
+          {mixedFeed
+            ? MIXED_FEED_ITEMS.map((item) => (
+                <MixedFeedCard item={item} key={getMixedFeedItemKey(item)} style={style} />
+              ))
+            : KNOWLEDGE_ENTRIES.map((entry) => (
+                <EntryCard entry={entry} key={entry.label} style={style} />
+              ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function WaterfallAnswerFeed() {
+  const useFlatOrder = useNarrowWaterfallLayout();
+
+  if (useFlatOrder) {
+    return (
+      <div className="rp-entry-list rp-entry-list-waterfall rp-entry-list-waterfall-flat">
+        {MIXED_FEED_ITEMS.map((item) => (
+          <MixedFeedCard item={item} key={getMixedFeedItemKey(item)} style="waterfall" />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="rp-entry-list rp-entry-list-waterfall">
+      {WATERFALL_FEED_COLUMNS.map((column, columnIndex) => (
+        <div className="rp-waterfall-column" key={columnIndex}>
+          {column.map((item) => (
+            <MixedFeedCard item={item} key={getMixedFeedItemKey(item)} style="waterfall" />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MixedFeedCard({ item, style }: { item: MixedFeedItem; style: EntryFeedStyle }) {
+  if (item.kind === "slot") {
+    return <FeedSlotCard feedSpan={item.span} slot={item.slot} style={style} />;
+  }
+
+  return <EntryCard entry={item.entry} feedSpan={item.span} style={style} />;
+}
+
+function getMixedFeedItemKey(item: MixedFeedItem) {
+  return item.kind === "slot" ? item.slot.title : item.entry.label;
+}
+
+function useNarrowWaterfallLayout() {
+  const [isNarrow, setIsNarrow] = useState(() =>
+    typeof window === "undefined" ? false : window.matchMedia("(max-width: 760px)").matches,
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const query = window.matchMedia("(max-width: 760px)");
+    const update = () => setIsNarrow(query.matches);
+
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  return isNarrow;
 }
 
 function KnowledgeRequestComposer({ mode }: { mode: "hero" | "compact" }) {
@@ -531,7 +1098,7 @@ function AnswerFeed({ density = "default" }: { density?: "default" | "compact" |
 
       <div className="rp-request-summary">
         <Sparkles aria-hidden="true" />
-        <p>What should we teach from Romans 8 when people are suffering?</p>
+        <p>How do I teach the Crusades with courage, repentance, and Christ's kingdom in view?</p>
       </div>
 
       <div className="rp-entry-list">
@@ -543,11 +1110,34 @@ function AnswerFeed({ density = "default" }: { density?: "default" | "compact" |
   );
 }
 
-function EntryCard({ entry, pinned = false }: { entry: KnowledgeEntry; pinned?: boolean }) {
+function EntryCard({
+  entry,
+  feedSpan,
+  pinned = false,
+  style = "default",
+}: {
+  entry: KnowledgeEntry;
+  feedSpan?: FeedCardSpan;
+  pinned?: boolean;
+  style?: EntryFeedStyle;
+}) {
   return (
-    <article className={pinned ? "rp-entry-card rp-entry-card-pinned" : "rp-entry-card"}>
+    <article
+      className={[
+        "rp-entry-card",
+        `rp-entry-card-${style}`,
+        feedSpan ? "rp-feed-card" : "",
+        feedSpan ? `rp-feed-card-${feedSpan}` : "",
+        pinned ? "rp-entry-card-pinned" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <div className="rp-entry-topline">
-        <span className="rp-entry-type">{entry.type}</span>
+        <span className="rp-entry-type">
+          <KnowledgeTypeIcon knowledgeType={entry.knowledgeType} />
+          {formatKnowledgeTypeLabel(entry.knowledgeType)}
+        </span>
         <span className="rp-human-weight">Human Weight {entry.humanWeight}</span>
       </div>
       <h3>{entry.label}</h3>
@@ -575,6 +1165,62 @@ function EntryCard({ entry, pinned = false }: { entry: KnowledgeEntry; pinned?: 
         <button type="button">
           <BookmarkPlus aria-hidden="true" />
           Use in Editor
+        </button>
+      </footer>
+    </article>
+  );
+}
+
+function FeedSlotCard({
+  feedSpan,
+  slot,
+  style,
+}: {
+  feedSpan: FeedCardSpan;
+  slot: KnowledgeSlot;
+  style: EntryFeedStyle;
+}) {
+  return (
+    <article
+      className={[
+        "rp-feed-slot-card",
+        `rp-feed-slot-card-${style}`,
+        "rp-feed-card",
+        `rp-feed-card-${feedSpan}`,
+      ].join(" ")}
+    >
+      <div className="rp-entry-topline">
+        <span className="rp-entry-type">
+          <FolderPlus aria-hidden="true" />
+          Knowledge Slot
+        </span>
+        <span className="rp-slot-status">{slot.status}</span>
+      </div>
+      <h3>{slot.title}</h3>
+      <p>{slot.note}</p>
+      <dl>
+        <div>
+          <dt>Requested Type</dt>
+          <dd>{slot.requestedType}</dd>
+        </div>
+        <div>
+          <dt>Timing</dt>
+          <dd>{slot.due}</dd>
+        </div>
+      </dl>
+      <div className="rp-slot-context">
+        <span>{slot.target}</span>
+        <span>{slot.context}</span>
+      </div>
+      <div className="rp-card-tags" aria-label={`${slot.title} Tags`}>
+        {slot.tags.map((tag) => (
+          <span key={tag}>{tag}</span>
+        ))}
+      </div>
+      <footer>
+        <button type="button">
+          <FolderPlus aria-hidden="true" />
+          Start contribution
         </button>
       </footer>
     </article>
@@ -659,7 +1305,7 @@ function ContributionEditor({
           <Tag aria-hidden="true" />
         </button>
       </div>
-      <textarea defaultValue="Romans 8 teaches believers to name present suffering without surrendering future hope. The groaning of creation, the intercession of the Spirit, and the promise of conformity to Christ belong together..." />
+      <textarea defaultValue="Daniel teaches my students to see empires as temporary and Christ's kingdom as immovable. The Crusades unit needs courage, repentance, and careful reasoning instead of either romance or embarrassment..." />
       <div className="rp-editor-meta">
         <span>Represented Referent: Lesson draft</span>
         <span>Entry Representation: Rich text</span>

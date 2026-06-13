@@ -9,6 +9,7 @@ import {
 
 const BASE_HUMAN_WEIGHT = 0;
 const DEFAULT_CONTEXT_TAG_LABELS: string[] = [];
+const DUPLICATE_EMAIL_ERROR = "Email is already in use by another user.";
 
 export const DEFAULT_ORGANIZATION_SEEDS = [
   {
@@ -263,8 +264,10 @@ async function updateSeededUser(
   }
 
   const patch: Partial<Doc<"users">> = {};
-  if (existingUser.email !== user.email) {
-    patch.email = user.email;
+  const normalizedEmail = normalizeEmail(user.email);
+  if (existingUser.email !== normalizedEmail) {
+    await assertEmailAvailableForUser(ctx, normalizedEmail, user.userId);
+    patch.email = normalizedEmail;
   }
   if (existingUser.name !== user.name) {
     patch.name = user.name;
@@ -279,6 +282,21 @@ async function updateSeededUser(
 
   await ctx.db.patch(user.userId, patch);
   return "updated";
+}
+
+async function assertEmailAvailableForUser(
+  ctx: MutationCtx,
+  email: string,
+  userId: Id<"users">,
+) {
+  const usersWithEmail = await ctx.db
+    .query("users")
+    .withIndex("email", (q) => q.eq("email", email))
+    .take(2);
+  const conflictingUser = usersWithEmail.find((user) => user._id !== userId);
+  if (conflictingUser) {
+    throw new Error(DUPLICATE_EMAIL_ERROR);
+  }
 }
 
 async function upsertUserProfile(

@@ -1,22 +1,10 @@
-import type { ElementType, ReactElement } from "react";
-import {
-  BookOpen,
-  CalendarDays,
-  Clock,
-  Compass,
-  FileText,
-  Landmark,
-  MapPin,
-  MousePointerClick,
-  Tag,
-  UserCircle,
-  Users,
-} from "lucide-react";
+import type { ReactElement } from "react";
 import {
   formatKnowledgeTypeLabel,
   type ActiveTag,
   type KnowledgeType,
 } from "../knowledgeContracts";
+import { KnowledgeTypeIcon } from "./KnowledgeTypeIcon";
 
 export type KnowledgeTypeOverviewProps = {
   referent: ActiveTag;
@@ -99,7 +87,7 @@ function WordsOverview({ referent }: KnowledgeTypeOverviewProps) {
     detailFocus: "Named textual knowledge.",
   };
 
-  return <WordsOverviewBase detail={detail} icon={FileText} referent={referent} />;
+  return <WordsOverviewBase detail={detail} referent={referent} />;
 }
 
 function BiblePassageOverview({ referent }: KnowledgeTypeOverviewProps) {
@@ -115,7 +103,7 @@ function BiblePassageOverview({ referent }: KnowledgeTypeOverviewProps) {
     detailFocus: "Canonical Bible passage.",
   };
 
-  return <WordsOverviewBase detail={detail} icon={BookOpen} referent={referent} />;
+  return <WordsOverviewBase detail={detail} referent={referent} />;
 }
 
 function TopicOverview({ referent }: KnowledgeTypeOverviewProps) {
@@ -131,7 +119,7 @@ function TopicOverview({ referent }: KnowledgeTypeOverviewProps) {
     detailFocus: "Doctrine, theme, or subject.",
   };
 
-  return <WordsOverviewBase detail={detail} icon={Tag} referent={referent} />;
+  return <WordsOverviewBase detail={detail} referent={referent} />;
 }
 
 function SeriesOverview({ referent }: KnowledgeTypeOverviewProps) {
@@ -147,7 +135,7 @@ function SeriesOverview({ referent }: KnowledgeTypeOverviewProps) {
     detailFocus: "Curated sequence.",
   };
 
-  return <WordsOverviewBase detail={detail} icon={Compass} referent={referent} />;
+  return <WordsOverviewBase detail={detail} referent={referent} />;
 }
 
 function QuestionOverview({ referent }: KnowledgeTypeOverviewProps) {
@@ -163,7 +151,7 @@ function QuestionOverview({ referent }: KnowledgeTypeOverviewProps) {
     detailFocus: "Stored inquiry.",
   };
 
-  return <WordsOverviewBase detail={detail} icon={MousePointerClick} referent={referent} />;
+  return <WordsOverviewBase detail={detail} referent={referent} />;
 }
 
 function QuoteOverview({ referent }: KnowledgeTypeOverviewProps) {
@@ -179,7 +167,7 @@ function QuoteOverview({ referent }: KnowledgeTypeOverviewProps) {
     detailFocus: "Cited excerpt.",
   };
 
-  return <WordsOverviewBase detail={detail} icon={FileText} referent={referent} />;
+  return <WordsOverviewBase detail={detail} referent={referent} />;
 }
 
 function SermonOverview({ referent }: KnowledgeTypeOverviewProps) {
@@ -195,7 +183,7 @@ function SermonOverview({ referent }: KnowledgeTypeOverviewProps) {
     detailFocus: "Preached teaching.",
   };
 
-  return <WordsOverviewBase detail={detail} icon={BookOpen} referent={referent} />;
+  return <WordsOverviewBase detail={detail} referent={referent} />;
 }
 
 function EssayOverview({ referent }: KnowledgeTypeOverviewProps) {
@@ -211,7 +199,7 @@ function EssayOverview({ referent }: KnowledgeTypeOverviewProps) {
     detailFocus: "Written composition.",
   };
 
-  return <WordsOverviewBase detail={detail} icon={FileText} referent={referent} />;
+  return <WordsOverviewBase detail={detail} referent={referent} />;
 }
 
 function PoemOverview({ referent }: KnowledgeTypeOverviewProps) {
@@ -227,7 +215,7 @@ function PoemOverview({ referent }: KnowledgeTypeOverviewProps) {
     detailFocus: "Poetic work.",
   };
 
-  return <WordsOverviewBase detail={detail} icon={FileText} referent={referent} />;
+  return <WordsOverviewBase detail={detail} referent={referent} />;
 }
 
 function SongOverview({ referent }: KnowledgeTypeOverviewProps) {
@@ -243,7 +231,7 @@ function SongOverview({ referent }: KnowledgeTypeOverviewProps) {
     detailFocus: "Musical work.",
   };
 
-  return <WordsOverviewBase detail={detail} icon={FileText} referent={referent} />;
+  return <WordsOverviewBase detail={detail} referent={referent} />;
 }
 
 function BookOverview({ referent }: KnowledgeTypeOverviewProps) {
@@ -259,7 +247,7 @@ function BookOverview({ referent }: KnowledgeTypeOverviewProps) {
     detailFocus: "Book-length work.",
   };
 
-  return <WordsOverviewBase detail={detail} icon={BookOpen} referent={referent} />;
+  return <WordsOverviewBase detail={detail} referent={referent} />;
 }
 
 function ShortStoryOverview({ referent }: KnowledgeTypeOverviewProps) {
@@ -275,7 +263,7 @@ function ShortStoryOverview({ referent }: KnowledgeTypeOverviewProps) {
     detailFocus: "Short fictional narrative.",
   };
 
-  return <WordsOverviewBase detail={detail} icon={BookOpen} referent={referent} />;
+  return <WordsOverviewBase detail={detail} referent={referent} />;
 }
 
 function LessonOverview({ referent }: KnowledgeTypeOverviewProps) {
@@ -291,7 +279,7 @@ function LessonOverview({ referent }: KnowledgeTypeOverviewProps) {
     detailFocus: "Teaching plan.",
   };
 
-  return <WordsOverviewBase detail={detail} icon={FileText} referent={referent} />;
+  return <WordsOverviewBase detail={detail} referent={referent} />;
 }
 
 function CommentOverview({ referent }: KnowledgeTypeOverviewProps) {
@@ -307,7 +295,7 @@ function CommentOverview({ referent }: KnowledgeTypeOverviewProps) {
     detailFocus: "Entry response.",
   };
 
-  return <WordsOverviewBase detail={detail} icon={FileText} referent={referent} />;
+  return <WordsOverviewBase detail={detail} referent={referent} />;
 }
 
 function PrayerRequestOverview({ referent }: KnowledgeTypeOverviewProps) {
@@ -323,7 +311,7 @@ function PrayerRequestOverview({ referent }: KnowledgeTypeOverviewProps) {
     detailFocus: "Prayer need.",
   };
 
-  return <WordsOverviewBase detail={detail} icon={FileText} referent={referent} />;
+  return <WordsOverviewBase detail={detail} referent={referent} />;
 }
 
 function EventOverview({ referent }: KnowledgeTypeOverviewProps) {
@@ -339,7 +327,7 @@ function EventOverview({ referent }: KnowledgeTypeOverviewProps) {
     detailFocus: "Scheduled occurrence.",
   };
 
-  return <WordsOverviewBase detail={detail} icon={CalendarDays} referent={referent} />;
+  return <WordsOverviewBase detail={detail} referent={referent} />;
 }
 
 function RsvpOverview({ referent }: KnowledgeTypeOverviewProps) {
@@ -355,7 +343,7 @@ function RsvpOverview({ referent }: KnowledgeTypeOverviewProps) {
     detailFocus: "Invitation response.",
   };
 
-  return <WordsOverviewBase detail={detail} icon={Clock} referent={referent} />;
+  return <WordsOverviewBase detail={detail} referent={referent} />;
 }
 
 function PersonOverview({ referent }: KnowledgeTypeOverviewProps) {
@@ -371,7 +359,7 @@ function PersonOverview({ referent }: KnowledgeTypeOverviewProps) {
     detailFocus: "Human referent.",
   };
 
-  return <WordsOverviewBase detail={detail} icon={UserCircle} referent={referent} />;
+  return <WordsOverviewBase detail={detail} referent={referent} />;
 }
 
 function OrganizationOverview({ referent }: KnowledgeTypeOverviewProps) {
@@ -387,7 +375,7 @@ function OrganizationOverview({ referent }: KnowledgeTypeOverviewProps) {
     detailFocus: "Collective body.",
   };
 
-  return <WordsOverviewBase detail={detail} icon={Landmark} referent={referent} />;
+  return <WordsOverviewBase detail={detail} referent={referent} />;
 }
 
 function GroupOverview({ referent }: KnowledgeTypeOverviewProps) {
@@ -403,7 +391,7 @@ function GroupOverview({ referent }: KnowledgeTypeOverviewProps) {
     detailFocus: "Collection of People.",
   };
 
-  return <WordsOverviewBase detail={detail} icon={Users} referent={referent} />;
+  return <WordsOverviewBase detail={detail} referent={referent} />;
 }
 
 function PlaceOverview({ referent }: KnowledgeTypeOverviewProps) {
@@ -419,16 +407,14 @@ function PlaceOverview({ referent }: KnowledgeTypeOverviewProps) {
     detailFocus: "Location referent.",
   };
 
-  return <WordsOverviewBase detail={detail} icon={MapPin} referent={referent} />;
+  return <WordsOverviewBase detail={detail} referent={referent} />;
 }
 
 function WordsOverviewBase<TKnowledgeType extends KnowledgeType>({
   detail,
-  icon: Icon,
   referent,
 }: {
   detail: WordsOverviewDetail<TKnowledgeType>;
-  icon: ElementType<{ "aria-hidden"?: "true" }>;
   referent: ActiveTag;
 }) {
   const headingId = `kb-overview-${sanitizeId(referent.id)}-heading`;
@@ -442,7 +428,10 @@ function WordsOverviewBase<TKnowledgeType extends KnowledgeType>({
     >
       <header className="kb-overview-header">
         <span className="kb-overview-icon" aria-hidden="true">
-          <Icon aria-hidden="true" />
+          <KnowledgeTypeIcon
+            className="kb-overview-type-icon"
+            knowledgeType={detail.knowledgeType}
+          />
         </span>
         <div>
           <p className="kb-eyebrow">Referent Overview</p>

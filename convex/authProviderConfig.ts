@@ -2,6 +2,7 @@ import Google from "@auth/core/providers/google";
 import Resend from "@auth/core/providers/resend";
 import { Password } from "@convex-dev/auth/providers/Password";
 import type { AuthProviderConfig } from "@convex-dev/auth/server";
+import type { Value } from "convex/values";
 
 export function hasPasswordAuth() {
   return true;
@@ -25,7 +26,10 @@ function resendProvider() {
 
 export function configuredAuthProviders(): AuthProviderConfig[] {
   const providers: AuthProviderConfig[] = [
-    hasPasswordResetAuth() ? Password({ reset: resendProvider() }) : Password,
+    Password({
+      profile: passwordProfile,
+      ...(hasPasswordResetAuth() ? { reset: resendProvider() } : {}),
+    }),
   ];
 
   if (hasGoogleAuth()) {
@@ -37,4 +41,17 @@ export function configuredAuthProviders(): AuthProviderConfig[] {
   }
 
   return providers;
+}
+
+function passwordProfile(params: Record<string, Value | undefined>) {
+  const email = params.email;
+  if (typeof email !== "string") {
+    throw new Error("Email is required.");
+  }
+
+  return { email: normalizeEmail(email) };
+}
+
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
 }

@@ -28,26 +28,26 @@ describe("KnowledgeRequestComposer draft behavior", () => {
   test("captures typed Knowledge Request text and submits deterministic mapped Tags", () => {
     const draft = updateKnowledgeRequestDraftText(
       createKnowledgeRequestDraft(),
-      "What does Romans 8:28 teach about the Holy Spirit?",
+      "How should I answer the student about the First Crusade and Matthew 5:9?",
     );
     const submittedDraft = submitKnowledgeRequestDraft(draft);
 
     expect(draft.text).toBe(
-      "What does Romans 8:28 teach about the Holy Spirit?",
+      "How should I answer the student about the First Crusade and Matthew 5:9?",
     );
     expect(submittedDraft.mappingStatus).toBe("proposed");
     expect(submittedDraft.mappedTags.map((tag) => tag.id)).toEqual([
-      "holy-spirit",
-      "romans-8-28",
+      "first-crusade",
+      "matthew-5-9",
     ]);
   });
 
   test("renders proposed Tags without mutating active Tags", () => {
-    const activeTags = [fixtureTag("romans-8-28")];
+    const activeTags = [fixtureTag("matthew-5-9")];
     const submittedDraft = submitKnowledgeRequestDraft(
       updateKnowledgeRequestDraftText(
         createKnowledgeRequestDraft(),
-        "How does the Holy Spirit comfort believers?",
+        "How does Augustine help teach the First Crusade?",
       ),
       activeTags,
     );
@@ -59,14 +59,16 @@ describe("KnowledgeRequestComposer draft behavior", () => {
       />,
     );
 
-    expect(activeTags.map((tag) => tag.id)).toEqual(["romans-8-28"]);
+    expect(activeTags.map((tag) => tag.id)).toEqual(["matthew-5-9"]);
     expect(submittedDraft.mappedTags.map((tag) => tag.id)).toEqual([
-      "holy-spirit",
-      "romans-8-28",
+      "first-crusade",
+      "matthew-5-9",
+      "the-city-of-god",
     ]);
     expect(markup).toContain("Proposed Tags");
-    expect(markup).toContain("Holy Spirit");
-    expect(markup).toContain("Romans 8:28");
+    expect(markup).toContain("First Crusade");
+    expect(markup).toContain("Matthew 5:9");
+    expect(markup).toContain("The City of God");
     expect(markup).toContain("Apply Tags");
     expect(markup).toContain("Ignore");
   });
@@ -75,7 +77,7 @@ describe("KnowledgeRequestComposer draft behavior", () => {
     const submittedDraft = submitKnowledgeRequestDraft(
       updateKnowledgeRequestDraftText(
         createKnowledgeRequestDraft(),
-        "Build a youth lesson on Romans 8:28 and the Holy Spirit.",
+        "Build a Grade 10 lesson on Boethius, providence, and Romans 8:28.",
       ),
     );
     const appliedDraft = applyKnowledgeRequestProposal(submittedDraft);
@@ -83,31 +85,31 @@ describe("KnowledgeRequestComposer draft behavior", () => {
 
     expect(appliedDraft.mappingStatus).toBe("applied");
     expect(nextHref).toBe(
-      "/explore?tagIds=christian-education,holy-spirit,romans-8-28",
+      "/explore?tagIds=boethius,grade-10-medieval-literature,providence,romans-8-28",
     );
     expect(nextHref).not.toContain("Build");
     expect(nextHref).not.toContain("KnowledgeRequest");
   });
 
   test("ignoring proposed Tags leaves active Tags and URL unchanged", () => {
-    const activeTags = [fixtureTag("romans-8-28")];
+    const activeTags = [fixtureTag("matthew-5-9")];
     const activeHref = getCanonicalKnowledgeContextHref(activeTags);
     const submittedDraft = submitKnowledgeRequestDraft(
       updateKnowledgeRequestDraftText(
         createKnowledgeRequestDraft(),
-        "Could this connect to atonement?",
+        "Could this connect to courage?",
       ),
       activeTags,
     );
     const ignoredDraft = ignoreKnowledgeRequestProposal(submittedDraft);
 
     expect(submittedDraft.mappedTags.map((tag) => tag.id)).toEqual([
-      "atonement",
-      "romans-8-28",
+      "courage",
+      "matthew-5-9",
     ]);
     expect(ignoredDraft.mappingStatus).toBe("idle");
     expect(ignoredDraft.mappedTags).toEqual([]);
     expect(getCanonicalKnowledgeContextHref(activeTags)).toBe(activeHref);
-    expect(activeHref).toBe("/scripture/romans-8-28");
+    expect(activeHref).toBe("/scripture/matthew-5-9");
   });
 });

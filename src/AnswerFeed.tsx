@@ -1,4 +1,5 @@
 import { KnowledgeEntryCard, KnowledgeSlotCard } from "./components/KnowledgeCards";
+import { KnowledgeTypeIcon } from "./components/KnowledgeTypeIcon";
 import {
   ANSWER_FEED_FIXTURE,
   type ActiveTag,
@@ -13,28 +14,41 @@ import type { KnowledgeSlotSummary } from "./knowledgeContracts";
 type AnswerFeedProps = {
   activeTags: ActiveTag[];
   items?: AnswerFeedFixtureItem[];
+  layout?: "list" | "masonry";
   onContributeToSlot?: (slot: KnowledgeSlotSummary) => void;
 };
 
 export function AnswerFeed({
   activeTags,
   items = ANSWER_FEED_FIXTURE,
+  layout = "list",
   onContributeToSlot,
 }: AnswerFeedProps) {
   const feedItems = selectAnswerFeedItems(items, activeTags);
   const answerCount = feedItems.filter(isAnswerFeedAnswer).length;
   const slotCount = feedItems.filter(isAnswerFeedSlot).length;
+  const isMasonry = layout === "masonry";
 
   return (
     <section className="kb-answer-feed" aria-labelledby="kb-answer-feed-heading">
       <header className="kb-answer-feed-header">
         <div>
           <p className="kb-eyebrow">Answer Feed</p>
-          <h2 id="kb-answer-feed-heading">{getFeedHeading(activeTags)}</h2>
+          <h2 id="kb-answer-feed-heading">
+            {isMasonry ? "Answers" : getFeedHeading(activeTags)}
+          </h2>
         </div>
         <div className="kb-answer-feed-counts" aria-label="Feed totals">
-          <span>{answerCount} Answers</span>
-          <span>{slotCount} Knowledge Slots</span>
+          {isMasonry ? (
+            <span>
+              {answerCount} entries + {slotCount} slots
+            </span>
+          ) : (
+            <>
+              <span>{answerCount} Answers</span>
+              <span>{slotCount} Knowledge Slots</span>
+            </>
+          )}
         </div>
       </header>
 
@@ -48,7 +62,13 @@ export function AnswerFeed({
       ) : null}
 
       {feedItems.length > 0 ? (
-        <ol className="kb-answer-feed-list">
+        <ol
+          className={
+            layout === "masonry"
+              ? "kb-answer-feed-list kb-answer-feed-list-masonry"
+              : "kb-answer-feed-list"
+          }
+        >
           {feedItems.map((item) => (
             <li data-feed-kind={item.kind} key={getAnswerFeedItemId(item)}>
               {item.kind === "answer" ? (
@@ -87,7 +107,10 @@ function ActiveContextTags({ activeTags }: { activeTags: ActiveTag[] }) {
     <ul className="kb-feed-tag-list" aria-label="Active Tags">
       {activeTags.map((tag) => (
         <li key={tag.id}>
-          <a href={tag.href}>{tag.label}</a>
+          <a href={tag.href}>
+            <KnowledgeTypeIcon knowledgeType={tag.knowledgeType} />
+            <span>{tag.label}</span>
+          </a>
         </li>
       ))}
     </ul>

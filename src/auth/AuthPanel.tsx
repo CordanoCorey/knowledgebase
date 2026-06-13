@@ -25,6 +25,9 @@ type AuthPanelProps = {
   surface?: "app" | "editor";
 };
 
+const passwordResetUnavailableMessage =
+  "Password reset email is not configured for this deployment.";
+
 export function AuthPanel({
   onSignInComplete,
   redirectTo,
@@ -134,6 +137,15 @@ export function AuthPanel({
       formData.set("email", resetEmail);
     } else {
       formData.set("email", email);
+    }
+
+    if (
+      provider === "password" &&
+      (isPasswordReset || isPasswordResetVerification) &&
+      !passwordResetAvailable
+    ) {
+      setError(passwordResetUnavailableMessage);
+      return;
     }
 
     setPendingProvider(provider);
@@ -328,11 +340,16 @@ export function AuthPanel({
               </>
             ) : null}
 
-            {passwordAvailable && passwordResetAvailable && isPasswordMethod && isPasswordSignIn ? (
+            {passwordAvailable && isPasswordMethod && isPasswordSignIn ? (
               <button
                 className="editor-auth-secondary-action"
                 disabled={isSubmitting}
-                onClick={() => updatePasswordFlow("reset")}
+                onClick={() => {
+                  updatePasswordFlow("reset");
+                  if (!passwordResetAvailable) {
+                    setError(passwordResetUnavailableMessage);
+                  }
+                }}
                 type="button"
               >
                 <Mail aria-hidden="true" />

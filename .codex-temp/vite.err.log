@@ -25,3 +25,21 @@
       at async EnvironmentPluginContainer.transform (file:///C:/Users/gelba/Project/knowledgebase/node_modules/vite/dist/node/chunks/node.js:30387:14)
       at async loadAndTransform (file:///C:/Users/gelba/Project/knowledgebase/node_modules/vite/dist/node/chunks/node.js:24646:26)
 [2m5:01:26 PM[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/App.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m10:03:58 PM[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[CONVEX A(auth:signIn)] [Request ID: a555beaa73184c9f] Server Error
+Uncaught Error: InvalidSecret
+
+[2m8:11:17 AM[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] ReferenceError: RailFocusRowsVariant is not defined
+    at http://127.0.0.1:5173/src/prototypes/LayoutPrototype.tsx?t=1781352677737:175:14
+[2m8:11:17 AM[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/prototypes/LayoutPrototype.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m8:11:18 AM[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] ReferenceError: RailFocusRowsVariant is not defined
+    at http://localhost:5173/src/prototypes/LayoutPrototype.tsx?t=1781352677737:175:14
+[2m8:11:18 AM[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/prototypes/LayoutPrototype.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m8:11:18 AM[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] ReferenceError: RailFocusRowsVariant is not defined
+    at http://localhost:5173/src/prototypes/LayoutPrototype.tsx?t=1781352677737:175:14
+[2m8:11:18 AM[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/prototypes/LayoutPrototype.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m8:11:18 AM[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] ReferenceError: RailFocusRowsVariant is not defined
+    at http://localhost:5173/src/prototypes/LayoutPrototype.tsx?t=1781352677737:175:14
+[2m8:11:18 AM[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/prototypes/LayoutPrototype.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m8:11:18 AM[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] ReferenceError: RailFocusRowsVariant is not defined
+    at http://localhost:5173/src/prototypes/LayoutPrototype.tsx?t=1781352677737:175:14
+[2m8:11:18 AM[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/prototypes/LayoutPrototype.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)

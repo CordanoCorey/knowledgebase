@@ -109,6 +109,27 @@ describe("AuthPanel", () => {
     expect(resetVerificationFormData.get("newPassword")).toBe("new-password");
   });
 
+  test("shows the reset option when reset email is not configured", async () => {
+    mocks.authAvailability = {
+      google: false,
+      password: true,
+      passwordReset: false,
+      resend: false,
+    };
+    await renderAuthPanel();
+
+    await click(getButton("Forgot password?"));
+
+    expect(container.textContent).toContain(
+      "Password reset email is not configured for this deployment.",
+    );
+
+    await setFieldValue(getInput("email"), "person@example.com");
+    await click(getButton("Send reset code"));
+
+    expect(mocks.signIn).not.toHaveBeenCalled();
+  });
+
   async function renderAuthPanel(props: { redirectTo?: string } = {}) {
     root = createRoot(container);
     await act(async () => {

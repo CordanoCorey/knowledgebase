@@ -1,7 +1,6 @@
 import {
   BookOpen,
   CalendarDays,
-  FileText,
   FolderPlus,
   Tag,
   UserCircle,
@@ -13,6 +12,7 @@ import {
   type KnowledgeSlotStatus,
   type KnowledgeSlotSummary,
 } from "../knowledgeContracts";
+import { KnowledgeTypeBadge, KnowledgeTypeIcon } from "./KnowledgeTypeIcon";
 
 type KnowledgeEntryCardProps = {
   className?: string;
@@ -40,8 +40,6 @@ const CARD_DATE_FORMATTER = new Intl.DateTimeFormat("en", {
 });
 
 export function KnowledgeEntryCard({ className, entry }: KnowledgeEntryCardProps) {
-  const knowledgeTypeLabel = formatKnowledgeTypeLabel(entry.knowledgeType);
-
   return (
     <article
       aria-labelledby={`knowledge-entry-${entry.id}-title`}
@@ -54,7 +52,11 @@ export function KnowledgeEntryCard({ className, entry }: KnowledgeEntryCardProps
             <a href={entry.href}>{entry.title}</a>
           </h3>
         </div>
-        <span className="kb-card-type">{knowledgeTypeLabel}</span>
+        <KnowledgeTypeBadge
+          className="kb-card-type"
+          knowledgeType={entry.knowledgeType}
+        />
+        <span className="kb-human-weight-badge">Human Weight {entry.humanWeight}</span>
       </header>
 
       <p className="kb-card-preview">{entry.previewText}</p>
@@ -126,7 +128,10 @@ export function KnowledgeSlotCard({
       </header>
 
       <div className="kb-slot-request">
-        <FileText aria-hidden="true" />
+        <KnowledgeTypeIcon
+          className="kb-slot-request-type-icon"
+          knowledgeType={slot.requestedKnowledgeType}
+        />
         <div>
           <span>Requested Type</span>
           <strong>{requestedTypeLabel}</strong>

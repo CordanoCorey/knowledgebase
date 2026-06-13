@@ -853,3 +853,77 @@ Errors  Files
 
 6/12/2026, 10:00:10 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
 
+6/12/2026, 10:03:17 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signOut'
+6/12/2026, 10:03:58 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: retrieveAccountWithCredentials'
+6/12/2026, 10:03:58 PM [CONVEX A(auth:signIn)] Uncaught Error: InvalidSecret
+
+6/12/2026, 10:04:39 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 10:06:36 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: retrieveAccountWithCredentials'
+6/12/2026, 10:06:36 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signIn'
+6/12/2026, 10:06:36 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 10:07:30 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 10:10:23 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 10:10:29 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/auth.ts[0m:[93m31[0m:[93m22[0m - [91merror[0m[90m TS2345: [0mArgument of type '"email"' is not assignable to parameter of type 'keyof SystemIndexes'.
+
+[7m31[0m           .withIndex("email", (q) => q.eq("email", normalizedEmail))
+[7m  [0m [91m                     ~~~~~~~[0m
+[96mconvex/auth.ts[0m:[93m31[0m:[93m43[0m - [91merror[0m[90m TS2345: [0mArgument of type '"email"' is not assignable to parameter of type '"_creationTime" | "_id"'.
+
+[7m31[0m           .withIndex("email", (q) => q.eq("email", normalizedEmail))
+[7m  [0m [91m                                          ~~~~~~~[0m
+
+
+Found 2 errors in the same file, starting at: convex/auth.ts[90m:31[0m
+- Preparing Convex functions...
+
+[32m√[39m 22:14:27 Convex functions ready! (5.64s)
+6/12/2026, 10:13:12 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 10:13:35 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signOut'
+- Preparing Convex functions...
+
+[32m√[39m 22:15:49 Convex functions ready! (6.24s)
+6/12/2026, 10:37:51 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signOut'
+6/12/2026, 10:49:13 PM [CONVEX Q(testQuery)] Uncaught ReferenceError: authAccounts is not defined
+
+6/12/2026, 10:49:30 PM [CONVEX Q(testQuery)] Uncaught ReferenceError: authAccounts is not defined
+
+6/12/2026, 10:49:40 PM [CONVEX Q(testQuery)] Uncaught ReferenceError: authAccounts is not defined
+
+6/12/2026, 10:49:51 PM [CONVEX Q(testQuery)] Uncaught ReferenceError: authAccounts is not defined
+
+6/12/2026, 10:50:05 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: retrieveAccountWithCredentials'
+6/12/2026, 10:50:06 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signIn'
+6/12/2026, 10:50:06 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 10:51:41 PM [CONVEX Q(testQuery)] Uncaught Error: Too many documents read in a single function execution (limit: 32000). Consider using smaller limits in your queries, paginating your queries, or using indexed queries with a selective index range expressions.
+
+6/12/2026, 10:52:05 PM [CONVEX Q(testQuery)] [WARN] Many documents read in a single function execution (actual: 31102, limit: 32000). Consider using smaller limits in your queries, paginating your queries, or using indexed queries with a selective index range expressions.
+6/12/2026, 10:52:06 PM [CONVEX Q(testQuery)] [WARN] Many documents read in a single function execution (actual: 31102, limit: 32000). Consider using smaller limits in your queries, paginating your queries, or using indexed queries with a selective index range expressions.
+6/13/2026, 2:39:33 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 3:39:24 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 4:39:16 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 5:39:06 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 6:38:57 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 7:38:48 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 8:38:40 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 9:38:30 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 10:38:22 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 11:38:13 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 12:38:04 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 12:47:23 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 12:52:21 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: retrieveAccountWithCredentials'
+6/13/2026, 12:52:21 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signIn'
+6/13/2026, 12:52:21 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 1:47:14 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 2:37:49 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 2:38:27 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: retrieveAccountWithCredentials'
+6/13/2026, 2:38:27 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signIn'
+6/13/2026, 2:38:28 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 2:40:01 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 2:50:10 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'

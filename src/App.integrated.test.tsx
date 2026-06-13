@@ -92,13 +92,13 @@ vi.mock("convex/react", () => ({
       "passageString" in args
     ) {
       return {
-        canonicalKey: "romans-8-28",
+        canonicalKey: "matthew-5-9",
         hasText: true,
         isTruncated: false,
-        label: "Romans 8:28",
-        passageString: "romans-8-28",
-        ranges: [{ endOrdinal: 28232, startOrdinal: 28232 }],
-        slug: "romans-8-28",
+        label: "Matthew 5:9",
+        passageString: "matthew-5-9",
+        ranges: [{ endOrdinal: 23237, startOrdinal: 23237 }],
+        slug: "matthew-5-9",
         status: "resolved",
         translation: {
           code: "KJV",
@@ -107,13 +107,13 @@ vi.mock("convex/react", () => ({
         },
         verses: [
           {
-            bookCode: "ROM",
-            bookName: "Romans",
-            bookShortName: "Rom",
-            chapterNumber: 8,
-            ordinal: 28232,
-            text: "And we know that all things work together for good...",
-            verseNumber: 28,
+            bookCode: "MAT",
+            bookName: "Matthew",
+            bookShortName: "Matt",
+            chapterNumber: 5,
+            ordinal: 23237,
+            text: "Blessed are the peacemakers...",
+            verseNumber: 9,
           },
         ],
       };
@@ -135,9 +135,9 @@ vi.mock("convex/react", () => ({
   },
 }));
 
-const CONTRIBUTION_TITLE = "Comfort by the Spirit";
+const CONTRIBUTION_TITLE = "Micah Crusades Response";
 const CONTRIBUTION_BODY =
-  "A deterministic lesson contribution on Romans 8:28 and the Holy Spirit.";
+  "A deterministic comment distinguishing Christian courage from zeal without knowledge.";
 
 describe("MVP Explore/Contribute loop", () => {
   let container: HTMLDivElement;
@@ -149,7 +149,7 @@ describe("MVP Explore/Contribute loop", () => {
     window.history.replaceState(
       {},
       "",
-      "http://localhost:3000/scripture/romans-8-28",
+      "http://localhost:3000/scripture/matthew-5-9",
     );
     window.localStorage.clear();
     mockState.auth = {
@@ -190,66 +190,66 @@ describe("MVP Explore/Contribute loop", () => {
 
     expect(mockState.mutationCalls).toContainEqual(
       expect.objectContaining({
-        rawPath: "/scripture/romans-8-28",
-        targetKey: "romans-8-28",
+        rawPath: "/scripture/matthew-5-9",
+        targetKey: "matthew-5-9",
         targetKind: "biblePassage",
       }),
     );
-    expect(getButton("Remove Romans 8:28")).toBeTruthy();
-    expect(queryButton("Remove Holy Spirit")).toBeNull();
+    expect(getButton("Remove Matthew 5:9")).toBeTruthy();
+    expect(queryButton("Remove First Crusade")).toBeNull();
 
-    await click(getButton("Add Holy Spirit"));
+    await click(getButton("Add First Crusade"));
 
     expect(window.location.pathname + window.location.search).toBe(
-      "/explore?tagIds=holy-spirit,romans-8-28",
+      "/explore?tagIds=first-crusade,matthew-5-9",
     );
-    expect(getButton("Remove Holy Spirit")).toBeTruthy();
+    expect(getButton("Remove First Crusade")).toBeTruthy();
 
     const initialAnswerItems = getFeedItems("answer");
     expect(initialAnswerItems.map(getCardTitle)).toEqual([
-      "Romans 8 and Life in the Spirit",
-      "Spirit-led Hope in Hard Providences",
+      "Augustine, Ordered Loves, and the First Crusade",
     ]);
-    expect(initialAnswerItems.map(getHumanWeightText)).toEqual([
-      "94/100",
-      "68/100",
-    ]);
+    expect(initialAnswerItems.map(getHumanWeightText)).toEqual(["94/100"]);
     for (const answerItem of initialAnswerItems) {
-      expect(answerItem.textContent).toContain("Romans 8:28");
-      expect(answerItem.textContent).toContain("Holy Spirit");
+      expect(answerItem.textContent).toContain("Matthew 5:9");
+      expect(answerItem.textContent).toContain("First Crusade");
     }
 
-    const slotItem = getFeedItems("slot")[0];
-    expect(slotItem).toBeTruthy();
+    const slotItem = getFeedItems("slot").find((item) =>
+      item.textContent?.includes("Answer Micah's Crusades question"),
+    );
+    if (!slotItem) {
+      throw new Error("Missing Micah Crusades question slot");
+    }
     expect(slotItem.textContent).toContain("Knowledge Slot");
-    expect(slotItem.textContent).toContain("Lesson on Romans 8 and the Holy Spirit");
-    expect(slotItem.textContent).toContain("Romans 8:28");
-    expect(slotItem.textContent).toContain("Holy Spirit");
+    expect(slotItem.textContent).toContain("Matthew 5:9");
+    expect(slotItem.textContent).toContain("First Crusade");
 
-    const slotContributionCta = getLinkIn(slotItem, "Contribute Lesson");
+    const slotContributionCta = getLinkIn(slotItem, "Contribute Comment");
     await click(slotContributionCta);
 
     const editor = getContributionEditor();
-    expect(editor.textContent).toContain("Lesson on Romans 8 and the Holy Spirit");
+    expect(editor.textContent).toContain("Answer Micah's Crusades question");
     expect(getContributionContextLabels(editor)).toEqual([
-      "Holy Spirit",
-      "Romans 8:28",
+      "First Crusade",
+      "Grade 9 Church History",
+      "Matthew 5:9",
+      "Student Crusades Question",
     ]);
     const knowledgeTypeSelect = editor.querySelector("select");
     expect(knowledgeTypeSelect?.getAttribute("disabled")).not.toBeNull();
     expect(knowledgeTypeSelect?.getAttribute("value") ?? knowledgeTypeSelect?.value).toBe(
-      "lesson",
+      "comment",
     );
 
     await setFieldValue(getTextInputIn(editor), CONTRIBUTION_TITLE);
     await setFieldValue(getTextareaIn(editor), CONTRIBUTION_BODY);
-    await click(getButtonIn(editor, "Submit Lesson"));
+    await click(getButtonIn(editor, "Submit Comment"));
 
     const finalAnswerItems = getFeedItems("answer");
     expect(finalAnswerItems.map(getCardTitle)).toEqual([
-      "Romans 8 and Life in the Spirit",
+      "Augustine, Ordered Loves, and the First Crusade",
       CONTRIBUTION_TITLE,
-      "Spirit-led Hope in Hard Providences",
     ]);
 
     const contributionAnswer = finalAnswerItems.find(
@@ -260,10 +260,10 @@ describe("MVP Explore/Contribute loop", () => {
     expect(contributionAnswer?.textContent).toContain(CONTRIBUTION_BODY);
     expect(contributionAnswer?.textContent).toContain("Human Weight");
     expect(contributionAnswer?.textContent).toContain("82/100");
-    expect(contributionAnswer?.textContent).toContain("Romans 8:28");
-    expect(contributionAnswer?.textContent).toContain("Holy Spirit");
+    expect(contributionAnswer?.textContent).toContain("Matthew 5:9");
+    expect(contributionAnswer?.textContent).toContain("First Crusade");
     expect(contributionAnswer?.innerHTML).toContain(
-      'href="/entries/simulated-slot-romans-8-spirit-lesson"',
+      'href="/entries/simulated-slot-student-crusades-question"',
     );
   });
 
@@ -346,6 +346,19 @@ describe("MVP Explore/Contribute loop", () => {
     expect(container.textContent).not.toContain("Route scaffold");
   });
 
+  test("renders the school-day dashboard agenda", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/");
+
+    await renderApp();
+
+    expect(container.querySelector(".kb-today-agenda")).toBeTruthy();
+    expect(container.textContent).toContain("Today at Arche Classical Academy");
+    expect(container.textContent).toContain("Friday, June 12, 2026");
+    expect(container.textContent).toContain("Answer Micah's Crusades question");
+    expect(container.textContent).toContain("Teach Boethius on providence");
+    expect(container.textContent).toContain("Review founding celebration event");
+  });
+
   test("renders the calendar route with month and agenda content", async () => {
     window.history.replaceState({}, "", "http://localhost:3000/calendar");
 
@@ -353,15 +366,16 @@ describe("MVP Explore/Contribute loop", () => {
 
     expect(container.querySelector(".kb-calendar-grid")).toBeTruthy();
     expect(container.textContent).toContain("June 2026");
-    expect(container.textContent).toContain("Community Q&A review");
-    expect(container.textContent).toContain("Knowledge Slot triage");
+    expect(container.textContent).toContain("Grade 10 Medieval Literature");
+    expect(container.textContent).toContain("Pride Leads to Death");
+    expect(container.textContent).toContain("250th Celebration of America's Founding");
     expect(
       container.querySelector('[aria-current="page"][aria-label="Calendar"]'),
     ).toBeTruthy();
   });
 
   test("renders the typed overview on referent pages", async () => {
-    window.history.replaceState({}, "", "http://localhost:3000/goto/holy-spirit");
+    window.history.replaceState({}, "", "http://localhost:3000/goto/first-crusade");
 
     await renderApp();
 
@@ -370,7 +384,7 @@ describe("MVP Explore/Contribute loop", () => {
     expect(overview?.getAttribute("data-knowledge-type")).toBe("topic");
     expect(overview?.textContent).toContain("Topic Overview");
     expect(overview?.textContent).toContain("Base Words Layer");
-    expect(overview?.textContent).toContain("Holy Spirit");
+    expect(overview?.textContent).toContain("First Crusade");
     expect(overview?.textContent).toContain("Doctrine, theme, or subject.");
   });
 
@@ -396,9 +410,7 @@ describe("MVP Explore/Contribute loop", () => {
     expect(container.querySelector(".kb-notifications-main")).toBeTruthy();
     expect(container.textContent).toContain("Notifications");
     expect(container.textContent).toContain("3 unread");
-    expect(container.textContent).toContain(
-      "Lesson on Romans 8 and the Holy Spirit is due soon",
-    );
+    expect(container.textContent).toContain("Micah's Crusades question is waiting");
     expect(getNotificationItems()).toHaveLength(4);
     expect(
       container.querySelector('[aria-current="page"][aria-label="Notifications"]'),
@@ -411,7 +423,7 @@ describe("MVP Explore/Contribute loop", () => {
     );
     expect(getNotificationItems()).toHaveLength(3);
     expect(container.textContent).not.toContain(
-      "A Short Note on Atonement received new activity",
+      "Trial by Fire received follow-up notes",
     );
 
     await click(getButton("Events"));
@@ -419,8 +431,8 @@ describe("MVP Explore/Contribute loop", () => {
     expect(normalizeText(container.querySelector("#kb-notification-feed-heading"))).toBe(
       "Event Notifications",
     );
-    expect(getNotificationItems()).toHaveLength(1);
-    expect(container.textContent).toContain("Community Q&A review was confirmed");
+    expect(getNotificationItems()).toHaveLength(2);
+    expect(container.textContent).toContain("Pride Leads to Death is on Sunday's calendar");
   });
 
   async function renderApp() {

@@ -3,7 +3,6 @@ import {
   LoaderCircle,
   LockKeyhole,
   Send,
-  Tag,
 } from "lucide-react";
 import {
   useState,
@@ -21,6 +20,7 @@ import {
   type KnowledgeSlotSummary,
   type KnowledgeType,
 } from "./knowledgeContracts";
+import { KnowledgeTypeIcon } from "./components/KnowledgeTypeIcon";
 import { Presence } from "./Presence";
 
 export type ContributionKnowledgeTypeSources = {
@@ -98,8 +98,9 @@ export function ContributionEditor({
         </div>
         {isSlotTypeFixed ? (
           <span className="kb-contribution-fixed-type">
-            <LockKeyhole aria-hidden="true" />
-            {activeKnowledgeTypeLabel}
+            <LockKeyhole aria-hidden="true" className="kb-contribution-lock-icon" />
+            <KnowledgeTypeIcon knowledgeType={activeKnowledgeType} />
+            <span>{activeKnowledgeTypeLabel}</span>
           </span>
         ) : null}
       </header>
@@ -137,7 +138,7 @@ export function ContributionEditor({
           <span>Source</span>
           <textarea
             onChange={(event) => setBody(event.currentTarget.value)}
-            placeholder={`Add ${activeKnowledgeTypeLabel} content`}
+            placeholder="Contribute an answer in this context..."
             required
             rows={5}
             value={body}
@@ -229,7 +230,7 @@ function ContributionContextTags({ context }: { context: ActiveTag[] }) {
     <ul className="kb-contribution-context-tags" aria-label="Contribution context Tags">
       {context.map((tag) => (
         <li key={tag.id}>
-          <Tag aria-hidden="true" />
+          <KnowledgeTypeIcon knowledgeType={tag.knowledgeType} />
           <span>{tag.label}</span>
         </li>
       ))}

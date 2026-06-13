@@ -3,17 +3,17 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from "react";
-import { Check, Sparkles, Tag, X } from "lucide-react";
+import { Check, Sparkles, X } from "lucide-react";
 import {
   addActiveTag,
   createKnowledgeRequestDraft,
   resolveTag,
 } from "./knowledgeContext";
 import {
-  formatKnowledgeTypeLabel,
   type ActiveTag,
   type KnowledgeRequestDraft,
 } from "./knowledgeContracts";
+import { KnowledgeTypeBadge } from "./components/KnowledgeTypeIcon";
 import { Presence } from "./Presence";
 
 type KnowledgeRequestComposerProps = {
@@ -29,6 +29,17 @@ type KnowledgeRequestTagRule = {
 
 const KNOWLEDGE_REQUEST_TAG_RULES: KnowledgeRequestTagRule[] = [
   {
+    tagId: "matthew-5-9",
+    patterns: [/\bmatthew\s*5(?::\s*9)?\b/, /\bpeacemakers?\b/],
+  },
+  {
+    tagId: "joshua-1-6-9",
+    patterns: [
+      /\bjoshua\s*1(?::\s*6(?:\s*-\s*9)?)?\b/,
+      /\bbe strong and courageous\b/,
+    ],
+  },
+  {
     tagId: "romans-8-28",
     patterns: [
       /\bromans\s*8(?::\s*28)?\b/,
@@ -37,31 +48,56 @@ const KNOWLEDGE_REQUEST_TAG_RULES: KnowledgeRequestTagRule[] = [
     ],
   },
   {
-    tagId: "john-3-16",
-    patterns: [/\bjohn\s*3(?::\s*16)?\b/, /\beverlasting life\b/],
+    tagId: "daniel-3",
+    patterns: [/\bdaniel\s*3\b/, /\btrial by fire\b/, /\bfiery furnace\b/],
   },
   {
-    tagId: "holy-spirit",
-    patterns: [/\bholy spirit\b/, /\bspirit(?:'s)?\b/, /\bcomforter\b/],
+    tagId: "daniel-4",
+    patterns: [/\bdaniel\s*4\b/, /\bpride leads to death\b/, /\bnebuchadnezzar\b/],
   },
   {
-    tagId: "atonement",
-    patterns: [/\baton(e|ing|ement)\b/, /\bno condemnation\b/, /\bsacrifice\b/],
+    tagId: "first-crusade",
+    patterns: [/\bfirst crusade\b/, /\bcrusades?\b/],
   },
   {
-    tagId: "christian-education",
+    tagId: "the-city-of-god",
+    patterns: [/\bcity of god\b/, /\baugustine\b/, /\bordered loves?\b/],
+  },
+  {
+    tagId: "boethius",
+    patterns: [/\bboethius\b/, /\bconsolation of philosophy\b/, /\bfortune\b/],
+  },
+  {
+    tagId: "providence",
+    patterns: [/\bprovidence\b/, /\bprovidential\b/],
+  },
+  {
+    tagId: "courage",
+    patterns: [/\bcourage\b/, /\bcourageous\b/, /\bvirtues?\b/],
+  },
+  {
+    tagId: "cs-lewis",
+    patterns: [/\bc\.?\s*s\.?\s*lewis\b/, /\blewis\b/],
+  },
+  {
+    tagId: "gk-chesterton",
+    patterns: [/\bg\.?\s*k\.?\s*chesterton\b/, /\bchesterton\b/],
+  },
+  {
+    tagId: "grade-9-church-history",
     patterns: [
-      /\bchristian education\b/,
-      /\bclassroom\b/,
-      /\bschool\b/,
-      /\bstudent\b/,
-      /\bteacher\b/,
-      /\byouth\b/,
+      /\bgrade\s*9\b/,
+      /\bninth grade\b/,
+      /\bchurch history\b/,
     ],
   },
   {
-    tagId: "narnia",
-    patterns: [/\bnarnia\b/, /\baslan\b/],
+    tagId: "grade-10-medieval-literature",
+    patterns: [
+      /\bgrade\s*10\b/,
+      /\btenth grade\b/,
+      /\bmedieval literature\b/,
+    ],
   },
 ];
 
@@ -131,9 +167,11 @@ export function KnowledgeRequestComposer({
               <ul className="kb-proposed-tag-list">
                 {draft.mappedTags.map((tag) => (
                   <li key={tag.id}>
-                    <Tag aria-hidden="true" />
                     <span>{tag.label}</span>
-                    <small>{formatKnowledgeTypeLabel(tag.knowledgeType)}</small>
+                    <KnowledgeTypeBadge
+                      className="kb-proposed-tag-type"
+                      knowledgeType={tag.knowledgeType}
+                    />
                   </li>
                 ))}
               </ul>

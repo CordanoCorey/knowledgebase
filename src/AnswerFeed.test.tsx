@@ -144,6 +144,20 @@ describe("AnswerFeed", () => {
     expect(markup).toContain("Knowledge Slot");
   });
 
+  test("can render the mixed feed as masonry", () => {
+    const markup = renderToStaticMarkup(
+      <AnswerFeed
+        activeTags={[romansTag, holySpiritTag]}
+        items={[lowerWeightAnswer, matchingSlot, higherWeightAnswer]}
+        layout="masonry"
+      />,
+    );
+
+    expect(markup).toContain("kb-answer-feed-list-masonry");
+    expect(markup).toContain('data-feed-kind="answer"');
+    expect(markup).toContain('data-feed-kind="slot"');
+  });
+
   test("renders no-match empty states for Answers and Slots", () => {
     const markup = renderToStaticMarkup(
       <AnswerFeed activeTags={[missingTag]} items={[lowerWeightAnswer, matchingSlot]} />,

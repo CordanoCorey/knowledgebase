@@ -25,7 +25,6 @@ import {
   MapPin,
   Moon,
   MousePointerClick,
-  Plus,
   Search,
   Settings,
   Tag,
@@ -52,6 +51,7 @@ import {
   type NavigatorUsageKind,
 } from "./analytics";
 import { KnowledgeSlotCard } from "./components/KnowledgeCards";
+import { KnowledgeTypeBadge, KnowledgeTypeIcon } from "./components/KnowledgeTypeIcon";
 import { KnowledgeTypeOverview } from "./components/KnowledgeTypeOverview";
 import {
   ANSWER_FEED_FIXTURE,
@@ -80,10 +80,10 @@ import { LayoutPrototype } from "./prototypes/LayoutPrototype";
 
 const THEME_STORAGE_KEY = "knowledgebase-theme";
 
-const SAMPLE_TAG_ID = "holy-spirit";
-const SAMPLE_ORG_ID = "my-church";
-const SAMPLE_CONTEXT_TAG_IDS = "holy-spirit,romans-8-28";
-const SAMPLE_SCRIPTURE_PASSAGE = "john-3-16";
+const SAMPLE_TAG_ID = "first-crusade";
+const SAMPLE_ORG_ID = "arche-classical-academy";
+const SAMPLE_CONTEXT_TAG_IDS = "first-crusade,matthew-5-9";
+const SAMPLE_SCRIPTURE_PASSAGE = "joshua-1-6-9";
 const MAX_PASSAGE_SUGGESTIONS = 5;
 
 type ViewTransitionDocument = Document & {
@@ -154,6 +154,18 @@ type CalendarEvent = {
   id: string;
   locationLabel: string;
   status: "confirmed" | "draft";
+  timeLabel: string;
+  title: string;
+};
+
+type TodayAgendaItem = {
+  contextHref: string;
+  contextLabel: string;
+  detail: string;
+  groupLabel: string;
+  id: string;
+  knowledgeType: AuthorableKnowledgeType;
+  statusLabel: string;
   timeLabel: string;
   title: string;
 };
@@ -327,106 +339,180 @@ const CALENDAR_TODAY = 12;
 const CALENDAR_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const CALENDAR_EVENTS: CalendarEvent[] = [
   {
-    id: "teachers-planning",
-    day: 3,
-    title: "Logic II planning",
-    timeLabel: "9:00 AM",
-    locationLabel: "Faculty room",
-    groupLabel: "Upper school teachers",
-    contextLabel: "Organization Home",
-    contextHref: `/orgs/${SAMPLE_ORG_ID}`,
+    id: "trial-by-fire-sermon",
+    day: 7,
+    title: "Trial by Fire",
+    timeLabel: "10:30 AM",
+    locationLabel: "Sanctuary",
+    groupLabel: "Ruler of Kings Church",
+    contextLabel: "Daniel 3",
+    contextHref: "/scripture/daniel-3",
     status: "confirmed",
   },
   {
-    id: "scripture-seminar",
-    day: 8,
-    title: "Romans 8 seminar",
+    id: "grade-9-church-history",
+    day: 12,
+    title: "Grade 9 Church History",
+    timeLabel: "10:40 AM",
+    locationLabel: "Room 204",
+    groupLabel: "Arche Classical Academy",
+    contextLabel: "First Crusade + Matthew 5:9",
+    contextHref: "/explore?tagIds=first-crusade,matthew-5-9",
+    status: "confirmed",
+  },
+  {
+    id: "grade-10-medieval-literature",
+    day: 12,
+    title: "Grade 10 Medieval Literature",
     timeLabel: "1:30 PM",
     locationLabel: "Library",
-    groupLabel: "Bible faculty",
-    contextLabel: "Romans 8:28",
-    contextHref: `/scripture/${SAMPLE_SCRIPTURE_PASSAGE}`,
+    groupLabel: "Arche Classical Academy",
+    contextLabel: "Boethius + Romans 8:28",
+    contextHref: "/explore?tagIds=boethius,grade-10-medieval-literature,romans-8-28",
     status: "confirmed",
   },
   {
-    id: "community-review",
+    id: "deacon-prayer-follow-up",
     day: 12,
-    title: "Community Q&A review",
-    timeLabel: "10:00 AM",
-    locationLabel: "Main office",
-    groupLabel: "Knowledge stewards",
-    contextLabel: "Holy Spirit",
-    contextHref: `/goto/${SAMPLE_TAG_ID}`,
+    title: "Deacon prayer follow-up",
+    timeLabel: "3:45 PM",
+    locationLabel: "Ruler of Kings Church",
+    groupLabel: "Ruler of Kings Deacons",
+    contextLabel: "Courage + Joshua 1:6-9",
+    contextHref: "/explore?tagIds=courage,joshua-1-6-9,ruler-of-kings-deacons",
     status: "confirmed",
   },
   {
-    id: "curriculum-sync",
-    day: 18,
-    title: "Curriculum sync",
-    timeLabel: "2:15 PM",
-    locationLabel: "Conference room",
-    groupLabel: "Humanities team",
-    contextLabel: "Explore Context",
-    contextHref: `/explore?tagIds=${SAMPLE_CONTEXT_TAG_IDS}`,
+    id: "pride-leads-to-death-sermon",
+    day: 14,
+    title: "Pride Leads to Death",
+    timeLabel: "10:30 AM",
+    locationLabel: "Sanctuary",
+    groupLabel: "Ruler of Kings Church",
+    contextLabel: "Daniel 4",
+    contextHref: "/scripture/daniel-4",
+    status: "confirmed",
+  },
+  {
+    id: "americas-founding-250",
+    day: 26,
+    title: "250th Celebration of America's Founding",
+    timeLabel: "6:30 PM",
+    locationLabel: "Fellowship hall",
+    groupLabel: "Ruler of Kings Church",
+    contextLabel: "Kingdom of Christ",
+    contextHref: "/explore?tagIds=americas-founding-250,kingdom-of-christ,revelation-11-15",
     status: "draft",
-  },
-  {
-    id: "knowledge-slot-triage",
-    day: 25,
-    title: "Knowledge Slot triage",
-    timeLabel: "11:30 AM",
-    locationLabel: "Remote",
-    groupLabel: "Editorial team",
-    contextLabel: "Organization Home",
-    contextHref: `/orgs/${SAMPLE_ORG_ID}`,
-    status: "confirmed",
   },
 ];
 
 const USER_NOTIFICATIONS: UserNotification[] = [
   {
-    id: "notice-slot-romans-8-spirit-lesson",
-    title: "Lesson on Romans 8 and the Holy Spirit is due soon",
+    id: "notice-slot-student-crusades-question",
+    title: "Micah's Crusades question is waiting",
     body:
-      "A Knowledge Slot assigned to Open to My Church is still waiting for a future Answer.",
-    contextLabel: "Romans 8:28 + Holy Spirit",
-    contextHref: `/explore?tagIds=${SAMPLE_CONTEXT_TAG_IDS}`,
+      "A Grade 9 Knowledge Slot needs your answer before the Church History seminar.",
+    contextLabel: "First Crusade + Matthew 5:9",
+    contextHref: "/explore?tagIds=first-crusade,matthew-5-9",
     kind: "knowledgeSlot",
-    receivedAt: Date.UTC(2026, 5, 12, 13, 12),
+    receivedAt: Date.UTC(2026, 5, 12, 12, 4),
     status: "unread",
   },
   {
-    id: "notice-entry-romans-8-spirit-sermon",
-    title: "Romans 8 and Life in the Spirit was added",
+    id: "notice-medieval-literature-lesson",
+    title: "Grade 10 Medieval Literature starts at 1:30 PM",
     body:
-      "A new Sermon entered a Knowledge Context you are subscribed to.",
-    contextLabel: "Romans 8:28",
-    contextHref: `/goto/${SAMPLE_TAG_ID}`,
-    kind: "answer",
-    receivedAt: Date.UTC(2026, 5, 12, 12, 35),
-    status: "unread",
-  },
-  {
-    id: "notice-community-review",
-    title: "Community Q&A review was confirmed",
-    body:
-      "The Knowledge stewards event on your calendar has a confirmed time and place.",
-    contextLabel: "Calendar",
-    contextHref: "/calendar",
+      "Your Boethius lesson is still open in the Knowledge Context for providence.",
+    contextLabel: "Boethius + Romans 8:28",
+    contextHref: "/explore?tagIds=boethius,grade-10-medieval-literature,romans-8-28",
     kind: "event",
-    receivedAt: Date.UTC(2026, 5, 11, 19, 10),
+    receivedAt: Date.UTC(2026, 5, 12, 11, 45),
     status: "unread",
   },
   {
-    id: "notice-atonement-note",
-    title: "A Short Note on Atonement received new activity",
+    id: "notice-pride-leads-to-death",
+    title: "Pride Leads to Death is on Sunday's calendar",
     body:
-      "A subscribed Knowledge Context has an updated Answer available for review.",
-    contextLabel: "Atonement",
-    contextHref: "/explore?tagIds=atonement",
+      "Ruler of Kings Church has the Daniel 4 sermon event confirmed for June 14.",
+    contextLabel: "Daniel 4",
+    contextHref: "/scripture/daniel-4",
+    kind: "event",
+    receivedAt: Date.UTC(2026, 5, 12, 10, 15),
+    status: "unread",
+  },
+  {
+    id: "notice-trial-by-fire-follow-up",
+    title: "Trial by Fire received follow-up notes",
+    body:
+      "The Daniel 3 sermon event now has deacon follow-up material attached.",
+    contextLabel: "Daniel 3",
+    contextHref: "/scripture/daniel-3",
     kind: "subscription",
-    receivedAt: Date.UTC(2026, 5, 10, 15, 44),
+    receivedAt: Date.UTC(2026, 5, 11, 16, 20),
     status: "read",
+  },
+];
+
+const TODAY_AGENDA_ITEMS: TodayAgendaItem[] = [
+  {
+    id: "agenda-grade-9-prep",
+    timeLabel: "8:10 AM",
+    title: "Finish the Crusades seminar frame",
+    detail:
+      "Connect Augustine's ordered loves to Matthew 5:9 before Grade 9 Church History.",
+    groupLabel: "Grade 9 Church History",
+    contextLabel: "First Crusade + The City of God",
+    contextHref: "/explore?tagIds=first-crusade,matthew-5-9,the-city-of-god",
+    knowledgeType: "lesson",
+    statusLabel: "Continue Entry",
+  },
+  {
+    id: "agenda-student-question",
+    timeLabel: "9:15 AM",
+    title: "Answer Micah's Crusades question",
+    detail:
+      "Student question: was the First Crusade courage, zeal without knowledge, or presumption?",
+    groupLabel: "Grade 9 Church History",
+    contextLabel: "Knowledge Slot",
+    contextHref: "/explore?tagIds=first-crusade,matthew-5-9",
+    knowledgeType: "comment",
+    statusLabel: "Open Slot",
+  },
+  {
+    id: "agenda-grade-10-medieval-lit",
+    timeLabel: "1:30 PM",
+    title: "Teach Boethius on providence",
+    detail:
+      "Keep the Grade 10 Medieval Literature lesson open for final notes before class.",
+    groupLabel: "Grade 10 Medieval Literature",
+    contextLabel: "Boethius + Romans 8:28",
+    contextHref: "/explore?tagIds=boethius,grade-10-medieval-literature,romans-8-28",
+    knowledgeType: "lesson",
+    statusLabel: "Continue Entry",
+  },
+  {
+    id: "agenda-deacon-follow-up",
+    timeLabel: "3:45 PM",
+    title: "Record deacon prayer follow-up",
+    detail:
+      "Tie the pastoral note to courage and Joshua 1:6-9 for the Ruler of Kings deacons.",
+    groupLabel: "Ruler of Kings Deacons",
+    contextLabel: "Courage + Joshua 1:6-9",
+    contextHref: "/explore?tagIds=courage,joshua-1-6-9,ruler-of-kings-deacons",
+    knowledgeType: "prayerRequest",
+    statusLabel: "Open Slot",
+  },
+  {
+    id: "agenda-founding-celebration",
+    timeLabel: "6:30 PM",
+    title: "Review founding celebration event",
+    detail:
+      "Ruler of Kings Church planning for the 250th Celebration of America's Founding.",
+    groupLabel: "Ruler of Kings Church",
+    contextLabel: "Kingdom of Christ",
+    contextHref: "/explore?tagIds=americas-founding-250,kingdom-of-christ,revelation-11-15",
+    knowledgeType: "event",
+    statusLabel: "Calendar",
   },
 ];
 
@@ -1041,9 +1127,11 @@ function TopBar({
                     onMouseEnter={() => setActiveSuggestionIndex(index)}
                     role="option"
                   >
-                    <BookOpen aria-hidden="true" />
                     <span>{suggestion.label}</span>
-                    <small>Bible Passage</small>
+                    <KnowledgeTypeBadge
+                      className="kb-search-suggestion-type"
+                      knowledgeType="biblePassage"
+                    />
                   </a>
                 ))}
               </div>
@@ -1128,16 +1216,29 @@ function PageScaffold({
   const hasWorkingLayout = route.components.length > 0;
 
   return (
-    <main className="kb-main kb-scaffold-main" aria-labelledby="kb-route-heading">
-      <header className="kb-route-header">
-        <div>
-          <p className="kb-eyebrow">Route scaffold</p>
-          <h1 id="kb-route-heading">{route.label}</h1>
-        </div>
-        <RouteMeta routeState={routeState} />
-      </header>
+    <main
+      className={
+        hasWorkingLayout
+          ? "kb-main kb-scaffold-main kb-scaffold-main-working"
+          : "kb-main kb-scaffold-main"
+      }
+      aria-labelledby="kb-route-heading"
+    >
+      {!hasWorkingLayout ? (
+        <header className="kb-route-header">
+          <div>
+            <p className="kb-eyebrow">
+              {route.id === "dashboard" ? "School Day" : "Context Page"}
+            </p>
+            <h1 id="kb-route-heading">
+              {route.id === "dashboard" ? "Today at Arche Classical Academy" : route.label}
+            </h1>
+          </div>
+          <RouteMeta routeState={routeState} />
+        </header>
+      ) : null}
 
-      {hasNavigator ? (
+      {hasNavigator && !hasWorkingLayout ? (
         <KnowledgeNavigator
           onNavigateToHref={onNavigateToHref}
           routeState={routeState}
@@ -1148,12 +1249,16 @@ function PageScaffold({
         <KnowledgeTypeOverview referent={activeTags[0]} />
       ) : null}
 
+      {route.id === "dashboard" ? <TodayAgenda onNavigate={onNavigate} /> : null}
+
       {hasWorkingLayout ? (
         <ComponentScaffold
           activeTags={activeTags}
           components={route.components}
           label={route.label}
+          routeId={route.id}
           onNavigateToHref={onNavigateToHref}
+          routeState={routeState}
         />
       ) : (
         <PagePlaceholder route={route} />
@@ -1173,6 +1278,51 @@ function PageScaffold({
         />
       ) : null}
     </main>
+  );
+}
+
+function TodayAgenda({
+  onNavigate,
+}: {
+  onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+}) {
+  return (
+    <section className="kb-today-agenda" aria-labelledby="kb-today-agenda-heading">
+      <header className="kb-today-agenda-header">
+        <div>
+          <p className="kb-eyebrow">Friday, June 12, 2026</p>
+          <h2 id="kb-today-agenda-heading">Teaching and Ministry Queue</h2>
+        </div>
+        <span>{TODAY_AGENDA_ITEMS.length} items</span>
+      </header>
+
+      <ol className="kb-today-agenda-list">
+        {TODAY_AGENDA_ITEMS.map((item) => (
+          <li key={item.id}>
+            <a
+              href={item.contextHref}
+              onClick={(event) => onNavigate(event, item.contextHref)}
+            >
+              <span className="kb-today-agenda-time">{item.timeLabel}</span>
+              <span className="kb-today-agenda-icon" aria-hidden="true">
+                <KnowledgeTypeIcon knowledgeType={item.knowledgeType} />
+              </span>
+              <span className="kb-today-agenda-content">
+                <span className="kb-today-agenda-title-row">
+                  <strong>{item.title}</strong>
+                  <span>{item.statusLabel}</span>
+                </span>
+                <span className="kb-today-agenda-detail">{item.detail}</span>
+                <span className="kb-today-agenda-meta">
+                  <span>{item.groupLabel}</span>
+                  <span>{item.contextLabel}</span>
+                </span>
+              </span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 
@@ -1383,11 +1533,17 @@ function ComponentScaffold({
   components,
   label,
   onNavigateToHref,
+  routeId,
+  routeState,
+  showHeading = true,
 }: {
   activeTags: ActiveTag[];
   components: CoreComponentId[];
   label: string;
   onNavigateToHref: (href: string) => void;
+  routeId: PageId;
+  routeState: RouteState;
+  showHeading?: boolean;
 }) {
   const [selectedContributionKnowledgeType, setSelectedContributionKnowledgeType] =
     useState<AuthorableKnowledgeType | null>(null);
@@ -1460,29 +1616,57 @@ function ComponentScaffold({
   }
 
   return (
-    <section className="kb-scaffold-grid" aria-label={`${label} component scaffold`}>
-      {components.includes("answer-feed") ? (
-        <AnswerFeedSurface
-          activeTags={activeTags}
-          items={feedItems}
-          onContributeToSlot={handleContributeToSlot}
-        />
-      ) : null}
-
-      <aside className="kb-component-rail" aria-label="Secondary placeholders">
+    <section className="kb-rail-focus-layout" aria-label={`${label} knowledge workspace`}>
+      <aside className="kb-rail-focus-context" aria-label="Knowledge context and request">
+        {components.includes("knowledge-navigator") ? (
+          <KnowledgeNavigator
+            onNavigateToHref={onNavigateToHref}
+            routeState={routeState}
+          >
+            {components.includes("knowledge-request-composer") ? (
+              <KnowledgeRequestComposer
+                activeTags={activeTags}
+                onApplyMappedTags={handleApplyMappedTags}
+              />
+            ) : null}
+          </KnowledgeNavigator>
+        ) : null}
         {components.includes("knowledge-slot-card") ? (
           <KnowledgeSlotRail
             onContributeToSlot={handleContributeToSlot}
             slot={primarySlot}
           />
         ) : null}
-        {components.includes("knowledge-request-composer") ? (
-          <PlaceholderBlock code="C3" title="Knowledge Request Composer">
+        {components.includes("knowledge-request-composer") &&
+        !components.includes("knowledge-navigator") ? (
+          <section
+            className="kb-request-panel"
+            aria-labelledby="kb-request-panel-heading"
+          >
+            <header>
+              <p className="kb-eyebrow">Knowledge Request</p>
+              <h2 id="kb-request-panel-heading">Search this Context</h2>
+            </header>
             <KnowledgeRequestComposer
               activeTags={activeTags}
               onApplyMappedTags={handleApplyMappedTags}
             />
-          </PlaceholderBlock>
+          </section>
+        ) : null}
+      </aside>
+
+      <section className="kb-rail-focus-workspace" aria-label="Contribute and read Answers">
+        {showHeading ? (
+          <header className="kb-rail-focus-heading">
+            <p className="kb-eyebrow">
+              {routeId === "dashboard" ? "School Day" : "Context Page"}
+            </p>
+            <h1 id="kb-route-heading">
+              {routeId === "dashboard"
+                ? "Today at Arche Classical Academy"
+                : getWorkspaceHeading(label, activeTags)}
+            </h1>
+          </header>
         ) : null}
         {components.includes("contribution-editor") ? (
           <ContributionEditorSurface
@@ -1493,9 +1677,25 @@ function ComponentScaffold({
             slot={selectedSlot}
           />
         ) : null}
-      </aside>
+        {components.includes("answer-feed") ? (
+          <AnswerFeedSurface
+            activeTags={activeTags}
+            items={feedItems}
+            layout="masonry"
+            onContributeToSlot={handleContributeToSlot}
+          />
+        ) : null}
+      </section>
     </section>
   );
+}
+
+function getWorkspaceHeading(label: string, activeTags: ActiveTag[]) {
+  if (activeTags.length > 0) {
+    return activeTags.map((tag) => tag.label).join(", ");
+  }
+
+  return label;
 }
 
 function KnowledgeSlotRail({
@@ -2481,11 +2681,6 @@ function BiblePassagePage({
         <RouteMeta routeState={routeState} />
       </header>
 
-      <KnowledgeNavigator
-        onNavigateToHref={onNavigateToHref}
-        routeState={routeState}
-      />
-
       {activeTags[0] ? <KnowledgeTypeOverview referent={activeTags[0]} /> : null}
 
       <section className="kb-scripture-panel" aria-label={`${passage.label} passage text`}>
@@ -2526,6 +2721,9 @@ function BiblePassagePage({
         components={getRoute("scripture").components}
         label={passage.label}
         onNavigateToHref={onNavigateToHref}
+        routeId="scripture"
+        routeState={routeState}
+        showHeading={false}
       />
     </main>
   );
@@ -2591,9 +2789,11 @@ function RouteMeta({ routeState }: { routeState: RouteState }) {
 }
 
 function KnowledgeNavigator({
+  children,
   onNavigateToHref,
   routeState,
 }: {
+  children?: ReactNode;
   onNavigateToHref: (href: string) => void;
   routeState: RouteState;
 }) {
@@ -2635,7 +2835,13 @@ function KnowledgeNavigator({
   }
 
   return (
-    <PlaceholderBlock code="C1" title="Knowledge Navigator">
+    <section className="kb-knowledge-navigator" aria-labelledby="kb-knowledge-navigator-heading">
+      <header>
+        <div>
+          <p className="kb-eyebrow">Knowledge Navigator</p>
+          <h2 id="kb-knowledge-navigator-heading">Active Knowledge Context</h2>
+        </div>
+      </header>
       <div className="kb-navigator-panel">
         <div className="kb-active-tag-list" aria-label="Active Tags">
           {activeTags.length > 0 ? (
@@ -2648,7 +2854,7 @@ function KnowledgeNavigator({
                 title={`Remove ${tag.label}`}
                 type="button"
               >
-                <Tag aria-hidden="true" />
+                <KnowledgeTypeIcon knowledgeType={tag.knowledgeType} />
                 <span>{tag.label}</span>
                 <X aria-hidden="true" />
               </button>
@@ -2657,6 +2863,8 @@ function KnowledgeNavigator({
             <p className="kb-navigator-empty">Global Knowledge Context</p>
           )}
         </div>
+
+        {children ? <div className="kb-navigator-request">{children}</div> : null}
 
         <div className="kb-add-tag-list" aria-label="Available Tags">
           {inactiveTags.map((tag) => (
@@ -2668,7 +2876,7 @@ function KnowledgeNavigator({
               title={`Add ${tag.label}`}
               type="button"
             >
-              <Plus aria-hidden="true" />
+              <KnowledgeTypeIcon knowledgeType={tag.knowledgeType} />
               <span>{tag.label}</span>
             </button>
           ))}
@@ -2678,7 +2886,7 @@ function KnowledgeNavigator({
           {contextKey}
         </span>
       </div>
-    </PlaceholderBlock>
+    </section>
   );
 }
 
