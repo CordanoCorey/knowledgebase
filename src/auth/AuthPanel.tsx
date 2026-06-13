@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
 import {
+  ArrowLeft,
   KeyRound,
   LoaderCircle,
   LockKeyhole,
@@ -14,7 +15,7 @@ import { api } from "../../convex/_generated/api";
 import archePressHorizontalLogoDarkUrl from "../assets/arche-press_logo-horizontal-full-dark.svg";
 import archePressHorizontalLogoUrl from "../assets/arche-press_logo-horizontal-full.svg";
 
-type PasswordFlow = "signIn" | "signUp";
+type PasswordFlow = "signIn" | "signUp" | "reset" | "reset-verification";
 type AuthMethod = "password" | "resend";
 type PendingProvider = "google" | "password" | "resend" | null;
 
@@ -33,18 +34,35 @@ export function AuthPanel({
   const authAvailability = useQuery(api.authAvailability.get);
   const [error, setError] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
+  const [resetEmail, setResetEmail] = useState<string | null>(null);
   const [passwordFlow, setPasswordFlow] = useState<PasswordFlow>("signIn");
   const [authMethod, setAuthMethod] = useState<AuthMethod>("password");
   const [pendingProvider, setPendingProvider] = useState<PendingProvider>(null);
 
   const googleAvailable = authAvailability?.google ?? false;
   const passwordAvailable = authAvailability?.password ?? false;
+  const passwordResetAvailable = authAvailability?.passwordReset ?? false;
   const resendAvailable = authAvailability?.resend ?? false;
   const isLoadingAuthAvailability = authAvailability === undefined;
   const hasConfiguredProvider = googleAvailable || passwordAvailable || resendAvailable;
   const isSubmitting = pendingProvider !== null;
   const isPasswordMethod = authMethod === "password";
   const isPasswordSignIn = passwordFlow === "signIn";
+  const isPasswordSignUp = passwordFlow === "signUp";
+  const isPasswordReset = passwordFlow === "reset";
+  const isPasswordResetVerification = passwordFlow === "reset-verification";
+  const isPasswordCredentialFlow =
+    isPasswordMethod && (isPasswordSignIn || isPasswordSignUp);
+  const shouldShowEmailField =
+    !isLoadingAuthAvailability &&
+    (authMethod === "resend" ||
+      isPasswordSignIn ||
+      isPasswordSignUp ||
+      isPasswordReset);
+  const shouldShowSubmit =
+    !isLoadingAuthAvailability &&
+    ((isPasswordMethod && passwordAvailable) ||
+      (!isPasswordMethod && resendAvailable));
 
   useEffect(() => {
     if (isLoadingAuthAvailability) {
@@ -76,12 +94,19 @@ export function AuthPanel({
 
   function updatePasswordFlow(nextFlow: PasswordFlow) {
     resetFeedback();
+    if (nextFlow !== "reset-verification") {
+      setResetEmail(null);
+    }
     setPasswordFlow(nextFlow);
     setAuthMethod("password");
   }
 
   function updateAuthMethod(nextMethod: AuthMethod) {
     resetFeedback();
+    setResetEmail(null);
+    if (nextMethod === "password") {
+      setPasswordFlow("signIn");
+    }
     setAuthMethod(nextMethod);
   }
 
@@ -105,14 +130,25 @@ export function AuthPanel({
     const email = String(formData.get("email") || "").trim();
     const provider: AuthMethod = isPasswordMethod ? "password" : "resend";
 
-    formData.set("email", email);
+    if (isPasswordResetVerification && resetEmail) {
+      formData.set("email", resetEmail);
+    } else {
+      formData.set("email", email);
+    }
+
     setPendingProvider(provider);
 
     try {
       if (provider === "password") {
         formData.set("flow", passwordFlow);
         await signIn("password", formData);
-        onSignInComplete?.();
+        if (isPasswordReset) {
+          setResetEmail(email);
+          setPasswordFlow("reset-verification");
+          setSentTo(email);
+        } else {
+          onSignInComplete?.();
+        }
       } else {
         formData.set("redirectTo", getRedirectTo());
         await signIn("resend", formData);
@@ -128,15 +164,34 @@ export function AuthPanel({
   const submitLabel = isPasswordMethod
     ? isPasswordSignIn
       ? "Sign in"
-      : "Create account"
+      : isPasswordSignUp
+        ? "Create account"
+        : isPasswordReset
+          ? "Send reset code"
+          : "Reset password"
     : "Email me a link";
   const SubmitIcon = isPasswordMethod
     ? isPasswordSignIn
       ? LogIn
-      : UserPlus
+      : isPasswordSignUp
+        ? UserPlus
+        : Mail
     : Mail;
   const authContextLabel = surface === "app" ? "Secure workspace" : "Secure editor";
   const sessionLabel = surface === "app" ? "Account required" : "Session required";
+  const headerEyebrow =
+    isPasswordReset || isPasswordResetVerification
+      ? "Password reset"
+      : isPasswordSignUp
+        ? "Sign up"
+        : "Sign in";
+  const headerTitle = isPasswordReset
+    ? "Reset password"
+    : isPasswordResetVerification
+      ? "Enter reset code"
+      : isPasswordSignUp
+        ? "Create your account"
+        : "Welcome back";
 
   return (
     <section className={`editor-panel editor-auth-panel editor-auth-panel-${surface}`}>
@@ -167,30 +222,9 @@ export function AuthPanel({
         <div className="editor-auth-content">
           <form className="editor-auth-form" onSubmit={handleSubmit}>
             <header>
-              <p className="eyebrow">{isPasswordSignIn ? "Sign in" : "Sign up"}</p>
-              <h1>{isPasswordSignIn ? "Welcome back" : "Create your account"}</h1>
+              <p className="eyebrow">{headerEyebrow}</p>
+              <h1>{headerTitle}</h1>
             </header>
-
-            {passwordAvailable ? (
-              <div className="editor-auth-mode-switch" role="tablist" aria-label="Auth mode">
-                <button
-                  aria-selected={isPasswordSignIn}
-                  onClick={() => updatePasswordFlow("signIn")}
-                  role="tab"
-                  type="button"
-                >
-                  Sign in
-                </button>
-                <button
-                  aria-selected={!isPasswordSignIn}
-                  onClick={() => updatePasswordFlow("signUp")}
-                  role="tab"
-                  type="button"
-                >
-                  Create
-                </button>
-              </div>
-            ) : null}
 
             {isLoadingAuthAvailability ? (
               <p className="editor-auth-muted" role="status">
@@ -199,7 +233,7 @@ export function AuthPanel({
               </p>
             ) : null}
 
-            {googleAvailable ? (
+            {googleAvailable && !isPasswordReset && !isPasswordResetVerification ? (
               <button
                 className="editor-auth-provider"
                 disabled={isSubmitting}
@@ -215,7 +249,10 @@ export function AuthPanel({
               </button>
             ) : null}
 
-            {googleAvailable && (passwordAvailable || resendAvailable) ? (
+            {googleAvailable &&
+            (passwordAvailable || resendAvailable) &&
+            !isPasswordReset &&
+            !isPasswordResetVerification ? (
               <div className="editor-auth-divider" aria-hidden="true">
                 <span />
                 <strong>or</strong>
@@ -223,7 +260,7 @@ export function AuthPanel({
               </div>
             ) : null}
 
-            {passwordAvailable && resendAvailable ? (
+            {passwordAvailable && resendAvailable && !isPasswordReset && !isPasswordResetVerification ? (
               <div className="editor-auth-method-switch" role="tablist" aria-label="Sign-in method">
                 <button
                   aria-selected={authMethod === "password"}
@@ -244,12 +281,75 @@ export function AuthPanel({
               </div>
             ) : null}
 
-            {!isLoadingAuthAvailability && (passwordAvailable || resendAvailable) ? (
+            {passwordAvailable && isPasswordMethod && !isPasswordReset && !isPasswordResetVerification ? (
+              <div className="editor-auth-mode-switch" role="tablist" aria-label="Auth mode">
+                <button
+                  aria-selected={isPasswordSignIn}
+                  onClick={() => updatePasswordFlow("signIn")}
+                  role="tab"
+                  type="button"
+                >
+                  Sign in
+                </button>
+                <button
+                  aria-selected={isPasswordSignUp}
+                  onClick={() => updatePasswordFlow("signUp")}
+                  role="tab"
+                  type="button"
+                >
+                  Create
+                </button>
+              </div>
+            ) : null}
+
+            {shouldShowEmailField ? (
               <AuthEmailField disabled={isSubmitting} />
             ) : null}
 
-            {!isLoadingAuthAvailability && passwordAvailable && isPasswordMethod ? (
-              <AuthPasswordField disabled={isSubmitting} isSignIn={isPasswordSignIn} />
+            {!isLoadingAuthAvailability && passwordAvailable && isPasswordCredentialFlow ? (
+              <AuthPasswordField
+                autoComplete={isPasswordSignIn ? "current-password" : "new-password"}
+                disabled={isSubmitting}
+                label="Password"
+                name="password"
+              />
+            ) : null}
+
+            {!isLoadingAuthAvailability && passwordAvailable && isPasswordResetVerification ? (
+              <>
+                <input name="email" type="hidden" value={resetEmail ?? ""} />
+                <AuthCodeField disabled={isSubmitting} />
+                <AuthPasswordField
+                  autoComplete="new-password"
+                  disabled={isSubmitting}
+                  label="New password"
+                  name="newPassword"
+                />
+              </>
+            ) : null}
+
+            {passwordAvailable && passwordResetAvailable && isPasswordMethod && isPasswordSignIn ? (
+              <button
+                className="editor-auth-secondary-action"
+                disabled={isSubmitting}
+                onClick={() => updatePasswordFlow("reset")}
+                type="button"
+              >
+                <Mail aria-hidden="true" />
+                <span>Forgot password?</span>
+              </button>
+            ) : null}
+
+            {isPasswordReset || isPasswordResetVerification ? (
+              <button
+                className="editor-auth-secondary-action editor-auth-back-action"
+                disabled={isSubmitting}
+                onClick={() => updatePasswordFlow("signIn")}
+                type="button"
+              >
+                <ArrowLeft aria-hidden="true" />
+                <span>Back to sign in</span>
+              </button>
             ) : null}
 
             {!isLoadingAuthAvailability && !hasConfiguredProvider ? (
@@ -260,7 +360,9 @@ export function AuthPanel({
 
             {sentTo ? (
               <p className="editor-auth-success" role="status">
-                Check {sentTo} for your sign-in link.
+                {isPasswordResetVerification
+                  ? `Check ${sentTo} for your reset code.`
+                  : `Check ${sentTo} for your sign-in link.`}
               </p>
             ) : null}
             {error ? (
@@ -269,7 +371,7 @@ export function AuthPanel({
               </p>
             ) : null}
 
-            {!isLoadingAuthAvailability && (passwordAvailable || resendAvailable) ? (
+            {shouldShowSubmit ? (
               <button className="editor-auth-submit" disabled={isSubmitting} type="submit">
                 {pendingProvider === (isPasswordMethod ? "password" : "resend") ? (
                   <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
@@ -343,24 +445,47 @@ function AuthEmailField({ disabled }: { disabled: boolean }) {
 }
 
 function AuthPasswordField({
+  autoComplete,
   disabled,
-  isSignIn,
+  label,
+  name,
 }: {
+  autoComplete: "current-password" | "new-password";
   disabled: boolean;
-  isSignIn: boolean;
+  label: string;
+  name: "password" | "newPassword";
 }) {
   return (
     <label className="editor-auth-field">
-      <span>Password</span>
+      <span>{label}</span>
       <div className="editor-auth-input-shell">
         <KeyRound aria-hidden="true" />
         <input
-          autoComplete={isSignIn ? "current-password" : "new-password"}
+          autoComplete={autoComplete}
           disabled={disabled}
           minLength={8}
-          name="password"
+          name={name}
           required
           type="password"
+        />
+      </div>
+    </label>
+  );
+}
+
+function AuthCodeField({ disabled }: { disabled: boolean }) {
+  return (
+    <label className="editor-auth-field">
+      <span>Code</span>
+      <div className="editor-auth-input-shell">
+        <KeyRound aria-hidden="true" />
+        <input
+          autoComplete="one-time-code"
+          disabled={disabled}
+          inputMode="numeric"
+          name="code"
+          required
+          type="text"
         />
       </div>
     </label>

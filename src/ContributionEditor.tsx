@@ -21,6 +21,7 @@ import {
   type KnowledgeSlotSummary,
   type KnowledgeType,
 } from "./knowledgeContracts";
+import { Presence } from "./Presence";
 
 export type ContributionKnowledgeTypeSources = {
   selectedKnowledgeType?: KnowledgeType | null;
@@ -157,12 +158,18 @@ export function ContributionEditor({
         </button>
       </form>
 
-      {submissionState.kind === "submitted" ? (
-        <p className="kb-contribution-status" role="status">
-          <CheckCircle2 aria-hidden="true" />
-          Submitted
-        </p>
-      ) : null}
+      <Presence present={submissionState.kind === "submitted"}>
+        {(presenceState) => (
+          <p
+            className="kb-contribution-status"
+            data-presence={presenceState}
+            role="status"
+          >
+            <CheckCircle2 aria-hidden="true" />
+            Submitted
+          </p>
+        )}
+      </Presence>
     </section>
   );
 }

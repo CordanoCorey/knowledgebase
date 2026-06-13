@@ -15,15 +15,25 @@ export function hasResendAuth() {
   return Boolean(process.env.AUTH_RESEND_KEY && process.env.AUTH_EMAIL_FROM);
 }
 
+export function hasPasswordResetAuth() {
+  return hasResendAuth();
+}
+
+function resendProvider() {
+  return Resend({ from: process.env.AUTH_EMAIL_FROM! });
+}
+
 export function configuredAuthProviders(): AuthProviderConfig[] {
-  const providers: AuthProviderConfig[] = [Password];
+  const providers: AuthProviderConfig[] = [
+    hasPasswordResetAuth() ? Password({ reset: resendProvider() }) : Password,
+  ];
 
   if (hasGoogleAuth()) {
     providers.push(Google);
   }
 
   if (hasResendAuth()) {
-    providers.push(Resend({ from: process.env.AUTH_EMAIL_FROM! }));
+    providers.push(resendProvider());
   }
 
   return providers;

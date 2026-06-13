@@ -14,6 +14,7 @@ import {
   type ActiveTag,
   type KnowledgeRequestDraft,
 } from "./knowledgeContracts";
+import { Presence } from "./Presence";
 
 type KnowledgeRequestComposerProps = {
   activeTags: ActiveTag[];
@@ -112,61 +113,70 @@ export function KnowledgeRequestComposer({
         </button>
       </form>
 
-      {hasProposal ? (
-        <section
-          aria-label="Proposed mapped Tags"
-          className="kb-request-proposal"
-        >
-          <header>
-            <div>
-              <p className="kb-eyebrow">Proposed Tags</p>
-              <h3>Mapped Knowledge Context</h3>
+      <Presence present={hasProposal}>
+        {(presenceState) => (
+          <section
+            aria-label="Proposed mapped Tags"
+            className="kb-request-proposal"
+            data-presence={presenceState}
+          >
+            <header>
+              <div>
+                <p className="kb-eyebrow">Proposed Tags</p>
+                <h3>Mapped Knowledge Context</h3>
+              </div>
+            </header>
+
+            {hasMappedTags ? (
+              <ul className="kb-proposed-tag-list">
+                {draft.mappedTags.map((tag) => (
+                  <li key={tag.id}>
+                    <Tag aria-hidden="true" />
+                    <span>{tag.label}</span>
+                    <small>{formatKnowledgeTypeLabel(tag.knowledgeType)}</small>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="kb-request-empty" role="status">
+                No fixture Tags matched this Knowledge Request.
+              </p>
+            )}
+
+            <div className="kb-request-actions">
+              <button
+                className="kb-request-action kb-request-action-primary"
+                disabled={!hasMappedTags}
+                onClick={handleApplyProposal}
+                type="button"
+              >
+                <Check aria-hidden="true" />
+                <span>Apply Tags</span>
+              </button>
+              <button
+                className="kb-request-action"
+                onClick={handleIgnoreProposal}
+                type="button"
+              >
+                <X aria-hidden="true" />
+                <span>Ignore</span>
+              </button>
             </div>
-          </header>
+          </section>
+        )}
+      </Presence>
 
-          {hasMappedTags ? (
-            <ul className="kb-proposed-tag-list">
-              {draft.mappedTags.map((tag) => (
-                <li key={tag.id}>
-                  <Tag aria-hidden="true" />
-                  <span>{tag.label}</span>
-                  <small>{formatKnowledgeTypeLabel(tag.knowledgeType)}</small>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="kb-request-empty" role="status">
-              No fixture Tags matched this Knowledge Request.
-            </p>
-          )}
-
-          <div className="kb-request-actions">
-            <button
-              className="kb-request-action kb-request-action-primary"
-              disabled={!hasMappedTags}
-              onClick={handleApplyProposal}
-              type="button"
-            >
-              <Check aria-hidden="true" />
-              <span>Apply Tags</span>
-            </button>
-            <button
-              className="kb-request-action"
-              onClick={handleIgnoreProposal}
-              type="button"
-            >
-              <X aria-hidden="true" />
-              <span>Ignore</span>
-            </button>
-          </div>
-        </section>
-      ) : null}
-
-      {draft.mappingStatus === "applied" ? (
-        <p aria-live="polite" className="kb-request-status">
-          Applied proposed Tags.
-        </p>
-      ) : null}
+      <Presence present={draft.mappingStatus === "applied"}>
+        {(presenceState) => (
+          <p
+            aria-live="polite"
+            className="kb-request-status"
+            data-presence={presenceState}
+          >
+            Applied proposed Tags.
+          </p>
+        )}
+      </Presence>
     </div>
   );
 }

@@ -12,7 +12,8 @@
     "test": "vitest run",
     "convex:dev": "convex dev",
     "convex:deploy": "convex deploy --cmd \"npm run build:static\"",
-    "seed:scripture": "node scripts/seed-scripture.mjs"
+    "seed:scripture": "node scripts/seed-scripture.mjs",
+    "seed:organizations": "node scripts/seed-organizations.mjs"
   },
   "dependencies": {
     "@auth/core": "^0.41.2",

@@ -30,8 +30,30 @@ export const NAVIGATOR_TAG_FIXTURES: ActiveTag[] = [
   tagFixture("narnia", "Narnia", "series"),
 ];
 
+const REFERENT_TAG_FIXTURES: ActiveTag[] = [
+  ...NAVIGATOR_TAG_FIXTURES,
+  tagFixture("ordinary-note", "Ordinary Note", "words"),
+  tagFixture("why-pray", "Why Pray?", "question"),
+  tagFixture("mere-christianity-quote", "Mere Christianity Quote", "quote"),
+  tagFixture("romans-8-sermon", "Romans 8 Sermon", "sermon"),
+  tagFixture("student-essay", "Student Essay", "essay"),
+  tagFixture("holy-sonnet", "Holy Sonnet", "poem"),
+  tagFixture("be-thou-my-vision", "Be Thou My Vision", "song"),
+  tagFixture("mere-christianity", "Mere Christianity", "book"),
+  tagFixture("gift-of-the-magi", "The Gift of the Magi", "shortStory"),
+  tagFixture("romans-8-lesson", "Romans 8 Lesson", "lesson"),
+  tagFixture("teacher-feedback", "Teacher Feedback", "comment"),
+  tagFixture("missions-prayer", "Missions Prayer", "prayerRequest"),
+  tagFixture("community-qa-review", "Community Q&A Review", "event"),
+  tagFixture("qa-review-rsvp", "Q&A Review RSVP", "rsvp"),
+  tagFixture("cs-lewis", "C.S. Lewis", "person"),
+  tagFixture("arche-classical-academy", "Arche Classical Academy", "organization"),
+  tagFixture("grade-7-bible", "Grade 7 Bible", "group"),
+  tagFixture("oxford", "Oxford", "place"),
+];
+
 const TAGS_BY_ID = new Map(
-  NAVIGATOR_TAG_FIXTURES.map((tag) => [tag.id, tag]),
+  REFERENT_TAG_FIXTURES.map((tag) => [tag.id, tag]),
 );
 
 export function getActiveTagsFromRoute(

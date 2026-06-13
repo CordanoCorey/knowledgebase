@@ -156,6 +156,19 @@ const analyticsTargetKind = v.union(
 export default defineSchema({
   ...authTables,
 
+  users: defineTable({
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+    email: v.optional(v.string()),
+    emailVerificationTime: v.optional(v.number()),
+    phone: v.optional(v.string()),
+    phoneVerificationTime: v.optional(v.number()),
+    isAnonymous: v.optional(v.boolean()),
+    isActive: v.optional(v.boolean()),
+  })
+    .index("email", ["email"])
+    .index("phone", ["phone"]),
+
   referents: defineTable({
     knowledgeType: referentKnowledgeType,
     canonicalKey: v.string(),
@@ -326,6 +339,10 @@ export default defineSchema({
       "memberUserId",
       "membershipStatus",
     ])
+    .index("by_memberUserId_and_organizationReferentId", [
+      "memberUserId",
+      "organizationReferentId",
+    ])
     .index("by_organizationReferentId_and_membershipStatus", [
       "organizationReferentId",
       "membershipStatus",
@@ -494,6 +511,7 @@ export default defineSchema({
   organizationEntries: defineTable({
     entryId: v.id("knowledgeEntries"),
     organizationKind,
+    isActive: v.optional(v.boolean()),
   })
     .index("by_entryId", ["entryId"])
     .index("by_organizationKind", ["organizationKind"]),
