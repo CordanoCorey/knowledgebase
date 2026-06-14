@@ -22,16 +22,50 @@ export type KnowledgeRouteLocation = {
 };
 
 export const NAVIGATOR_TAG_FIXTURES: ActiveTag[] = [
+  biblePassageTag("matthew-5-9", "Matthew 5:9"),
+  biblePassageTag("joshua-1-6-9", "Joshua 1:6-9"),
   biblePassageTag("romans-8-28", "Romans 8:28"),
-  biblePassageTag("john-3-16", "John 3:16"),
-  tagFixture("holy-spirit", "Holy Spirit", "topic"),
-  tagFixture("atonement", "Atonement", "topic"),
-  tagFixture("christian-education", "Christian Education", "topic"),
-  tagFixture("narnia", "Narnia", "series"),
+  biblePassageTag("daniel-3", "Daniel 3"),
+  biblePassageTag("daniel-4", "Daniel 4"),
+  tagFixture("first-crusade", "First Crusade", "topic"),
+  tagFixture("courage", "Courage", "topic"),
+  tagFixture("boethius", "Boethius", "person"),
+];
+
+const REFERENT_TAG_FIXTURES: ActiveTag[] = [
+  ...NAVIGATOR_TAG_FIXTURES,
+  biblePassageTag("daniel-2-20-22", "Daniel 2:20-22"),
+  biblePassageTag("psalms-33-12", "Psalms 33:12"),
+  biblePassageTag("revelation-11-15", "Revelation 11:15"),
+  tagFixture("trial-by-fire", "Trial by Fire", "sermon"),
+  tagFixture("pride-leads-to-death", "Pride Leads to Death", "sermon"),
+  tagFixture("augustine", "Augustine", "person"),
+  tagFixture("cs-lewis", "C.S. Lewis", "person"),
+  tagFixture("gk-chesterton", "G.K. Chesterton", "person"),
+  tagFixture("the-city-of-god", "The City of God", "book"),
+  tagFixture("the-consolation-of-philosophy", "The Consolation of Philosophy", "book"),
+  tagFixture("crusades", "Crusades", "topic"),
+  tagFixture("ordered-loves", "Ordered Loves", "topic"),
+  tagFixture("providence", "Providence", "topic"),
+  tagFixture("kingdom-of-christ", "Kingdom of Christ", "topic"),
+  tagFixture("reformed-theology", "Reformed Theology", "topic"),
+  tagFixture("arche-classical-academy", "Arche Classical Academy", "organization"),
+  tagFixture("ruler-of-kings-church", "Ruler of Kings Church", "organization"),
+  tagFixture("ruler-of-kings-deacons", "Ruler of Kings Deacons", "group"),
+  tagFixture("grade-9-church-history", "Grade 9 Church History", "group"),
+  tagFixture("grade-10-medieval-literature", "Grade 10 Medieval Literature", "group"),
+  tagFixture("grade-7-bible", "Grade 7 Bible", "group"),
+  tagFixture("grade-8-logic", "Grade 8 Logic", "group"),
+  tagFixture("daniel-sermon-series", "Daniel Sermon Series", "series"),
+  tagFixture("americas-founding-250", "250th Celebration of America's Founding", "event"),
+  tagFixture("student-crusades-question", "Student Crusades Question", "question"),
 ];
 
 const TAGS_BY_ID = new Map(
-  NAVIGATOR_TAG_FIXTURES.map((tag) => [tag.id, tag]),
+  REFERENT_TAG_FIXTURES.map((tag) => [tag.id, tag]),
+);
+const TAGS_BY_LABEL = new Map(
+  REFERENT_TAG_FIXTURES.map((tag) => [normalizeTagLabel(tag.label), tag]),
 );
 
 export function getActiveTagsFromRoute(
@@ -120,6 +154,10 @@ export function getCanonicalKnowledgeContextHref(tags: ActiveTag[]) {
   return `/explore?tagIds=${tagIds}`;
 }
 
+export function getReferentTagHref(tag: ActiveTag) {
+  return getSingleTagHref(tag);
+}
+
 export function getKnowledgeContextKey(tags: ActiveTag[]) {
   const tagIds = sortTagIds(tags.map((tag) => tag.id));
   return tagIds.length > 0 ? `tags:${tagIds.join(",")}` : "global";
@@ -140,6 +178,30 @@ export function getInactiveNavigatorTags(activeTags: ActiveTag[]) {
 
 export function resolveTag(tagId: string): ActiveTag {
   return TAGS_BY_ID.get(tagId) ?? tagFixture(tagId, labelFromTagId(tagId), "words");
+}
+
+export function resolveTagLabel(label: string): ActiveTag {
+  const normalizedLabel = normalizeTagLabel(label);
+  const fixtureTag = TAGS_BY_LABEL.get(normalizedLabel);
+  if (fixtureTag) {
+    return fixtureTag;
+  }
+
+  const parsedPassage = parseBiblePassageReference(label);
+  if (parsedPassage) {
+    return (
+      TAGS_BY_ID.get(parsedPassage.slug) ??
+      biblePassageTag(parsedPassage.slug, parsedPassage.label)
+    );
+  }
+
+  const trimmedLabel = label.trim();
+  const tagId = slugifyTagId(trimmedLabel);
+  return tagFixture(tagId, trimmedLabel || labelFromTagId(tagId), "words");
+}
+
+export function resolveTags(tagIds: string[]): ActiveTag[] {
+  return sortTagsById(tagIds.map(resolveTag));
 }
 
 export function sortTagIds(tagIds: string[]) {
@@ -248,6 +310,10 @@ function decodePathSegment(segment: string) {
   } catch {
     return segment;
   }
+}
+
+function normalizeTagLabel(label: string) {
+  return label.trim().toLowerCase();
 }
 
 function slugifyTagId(value: string) {

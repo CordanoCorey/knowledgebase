@@ -23,6 +23,29 @@ export type KnowledgeType =
 
 export type AuthorableKnowledgeType = Exclude<KnowledgeType, "biblePassage">;
 
+export const AUTHORABLE_KNOWLEDGE_TYPES = [
+  "words",
+  "topic",
+  "series",
+  "question",
+  "quote",
+  "sermon",
+  "essay",
+  "poem",
+  "song",
+  "book",
+  "shortStory",
+  "lesson",
+  "comment",
+  "prayerRequest",
+  "event",
+  "rsvp",
+  "person",
+  "organization",
+  "group",
+  "place",
+] as const satisfies readonly AuthorableKnowledgeType[];
+
 export type KnowledgeLocationKind =
   | "dashboard"
   | "biblePassageReferent"
@@ -45,6 +68,7 @@ export type KnowledgeRequestDraft = {
 };
 
 export type KnowledgeEntrySummary = {
+  contributor: ContributorSummary;
   id: string;
   title: string;
   knowledgeType: AuthorableKnowledgeType;
@@ -54,6 +78,36 @@ export type KnowledgeEntrySummary = {
   humanWeight: number;
   href: string;
   updatedAt: number;
+};
+
+export type ContributorSummary = {
+  href?: string;
+  id: string;
+  name: string;
+};
+
+export type KnowledgeContextExpert = ContributorSummary & {
+  averageHumanWeight: number;
+  contributionCount: number;
+  reliabilityScore: number;
+};
+
+export type KnowledgeContextTrendKind =
+  | "quiet"
+  | "popular"
+  | "needsContribution"
+  | "popularAndNeedsContribution";
+
+export type KnowledgeContextTrendSummary = {
+  answerCount: number;
+  href: string;
+  label: string;
+  openRequestCount: number;
+  overdueRequestCount: number;
+  recentVisitCount: number;
+  totalVisitCount: number;
+  trendKind: KnowledgeContextTrendKind;
+  trendScore: number;
 };
 
 export type KnowledgeSlotStatus = "open" | "fulfilled" | "cancelled" | "overdue";
@@ -68,6 +122,19 @@ export type KnowledgeSlotSummary = {
   targetLabel: string;
   dueAt?: number;
   href: string;
+};
+
+export type ContributionInput = {
+  body: string;
+  contextTags: ActiveTag[];
+  knowledgeType: AuthorableKnowledgeType;
+  slotId?: string;
+  title: string;
+};
+
+export type ContributionResult = {
+  entryId?: string;
+  status: "submitted";
 };
 
 export type AnswerFeedItem =
@@ -107,4 +174,17 @@ const KNOWLEDGE_TYPE_LABELS: Record<KnowledgeType, string> = {
 
 export function formatKnowledgeTypeLabel(knowledgeType: KnowledgeType) {
   return KNOWLEDGE_TYPE_LABELS[knowledgeType];
+}
+
+const AUTHORABLE_KNOWLEDGE_TYPE_SET = new Set<KnowledgeType>(
+  AUTHORABLE_KNOWLEDGE_TYPES,
+);
+
+export function isAuthorableKnowledgeType(
+  knowledgeType: KnowledgeType | string | null | undefined,
+): knowledgeType is AuthorableKnowledgeType {
+  return (
+    typeof knowledgeType === "string" &&
+    AUTHORABLE_KNOWLEDGE_TYPE_SET.has(knowledgeType as KnowledgeType)
+  );
 }

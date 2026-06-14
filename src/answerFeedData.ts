@@ -1,6 +1,8 @@
-import type { ActiveTag } from "./knowledgeContext";
+import { resolveTags, type ActiveTag } from "./knowledgeContext";
 import type {
   AnswerFeedItem,
+  ContributorSummary,
+  KnowledgeContextExpert,
   KnowledgeEntrySummary,
   KnowledgeSlotSummary,
 } from "./knowledgeContracts";
@@ -16,145 +18,349 @@ export type AnswerFeedFixtureItem = AnswerFeedItem & {
   contextTagIds: string[];
 };
 
+const CONTRIBUTOR_CALEB: ContributorSummary = {
+  id: "contributor-caleb-gelbaugh",
+  name: "Caleb Gelbaugh",
+};
+
+const CONTRIBUTOR_MIRIAM: ContributorSummary = {
+  id: "contributor-miriam-vale",
+  name: "Miriam Vale",
+};
+
+const CONTRIBUTOR_THOMAS: ContributorSummary = {
+  id: "contributor-thomas-beckett",
+  name: "Thomas Beckett",
+};
+
+const CONTRIBUTOR_ANNA: ContributorSummary = {
+  id: "contributor-anna-matthias",
+  name: "Anna Matthias",
+};
+
+const EXPERT_CONTRIBUTION_BONUS = 12;
+
 export const ANSWER_FEED_FIXTURE: AnswerFeedFixtureItem[] = [
   {
     kind: "answer",
-    contextTagIds: ["romans-8-28", "holy-spirit"],
+    contextTagIds: [
+      "matthew-5-9",
+      "first-crusade",
+      "the-city-of-god",
+      "augustine",
+      "grade-9-church-history",
+      "ordered-loves",
+    ],
     entry: {
-      id: "entry-romans-8-spirit-sermon",
-      title: "Romans 8 and Life in the Spirit",
-      knowledgeType: "sermon",
+      contributor: CONTRIBUTOR_CALEB,
+      id: "entry-first-crusade-ordered-loves",
+      title: "Augustine, Ordered Loves, and the First Crusade",
+      knowledgeType: "lesson",
       previewText:
-        "A preached answer on assurance, adoption, and the Spirit's witness in Romans 8.",
-      primaryTagLabel: "Romans 8:28",
-      contextPreviewTagLabels: ["Romans 8:28", "Holy Spirit"],
+        "Grade 9 Church History prep for teaching the Crusades through Augustine's earthly city, peace, and disordered loves.",
+      primaryTagLabel: "Grade 9 Church History",
+      contextPreviewTagLabels: [
+        "Matthew 5:9",
+        "First Crusade",
+        "The City of God",
+        "Grade 9 Church History",
+      ],
       humanWeight: 94,
-      href: "/entries/entry-romans-8-spirit-sermon",
-      updatedAt: Date.UTC(2026, 3, 18, 12),
+      href: "/entries/entry-first-crusade-ordered-loves",
+      updatedAt: Date.UTC(2026, 5, 12, 14),
     },
   },
   {
     kind: "answer",
-    contextTagIds: ["romans-8-28", "atonement"],
+    contextTagIds: [
+      "romans-8-28",
+      "boethius",
+      "the-consolation-of-philosophy",
+      "grade-10-medieval-literature",
+      "providence",
+    ],
     entry: {
-      id: "entry-romans-8-good-lesson",
-      title: "What Romans 8:28 Means by Good",
+      contributor: CONTRIBUTOR_MIRIAM,
+      id: "entry-medieval-literature-boethius-lesson",
+      title: "1:30 Medieval Literature: Boethius on Providence",
       knowledgeType: "lesson",
       previewText:
-        "A classroom-ready lesson connecting providence, suffering, and Christ's finished work.",
-      primaryTagLabel: "Romans 8:28",
-      contextPreviewTagLabels: ["Romans 8:28", "Atonement"],
-      humanWeight: 87,
-      href: "/entries/entry-romans-8-good-lesson",
-      updatedAt: Date.UTC(2026, 2, 28, 12),
+        "A nearly ready lesson connecting fortune, providence, and Romans 8:28 before the Grade 10 class meets.",
+      primaryTagLabel: "Grade 10 Medieval Literature",
+      contextPreviewTagLabels: [
+        "Romans 8:28",
+        "Boethius",
+        "The Consolation of Philosophy",
+        "Grade 10 Medieval Literature",
+      ],
+      humanWeight: 91,
+      href: "/entries/entry-medieval-literature-boethius-lesson",
+      updatedAt: Date.UTC(2026, 5, 12, 15),
     },
   },
   {
     kind: "answer",
-    contextTagIds: ["atonement"],
+    contextTagIds: [
+      "joshua-1-6-9",
+      "courage",
+      "cs-lewis",
+      "gk-chesterton",
+      "ruler-of-kings-church",
+    ],
     entry: {
-      id: "entry-atonement-note",
-      title: "A Short Note on Atonement",
+      contributor: CONTRIBUTOR_ANNA,
+      id: "entry-courage-lewis-chesterton-quotes",
+      title: "Courage at the Testing Point",
+      knowledgeType: "quote",
+      previewText:
+        "C.S. Lewis: \"Courage is not simply one of the virtues, but the form of every virtue at the testing point.\" Paired with Chesterton on virtue.",
+      primaryTagLabel: "C.S. Lewis",
+      contextPreviewTagLabels: [
+        "Joshua 1:6-9",
+        "Courage",
+        "C.S. Lewis",
+        "G.K. Chesterton",
+      ],
+      humanWeight: 90,
+      href: "/entries/entry-courage-lewis-chesterton-quotes",
+      updatedAt: Date.UTC(2026, 5, 11, 18),
+    },
+  },
+  {
+    kind: "answer",
+    contextTagIds: [
+      "daniel-2-20-22",
+      "crusades",
+      "kingdom-of-christ",
+      "grade-9-church-history",
+    ],
+    entry: {
+      contributor: CONTRIBUTOR_CALEB,
+      id: "entry-kingdoms-rise-and-fall",
+      title: "Kingdoms Rise and Fall Under God",
       knowledgeType: "words",
       previewText:
-        "A compact definition for teachers introducing sacrifice, substitution, and reconciliation.",
-      primaryTagLabel: "Atonement",
-      contextPreviewTagLabels: ["Atonement"],
-      humanWeight: 78,
-      href: "/entries/entry-atonement-note",
-      updatedAt: Date.UTC(2026, 1, 12, 12),
+        "A short bridge from Daniel 2 to medieval political history: earthly power is real, limited, and judged.",
+      primaryTagLabel: "Daniel 2:20-22",
+      contextPreviewTagLabels: [
+        "Daniel 2:20-22",
+        "Crusades",
+        "Kingdom of Christ",
+        "Grade 9 Church History",
+      ],
+      humanWeight: 88,
+      href: "/entries/entry-kingdoms-rise-and-fall",
+      updatedAt: Date.UTC(2026, 5, 10, 13),
     },
   },
   {
     kind: "answer",
-    contextTagIds: ["john-3-16", "christian-education"],
+    contextTagIds: [
+      "daniel-3",
+      "trial-by-fire",
+      "daniel-sermon-series",
+      "ruler-of-kings-church",
+    ],
     entry: {
-      id: "entry-john-316-discussion",
-      title: "John 3:16 Classroom Discussion",
-      knowledgeType: "lesson",
+      contributor: CONTRIBUTOR_THOMAS,
+      id: "entry-trial-by-fire-sermon-event",
+      title: "Trial by Fire",
+      knowledgeType: "event",
       previewText:
-        "Discussion prompts for helping students trace love, faith, judgment, and everlasting life.",
-      primaryTagLabel: "John 3:16",
-      contextPreviewTagLabels: ["John 3:16", "Christian Education"],
-      humanWeight: 89,
-      href: "/entries/entry-john-316-discussion",
-      updatedAt: Date.UTC(2026, 4, 5, 12),
+        "Last Sunday's Ruler of Kings Church sermon event on Daniel 3, courage, and faithful witness under pressure.",
+      primaryTagLabel: "Trial by Fire",
+      contextPreviewTagLabels: [
+        "Daniel 3",
+        "Trial by Fire",
+        "Daniel Sermon Series",
+        "Ruler of Kings Church",
+      ],
+      humanWeight: 86,
+      href: "/entries/entry-trial-by-fire-sermon-event",
+      updatedAt: Date.UTC(2026, 5, 7, 16),
     },
   },
   {
     kind: "answer",
-    contextTagIds: ["romans-8-28"],
+    contextTagIds: [
+      "daniel-4",
+      "pride-leads-to-death",
+      "daniel-sermon-series",
+      "ruler-of-kings-church",
+    ],
     entry: {
-      id: "entry-romans-8-summary",
-      title: "Romans 8 Summary Draft",
-      knowledgeType: "words",
+      contributor: CONTRIBUTOR_THOMAS,
+      id: "entry-pride-leads-to-death-sermon-event",
+      title: "Pride Leads to Death",
+      knowledgeType: "event",
       previewText:
-        "A rough summary that needs more human review before it carries much weight.",
-      primaryTagLabel: "Romans 8:28",
-      contextPreviewTagLabels: ["Romans 8:28"],
-      humanWeight: 32,
-      href: "/entries/entry-romans-8-summary",
-      updatedAt: Date.UTC(2026, 0, 22, 12),
+        "This coming Sunday's Ruler of Kings Church sermon event on Daniel 4 and Nebuchadnezzar's humiliation.",
+      primaryTagLabel: "Pride Leads to Death",
+      contextPreviewTagLabels: [
+        "Daniel 4",
+        "Pride Leads to Death",
+        "Daniel Sermon Series",
+        "Ruler of Kings Church",
+      ],
+      humanWeight: 84,
+      href: "/entries/entry-pride-leads-to-death-sermon-event",
+      updatedAt: Date.UTC(2026, 5, 12, 12),
+    },
+  },
+  {
+    kind: "answer",
+    contextTagIds: [
+      "revelation-11-15",
+      "psalms-33-12",
+      "americas-founding-250",
+      "ruler-of-kings-church",
+      "kingdom-of-christ",
+    ],
+    entry: {
+      contributor: CONTRIBUTOR_MIRIAM,
+      id: "entry-americas-founding-250-event",
+      title: "250th Celebration of America's Founding",
+      knowledgeType: "event",
+      previewText:
+        "Ruler of Kings Church gathering for prayer, thanksgiving, and reflection on the nations under Christ's reign.",
+      primaryTagLabel: "250th Celebration of America's Founding",
+      contextPreviewTagLabels: [
+        "Revelation 11:15",
+        "Psalms 33:12",
+        "Ruler of Kings Church",
+        "Kingdom of Christ",
+      ],
+      humanWeight: 81,
+      href: "/entries/entry-americas-founding-250-event",
+      updatedAt: Date.UTC(2026, 5, 12, 10),
+    },
+  },
+  {
+    kind: "answer",
+    contextTagIds: [
+      "joshua-1-6-9",
+      "courage",
+      "ruler-of-kings-deacons",
+      "ruler-of-kings-church",
+    ],
+    entry: {
+      contributor: CONTRIBUTOR_ANNA,
+      id: "entry-deacon-courage-prayer-request",
+      title: "Prayer Request: Courage for a Family Trial",
+      knowledgeType: "prayerRequest",
+      previewText:
+        "A deacon follow-up note asking for courage, patience, and wise speech during an ongoing family hardship.",
+      primaryTagLabel: "Ruler of Kings Deacons",
+      contextPreviewTagLabels: [
+        "Joshua 1:6-9",
+        "Courage",
+        "Ruler of Kings Deacons",
+        "Ruler of Kings Church",
+      ],
+      humanWeight: 76,
+      href: "/entries/entry-deacon-courage-prayer-request",
+      updatedAt: Date.UTC(2026, 5, 12, 19),
     },
   },
   {
     kind: "slot",
-    contextTagIds: ["romans-8-28", "holy-spirit"],
+    contextTagIds: [
+      "matthew-5-9",
+      "first-crusade",
+      "grade-9-church-history",
+      "student-crusades-question",
+    ],
     slot: {
-      id: "slot-romans-8-spirit-lesson",
-      title: "Lesson on Romans 8 and the Holy Spirit",
-      requestedKnowledgeType: "lesson",
+      id: "slot-student-crusades-question",
+      title: "Answer Micah's Crusades question",
+      requestedKnowledgeType: "comment",
       promptText:
-        "Contribute a future Answer that helps a youth group connect Romans 8 with the Spirit's comfort.",
+        "Micah asked whether the First Crusade shows Christian courage, zeal without knowledge, or presumption. Answer before seminar.",
       status: "open",
-      contextPreviewTagLabels: ["Romans 8:28", "Holy Spirit"],
-      targetLabel: "Open to My Church",
-      dueAt: Date.UTC(2026, 5, 30, 12),
-      href: "/slots/slot-romans-8-spirit-lesson",
+      contextPreviewTagLabels: [
+        "Matthew 5:9",
+        "First Crusade",
+        "Grade 9 Church History",
+      ],
+      targetLabel: "Grade 9 Church History",
+      dueAt: Date.UTC(2026, 5, 12, 12),
+      href: "/slots/slot-student-crusades-question",
     },
   },
   {
     kind: "slot",
-    contextTagIds: ["romans-8-28", "atonement"],
+    contextTagIds: [
+      "matthew-5-9",
+      "first-crusade",
+      "the-city-of-god",
+      "grade-9-church-history",
+    ],
     slot: {
-      id: "slot-romans-8-atonement-answer",
-      title: "Answer connecting Romans 8 and atonement",
-      requestedKnowledgeType: "words",
-      promptText:
-        "Add a concise Answer for how no condemnation rests on Christ's atoning work.",
-      status: "open",
-      contextPreviewTagLabels: ["Romans 8:28", "Atonement"],
-      targetLabel: "Public",
-      href: "/slots/slot-romans-8-atonement-answer",
-    },
-  },
-  {
-    kind: "slot",
-    contextTagIds: ["john-3-16", "christian-education"],
-    slot: {
-      id: "slot-john-316-essay",
-      title: "Student essay on John 3:16",
+      id: "slot-grade-9-crusades-essay",
+      title: "Collect Grade 9 First Crusade essay",
       requestedKnowledgeType: "essay",
+      promptText:
+        "Student essay should distinguish holy war rhetoric from Christian courage under the Sermon on the Mount.",
       status: "overdue",
-      contextPreviewTagLabels: ["John 3:16", "Christian Education"],
-      targetLabel: "Grade 7 Bible",
-      dueAt: Date.UTC(2026, 4, 20, 12),
-      href: "/slots/slot-john-316-essay",
+      contextPreviewTagLabels: [
+        "Matthew 5:9",
+        "First Crusade",
+        "The City of God",
+        "Grade 9 Church History",
+      ],
+      targetLabel: "Grade 9 Church History",
+      dueAt: Date.UTC(2026, 5, 11, 20),
+      href: "/slots/slot-grade-9-crusades-essay",
     },
   },
   {
     kind: "slot",
-    contextTagIds: ["atonement"],
+    contextTagIds: [
+      "daniel-4",
+      "grade-8-logic",
+      "reformed-theology",
+      "pride-leads-to-death",
+    ],
     slot: {
-      id: "slot-atonement-quote",
-      title: "Quote for atonement sermon prep",
-      requestedKnowledgeType: "quote",
+      id: "slot-grade-8-logic-pride-inference",
+      title: "Grade 8 Logic inference examples on pride",
+      requestedKnowledgeType: "question",
       promptText:
-        "Contribute a well-cited Quote that can serve a sermon on atonement.",
+        "Collect student questions that test valid inferences from Daniel 4 without flattening providence into fatalism.",
       status: "open",
-      contextPreviewTagLabels: ["Atonement"],
-      targetLabel: "My Church",
-      href: "/slots/slot-atonement-quote",
+      contextPreviewTagLabels: [
+        "Daniel 4",
+        "Grade 8 Logic",
+        "Reformed Theology",
+      ],
+      targetLabel: "Grade 8 Logic",
+      dueAt: Date.UTC(2026, 5, 13, 18),
+      href: "/slots/slot-grade-8-logic-pride-inference",
+    },
+  },
+  {
+    kind: "slot",
+    contextTagIds: [
+      "joshua-1-6-9",
+      "courage",
+      "ruler-of-kings-deacons",
+      "ruler-of-kings-church",
+    ],
+    slot: {
+      id: "slot-deacon-courage-follow-up",
+      title: "Deacon follow-up after courage prayer request",
+      requestedKnowledgeType: "prayerRequest",
+      promptText:
+        "Add the follow-up prayer request after today's visit so the deacons can pray with the same Knowledge Context.",
+      status: "open",
+      contextPreviewTagLabels: [
+        "Joshua 1:6-9",
+        "Courage",
+        "Ruler of Kings Deacons",
+      ],
+      targetLabel: "Ruler of Kings Deacons",
+      dueAt: Date.UTC(2026, 5, 12, 22),
+      href: "/slots/slot-deacon-courage-follow-up",
     },
   },
 ];
@@ -185,11 +391,68 @@ export function selectAnswerFeedItems(
   return [...answerItems, ...slotItems];
 }
 
+export function selectKnowledgeContextExperts(
+  items: AnswerFeedFixtureItem[],
+  activeTags: ActiveTag[],
+  limit = 3,
+): KnowledgeContextExpert[] {
+  const aggregates = new Map<
+    string,
+    ContributorSummary & {
+      contributionCount: number;
+      latestUpdatedAt: number;
+      maxHumanWeight: number;
+      totalHumanWeight: number;
+    }
+  >();
+
+  for (const item of selectAnswerFeedItems(items, activeTags)) {
+    if (!isAnswerFeedAnswer(item)) {
+      continue;
+    }
+
+    const { contributor, humanWeight, updatedAt } = item.entry;
+    const aggregate = aggregates.get(contributor.id);
+    if (aggregate) {
+      aggregate.contributionCount += 1;
+      aggregate.latestUpdatedAt = Math.max(aggregate.latestUpdatedAt, updatedAt);
+      aggregate.maxHumanWeight = Math.max(aggregate.maxHumanWeight, humanWeight);
+      aggregate.totalHumanWeight += humanWeight;
+      continue;
+    }
+
+    aggregates.set(contributor.id, {
+      ...contributor,
+      contributionCount: 1,
+      latestUpdatedAt: updatedAt,
+      maxHumanWeight: humanWeight,
+      totalHumanWeight: humanWeight,
+    });
+  }
+
+  return Array.from(aggregates.values())
+    .map(toKnowledgeContextExpert)
+    .sort(compareKnowledgeContextExperts)
+    .slice(0, limit)
+    .map(removeExpertSortFields);
+}
+
 export function getPrimarySlotForContext(
   items: AnswerFeedFixtureItem[],
   activeTags: ActiveTag[],
 ) {
-  return selectAnswerFeedItems(items, activeTags).find(isAnswerFeedSlot)?.slot;
+  return getPrimarySlotItemForContext(items, activeTags)?.slot;
+}
+
+export function getPrimarySlotItemForContext(
+  items: AnswerFeedFixtureItem[],
+  activeTags: ActiveTag[],
+) {
+  return selectAnswerFeedItems(items, activeTags).find(isAnswerFeedSlot);
+}
+
+export function getFixtureContextTags(contextTagIds: string[]) {
+  return resolveTags(contextTagIds);
 }
 
 export function getAnswerFeedItemId(item: AnswerFeedItem) {
@@ -250,4 +513,80 @@ function getSlotStatusOrder(status: KnowledgeSlotSummary["status"]) {
   }
 
   return 3;
+}
+
+function toKnowledgeContextExpert(
+  aggregate: ContributorSummary & {
+    contributionCount: number;
+    latestUpdatedAt: number;
+    maxHumanWeight: number;
+    totalHumanWeight: number;
+  },
+): KnowledgeContextExpert & { latestUpdatedAt: number } {
+  const averageHumanWeight =
+    aggregate.totalHumanWeight / aggregate.contributionCount;
+  const expert = {
+    id: aggregate.id,
+    name: aggregate.name,
+    averageHumanWeight: Math.round(averageHumanWeight),
+    contributionCount: aggregate.contributionCount,
+    latestUpdatedAt: aggregate.latestUpdatedAt,
+    reliabilityScore: getReliabilityScore(
+      averageHumanWeight,
+      aggregate.contributionCount,
+      aggregate.maxHumanWeight,
+    ),
+  };
+
+  return aggregate.href === undefined
+    ? expert
+    : {
+        ...expert,
+        href: aggregate.href,
+      };
+}
+
+function getReliabilityScore(
+  averageHumanWeight: number,
+  contributionCount: number,
+  maxHumanWeight: number,
+) {
+  return Math.round(
+    averageHumanWeight +
+      Math.min(contributionCount, 5) * EXPERT_CONTRIBUTION_BONUS +
+      Math.max(0, maxHumanWeight - averageHumanWeight) * 0.1,
+  );
+}
+
+function compareKnowledgeContextExperts(
+  first: KnowledgeContextExpert & { latestUpdatedAt?: number },
+  second: KnowledgeContextExpert & { latestUpdatedAt?: number },
+) {
+  return (
+    second.reliabilityScore - first.reliabilityScore ||
+    second.averageHumanWeight - first.averageHumanWeight ||
+    second.contributionCount - first.contributionCount ||
+    (second.latestUpdatedAt ?? 0) - (first.latestUpdatedAt ?? 0) ||
+    first.name.localeCompare(second.name) ||
+    first.id.localeCompare(second.id)
+  );
+}
+
+function removeExpertSortFields(
+  expert: KnowledgeContextExpert & { latestUpdatedAt?: number },
+): KnowledgeContextExpert {
+  const cleanExpert: KnowledgeContextExpert = {
+    id: expert.id,
+    name: expert.name,
+    averageHumanWeight: expert.averageHumanWeight,
+    contributionCount: expert.contributionCount,
+    reliabilityScore: expert.reliabilityScore,
+  };
+
+  return expert.href === undefined
+    ? cleanExpert
+    : {
+        ...cleanExpert,
+        href: expert.href,
+      };
 }

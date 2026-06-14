@@ -1,46 +1,70 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ChangeEvent,
   type ElementType,
   type FocusEvent,
-  type FormEvent,
   type KeyboardEvent,
   type MouseEvent,
   type ReactNode,
+  type UIEvent,
 } from "react";
 import { useConvexAuth } from "@convex-dev/auth/react";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
+import { flushSync } from "react-dom";
 import {
+  BarChart3,
   Bell,
   BookOpen,
   CalendarDays,
+  Clock,
   Compass,
   Landmark,
   LayoutDashboard,
   LoaderCircle,
+  MapPin,
   Moon,
-  Plus,
+  MousePointerClick,
   Search,
   Settings,
-  Sparkles,
+  Sun,
   Tag,
+  TrendingUp,
   UserCircle,
+  Users,
+  UploadCloud,
   X,
 } from "lucide-react";
 import { api } from "../convex/_generated/api";
 import { parseBiblePassageReference } from "../convex/lib/scriptureReferences";
 import { AuthPanel, SignOutButton } from "./auth/AuthPanel";
+import { OrganizationAccessRequestScreen } from "./auth/OrganizationAccessRequest";
 import archePressIconUrl from "./assets/arche-press_icon-full.svg";
 import archePressHorizontalLogoDarkUrl from "./assets/arche-press_logo-horizontal-full-dark.svg";
 import archePressHorizontalLogoUrl from "./assets/arche-press_logo-horizontal-full.svg";
 import profilePlaceholderUrl from "./assets/profile-placeholder.png";
 import { AnswerFeed as AnswerFeedSurface } from "./AnswerFeed";
+import { ContributionEditor as ContributionEditorSurface } from "./ContributionEditor";
+import { KnowledgeRequestComposer } from "./KnowledgeRequestComposer";
+import { Presence } from "./Presence";
+import {
+  getNavigatorAnalyticsTagKeys,
+  getPageVisitAnalyticsInput,
+  type NavigatorUsageKind,
+} from "./analytics";
 import { KnowledgeSlotCard } from "./components/KnowledgeCards";
+import { KnowledgeTypeBadge, KnowledgeTypeIcon } from "./components/KnowledgeTypeIcon";
+import { KnowledgeTypeOverview } from "./components/KnowledgeTypeOverview";
+import { SmartStoragePlayground } from "./SmartStoragePlayground";
 import {
   ANSWER_FEED_FIXTURE,
-  getPrimarySlotForContext,
+  type AnswerFeedFixtureItem,
+  getFixtureContextTags,
+  getPrimarySlotItemForContext,
+  isAnswerFeedSlot,
+  selectAnswerFeedItems,
 } from "./answerFeedData";
 import {
   addActiveTag,
@@ -51,16 +75,33 @@ import {
   removeActiveTag,
 } from "./knowledgeContext";
 import type { ActiveTag } from "./knowledgeContext";
-import type { KnowledgeSlotSummary } from "./knowledgeContracts";
+import type {
+  AuthorableKnowledgeType,
+  ContributionInput,
+  ContributionResult,
+  KnowledgeContextTrendKind,
+  KnowledgeContextTrendSummary,
+  KnowledgeSlotSummary,
+} from "./knowledgeContracts";
 import { LayoutPrototype } from "./prototypes/LayoutPrototype";
 
 const THEME_STORAGE_KEY = "knowledgebase-theme";
+const TOPBAR_SCROLL_TOLERANCE = 8;
 
-const SAMPLE_TAG_ID = "holy-spirit";
-const SAMPLE_ORG_ID = "my-church";
-const SAMPLE_CONTEXT_TAG_IDS = "holy-spirit,romans-8-28";
-const SAMPLE_SCRIPTURE_PASSAGE = "john-3-16";
+const SAMPLE_TAG_ID = "first-crusade";
+const SAMPLE_ORG_ID = "arche-classical-academy";
+const SAMPLE_CONTEXT_TAG_IDS = "first-crusade,matthew-5-9";
+const SAMPLE_SCRIPTURE_PASSAGE = "joshua-1-6-9";
 const MAX_PASSAGE_SUGGESTIONS = 5;
+
+type ViewTransitionDocument = Document & {
+  startViewTransition?: (callback: () => void) => {
+    finished: Promise<void>;
+    ready: Promise<void>;
+    skipTransition: () => void;
+    updateCallbackDone: Promise<void>;
+  };
+};
 
 type ThemePreference = "light" | "dark";
 
@@ -70,6 +111,9 @@ type PageId =
   | "tag"
   | "explore-context"
   | "organization-home"
+  | "organization-settings"
+  | "smart-storage-playground"
+  | "analytics"
   | "profile"
   | "settings"
   | "notifications"
@@ -78,7 +122,7 @@ type PageId =
 type CoreComponentId =
   | "knowledge-navigator"
   | "answer-feed"
-  | "question-composer"
+  | "knowledge-request-composer"
   | "contribution-editor"
   | "knowledge-entry-card"
   | "knowledge-slot-card";
@@ -99,6 +143,72 @@ type RouteState = {
   search: string;
 };
 
+type AllowedAppAccess = {
+  email?: string;
+  organizations: Array<{
+    name: string;
+    organizationKind: string;
+    organizationReferentId: string;
+    role: string;
+  }>;
+  status: "allowed";
+  userId: string;
+};
+
+type CalendarEvent = {
+  contextHref: string;
+  contextLabel: string;
+  day: number;
+  groupLabel: string;
+  id: string;
+  locationLabel: string;
+  status: "confirmed" | "draft";
+  timeLabel: string;
+  title: string;
+};
+
+type TodayAgendaItem = {
+  contextHref: string;
+  contextLabel: string;
+  detail: string;
+  groupLabel: string;
+  id: string;
+  knowledgeType: AuthorableKnowledgeType;
+  statusLabel: string;
+  timeLabel: string;
+  title: string;
+};
+
+type DashboardBibleContextSuggestion = {
+  href: string;
+  label: string;
+  latestActivityAt?: number;
+  openRequestCount: number;
+  overdueRequestCount: number;
+  recentVisitCount: number;
+  targetKey: string;
+  totalVisitCount: number;
+  trendKind: KnowledgeContextTrendKind;
+  trendScore: number;
+};
+
+type NotificationFilter = "all" | "unread" | "knowledgeSlots" | "events";
+
+type NotificationKind = "answer" | "event" | "knowledgeSlot" | "subscription";
+
+type NotificationStatus = "read" | "unread";
+
+type UserNotification = {
+  body: string;
+  contextHref: string;
+  contextLabel: string;
+  id: string;
+  kind: NotificationKind;
+  receivedAt: number;
+  status: NotificationStatus;
+  title: string;
+};
+
 const ROUTES: RouteDefinition[] = [
   {
     id: "dashboard",
@@ -109,7 +219,7 @@ const ROUTES: RouteDefinition[] = [
     components: [
       "knowledge-navigator",
       "answer-feed",
-      "question-composer",
+      "knowledge-request-composer",
       "contribution-editor",
       "knowledge-entry-card",
       "knowledge-slot-card",
@@ -124,7 +234,7 @@ const ROUTES: RouteDefinition[] = [
     components: [
       "knowledge-navigator",
       "answer-feed",
-      "question-composer",
+      "knowledge-request-composer",
       "contribution-editor",
       "knowledge-entry-card",
       "knowledge-slot-card",
@@ -139,7 +249,7 @@ const ROUTES: RouteDefinition[] = [
     components: [
       "knowledge-navigator",
       "answer-feed",
-      "question-composer",
+      "knowledge-request-composer",
       "contribution-editor",
       "knowledge-entry-card",
       "knowledge-slot-card",
@@ -154,7 +264,7 @@ const ROUTES: RouteDefinition[] = [
     components: [
       "knowledge-navigator",
       "answer-feed",
-      "question-composer",
+      "knowledge-request-composer",
       "contribution-editor",
       "knowledge-entry-card",
       "knowledge-slot-card",
@@ -168,11 +278,37 @@ const ROUTES: RouteDefinition[] = [
     icon: Landmark,
     components: [
       "answer-feed",
-      "question-composer",
+      "knowledge-request-composer",
       "contribution-editor",
       "knowledge-entry-card",
       "knowledge-slot-card",
     ],
+  },
+  {
+    id: "organization-settings",
+    label: "Organization Settings",
+    href: `/orgs/${SAMPLE_ORG_ID}/settings`,
+    pattern: "/orgs/:orgId/settings",
+    icon: Settings,
+    components: [],
+  },
+  {
+    id: "analytics",
+    label: "Analytics",
+    href: "/analytics",
+    pattern: "/analytics",
+    icon: BarChart3,
+    components: [],
+    relatedRouteIds: ["dashboard", "explore-context", "scripture"],
+  },
+  {
+    id: "smart-storage-playground",
+    label: "Smart Storage",
+    href: "/playground/smart-storage",
+    pattern: "/playground/smart-storage",
+    icon: UploadCloud,
+    components: [],
+    relatedRouteIds: ["dashboard", "explore-context"],
   },
   {
     id: "profile",
@@ -182,11 +318,12 @@ const ROUTES: RouteDefinition[] = [
     icon: UserCircle,
     components: [
       "answer-feed",
-      "question-composer",
+      "knowledge-request-composer",
       "contribution-editor",
       "knowledge-entry-card",
       "knowledge-slot-card",
     ],
+    relatedRouteIds: ["calendar", "settings", "notifications"],
   },
   {
     id: "settings",
@@ -195,6 +332,7 @@ const ROUTES: RouteDefinition[] = [
     pattern: "/settings",
     icon: Settings,
     components: [],
+    relatedRouteIds: ["profile", "notifications"],
   },
   {
     id: "notifications",
@@ -202,7 +340,7 @@ const ROUTES: RouteDefinition[] = [
     href: "/notifications",
     pattern: "/notifications",
     icon: Bell,
-    components: ["answer-feed", "knowledge-entry-card"],
+    components: [],
     relatedRouteIds: ["profile", "settings"],
   },
   {
@@ -223,12 +361,283 @@ const PRIMARY_ROUTE_IDS: PageId[] = [
   "explore-context",
   "organization-home",
 ];
-const USER_ROUTE_IDS: PageId[] = ["calendar", "settings"];
+const USER_ROUTE_IDS: PageId[] = [
+  "smart-storage-playground",
+  "analytics",
+  "calendar",
+  "settings",
+];
+
+const CALENDAR_MONTH_LABEL = "June 2026";
+const CALENDAR_DAY_COUNT = 30;
+const CALENDAR_START_WEEKDAY_INDEX = 1;
+const CALENDAR_TODAY = 12;
+const CALENDAR_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const CALENDAR_EVENTS: CalendarEvent[] = [
+  {
+    id: "trial-by-fire-sermon",
+    day: 7,
+    title: "Trial by Fire",
+    timeLabel: "10:30 AM",
+    locationLabel: "Sanctuary",
+    groupLabel: "Ruler of Kings Church",
+    contextLabel: "Daniel 3",
+    contextHref: "/scripture/daniel-3",
+    status: "confirmed",
+  },
+  {
+    id: "grade-9-church-history",
+    day: 12,
+    title: "Grade 9 Church History",
+    timeLabel: "10:40 AM",
+    locationLabel: "Room 204",
+    groupLabel: "Arche Classical Academy",
+    contextLabel: "First Crusade + Matthew 5:9",
+    contextHref: "/explore?tagIds=first-crusade,matthew-5-9",
+    status: "confirmed",
+  },
+  {
+    id: "grade-10-medieval-literature",
+    day: 12,
+    title: "Grade 10 Medieval Literature",
+    timeLabel: "1:30 PM",
+    locationLabel: "Library",
+    groupLabel: "Arche Classical Academy",
+    contextLabel: "Boethius + Romans 8:28",
+    contextHref: "/explore?tagIds=boethius,grade-10-medieval-literature,romans-8-28",
+    status: "confirmed",
+  },
+  {
+    id: "deacon-prayer-follow-up",
+    day: 12,
+    title: "Deacon prayer follow-up",
+    timeLabel: "3:45 PM",
+    locationLabel: "Ruler of Kings Church",
+    groupLabel: "Ruler of Kings Deacons",
+    contextLabel: "Courage + Joshua 1:6-9",
+    contextHref: "/explore?tagIds=courage,joshua-1-6-9,ruler-of-kings-deacons",
+    status: "confirmed",
+  },
+  {
+    id: "pride-leads-to-death-sermon",
+    day: 14,
+    title: "Pride Leads to Death",
+    timeLabel: "10:30 AM",
+    locationLabel: "Sanctuary",
+    groupLabel: "Ruler of Kings Church",
+    contextLabel: "Daniel 4",
+    contextHref: "/scripture/daniel-4",
+    status: "confirmed",
+  },
+  {
+    id: "americas-founding-250",
+    day: 26,
+    title: "250th Celebration of America's Founding",
+    timeLabel: "6:30 PM",
+    locationLabel: "Fellowship hall",
+    groupLabel: "Ruler of Kings Church",
+    contextLabel: "Kingdom of Christ",
+    contextHref: "/explore?tagIds=americas-founding-250,kingdom-of-christ,revelation-11-15",
+    status: "draft",
+  },
+];
+
+const USER_NOTIFICATIONS: UserNotification[] = [
+  {
+    id: "notice-slot-student-crusades-question",
+    title: "Micah's Crusades question is waiting",
+    body:
+      "A Grade 9 requested entry needs your answer before the Church History seminar.",
+    contextLabel: "First Crusade + Matthew 5:9",
+    contextHref: "/explore?tagIds=first-crusade,matthew-5-9",
+    kind: "knowledgeSlot",
+    receivedAt: Date.UTC(2026, 5, 12, 12, 4),
+    status: "unread",
+  },
+  {
+    id: "notice-medieval-literature-lesson",
+    title: "Grade 10 Medieval Literature starts at 1:30 PM",
+    body:
+      "Your Boethius lesson is still open in the Knowledge Context for providence.",
+    contextLabel: "Boethius + Romans 8:28",
+    contextHref: "/explore?tagIds=boethius,grade-10-medieval-literature,romans-8-28",
+    kind: "event",
+    receivedAt: Date.UTC(2026, 5, 12, 11, 45),
+    status: "unread",
+  },
+  {
+    id: "notice-pride-leads-to-death",
+    title: "Pride Leads to Death is on Sunday's calendar",
+    body:
+      "Ruler of Kings Church has the Daniel 4 sermon event confirmed for June 14.",
+    contextLabel: "Daniel 4",
+    contextHref: "/scripture/daniel-4",
+    kind: "event",
+    receivedAt: Date.UTC(2026, 5, 12, 10, 15),
+    status: "unread",
+  },
+  {
+    id: "notice-trial-by-fire-follow-up",
+    title: "Trial by Fire received follow-up notes",
+    body:
+      "The Daniel 3 sermon event now has deacon follow-up material attached.",
+    contextLabel: "Daniel 3",
+    contextHref: "/scripture/daniel-3",
+    kind: "subscription",
+    receivedAt: Date.UTC(2026, 5, 11, 16, 20),
+    status: "read",
+  },
+];
+
+const TODAY_AGENDA_ITEMS: TodayAgendaItem[] = [
+  {
+    id: "agenda-grade-9-prep",
+    timeLabel: "8:10 AM",
+    title: "Finish the Crusades seminar frame",
+    detail:
+      "Connect Augustine's ordered loves to Matthew 5:9 before Grade 9 Church History.",
+    groupLabel: "Grade 9 Church History",
+    contextLabel: "First Crusade + The City of God",
+    contextHref: "/explore?tagIds=first-crusade,matthew-5-9,the-city-of-god",
+    knowledgeType: "lesson",
+    statusLabel: "Continue Entry",
+  },
+  {
+    id: "agenda-student-question",
+    timeLabel: "9:15 AM",
+    title: "Answer Micah's Crusades question",
+    detail:
+      "Student question: was the First Crusade courage, zeal without knowledge, or presumption?",
+    groupLabel: "Grade 9 Church History",
+    contextLabel: "Requested Entry",
+    contextHref: "/explore?tagIds=first-crusade,matthew-5-9",
+    knowledgeType: "comment",
+    statusLabel: "Open Request",
+  },
+  {
+    id: "agenda-grade-10-medieval-lit",
+    timeLabel: "1:30 PM",
+    title: "Teach Boethius on providence",
+    detail:
+      "Keep the Grade 10 Medieval Literature lesson open for final notes before class.",
+    groupLabel: "Grade 10 Medieval Literature",
+    contextLabel: "Boethius + Romans 8:28",
+    contextHref: "/explore?tagIds=boethius,grade-10-medieval-literature,romans-8-28",
+    knowledgeType: "lesson",
+    statusLabel: "Continue Entry",
+  },
+  {
+    id: "agenda-deacon-follow-up",
+    timeLabel: "3:45 PM",
+    title: "Record deacon prayer follow-up",
+    detail:
+      "Tie the pastoral note to courage and Joshua 1:6-9 for the Ruler of Kings deacons.",
+    groupLabel: "Ruler of Kings Deacons",
+    contextLabel: "Courage + Joshua 1:6-9",
+    contextHref: "/explore?tagIds=courage,joshua-1-6-9,ruler-of-kings-deacons",
+    knowledgeType: "prayerRequest",
+    statusLabel: "Open Request",
+  },
+  {
+    id: "agenda-founding-celebration",
+    timeLabel: "6:30 PM",
+    title: "Review founding celebration event",
+    detail:
+      "Ruler of Kings Church planning for the 250th Celebration of America's Founding.",
+    groupLabel: "Ruler of Kings Church",
+    contextLabel: "Kingdom of Christ",
+    contextHref: "/explore?tagIds=americas-founding-250,kingdom-of-christ,revelation-11-15",
+    knowledgeType: "event",
+    statusLabel: "Calendar",
+  },
+];
+
+const DASHBOARD_BIBLE_CONTEXT_FALLBACKS: DashboardBibleContextSuggestion[] = [
+  {
+    href: "/scripture/daniel-4",
+    label: "Daniel 4",
+    latestActivityAt: Date.UTC(2026, 5, 12, 12),
+    openRequestCount: 1,
+    overdueRequestCount: 0,
+    recentVisitCount: 2,
+    targetKey: "daniel-4",
+    totalVisitCount: 5,
+    trendKind: "popularAndNeedsContribution",
+    trendScore: 58,
+  },
+  {
+    href: "/scripture/matthew-5-9",
+    label: "Matthew 5:9",
+    latestActivityAt: Date.UTC(2026, 5, 12, 14),
+    openRequestCount: 1,
+    overdueRequestCount: 1,
+    recentVisitCount: 1,
+    targetKey: "matthew-5-9",
+    totalVisitCount: 3,
+    trendKind: "popularAndNeedsContribution",
+    trendScore: 54,
+  },
+  {
+    href: "/scripture/joshua-1-6-9",
+    label: "Joshua 1:6-9",
+    latestActivityAt: Date.UTC(2026, 5, 12, 19),
+    openRequestCount: 1,
+    overdueRequestCount: 0,
+    recentVisitCount: 1,
+    targetKey: "joshua-1-6-9",
+    totalVisitCount: 2,
+    trendKind: "needsContribution",
+    trendScore: 32,
+  },
+  {
+    href: "/scripture/romans-8-28",
+    label: "Romans 8:28",
+    latestActivityAt: Date.UTC(2026, 5, 12, 15),
+    openRequestCount: 0,
+    overdueRequestCount: 0,
+    recentVisitCount: 2,
+    targetKey: "romans-8-28",
+    totalVisitCount: 4,
+    trendKind: "popular",
+    trendScore: 31,
+  },
+];
+
+const NOTIFICATION_FILTERS: Array<{
+  id: NotificationFilter;
+  label: string;
+}> = [
+  { id: "all", label: "All" },
+  { id: "unread", label: "Unread" },
+  { id: "knowledgeSlots", label: "Requests" },
+  { id: "events", label: "Events" },
+];
+
+const NOTIFICATION_KIND_LABELS: Record<NotificationKind, string> = {
+  answer: "Answer",
+  event: "Event",
+  knowledgeSlot: "Request",
+  subscription: "Subscription",
+};
+
+const NOTIFICATION_TIME_FORMATTER = new Intl.DateTimeFormat("en", {
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  month: "short",
+  timeZone: "UTC",
+});
 
 export default function App() {
   const { isAuthenticated, isLoading } = useConvexAuth();
+  const appAccess = useQuery(
+    api.appAccess.getCurrentUserAccess,
+    isAuthenticated && !isLoading ? {} : "skip",
+  );
+  const recordPageVisit = useMutation(api.analytics.recordPageVisit);
   const [theme, setTheme] = useState<ThemePreference>(readStoredTheme);
   const [routeState, setRouteState] = useState<RouteState>(() => getRouteState(window.location));
+  const [routeMotionKey, setRouteMotionKey] = useState(0);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -241,12 +650,30 @@ export default function App() {
 
   useEffect(() => {
     function handlePopState() {
-      setRouteState(getRouteState(window.location));
+      commitRouteState(getRouteState(window.location));
     }
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
+
+  useEffect(() => {
+    if (appAccess?.status !== "allowed") {
+      return;
+    }
+
+    const pageVisit = getPageVisitAnalyticsInput(routeState);
+    if (!pageVisit) {
+      return;
+    }
+
+    void recordPageVisit(pageVisit).catch(() => undefined);
+  }, [
+    appAccess?.status,
+    recordPageVisit,
+    routeState.pathname,
+    routeState.search,
+  ]);
 
   function navigate(event: MouseEvent<HTMLAnchorElement>, href: string) {
     event.preventDefault();
@@ -254,8 +681,16 @@ export default function App() {
   }
 
   function navigateToHref(href: string) {
+    const nextUrl = new URL(href, window.location.href);
+    if (
+      nextUrl.pathname === window.location.pathname &&
+      nextUrl.search === window.location.search
+    ) {
+      return;
+    }
+
     window.history.pushState({}, "", href);
-    setRouteState(getRouteState(window.location));
+    commitRouteState(getRouteState(window.location));
   }
 
   function toggleTheme() {
@@ -264,7 +699,13 @@ export default function App() {
 
   function goToDashboard() {
     window.history.replaceState({}, "", "/");
-    setRouteState(getRouteState(window.location));
+    commitRouteState(getRouteState(window.location));
+  }
+
+  function commitRouteState(nextRouteState: RouteState) {
+    setRouteStateWithTransition(nextRouteState, setRouteState, () => {
+      setRouteMotionKey((currentKey) => currentKey + 1);
+    });
   }
 
   if (isLayoutPrototypeRoute()) {
@@ -294,6 +735,29 @@ export default function App() {
     );
   }
 
+  if (appAccess === undefined) {
+    return (
+      <main className="kb-auth-page" data-theme={theme} aria-busy="true">
+        <section className="editor-panel editor-loading">
+          <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
+          <span>Checking organization access</span>
+        </section>
+      </main>
+    );
+  }
+
+  if (appAccess.status !== "allowed") {
+    return (
+      <main className="kb-auth-page" data-theme={theme}>
+        <OrganizationAccessRequestScreen
+          email={"email" in appAccess ? appAccess.email : undefined}
+          reason={appAccess.status}
+          surface="app"
+        />
+      </main>
+    );
+  }
+
   return (
     <KnowledgebaseShell
       activePageId={routeState.route.id}
@@ -301,12 +765,16 @@ export default function App() {
       onNavigateToHref={navigateToHref}
       onToggleTheme={toggleTheme}
       routeState={routeState}
+      routeMotionKey={routeMotionKey}
       theme={theme}
     >
       <PageScaffold
+        appAccess={appAccess}
         onNavigate={navigate}
         onNavigateToHref={navigateToHref}
+        onToggleTheme={toggleTheme}
         routeState={routeState}
+        theme={theme}
       />
     </KnowledgebaseShell>
   );
@@ -319,6 +787,46 @@ function getRouteState(location: Location): RouteState {
     pathname,
     search: location.search,
   };
+}
+
+function setRouteStateWithTransition(
+  nextRouteState: RouteState,
+  setRouteState: (nextRouteState: RouteState) => void,
+  onFallbackTransition: () => void,
+) {
+  if (!canStartRouteViewTransition()) {
+    setRouteState(nextRouteState);
+    onFallbackTransition();
+    return;
+  }
+
+  const startViewTransition = (document as ViewTransitionDocument).startViewTransition;
+  if (typeof startViewTransition !== "function") {
+    setRouteState(nextRouteState);
+    onFallbackTransition();
+    return;
+  }
+
+  try {
+    startViewTransition.call(document, () => {
+      flushSync(() => setRouteState(nextRouteState));
+    });
+  } catch {
+    setRouteState(nextRouteState);
+    onFallbackTransition();
+  }
+}
+
+function canStartRouteViewTransition() {
+  if (typeof document === "undefined" || typeof window === "undefined") {
+    return false;
+  }
+
+  return (
+    typeof (document as ViewTransitionDocument).startViewTransition === "function" &&
+    (typeof window.matchMedia !== "function" ||
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+  );
 }
 
 function normalizePathname(pathname: string) {
@@ -344,6 +852,10 @@ function matchRoute(pathname: string) {
 
   if (pathname === "/goto" || pathname.startsWith("/goto/")) {
     return getRoute("tag");
+  }
+
+  if (/^\/orgs\/[^/]+\/settings$/.test(pathname)) {
+    return getRoute("organization-settings");
   }
 
   if (pathname.startsWith("/orgs/")) {
@@ -394,6 +906,7 @@ function KnowledgebaseShell({
   onNavigate,
   onNavigateToHref,
   onToggleTheme,
+  routeMotionKey,
   routeState,
   theme,
 }: {
@@ -402,13 +915,45 @@ function KnowledgebaseShell({
   onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
   onNavigateToHref: (href: string) => void;
   onToggleTheme: () => void;
+  routeMotionKey: number;
   routeState: RouteState;
   theme: ThemePreference;
 }) {
+  const [isTopbarHidden, setIsTopbarHidden] = useState(false);
+  const lastScrollTopRef = useRef(0);
+  const routeMotionClassName =
+    routeMotionKey % 2 === 0 ? "kb-route-motion-a" : "kb-route-motion-b";
+
+  useEffect(() => {
+    lastScrollTopRef.current = 0;
+    setIsTopbarHidden(false);
+  }, [routeState.pathname, routeState.search]);
+
+  function handleContentScroll(event: UIEvent<HTMLDivElement>) {
+    const nextScrollTop = Math.max(0, event.currentTarget.scrollTop);
+
+    if (nextScrollTop <= TOPBAR_SCROLL_TOLERANCE) {
+      lastScrollTopRef.current = nextScrollTop;
+      setIsTopbarHidden(false);
+      return;
+    }
+
+    const scrollDelta = nextScrollTop - lastScrollTopRef.current;
+    if (Math.abs(scrollDelta) < TOPBAR_SCROLL_TOLERANCE) {
+      return;
+    }
+
+    lastScrollTopRef.current = nextScrollTop;
+    setIsTopbarHidden(scrollDelta > 0);
+  }
+
   return (
     <div className="kb-shell" data-theme={theme}>
       <Sidebar activePageId={activePageId} onNavigate={onNavigate} />
-      <div className="kb-host-column">
+      <div
+        className="kb-host-column"
+        data-topbar-hidden={isTopbarHidden ? "true" : undefined}
+      >
         <TopBar
           onNavigate={onNavigate}
           onNavigateToHref={onNavigateToHref}
@@ -416,7 +961,11 @@ function KnowledgebaseShell({
           routeState={routeState}
           theme={theme}
         />
-        <div className="kb-host-content">{children}</div>
+        <div className="kb-host-content" onScroll={handleContentScroll}>
+          <div className={`kb-route-transition ${routeMotionClassName}`}>
+            {children}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -442,14 +991,21 @@ function Sidebar({
       </a>
 
       <nav className="kb-nav-stack kb-route-nav" aria-label="Routes">
-        {PRIMARY_ROUTE_IDS.map((pageId) => (
-          <RouteNavLink
-            active={pageId === activePageId}
-            key={pageId}
-            onNavigate={onNavigate}
-            route={getRoute(pageId)}
-          />
-        ))}
+        {PRIMARY_ROUTE_IDS.map((pageId) => {
+          const isActive =
+            pageId === activePageId ||
+            (pageId === "organization-home" &&
+              activePageId === "organization-settings");
+
+          return (
+            <RouteNavLink
+              active={isActive}
+              key={pageId}
+              onNavigate={onNavigate}
+              route={getRoute(pageId)}
+            />
+          );
+        })}
       </nav>
 
       <nav className="kb-nav-stack kb-user-route-nav" aria-label="User routes">
@@ -534,6 +1090,7 @@ function TopBar({
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
   const nextTheme = theme === "dark" ? "light" : "dark";
+  const ThemeIcon = theme === "dark" ? Sun : Moon;
   const brandLogoUrl =
     theme === "dark" ? archePressHorizontalLogoDarkUrl : archePressHorizontalLogoUrl;
   const trimmedSearchQuery = searchQuery.trim();
@@ -630,7 +1187,7 @@ function TopBar({
           title={`Switch to ${nextTheme} theme`}
           type="button"
         >
-          <Moon aria-hidden="true" />
+          <ThemeIcon aria-hidden="true" />
         </button>
         <a
           aria-current={routeState.route.id === "notifications" ? "page" : undefined}
@@ -667,30 +1224,35 @@ function TopBar({
               value={searchQuery}
             />
           </label>
-          {isSuggestionListOpen ? (
-            <div
-              className="kb-search-suggestions"
-              id="kb-search-suggestions"
-              role="listbox"
-            >
-              {suggestions.map((suggestion, index) => (
-                <a
-                  aria-selected={index === activeSuggestionIndex}
-                  href={suggestion.href}
-                  id={`kb-search-suggestion-${index}`}
-                  key={suggestion.href}
-                  onClick={(event) => handleSuggestionClick(event, suggestion.href)}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onMouseEnter={() => setActiveSuggestionIndex(index)}
-                  role="option"
-                >
-                  <BookOpen aria-hidden="true" />
-                  <span>{suggestion.label}</span>
-                  <small>Bible Passage</small>
-                </a>
-              ))}
-            </div>
-          ) : null}
+          <Presence present={isSuggestionListOpen}>
+            {(presenceState) => (
+              <div
+                className="kb-search-suggestions"
+                data-presence={presenceState}
+                id="kb-search-suggestions"
+                role="listbox"
+              >
+                {suggestions.map((suggestion, index) => (
+                  <a
+                    aria-selected={index === activeSuggestionIndex}
+                    href={suggestion.href}
+                    id={`kb-search-suggestion-${index}`}
+                    key={suggestion.href}
+                    onClick={(event) => handleSuggestionClick(event, suggestion.href)}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onMouseEnter={() => setActiveSuggestionIndex(index)}
+                    role="option"
+                  >
+                    <span>{suggestion.label}</span>
+                    <KnowledgeTypeBadge
+                      className="kb-search-suggestion-type"
+                      knowledgeType="biblePassage"
+                    />
+                  </a>
+                ))}
+              </div>
+            )}
+          </Presence>
         </div>
       </div>
     </header>
@@ -698,13 +1260,19 @@ function TopBar({
 }
 
 function PageScaffold({
+  appAccess,
   onNavigate,
   onNavigateToHref,
+  onToggleTheme,
   routeState,
+  theme,
 }: {
+  appAccess: AllowedAppAccess;
   onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
   onNavigateToHref: (href: string) => void;
+  onToggleTheme: () => void;
   routeState: RouteState;
+  theme: ThemePreference;
 }) {
   const { route } = routeState;
   const activeTags = getActiveTagsFromRoute(routeState);
@@ -717,35 +1285,116 @@ function PageScaffold({
     );
   }
 
+  if (route.id === "settings") {
+    return (
+      <SettingsPage
+        appAccess={appAccess}
+        onNavigate={onNavigate}
+        onToggleTheme={onToggleTheme}
+        routeState={routeState}
+        theme={theme}
+      />
+    );
+  }
+
+  if (route.id === "analytics") {
+    return <AnalyticsPage onNavigate={onNavigate} routeState={routeState} />;
+  }
+
+  if (route.id === "smart-storage-playground") {
+    return (
+      <SmartStoragePlayground
+        onNavigateToHref={onNavigateToHref}
+        routeMeta={<RouteMeta routeState={routeState} />}
+      />
+    );
+  }
+
+  if (route.id === "calendar") {
+    return <CalendarPage onNavigate={onNavigate} routeState={routeState} />;
+  }
+
+  if (route.id === "notifications") {
+    return <NotificationsPage onNavigate={onNavigate} routeState={routeState} />;
+  }
+
+  if (route.id === "profile") {
+    return (
+      <ProfilePage
+        appAccess={appAccess}
+        onNavigate={onNavigate}
+        routeState={routeState}
+      />
+    );
+  }
+
+  if (route.id === "organization-settings") {
+    return (
+      <OrganizationSettingsPage
+        onNavigate={onNavigate}
+        routeState={routeState}
+      />
+    );
+  }
+
   const hasNavigator = route.components.includes("knowledge-navigator");
   const hasWorkingLayout = route.components.length > 0;
 
   return (
-    <main className="kb-main kb-scaffold-main" aria-labelledby="kb-route-heading">
-      <header className="kb-route-header">
-        <div>
-          <p className="kb-eyebrow">Route scaffold</p>
-          <h1 id="kb-route-heading">{route.label}</h1>
-        </div>
-        <RouteMeta routeState={routeState} />
-      </header>
+    <main
+      className={
+        hasWorkingLayout
+          ? "kb-main kb-scaffold-main kb-scaffold-main-working"
+          : "kb-main kb-scaffold-main"
+      }
+      aria-labelledby="kb-route-heading"
+    >
+      {!hasWorkingLayout ? (
+        <header className="kb-route-header">
+          <div>
+            <p className="kb-eyebrow">
+              {route.id === "dashboard" ? "School Day" : "Context Page"}
+            </p>
+            <h1 id="kb-route-heading">
+              {route.id === "dashboard" ? "Today at Arche Classical Academy" : route.label}
+            </h1>
+          </div>
+          <RouteMeta routeState={routeState} />
+        </header>
+      ) : null}
 
-      {hasNavigator ? (
+      {hasNavigator && !hasWorkingLayout ? (
         <KnowledgeNavigator
           onNavigateToHref={onNavigateToHref}
           routeState={routeState}
         />
       ) : null}
 
+      {route.id === "tag" && activeTags.length === 1 ? (
+        <KnowledgeTypeOverview referent={activeTags[0]} />
+      ) : null}
+
+      {route.id === "dashboard" ? <TodayAgenda onNavigate={onNavigate} /> : null}
+
       {hasWorkingLayout ? (
         <ComponentScaffold
           activeTags={activeTags}
           components={route.components}
           label={route.label}
+          routeId={route.id}
+          onNavigateToHref={onNavigateToHref}
+          routeState={routeState}
         />
       ) : (
         <PagePlaceholder route={route} />
       )}
+
+      {route.id === "organization-home" ? (
+        <OrganizationSubrouteLinks
+          onNavigate={onNavigate}
+          routeState={routeState}
+        />
+      ) : null}
 
       {route.relatedRouteIds ? (
         <RelatedRoutes
@@ -757,49 +1406,1415 @@ function PageScaffold({
   );
 }
 
-function ComponentScaffold({
-  activeTags,
-  components,
-  label,
+function TodayAgenda({
+  onNavigate,
 }: {
-  activeTags: ActiveTag[];
-  components: CoreComponentId[];
-  label: string;
+  onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
 }) {
-  const primarySlot = getPrimarySlotForContext(ANSWER_FEED_FIXTURE, activeTags);
+  const liveBibleContextSuggestions = useQuery(
+    api.analytics.listDashboardBibleContextSuggestions,
+    { limit: 4 },
+  );
+  const bibleContextSuggestions =
+    liveBibleContextSuggestions && liveBibleContextSuggestions.length > 0
+      ? liveBibleContextSuggestions
+      : DASHBOARD_BIBLE_CONTEXT_FALLBACKS;
 
   return (
-    <section className="kb-scaffold-grid" aria-label={`${label} component scaffold`}>
-      {components.includes("answer-feed") ? (
-        <AnswerFeedSurface
-          activeTags={activeTags}
-          items={ANSWER_FEED_FIXTURE}
-        />
-      ) : null}
+    <section className="kb-today-agenda" aria-labelledby="kb-today-agenda-heading">
+      <header className="kb-today-agenda-header">
+        <div>
+          <p className="kb-eyebrow">Friday, June 12, 2026</p>
+          <h2 id="kb-today-agenda-heading">Teaching and Ministry Queue</h2>
+        </div>
+        <span>{TODAY_AGENDA_ITEMS.length} items</span>
+      </header>
 
-      <aside className="kb-component-rail" aria-label="Secondary placeholders">
-        {components.includes("knowledge-slot-card") ? (
-          <KnowledgeSlotRail slot={primarySlot} />
-        ) : null}
-        {components.includes("question-composer") ? <QuestionComposer /> : null}
-        {components.includes("contribution-editor") ? (
-          <ContributionEditor />
-        ) : null}
-      </aside>
+      <DashboardBibleContexts
+        onNavigate={onNavigate}
+        suggestions={bibleContextSuggestions}
+      />
+
+      <ol className="kb-today-agenda-list">
+        {TODAY_AGENDA_ITEMS.map((item) => (
+          <li key={item.id}>
+            <a
+              href={item.contextHref}
+              onClick={(event) => onNavigate(event, item.contextHref)}
+            >
+              <span className="kb-today-agenda-time">{item.timeLabel}</span>
+              <span className="kb-today-agenda-icon" aria-hidden="true">
+                <KnowledgeTypeIcon knowledgeType={item.knowledgeType} />
+              </span>
+              <span className="kb-today-agenda-content">
+                <span className="kb-today-agenda-title-row">
+                  <strong>{item.title}</strong>
+                  <span>{item.statusLabel}</span>
+                </span>
+                <span className="kb-today-agenda-detail">{item.detail}</span>
+                <span className="kb-today-agenda-meta">
+                  <span>{item.groupLabel}</span>
+                  <span>{item.contextLabel}</span>
+                </span>
+              </span>
+            </a>
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }
 
-function KnowledgeSlotRail({ slot }: { slot?: KnowledgeSlotSummary }) {
-  if (slot) {
-    return <KnowledgeSlotCard slot={slot} />;
+function DashboardBibleContexts({
+  onNavigate,
+  suggestions,
+}: {
+  onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+  suggestions: DashboardBibleContextSuggestion[];
+}) {
+  return (
+    <section
+      className="kb-dashboard-bible-contexts"
+      aria-labelledby="kb-dashboard-bible-contexts-heading"
+    >
+      <header>
+        <div>
+          <p className="kb-eyebrow">Bible Contexts</p>
+          <h3 id="kb-dashboard-bible-contexts-heading">Popular or Open</h3>
+        </div>
+        <span>{suggestions.length} passages</span>
+      </header>
+
+      <ol>
+        {suggestions.map((suggestion) => (
+          <li key={suggestion.targetKey}>
+            <a
+              href={suggestion.href}
+              onClick={(event) => onNavigate(event, suggestion.href)}
+            >
+              <BookOpen aria-hidden="true" />
+              <span>
+                <strong>{suggestion.label}</strong>
+                <small>{getBibleContextSuggestionLabel(suggestion)}</small>
+              </span>
+              <em>{suggestion.trendScore}</em>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function getBibleContextSuggestionLabel(
+  suggestion: DashboardBibleContextSuggestion,
+) {
+  const requestCount =
+    suggestion.openRequestCount + suggestion.overdueRequestCount;
+
+  if (suggestion.trendKind === "popularAndNeedsContribution") {
+    return `${formatCount(suggestion.recentVisitCount, "recent visit")} + ${formatCount(requestCount, "open request")}`;
+  }
+
+  if (suggestion.trendKind === "needsContribution") {
+    return formatCount(requestCount, "open request");
+  }
+
+  if (suggestion.recentVisitCount > 0) {
+    return formatCount(suggestion.recentVisitCount, "recent visit");
+  }
+
+  return formatCount(suggestion.totalVisitCount, "visit");
+}
+
+function formatCount(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function AnalyticsPage({
+  onNavigate,
+  routeState,
+}: {
+  onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+  routeState: RouteState;
+}) {
+  const summary = useQuery(api.analytics.getMvpSummary, {
+    popularLimit: 6,
+    recentLimit: 6,
+  });
+  const popularVisitCount =
+    summary?.popularTargets.reduce(
+      (totalVisits, target) => totalVisits + target.totalVisits,
+      0,
+    ) ?? 0;
+
+  return (
+    <main className="kb-main kb-analytics-main" aria-labelledby="kb-analytics-heading">
+      <header className="kb-route-header">
+        <div>
+          <p className="kb-eyebrow">MVP Analytics</p>
+          <h1 id="kb-analytics-heading">Analytics</h1>
+        </div>
+        <RouteMeta routeState={routeState} />
+      </header>
+
+      {summary === undefined ? (
+        <section className="kb-analytics-empty" role="status">
+          <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
+          <span>Loading analytics</span>
+        </section>
+      ) : (
+        <>
+          <section className="kb-analytics-metrics" aria-label="Analytics snapshot">
+            <article>
+              <TrendingUp aria-hidden="true" />
+              <span>Popular Visits</span>
+              <strong>{popularVisitCount}</strong>
+            </article>
+            <article>
+              <BookOpen aria-hidden="true" />
+              <span>Tracked Targets</span>
+              <strong>{summary.popularTargets.length}</strong>
+            </article>
+            <article>
+              <MousePointerClick aria-hidden="true" />
+              <span>Navigator Actions</span>
+              <strong>{summary.navigatorUsage.length}</strong>
+            </article>
+          </section>
+
+          <section className="kb-analytics-grid" aria-label="Analytics lists">
+            <AnalyticsPanel title="Popular targets">
+              {summary.popularTargets.length > 0 ? (
+                <ol className="kb-analytics-list">
+                  {summary.popularTargets.map((target) => (
+                    <li key={`${target.targetKind}:${target.targetKey}`}>
+                      <a href={target.href} onClick={(event) => onNavigate(event, target.href)}>
+                        <span>{target.label}</span>
+                        <small>{formatAnalyticsKindLabel(target.targetKind)}</small>
+                      </a>
+                      <strong>{target.totalVisits}</strong>
+                      <time dateTime={new Date(target.lastVisitedAt).toISOString()}>
+                        {formatAnalyticsTime(target.lastVisitedAt)}
+                      </time>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="kb-analytics-empty-copy">No page visits recorded yet.</p>
+              )}
+            </AnalyticsPanel>
+
+            <AnalyticsPanel title="Recent visits">
+              {summary.recentPageVisits.length > 0 ? (
+                <ol className="kb-analytics-list">
+                  {summary.recentPageVisits.map((visit) => (
+                    <li key={visit.id}>
+                      <a href={visit.href} onClick={(event) => onNavigate(event, visit.href)}>
+                        <span>{visit.label}</span>
+                        <small>{visit.rawPath}</small>
+                      </a>
+                      <strong>{formatAnalyticsKindLabel(visit.targetKind)}</strong>
+                      <time dateTime={new Date(visit.visitedAt).toISOString()}>
+                        {formatAnalyticsTime(visit.visitedAt)}
+                      </time>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="kb-analytics-empty-copy">No recent visits yet.</p>
+              )}
+            </AnalyticsPanel>
+
+            <AnalyticsPanel title="Navigator usage">
+              {summary.navigatorUsage.length > 0 ? (
+                <ol className="kb-analytics-list kb-analytics-usage-list">
+                  {summary.navigatorUsage.map((usage) => (
+                    <li key={usage.id}>
+                      <div>
+                        <span>{formatNavigatorUsageKind(usage.usageKind)}</span>
+                        <small>
+                          {usage.activeTagCount} active Tags, {usage.resolvedTagCount} resolved
+                        </small>
+                      </div>
+                      <strong>{usage.activeTagCount}</strong>
+                      <time dateTime={new Date(usage.occurredAt).toISOString()}>
+                        {formatAnalyticsTime(usage.occurredAt)}
+                      </time>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="kb-analytics-empty-copy">No navigator actions yet.</p>
+              )}
+            </AnalyticsPanel>
+          </section>
+        </>
+      )}
+    </main>
+  );
+}
+
+function AnalyticsPanel({
+  children,
+  title,
+}: {
+  children: ReactNode;
+  title: string;
+}) {
+  return (
+    <section className="kb-analytics-panel">
+      <header>
+        <h2>{title}</h2>
+      </header>
+      {children}
+    </section>
+  );
+}
+
+function formatAnalyticsKindLabel(kind: string) {
+  if (kind === "biblePassage") {
+    return "Bible Passage";
+  }
+
+  if (kind === "dashboard") {
+    return "Dashboard";
+  }
+
+  if (kind === "context") {
+    return "Context Page";
+  }
+
+  return "Referent Page";
+}
+
+function formatNavigatorUsageKind(kind: string) {
+  if (kind === "select") {
+    return "Selected Tags";
+  }
+
+  if (kind === "deselect") {
+    return "Deselected Tags";
+  }
+
+  if (kind === "contribute") {
+    return "Contributed";
+  }
+
+  return "Explored";
+}
+
+function formatAnalyticsTime(timestamp: number) {
+  return NOTIFICATION_TIME_FORMATTER.format(new Date(timestamp));
+}
+
+function OrganizationSubrouteLinks({
+  onNavigate,
+  routeState,
+}: {
+  onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+  routeState: RouteState;
+}) {
+  const settingsHref = getOrganizationSettingsHref(routeState.pathname);
+
+  return (
+    <section className="kb-related-routes" aria-label="Organization subroutes">
+      <p className="kb-eyebrow">Organization routes</p>
+      <div>
+        <a
+          href={settingsHref}
+          onClick={(event) => onNavigate(event, settingsHref)}
+        >
+          <Settings aria-hidden="true" />
+          <span>Settings</span>
+        </a>
+      </div>
+    </section>
+  );
+}
+
+function ComponentScaffold({
+  activeTags,
+  components,
+  label,
+  onNavigateToHref,
+  routeId,
+  routeState,
+  showHeading = true,
+}: {
+  activeTags: ActiveTag[];
+  components: CoreComponentId[];
+  label: string;
+  onNavigateToHref: (href: string) => void;
+  routeId: PageId;
+  routeState: RouteState;
+  showHeading?: boolean;
+}) {
+  const [selectedContributionKnowledgeType, setSelectedContributionKnowledgeType] =
+    useState<AuthorableKnowledgeType | null>(null);
+  const [feedItems, setFeedItems] =
+    useState<AnswerFeedFixtureItem[]>(ANSWER_FEED_FIXTURE);
+  const [selectedContributionSlotId, setSelectedContributionSlotId] =
+    useState<string | null>(null);
+  const recordNavigatorUsage = useMutation(api.analytics.recordNavigatorUsage);
+  const activeContextKey = getKnowledgeContextKey(activeTags);
+  const activeTagKeys = useMemo(
+    () => getNavigatorAnalyticsTagKeys(activeTags),
+    [activeTags],
+  );
+  const contextTrend = useQuery(
+    api.analytics.getKnowledgeContextTrend,
+    activeTagKeys.length > 0 ? { activeTagKeys } : "skip",
+  );
+  const matchingFeedItems = useMemo(
+    () => selectAnswerFeedItems(feedItems, activeTags),
+    [activeTags, feedItems],
+  );
+  const primarySlotItem = getPrimarySlotItemForContext(feedItems, activeTags);
+  const selectedSlotItem = selectedContributionSlotId
+    ? matchingFeedItems.find(
+        (item): item is AnswerFeedFixtureItem & { kind: "slot" } =>
+          isAnswerFeedSlot(item) && item.slot.id === selectedContributionSlotId,
+      )
+    : undefined;
+  const primarySlot = primarySlotItem?.slot;
+  const selectedSlot = selectedSlotItem?.slot;
+  const contributionContext = selectedSlotItem
+    ? getFixtureContextTags(selectedSlotItem.contextTagIds)
+    : activeTags;
+
+  useEffect(() => {
+    setSelectedContributionSlotId(null);
+  }, [activeContextKey]);
+
+  function handleSubmitContribution(
+    input: ContributionInput,
+  ): Promise<ContributionResult> {
+    const contributionItem = createDeterministicContributionFeedItem(input);
+    recordNavigatorUsageEvent("contribute", input.contextTags);
+
+    setFeedItems((currentItems) => [
+      contributionItem,
+      ...currentItems.filter(
+        (item) =>
+          item.kind === "answer"
+            ? item.entry.id !== contributionItem.entry.id
+            : true,
+      ),
+    ]);
+
+    return Promise.resolve({
+      entryId: contributionItem.entry.id,
+      status: "submitted",
+    });
+  }
+
+  function handleApplyMappedTags(mappedTags: ActiveTag[]) {
+    recordNavigatorUsageEvent("explore", mappedTags);
+    onNavigateToHref(getCanonicalKnowledgeContextHref(mappedTags));
+  }
+
+  function handleContributeToSlot(slot: KnowledgeSlotSummary) {
+    setSelectedContributionSlotId(slot.id);
+  }
+
+  function recordNavigatorUsageEvent(
+    usageKind: NavigatorUsageKind,
+    tags: ActiveTag[],
+  ) {
+    void recordNavigatorUsage({
+      activeTagKeys: getNavigatorAnalyticsTagKeys(tags),
+      usageKind,
+    }).catch(() => undefined);
   }
 
   return (
-    <PlaceholderBlock code="C6" title="Knowledge Slot Card">
-      <p className="kb-rail-empty">No Knowledge Slots in this Knowledge Context.</p>
+    <section className="kb-rail-focus-layout" aria-label={`${label} knowledge workspace`}>
+      <aside className="kb-rail-focus-context" aria-label="Knowledge context and request">
+        {components.includes("knowledge-navigator") ? (
+          <KnowledgeNavigator
+            onNavigateToHref={onNavigateToHref}
+            routeState={routeState}
+          >
+            {components.includes("knowledge-request-composer") ? (
+              <KnowledgeRequestComposer
+                activeTags={activeTags}
+                onApplyMappedTags={handleApplyMappedTags}
+                onNavigateToHref={onNavigateToHref}
+              />
+            ) : null}
+          </KnowledgeNavigator>
+        ) : null}
+        {components.includes("knowledge-slot-card") ? (
+          <KnowledgeSlotRail
+            onContributeToSlot={handleContributeToSlot}
+            onNavigateToHref={onNavigateToHref}
+            slot={primarySlot}
+          />
+        ) : null}
+        {components.includes("knowledge-request-composer") &&
+        !components.includes("knowledge-navigator") ? (
+          <section
+            className="kb-request-panel"
+            aria-labelledby="kb-request-panel-heading"
+          >
+            <header>
+              <p className="kb-eyebrow">Knowledge Request</p>
+              <h2 id="kb-request-panel-heading">Search this Context</h2>
+            </header>
+            <KnowledgeRequestComposer
+              activeTags={activeTags}
+              onApplyMappedTags={handleApplyMappedTags}
+              onNavigateToHref={onNavigateToHref}
+            />
+          </section>
+        ) : null}
+      </aside>
+
+      <section className="kb-rail-focus-workspace" aria-label="Contribute and read Answers">
+        {showHeading ? (
+          <header className="kb-rail-focus-heading">
+            <p className="kb-eyebrow">
+              {routeId === "dashboard" ? "School Day" : "Context Page"}
+            </p>
+            <h1 id="kb-route-heading">
+              {routeId === "dashboard"
+                ? "Today at Arche Classical Academy"
+                : getWorkspaceHeading(label, activeTags)}
+            </h1>
+          </header>
+        ) : null}
+        {components.includes("contribution-editor") ? (
+          <ContributionEditorSurface
+            context={contributionContext}
+            onKnowledgeTypeChange={setSelectedContributionKnowledgeType}
+            onNavigateToHref={onNavigateToHref}
+            onSubmitSource={handleSubmitContribution}
+            selectedKnowledgeType={selectedContributionKnowledgeType}
+            slot={selectedSlot}
+          />
+        ) : null}
+        {components.includes("answer-feed") ? (
+          <AnswerFeedSurface
+            activeTags={activeTags}
+            contextTrend={getVisibleContextTrend(contextTrend)}
+            items={feedItems}
+            layout="masonry"
+            onContributeToSlot={handleContributeToSlot}
+            onNavigateToHref={onNavigateToHref}
+          />
+        ) : null}
+      </section>
+    </section>
+  );
+}
+
+function getWorkspaceHeading(label: string, activeTags: ActiveTag[]) {
+  if (activeTags.length > 0) {
+    return activeTags.map((tag) => tag.label).join(", ");
+  }
+
+  return label;
+}
+
+function getVisibleContextTrend(
+  contextTrend: KnowledgeContextTrendSummary | undefined,
+) {
+  if (!contextTrend || contextTrend.trendKind === "quiet") {
+    return undefined;
+  }
+
+  return contextTrend;
+}
+
+function KnowledgeSlotRail({
+  onContributeToSlot,
+  onNavigateToHref,
+  slot,
+}: {
+  onContributeToSlot: (slot: KnowledgeSlotSummary) => void;
+  onNavigateToHref: (href: string) => void;
+  slot?: KnowledgeSlotSummary;
+}) {
+  if (slot) {
+    return (
+      <KnowledgeSlotCard
+        onContribute={onContributeToSlot}
+        onNavigateToHref={onNavigateToHref}
+        slot={slot}
+      />
+    );
+  }
+
+  return (
+    <PlaceholderBlock code="C6" title="Requested Entry">
+      <p className="kb-rail-empty">No requested entries in this Knowledge Context.</p>
     </PlaceholderBlock>
   );
+}
+
+function ProfilePage({
+  appAccess,
+  onNavigate,
+  routeState,
+}: {
+  appAccess: AllowedAppAccess;
+  onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+  routeState: RouteState;
+}) {
+  const route = getRoute("profile");
+  const email = appAccess.email ?? "No email on file";
+  const displayName = getProfileDisplayName(appAccess.email);
+  const organizationCount = appAccess.organizations.length;
+  const membershipRoles = getUniqueMembershipRoles(appAccess.organizations);
+  const primaryOrganization = appAccess.organizations[0];
+
+  return (
+    <main className="kb-main kb-profile-main" aria-labelledby="kb-profile-heading">
+      <header className="kb-route-header">
+        <div>
+          <p className="kb-eyebrow">Account</p>
+          <h1 id="kb-profile-heading">Profile</h1>
+        </div>
+        <RouteMeta routeState={routeState} />
+      </header>
+
+      <section className="kb-profile-summary" aria-label="Profile summary">
+        <div>
+          <UserCircle aria-hidden="true" />
+          <span>Signed in as</span>
+          <strong>{displayName}</strong>
+        </div>
+        <div>
+          <Landmark aria-hidden="true" />
+          <span>Organizations</span>
+          <strong>
+            {organizationCount} {organizationCount === 1 ? "membership" : "memberships"}
+          </strong>
+        </div>
+        <div>
+          <Users aria-hidden="true" />
+          <span>Primary role</span>
+          <strong>{membershipRoles[0] ?? "Member"}</strong>
+        </div>
+      </section>
+
+      <section className="kb-profile-layout" aria-label="User profile">
+        <section className="kb-profile-panel kb-profile-identity" aria-labelledby="kb-profile-card-heading">
+          <div className="kb-profile-identity-main">
+            <img
+              className="kb-profile-photo"
+              src={profilePlaceholderUrl}
+              alt=""
+              aria-hidden="true"
+            />
+            <div>
+              <p className="kb-eyebrow">Current user</p>
+              <h2 id="kb-profile-card-heading">{displayName}</h2>
+              <p>{email}</p>
+            </div>
+          </div>
+
+          <dl className="kb-profile-detail-list">
+            <div>
+              <dt>User ID</dt>
+              <dd>{appAccess.userId}</dd>
+            </div>
+            <div>
+              <dt>Primary organization</dt>
+              <dd>{primaryOrganization?.name ?? "None"}</dd>
+            </div>
+            <div>
+              <dt>Roles</dt>
+              <dd>{membershipRoles.join(", ") || "Member"}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <aside className="kb-profile-panel kb-profile-session" aria-labelledby="kb-profile-session-heading">
+          <header>
+            <UserCircle aria-hidden="true" />
+            <div>
+              <p className="kb-eyebrow">Session</p>
+              <h2 id="kb-profile-session-heading">Account</h2>
+            </div>
+          </header>
+          <dl className="kb-profile-session-list">
+            <div>
+              <dt>Email</dt>
+              <dd>{email}</dd>
+            </div>
+            <div>
+              <dt>Access</dt>
+              <dd>Organization member</dd>
+            </div>
+          </dl>
+          <SignOutButton />
+        </aside>
+      </section>
+
+      <section className="kb-profile-panel kb-profile-organizations" aria-labelledby="kb-profile-organizations-heading">
+        <header>
+          <div>
+            <p className="kb-eyebrow">Memberships</p>
+            <h2 id="kb-profile-organizations-heading">Organizations</h2>
+          </div>
+          <span>{organizationCount} active</span>
+        </header>
+
+        {organizationCount > 0 ? (
+          <ul className="kb-profile-organization-list">
+            {appAccess.organizations.map((organization) => {
+              const organizationHref = `/orgs/${organization.organizationReferentId}`;
+
+              return (
+                <li key={organization.organizationReferentId}>
+                  <a
+                    href={organizationHref}
+                    onClick={(event) => onNavigate(event, organizationHref)}
+                  >
+                    <Landmark aria-hidden="true" />
+                    <span>{organization.name}</span>
+                  </a>
+                  <dl>
+                    <div>
+                      <dt>Kind</dt>
+                      <dd>{formatOrganizationKind(organization.organizationKind)}</dd>
+                    </div>
+                    <div>
+                      <dt>Role</dt>
+                      <dd>{formatMembershipRole(organization.role)}</dd>
+                    </div>
+                  </dl>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="kb-profile-empty">No active organization memberships.</p>
+        )}
+      </section>
+
+      {route.relatedRouteIds ? (
+        <RelatedRoutes
+          onNavigate={onNavigate}
+          relatedRouteIds={route.relatedRouteIds}
+        />
+      ) : null}
+    </main>
+  );
+}
+
+function SettingsPage({
+  appAccess,
+  onNavigate,
+  onToggleTheme,
+  routeState,
+  theme,
+}: {
+  appAccess: AllowedAppAccess;
+  onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+  onToggleTheme: () => void;
+  routeState: RouteState;
+  theme: ThemePreference;
+}) {
+  const route = getRoute("settings");
+  const email = appAccess.email ?? "No email on file";
+  const organizationCount = appAccess.organizations.length;
+  const nextTheme = theme === "dark" ? "light" : "dark";
+  const ThemeIcon = theme === "dark" ? Sun : Moon;
+
+  return (
+    <main className="kb-main kb-settings-main" aria-labelledby="kb-settings-heading">
+      <header className="kb-route-header">
+        <div>
+          <p className="kb-eyebrow">Account</p>
+          <h1 id="kb-settings-heading">User Settings</h1>
+        </div>
+        <RouteMeta routeState={routeState} />
+      </header>
+
+      <section className="kb-settings-summary" aria-label="Settings summary">
+        <div>
+          <UserCircle aria-hidden="true" />
+          <span>Signed in as</span>
+          <strong>{email}</strong>
+        </div>
+        <div>
+          <Users aria-hidden="true" />
+          <span>Organizations</span>
+          <strong>
+            {organizationCount} {organizationCount === 1 ? "membership" : "memberships"}
+          </strong>
+        </div>
+        <div>
+          <ThemeIcon aria-hidden="true" />
+          <span>Theme</span>
+          <strong>{theme === "dark" ? "Dark" : "Light"}</strong>
+        </div>
+      </section>
+
+      <section className="kb-settings-layout" aria-label="User settings">
+        <section className="kb-settings-panel" aria-labelledby="kb-settings-account-heading">
+          <header>
+            <UserCircle aria-hidden="true" />
+            <div>
+              <p className="kb-eyebrow">Identity</p>
+              <h2 id="kb-settings-account-heading">Account</h2>
+            </div>
+          </header>
+          <dl className="kb-settings-list">
+            <div>
+              <dt>Email</dt>
+              <dd>{email}</dd>
+            </div>
+            <div>
+              <dt>User ID</dt>
+              <dd>{appAccess.userId}</dd>
+            </div>
+            <div>
+              <dt>Status</dt>
+              <dd>Active</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section className="kb-settings-panel" aria-labelledby="kb-settings-appearance-heading">
+          <header>
+            <Settings aria-hidden="true" />
+            <div>
+              <p className="kb-eyebrow">Preferences</p>
+              <h2 id="kb-settings-appearance-heading">Appearance</h2>
+            </div>
+          </header>
+          <button
+            aria-checked={theme === "dark"}
+            aria-label={`Use ${nextTheme} theme`}
+            className="kb-settings-switch"
+            onClick={onToggleTheme}
+            role="switch"
+            type="button"
+          >
+            <span aria-hidden="true" />
+            <span>Dark mode</span>
+            <strong>{theme === "dark" ? "On" : "Off"}</strong>
+          </button>
+        </section>
+      </section>
+
+      <section className="kb-settings-panel kb-settings-organizations" aria-labelledby="kb-settings-organizations-heading">
+        <header>
+          <Landmark aria-hidden="true" />
+          <div>
+            <p className="kb-eyebrow">Workspace</p>
+            <h2 id="kb-settings-organizations-heading">Organizations</h2>
+          </div>
+        </header>
+
+        {organizationCount > 0 ? (
+          <ul className="kb-settings-org-list">
+            {appAccess.organizations.map((organization) => (
+              <li key={organization.organizationReferentId}>
+                <a
+                  href={`/orgs/${organization.organizationReferentId}`}
+                  onClick={(event) =>
+                    onNavigate(event, `/orgs/${organization.organizationReferentId}`)
+                  }
+                >
+                  <Landmark aria-hidden="true" />
+                  <span>{organization.name}</span>
+                </a>
+                <dl>
+                  <div>
+                    <dt>Kind</dt>
+                    <dd>{formatOrganizationKind(organization.organizationKind)}</dd>
+                  </div>
+                  <div>
+                    <dt>Role</dt>
+                    <dd>{formatMembershipRole(organization.role)}</dd>
+                  </div>
+                </dl>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="kb-settings-empty">No active organization memberships.</p>
+        )}
+      </section>
+
+      <section className="kb-settings-panel kb-settings-session" aria-labelledby="kb-settings-session-heading">
+        <header>
+          <Bell aria-hidden="true" />
+          <div>
+            <p className="kb-eyebrow">Session</p>
+            <h2 id="kb-settings-session-heading">Account Actions</h2>
+          </div>
+        </header>
+        <div className="kb-settings-action-row">
+          <a
+            href="/notifications"
+            onClick={(event) => onNavigate(event, "/notifications")}
+          >
+            <Bell aria-hidden="true" />
+            <span>Notifications</span>
+          </a>
+          <SignOutButton />
+        </div>
+      </section>
+
+      {route.relatedRouteIds ? (
+        <RelatedRoutes
+          onNavigate={onNavigate}
+          relatedRouteIds={route.relatedRouteIds}
+        />
+      ) : null}
+    </main>
+  );
+}
+
+function formatOrganizationKind(kind: string) {
+  return kind
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function formatMembershipRole(role: string) {
+  return formatOrganizationKind(role);
+}
+
+function getProfileDisplayName(email?: string) {
+  if (!email) {
+    return "Current User";
+  }
+
+  const localPart = email.split("@")[0] ?? "";
+  const parts = localPart
+    .split(/[._+-]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length === 0) {
+    return email;
+  }
+
+  return parts.map(formatProfileNamePart).join(" ");
+}
+
+function getUniqueMembershipRoles(
+  organizations: AllowedAppAccess["organizations"],
+) {
+  return Array.from(
+    new Set(organizations.map((organization) => formatMembershipRole(organization.role))),
+  );
+}
+
+function formatProfileNamePart(part: string) {
+  return part.charAt(0).toUpperCase() + part.slice(1);
+}
+
+const DETERMINISTIC_CONTRIBUTION_UPDATED_AT = Date.UTC(2026, 5, 1, 12);
+const DETERMINISTIC_CONTRIBUTION_HUMAN_WEIGHT = 82;
+
+function createDeterministicContributionFeedItem(
+  input: ContributionInput,
+): AnswerFeedFixtureItem & { kind: "answer" } {
+  const entryId = `simulated-${slugifyContributionId(input.slotId ?? input.title)}`;
+  const contextPreviewTagLabels = input.contextTags.map((tag) => tag.label);
+
+  return {
+    kind: "answer",
+    contextTagIds: input.contextTags.map((tag) => tag.id),
+    entry: {
+      contributor: {
+        id: "current-user",
+        name: "Current User",
+      },
+      id: entryId,
+      title: input.title,
+      knowledgeType: input.knowledgeType,
+      previewText: input.body.trim().slice(0, 220),
+      primaryTagLabel: contextPreviewTagLabels[0] ?? input.title,
+      contextPreviewTagLabels,
+      humanWeight: DETERMINISTIC_CONTRIBUTION_HUMAN_WEIGHT,
+      href: `/entries/${entryId}`,
+      updatedAt: DETERMINISTIC_CONTRIBUTION_UPDATED_AT,
+    },
+  };
+}
+
+function slugifyContributionId(value: string) {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return slug || "contribution";
+}
+
+function NotificationsPage({
+  onNavigate,
+  routeState,
+}: {
+  onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+  routeState: RouteState;
+}) {
+  const route = getRoute("notifications");
+  const [activeFilter, setActiveFilter] = useState<NotificationFilter>("all");
+  const filteredNotifications = USER_NOTIFICATIONS.filter((notification) =>
+    notificationMatchesFilter(notification, activeFilter),
+  );
+  const unreadCount = getNotificationFilterCount("unread");
+  const slotCount = getNotificationFilterCount("knowledgeSlots");
+  const eventCount = getNotificationFilterCount("events");
+
+  return (
+    <main className="kb-main kb-notifications-main" aria-labelledby="kb-notifications-heading">
+      <header className="kb-route-header">
+        <div>
+          <p className="kb-eyebrow">User Notifications</p>
+          <h1 id="kb-notifications-heading">Notifications</h1>
+        </div>
+        <RouteMeta routeState={routeState} />
+      </header>
+
+      <section className="kb-notification-summary" aria-label="Notification summary">
+        <div>
+          <Bell aria-hidden="true" />
+          <span>Unread</span>
+          <strong>{unreadCount} unread</strong>
+        </div>
+        <div>
+          <Clock aria-hidden="true" />
+          <span>Latest</span>
+          <strong>{formatNotificationTime(USER_NOTIFICATIONS[0].receivedAt)}</strong>
+        </div>
+        <div>
+          <CalendarDays aria-hidden="true" />
+          <span>Events</span>
+          <strong>{eventCount} event notice</strong>
+        </div>
+        <div>
+          <Users aria-hidden="true" />
+          <span>Open Requests</span>
+          <strong>{slotCount} open item</strong>
+        </div>
+      </section>
+
+      <section className="kb-notification-panel" aria-labelledby="kb-notification-feed-heading">
+        <header>
+          <div>
+            <p className="kb-eyebrow">Notification Feed</p>
+            <h2 id="kb-notification-feed-heading">
+              {getNotificationFilterHeading(activeFilter)}
+            </h2>
+          </div>
+          <div
+            aria-label="Notification filters"
+            className="kb-notification-filters"
+            role="tablist"
+          >
+            {NOTIFICATION_FILTERS.map((filter) => (
+              <button
+                aria-label={filter.label}
+                aria-selected={activeFilter === filter.id}
+                key={filter.id}
+                onClick={() => setActiveFilter(filter.id)}
+                role="tab"
+                type="button"
+              >
+                <span>{filter.label}</span>
+                <strong>{getNotificationFilterCount(filter.id)}</strong>
+              </button>
+            ))}
+          </div>
+        </header>
+
+        {filteredNotifications.length > 0 ? (
+          <ol className="kb-notification-list">
+            {filteredNotifications.map((notification) => (
+              <li data-notification-status={notification.status} key={notification.id}>
+                <article className="kb-notification-card">
+                  <span className="kb-notification-mark" aria-hidden="true">
+                    <Bell />
+                  </span>
+                  <div className="kb-notification-content">
+                    <header>
+                      <div>
+                        <p className="kb-card-eyebrow">
+                          {NOTIFICATION_KIND_LABELS[notification.kind]}
+                        </p>
+                        <h3>
+                          <a
+                            href={notification.contextHref}
+                            onClick={(event) =>
+                              onNavigate(event, notification.contextHref)
+                            }
+                          >
+                            {notification.title}
+                          </a>
+                        </h3>
+                      </div>
+                      <span>{notification.status === "unread" ? "Unread" : "Read"}</span>
+                    </header>
+                    <p>{notification.body}</p>
+                    <footer>
+                      <span>{notification.contextLabel}</span>
+                      <time dateTime={new Date(notification.receivedAt).toISOString()}>
+                        {formatNotificationTime(notification.receivedAt)}
+                      </time>
+                      <a
+                        className="kb-card-action"
+                        href={notification.contextHref}
+                        onClick={(event) => onNavigate(event, notification.contextHref)}
+                      >
+                        <BookOpen aria-hidden="true" />
+                        Open
+                      </a>
+                    </footer>
+                  </div>
+                </article>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <section className="kb-notification-empty" role="status">
+            <h3>No Notifications match this view.</h3>
+            <p>Subscribed Knowledge Contexts, requests, and Events are quiet.</p>
+          </section>
+        )}
+      </section>
+
+      {route.relatedRouteIds ? (
+        <RelatedRoutes
+          onNavigate={onNavigate}
+          relatedRouteIds={route.relatedRouteIds}
+        />
+      ) : null}
+    </main>
+  );
+}
+
+function notificationMatchesFilter(
+  notification: UserNotification,
+  filter: NotificationFilter,
+) {
+  if (filter === "all") {
+    return true;
+  }
+
+  if (filter === "unread") {
+    return notification.status === "unread";
+  }
+
+  if (filter === "knowledgeSlots") {
+    return notification.kind === "knowledgeSlot";
+  }
+
+  return notification.kind === "event";
+}
+
+function getNotificationFilterCount(filter: NotificationFilter) {
+  return USER_NOTIFICATIONS.filter((notification) =>
+    notificationMatchesFilter(notification, filter),
+  ).length;
+}
+
+function getNotificationFilterHeading(filter: NotificationFilter) {
+  if (filter === "unread") {
+    return "Unread Notifications";
+  }
+
+  if (filter === "knowledgeSlots") {
+    return "Request Notifications";
+  }
+
+  if (filter === "events") {
+    return "Event Notifications";
+  }
+
+  return "All Notifications";
+}
+
+function formatNotificationTime(timestamp: number) {
+  return NOTIFICATION_TIME_FORMATTER.format(new Date(timestamp));
+}
+
+function OrganizationSettingsPage({
+  onNavigate,
+  routeState,
+}: {
+  onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+  routeState: RouteState;
+}) {
+  const organizationSlug = getOrganizationSlug(routeState.pathname);
+  const organizationHomeHref = getOrganizationHomeHref(routeState.pathname);
+  const organizationLabel = labelFromRouteSlug(organizationSlug);
+
+  return (
+    <main
+      className="kb-main kb-org-settings-main"
+      aria-labelledby="kb-org-settings-heading"
+    >
+      <header className="kb-route-header">
+        <div>
+          <p className="kb-eyebrow">Organization</p>
+          <h1 id="kb-org-settings-heading">Organization Settings</h1>
+        </div>
+        <RouteMeta routeState={routeState} />
+      </header>
+
+      <section className="kb-org-settings-layout" aria-label="Organization settings">
+        <section
+          className="kb-org-settings-panel"
+          aria-labelledby="kb-org-settings-profile-heading"
+        >
+          <header>
+            <div>
+              <p className="kb-eyebrow">Profile</p>
+              <h2 id="kb-org-settings-profile-heading">{organizationLabel}</h2>
+            </div>
+            <Settings aria-hidden="true" />
+          </header>
+
+          <dl className="kb-org-settings-list">
+            <div>
+              <dt>Organization Slug</dt>
+              <dd>{organizationSlug}</dd>
+            </div>
+            <div>
+              <dt>Access Policy</dt>
+              <dd>Members only</dd>
+            </div>
+            <div>
+              <dt>Default Role</dt>
+              <dd>Member</dd>
+            </div>
+          </dl>
+        </section>
+
+        <aside
+          className="kb-org-settings-panel kb-org-settings-rail"
+          aria-labelledby="kb-org-settings-nav-heading"
+        >
+          <header>
+            <div>
+              <p className="kb-eyebrow">Routes</p>
+              <h2 id="kb-org-settings-nav-heading">Organization</h2>
+            </div>
+            <Landmark aria-hidden="true" />
+          </header>
+          <a
+            href={organizationHomeHref}
+            onClick={(event) => onNavigate(event, organizationHomeHref)}
+          >
+            <Landmark aria-hidden="true" />
+            <span>Organization Home</span>
+          </a>
+        </aside>
+      </section>
+    </main>
+  );
+}
+
+function CalendarPage({
+  onNavigate,
+  routeState,
+}: {
+  onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+  routeState: RouteState;
+}) {
+  const route = getRoute("calendar");
+  const confirmedEventCount = CALENDAR_EVENTS.filter(
+    (event) => event.status === "confirmed",
+  ).length;
+  const nextEvent = CALENDAR_EVENTS.find((event) => event.day >= CALENDAR_TODAY)
+    ?? CALENDAR_EVENTS[0];
+  const calendarCells = getCalendarMonthCells();
+
+  return (
+    <main className="kb-main kb-calendar-main" aria-labelledby="kb-calendar-heading">
+      <header className="kb-route-header">
+        <div>
+          <p className="kb-eyebrow">Schedule</p>
+          <h1 id="kb-calendar-heading">Calendar</h1>
+        </div>
+        <RouteMeta routeState={routeState} />
+      </header>
+
+      <section className="kb-calendar-summary" aria-label="Calendar summary">
+        <div>
+          <CalendarDays aria-hidden="true" />
+          <span>{CALENDAR_MONTH_LABEL}</span>
+          <strong>{CALENDAR_EVENTS.length} scheduled items</strong>
+        </div>
+        <div>
+          <Clock aria-hidden="true" />
+          <span>Next up</span>
+          <strong>{formatCalendarDay(nextEvent.day)}, {nextEvent.timeLabel}</strong>
+        </div>
+        <div>
+          <Users aria-hidden="true" />
+          <span>Confirmed</span>
+          <strong>{confirmedEventCount} ready</strong>
+        </div>
+      </section>
+
+      <section className="kb-calendar-layout" aria-label={`${CALENDAR_MONTH_LABEL} calendar`}>
+        <section className="kb-calendar-month" aria-labelledby="kb-calendar-month-heading">
+          <header>
+            <div>
+              <p className="kb-eyebrow">Month View</p>
+              <h2 id="kb-calendar-month-heading">{CALENDAR_MONTH_LABEL}</h2>
+            </div>
+            <span>{CALENDAR_EVENTS.length} items</span>
+          </header>
+
+          <div className="kb-calendar-weekdays" aria-hidden="true">
+            {CALENDAR_WEEKDAYS.map((weekday) => (
+              <span key={weekday}>{weekday}</span>
+            ))}
+          </div>
+
+          <div className="kb-calendar-grid" role="grid" aria-label={CALENDAR_MONTH_LABEL}>
+            {calendarCells.map((day, index) => {
+              const events = day ? getCalendarEventsForDay(day) : [];
+
+              return (
+                <div
+                  aria-label={day ? formatCalendarDay(day) : "Empty calendar day"}
+                  className={day ? "kb-calendar-day" : "kb-calendar-day kb-calendar-day-empty"}
+                  data-today={day === CALENDAR_TODAY ? "true" : undefined}
+                  key={`${day ?? "empty"}-${index}`}
+                  role="gridcell"
+                >
+                  {day ? (
+                    <>
+                      <span className="kb-calendar-day-number">{day}</span>
+                      <div className="kb-calendar-day-events">
+                        {events.map((event) => (
+                          <a
+                            className="kb-calendar-event-pill"
+                            data-status={event.status}
+                            href={event.contextHref}
+                            key={event.id}
+                            onClick={(mouseEvent) => onNavigate(mouseEvent, event.contextHref)}
+                          >
+                            <span>{event.title}</span>
+                          </a>
+                        ))}
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <aside className="kb-calendar-agenda" aria-labelledby="kb-calendar-agenda-heading">
+          <header>
+            <p className="kb-eyebrow">Agenda</p>
+            <h2 id="kb-calendar-agenda-heading">Upcoming Work</h2>
+          </header>
+
+          <ol>
+            {CALENDAR_EVENTS.map((event) => (
+              <li key={event.id}>
+                <a
+                  href={event.contextHref}
+                  onClick={(mouseEvent) => onNavigate(mouseEvent, event.contextHref)}
+                >
+                  <span>{formatCalendarDay(event.day)}</span>
+                  <strong>{event.title}</strong>
+                </a>
+                <dl>
+                  <div>
+                    <dt>
+                      <Clock aria-hidden="true" />
+                      <span>Time</span>
+                    </dt>
+                    <dd>{event.timeLabel}</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <MapPin aria-hidden="true" />
+                      <span>Place</span>
+                    </dt>
+                    <dd>{event.locationLabel}</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <Users aria-hidden="true" />
+                      <span>Group</span>
+                    </dt>
+                    <dd>{event.groupLabel}</dd>
+                  </div>
+                </dl>
+                <p>
+                  <span>{event.status === "confirmed" ? "Confirmed" : "Draft"}</span>
+                  <span>{event.contextLabel}</span>
+                </p>
+              </li>
+            ))}
+          </ol>
+        </aside>
+      </section>
+
+      {route.relatedRouteIds ? (
+        <RelatedRoutes
+          onNavigate={onNavigate}
+          relatedRouteIds={route.relatedRouteIds}
+        />
+      ) : null}
+    </main>
+  );
+}
+
+function getCalendarMonthCells() {
+  return [
+    ...Array.from({ length: CALENDAR_START_WEEKDAY_INDEX }, () => null),
+    ...Array.from({ length: CALENDAR_DAY_COUNT }, (_, index) => index + 1),
+  ];
+}
+
+function getCalendarEventsForDay(day: number) {
+  return CALENDAR_EVENTS.filter((event) => event.day === day);
+}
+
+function formatCalendarDay(day: number) {
+  return `June ${day}`;
+}
+
+function getOrganizationSettingsHref(pathname: string) {
+  return `/orgs/${encodeURIComponent(getOrganizationSlug(pathname))}/settings`;
+}
+
+function getOrganizationHomeHref(pathname: string) {
+  return `/orgs/${encodeURIComponent(getOrganizationSlug(pathname))}`;
+}
+
+function getOrganizationSlug(pathname: string) {
+  const match = /^\/orgs\/([^/]+)/.exec(pathname);
+  if (!match) {
+    return SAMPLE_ORG_ID;
+  }
+
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
+
+function labelFromRouteSlug(slug: string) {
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ") || slug;
 }
 
 function BiblePassagePage({
@@ -886,6 +2901,7 @@ function BiblePassagePage({
           onNavigateToHref={onNavigateToHref}
           routeState={routeState}
         />
+        {activeTags[0] ? <KnowledgeTypeOverview referent={activeTags[0]} /> : null}
         <section className="kb-scripture-empty" role="status">
           {passage.message}
         </section>
@@ -907,10 +2923,7 @@ function BiblePassagePage({
         <RouteMeta routeState={routeState} />
       </header>
 
-      <KnowledgeNavigator
-        onNavigateToHref={onNavigateToHref}
-        routeState={routeState}
-      />
+      {activeTags[0] ? <KnowledgeTypeOverview referent={activeTags[0]} /> : null}
 
       <section className="kb-scripture-panel" aria-label={`${passage.label} passage text`}>
         <header>
@@ -949,6 +2962,10 @@ function BiblePassagePage({
         activeTags={activeTags}
         components={getRoute("scripture").components}
         label={passage.label}
+        onNavigateToHref={onNavigateToHref}
+        routeId="scripture"
+        routeState={routeState}
+        showHeading={false}
       />
     </main>
   );
@@ -1014,9 +3031,11 @@ function RouteMeta({ routeState }: { routeState: RouteState }) {
 }
 
 function KnowledgeNavigator({
+  children,
   onNavigateToHref,
   routeState,
 }: {
+  children?: ReactNode;
   onNavigateToHref: (href: string) => void;
   routeState: RouteState;
 }) {
@@ -1028,6 +3047,7 @@ function KnowledgeNavigator({
     () => getInactiveNavigatorTags(activeTags),
     [activeTags],
   );
+  const recordNavigatorUsage = useMutation(api.analytics.recordNavigatorUsage);
   const contextKey = getKnowledgeContextKey(activeTags);
 
   function navigateToTags(nextTags: ActiveTag[]) {
@@ -1035,15 +3055,35 @@ function KnowledgeNavigator({
   }
 
   function handleAddTag(tag: ActiveTag) {
-    navigateToTags(addActiveTag(activeTags, tag));
+    const nextTags = addActiveTag(activeTags, tag);
+    recordNavigatorUsageEvent("select", nextTags);
+    navigateToTags(nextTags);
   }
 
   function handleRemoveTag(tagId: string) {
-    navigateToTags(removeActiveTag(activeTags, tagId));
+    const nextTags = removeActiveTag(activeTags, tagId);
+    recordNavigatorUsageEvent("deselect", nextTags);
+    navigateToTags(nextTags);
+  }
+
+  function recordNavigatorUsageEvent(
+    usageKind: NavigatorUsageKind,
+    tags: ActiveTag[],
+  ) {
+    void recordNavigatorUsage({
+      activeTagKeys: getNavigatorAnalyticsTagKeys(tags),
+      usageKind,
+    }).catch(() => undefined);
   }
 
   return (
-    <PlaceholderBlock code="C1" title="Knowledge Navigator">
+    <section className="kb-knowledge-navigator" aria-labelledby="kb-knowledge-navigator-heading">
+      <header>
+        <div>
+          <p className="kb-eyebrow">Knowledge Navigator</p>
+          <h2 id="kb-knowledge-navigator-heading">Active Knowledge Context</h2>
+        </div>
+      </header>
       <div className="kb-navigator-panel">
         <div className="kb-active-tag-list" aria-label="Active Tags">
           {activeTags.length > 0 ? (
@@ -1056,7 +3096,7 @@ function KnowledgeNavigator({
                 title={`Remove ${tag.label}`}
                 type="button"
               >
-                <Tag aria-hidden="true" />
+                <KnowledgeTypeIcon knowledgeType={tag.knowledgeType} />
                 <span>{tag.label}</span>
                 <X aria-hidden="true" />
               </button>
@@ -1065,6 +3105,8 @@ function KnowledgeNavigator({
             <p className="kb-navigator-empty">Global Knowledge Context</p>
           )}
         </div>
+
+        {children ? <div className="kb-navigator-request">{children}</div> : null}
 
         <div className="kb-add-tag-list" aria-label="Available Tags">
           {inactiveTags.map((tag) => (
@@ -1076,7 +3118,7 @@ function KnowledgeNavigator({
               title={`Add ${tag.label}`}
               type="button"
             >
-              <Plus aria-hidden="true" />
+              <KnowledgeTypeIcon knowledgeType={tag.knowledgeType} />
               <span>{tag.label}</span>
             </button>
           ))}
@@ -1086,53 +3128,7 @@ function KnowledgeNavigator({
           {contextKey}
         </span>
       </div>
-    </PlaceholderBlock>
-  );
-}
-
-function QuestionComposer() {
-  return (
-    <PlaceholderBlock code="C3" title="Question Composer">
-      <AssistantInput
-        label="Question Composer"
-        placeholder="Ask Assistant..."
-      />
-    </PlaceholderBlock>
-  );
-}
-
-function ContributionEditor() {
-  return (
-    <PlaceholderBlock code="C4" title="Contribution Editor">
-      <AssistantInput
-        label="Contribution Editor"
-        placeholder="Ask Assistant..."
-      />
-    </PlaceholderBlock>
-  );
-}
-
-function AssistantInput({
-  label,
-  placeholder,
-}: {
-  label: string;
-  placeholder: string;
-}) {
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-  }
-
-  return (
-    <form className="kb-assistant-input" onSubmit={handleSubmit}>
-      <label>
-        <span>{label}</span>
-        <input type="text" placeholder={placeholder} />
-      </label>
-      <button type="submit" aria-label={label}>
-        <Sparkles aria-hidden="true" />
-      </button>
-    </form>
+    </section>
   );
 }
 

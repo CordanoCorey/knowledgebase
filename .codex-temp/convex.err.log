@@ -1,0 +1,1118 @@
+▌ Developing against deployment:
+▌ [Development] corey-gelbaugh:knowledgebase:dev/corey-gelbaugh (dev) (dashboard: https://dashboard.convex.dev/t/corey-gelbaugh/knowledgebase/impressive-stoat-625)
+▌ └─ https://impressive-stoat-625.convex.cloud
+- Preparing Convex functions...
+
+[36mA minor update is available for Convex[39m [2m(1.40.0 → 1.41.0)[22m
+[2mChangelog:[22m [4mhttps://github.com/get-convex/convex-js/blob/main/CHANGELOG.md#changelog[24m
+[32m√[39m Deleted table indexes:
+  [-] knowledgeEntries.by_primaryReferentId   primaryReferentId, _creationTime
+✔ 11:21:21 Convex functions ready! (7.94s)
+6/12/2026, 11:23:24 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 12:23:16 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 1:23:07 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 2:22:58 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 3:22:49 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 4:22:40 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 5:01:38 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+X [ERROR] No matching export in "convex/authProviderConfig.ts" for import "hasPasswordAuth"
+
+    convex/authAvailability.ts:3:24:
+      3 │ import { hasGoogleAuth, hasPasswordAuth, hasResendAuth } from "./au...
+        ╵                         ~~~~~~~~~~~~~~~
+
+- Preparing Convex functions...
+
+[32m√[39m 17:06:55 Convex functions ready! (5.82s)
+- Preparing Convex functions...
+
+[32m√[39m 17:08:03 Convex functions ready! (5.04s)
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/authAvailability.ts[0m:[93m5[0m:[93m3[0m - [91merror[0m[90m TS2305: [0mModule '"./authProviderConfig"' has no exported member 'hasPasswordAuth'.
+
+[7m5[0m   hasPasswordAuth,
+[7m [0m [91m  ~~~~~~~~~~~~~~~[0m
+[96mconvex/authAvailability.ts[0m:[93m6[0m:[93m3[0m - [91merror[0m[90m TS2305: [0mModule '"./authProviderConfig"' has no exported member 'hasPasswordResetAuth'.
+
+[7m6[0m   hasPasswordResetAuth,
+[7m [0m [91m  ~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 2 errors in the same file, starting at: convex/authAvailability.ts[90m:5[0m
+Filesystem changed during push, retrying...
+- Preparing Convex functions...
+
+X [ERROR] No matching export in "convex/authProviderConfig.ts" for import "hasPasswordAuth"
+
+    convex/authAvailability.ts:5:2:
+      5 │   hasPasswordAuth,
+        ╵   ~~~~~~~~~~~~~~~
+
+X [ERROR] No matching export in "convex/authProviderConfig.ts" for import "hasPasswordResetAuth"
+
+    convex/authAvailability.ts:6:2:
+      6 │   hasPasswordResetAuth,
+        ╵   ~~~~~~~~~~~~~~~~~~~~
+
+- Preparing Convex functions...
+
+[32m√[39m 17:09:10 Convex functions ready! (6.43s)
+- Preparing Convex functions...
+
+[32m√[39m 17:09:34 Convex functions ready! (5.13s)
+- Preparing Convex functions...
+
+[32m√[39m 17:09:48 Convex functions ready! (5.6s)
+- Preparing Convex functions...
+
+[32m√[39m 17:09:57 Convex functions ready! (5.52s)
+- Preparing Convex functions...
+
+[32m√[39m 17:10:06 Convex functions ready! (5.79s)
+- Preparing Convex functions...
+
+[32m√[39m 17:12:28 Convex functions ready! (6.15s)
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/answerFeed.test.ts[0m:[93m29[0m:[93m16[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m29[0m       .filter((item) => item.kind === "answer")
+[7m  [0m [91m               ~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m30[0m:[93m13[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m30[0m       .map((item) => item.entry.title);
+[7m  [0m [91m            ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m80[0m:[93m10[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m80[0m         (item) =>
+[7m  [0m [91m         ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m96[0m:[93m27[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m96[0m     expect(feedItems.map((item) => item.kind)).toEqual([
+[7m  [0m [91m                          ~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m103[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m103[0m         .filter((item) => item.kind === "answer")
+[7m   [0m [91m                 ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m104[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m104[0m         .map((item) => item.entry.title),
+[7m   [0m [91m              ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m108[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m108[0m         .filter((item) => item.kind === "slot")
+[7m   [0m [91m                 ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m109[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m109[0m         .map((item) => item.slot.title),
+[7m   [0m [91m              ~~~~[0m
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m18[0m:[93m14[0m - [91merror[0m[90m TS7022: [0m'seedDefaultOrganizations' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m18[0m export const seedDefaultOrganizations = internalAction({
+[7m  [0m [91m             ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/seedOrganizationsAction.ts[0m:[93m49[0m:[93m3[0m - [91merror[0m[90m TS7023: [0m'handler' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+
+[7m49[0m   handler: async (ctx) => {
+[7m  [0m [91m  ~~~~~~~[0m
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m61[0m:[93m11[0m - [91merror[0m[90m TS7022: [0m'domainStats' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m61[0m     const domainStats = await ctx.runMutation(
+[7m  [0m [91m          ~~~~~~~~~~~[0m
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m86[0m:[93m42[0m - [91merror[0m[90m TS2339: [0mProperty 'handler' does not exist on type '{ args?: void | Validator<any, "required", any> | PropertyValidators | undefined; returns?: void | Validator<any, "required", any> | PropertyValidators | undefined; handler: (ctx: GenericActionCtx<...>, ...args: ArgsArray) => any; } | ((ctx: GenericActionCtx<...>, ...args: ArgsArray) => any)'.
+
+[7m86[0m     Parameters<typeof internalAction>[0]["handler"]
+[7m  [0m [91m                                         ~~~~~~~~~[0m
+
+Found 12 errors in 2 files.
+
+Errors  Files
+     8  convex/answerFeed.test.ts[90m:29[0m
+     4  convex/seedOrganizationsAction.ts[90m:18[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/answerFeed.test.ts[0m:[93m29[0m:[93m16[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m29[0m       .filter((item) => item.kind === "answer")
+[7m  [0m [91m               ~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m30[0m:[93m13[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m30[0m       .map((item) => item.entry.title);
+[7m  [0m [91m            ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m80[0m:[93m10[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m80[0m         (item) =>
+[7m  [0m [91m         ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m96[0m:[93m27[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m96[0m     expect(feedItems.map((item) => item.kind)).toEqual([
+[7m  [0m [91m                          ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m103[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m103[0m         .filter((item) => item.kind === "answer")
+[7m   [0m [91m                 ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m104[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m104[0m         .map((item) => item.entry.title),
+[7m   [0m [91m              ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m108[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m108[0m         .filter((item) => item.kind === "slot")
+[7m   [0m [91m                 ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m109[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m109[0m         .map((item) => item.slot.title),
+[7m   [0m [91m              ~~~~[0m
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m18[0m:[93m14[0m - [91merror[0m[90m TS7022: [0m'seedDefaultOrganizations' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m18[0m export const seedDefaultOrganizations = internalAction({
+[7m  [0m [91m             ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m49[0m:[93m3[0m - [91merror[0m[90m TS7023: [0m'handler' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+
+[7m49[0m   handler: async (ctx) => {
+[7m  [0m [91m  ~~~~~~~[0m
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m61[0m:[93m11[0m - [91merror[0m[90m TS7022: [0m'domainStats' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m61[0m     const domainStats = await ctx.runMutation(
+[7m  [0m [91m          ~~~~~~~~~~~[0m
+
+
+Found 11 errors in 2 files.
+
+Errors  Files
+     8  convex/answerFeed.test.ts[90m:29[0m
+     3  convex/seedOrganizationsAction.ts[90m:18[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/answerFeed.test.ts[0m:[93m29[0m:[93m16[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m29[0m       .filter((item) => item.kind === "answer")
+[7m  [0m [91m               ~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m30[0m:[93m13[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m30[0m       .map((item) => item.entry.title);
+[7m  [0m [91m            ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m80[0m:[93m10[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m80[0m         (item) =>
+[7m  [0m [91m         ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m96[0m:[93m27[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m96[0m     expect(feedItems.map((item) => item.kind)).toEqual([
+[7m  [0m [91m                          ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m103[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m103[0m         .filter((item) => item.kind === "answer")
+[7m   [0m [91m                 ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m104[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m104[0m         .map((item) => item.entry.title),
+[7m   [0m [91m              ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m108[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m108[0m         .filter((item) => item.kind === "slot")
+[7m   [0m [91m                 ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m109[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m109[0m         .map((item) => item.slot.title),
+[7m   [0m [91m              ~~~~[0m
+[96mconvex/seedOrganizationsAction.ts[0m:[93m18[0m:[93m14[0m - [91merror[0m[90m TS7022: [0m'seedDefaultOrganizations' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m18[0m export const seedDefaultOrganizations = internalAction({
+[7m  [0m [91m             ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m49[0m:[93m3[0m - [91merror[0m[90m TS7023: [0m'handler' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+
+[7m49[0m   handler: async (ctx) => {
+[7m  [0m [91m  ~~~~~~~[0m
+[96mconvex/seedOrganizationsAction.ts[0m:[93m61[0m:[93m11[0m - [91merror[0m[90m TS7022: [0m'domainStats' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m61[0m     const domainStats = await ctx.runMutation(
+[7m  [0m [91m          ~~~~~~~~~~~[0m
+
+Found 11 errors in 2 files.
+
+Errors  Files
+     8  convex/answerFeed.test.ts[90m:29[0m
+     3  convex/seedOrganizationsAction.ts[90m:18[0m
+Filesystem changed during push, retrying...
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/answerFeed.test.ts[0m:[93m29[0m:[93m16[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m29[0m       .filter((item) => item.kind === "answer")
+[7m  [0m [91m               ~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m30[0m:[93m13[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m30[0m       .map((item) => item.entry.title);
+[7m  [0m [91m            ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m80[0m:[93m10[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m80[0m         (item) =>
+[7m  [0m [91m         ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m96[0m:[93m27[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m96[0m     expect(feedItems.map((item) => item.kind)).toEqual([
+[7m  [0m [91m                          ~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m103[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m103[0m         .filter((item) => item.kind === "answer")
+[7m   [0m [91m                 ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m104[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m104[0m         .map((item) => item.entry.title),
+[7m   [0m [91m              ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m108[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m108[0m         .filter((item) => item.kind === "slot")
+[7m   [0m [91m                 ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m109[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m109[0m         .map((item) => item.slot.title),
+[7m   [0m [91m              ~~~~[0m
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m18[0m:[93m14[0m - [91merror[0m[90m TS7022: [0m'seedDefaultOrganizations' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m18[0m export const seedDefaultOrganizations = internalAction({
+[7m  [0m [91m             ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m49[0m:[93m3[0m - [91merror[0m[90m TS7023: [0m'handler' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+
+[7m49[0m   handler: async (ctx) => {
+[7m  [0m [91m  ~~~~~~~[0m
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m61[0m:[93m11[0m - [91merror[0m[90m TS7022: [0m'domainStats' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m61[0m     const domainStats = await ctx.runMutation(
+[7m  [0m [91m          ~~~~~~~~~~~[0m
+
+Found 11 errors in 2 files.
+
+Errors  Files
+     8  convex/answerFeed.test.ts[90m:29[0m
+     3  convex/seedOrganizationsAction.ts[90m:18[0m
+Filesystem changed during push, retrying...
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/answerFeed.test.ts[0m:[93m29[0m:[93m16[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m29[0m       .filter((item) => item.kind === "answer")
+[7m  [0m [91m               ~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m30[0m:[93m13[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m30[0m       .map((item) => item.entry.title);
+[7m  [0m [91m            ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m80[0m:[93m10[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m80[0m         (item) =>
+[7m  [0m [91m         ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m96[0m:[93m27[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m96[0m     expect(feedItems.map((item) => item.kind)).toEqual([
+[7m  [0m [91m                          ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m103[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m103[0m         .filter((item) => item.kind === "answer")
+[7m   [0m [91m                 ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m104[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m104[0m         .map((item) => item.entry.title),
+[7m   [0m [91m              ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m108[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m108[0m         .filter((item) => item.kind === "slot")
+[7m   [0m [91m                 ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m109[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m109[0m         .map((item) => item.slot.title),
+[7m   [0m [91m              ~~~~[0m
+[96mconvex/seedOrganizationsAction.ts[0m:[93m18[0m:[93m14[0m - [91merror[0m[90m TS7022: [0m'seedDefaultOrganizations' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m18[0m export const seedDefaultOrganizations = internalAction({
+[7m  [0m [91m             ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m49[0m:[93m3[0m - [91merror[0m[90m TS7023: [0m'handler' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+
+[7m49[0m   handler: async (ctx) => {
+[7m  [0m [91m  ~~~~~~~[0m
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m61[0m:[93m11[0m - [91merror[0m[90m TS7022: [0m'domainStats' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m61[0m     const domainStats = await ctx.runMutation(
+[7m  [0m [91m          ~~~~~~~~~~~[0m
+
+Found 11 errors in 2 files.
+
+Errors  Files
+     8  convex/answerFeed.test.ts[90m:29[0m
+     3  convex/seedOrganizationsAction.ts[90m:18[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/answerFeed.test.ts[0m:[93m29[0m:[93m16[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m29[0m       .filter((item) => item.kind === "answer")
+[7m  [0m [91m               ~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m30[0m:[93m13[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m30[0m       .map((item) => item.entry.title);
+[7m  [0m [91m            ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m80[0m:[93m10[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m80[0m         (item) =>
+[7m  [0m [91m         ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m96[0m:[93m27[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m96[0m     expect(feedItems.map((item) => item.kind)).toEqual([
+[7m  [0m [91m                          ~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m103[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m103[0m         .filter((item) => item.kind === "answer")
+[7m   [0m [91m                 ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m104[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m104[0m         .map((item) => item.entry.title),
+[7m   [0m [91m              ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m108[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m108[0m         .filter((item) => item.kind === "slot")
+[7m   [0m [91m                 ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m109[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m109[0m         .map((item) => item.slot.title),
+[7m   [0m [91m              ~~~~[0m
+[96mconvex/seedOrganizationsAction.ts[0m:[93m18[0m:[93m14[0m - [91merror[0m[90m TS7022: [0m'seedDefaultOrganizations' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m18[0m export const seedDefaultOrganizations = internalAction({
+[7m  [0m [91m             ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m49[0m:[93m3[0m - [91merror[0m[90m TS7023: [0m'handler' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+
+[7m49[0m   handler: async (ctx) => {
+[7m  [0m [91m  ~~~~~~~[0m
+[96mconvex/seedOrganizationsAction.ts[0m:[93m61[0m:[93m11[0m - [91merror[0m[90m TS7022: [0m'domainStats' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m61[0m     const domainStats = await ctx.runMutation(
+[7m  [0m [91m          ~~~~~~~~~~~[0m
+
+Found 11 errors in 2 files.
+
+Errors  Files
+     8  convex/answerFeed.test.ts[90m:29[0m
+     3  convex/seedOrganizationsAction.ts[90m:18[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/answerFeed.test.ts[0m:[93m29[0m:[93m16[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m29[0m       .filter((item) => item.kind === "answer")
+[7m  [0m [91m               ~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m30[0m:[93m13[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m30[0m       .map((item) => item.entry.title);
+[7m  [0m [91m            ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m80[0m:[93m10[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m80[0m         (item) =>
+[7m  [0m [91m         ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m96[0m:[93m27[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m96[0m     expect(feedItems.map((item) => item.kind)).toEqual([
+[7m  [0m [91m                          ~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m103[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m103[0m         .filter((item) => item.kind === "answer")
+[7m   [0m [91m                 ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m104[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m104[0m         .map((item) => item.entry.title),
+[7m   [0m [91m              ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m108[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m108[0m         .filter((item) => item.kind === "slot")
+[7m   [0m [91m                 ~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m109[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m109[0m         .map((item) => item.slot.title),
+[7m   [0m [91m              ~~~~[0m
+
+[96mconvex/appAccess.test.ts[0m:[93m27[0m:[93m30[0m - [91merror[0m[90m TS7006: [0mParameter 'user' implicitly has an 'any' type.
+
+[7m27[0m     expect(result.users.map((user) => user.email)).toEqual(
+[7m  [0m [91m                             ~~~~[0m
+[96mconvex/appAccess.test.ts[0m:[93m30[0m:[93m30[0m - [91merror[0m[90m TS7006: [0mParameter 'user' implicitly has an 'any' type.
+
+[7m30[0m     expect(result.users.map((user) => user.tempPassword)).toEqual(
+[7m  [0m [91m                             ~~~~[0m
+
+[96mconvex/appAccess.test.ts[0m:[93m95[0m:[93m31[0m - [91merror[0m[90m TS7006: [0mParameter 'user' implicitly has an 'any' type.
+
+[7m95[0m       verification.users.map((user) => ({
+[7m  [0m [91m                              ~~~~[0m
+
+[96mconvex/appAccess.test.ts[0m:[93m141[0m:[93m33[0m - [91merror[0m[90m TS7006: [0mParameter 'organization' implicitly has an 'any' type.
+
+[7m141[0m       access.organizations.map((organization) => ({
+[7m   [0m [91m                                ~~~~~~~~~~~~[0m
+
+[96mconvex/appAccess.test.ts[0m:[93m190[0m:[93m26[0m - [91merror[0m[90m TS2345: [0mArgument of type 'string' is not assignable to parameter of type 'Id<TableNamesInDataModel<{ users: { document: { _id: Id<"users">; _creationTime: number; name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undef...'.
+  Type 'string' is not assignable to type '{ __tableName: TableNamesInDataModel<{ users: { document: { _id: Id<"users">; _creationTime: number; name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boo...'.
+
+[7m190[0m       await ctx.db.patch(gelbaugh.userId, { isActive: false });
+[7m   [0m [91m                         ~~~~~~~~~~~~~~~[0m
+
+[96mconvex/appAccess.test.ts[0m:[93m199[0m:[93m26[0m - [91merror[0m[90m TS2345: [0mArgument of type 'string' is not assignable to parameter of type 'Id<TableNamesInDataModel<{ users: { document: { _id: Id<"users">; _creationTime: number; name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undef...'.
+  Type 'string' is not assignable to type '{ __tableName: TableNamesInDataModel<{ users: { document: { _id: Id<"users">; _creationTime: number; name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boo...'.
+
+[7m199[0m       await ctx.db.patch(gelbaugh.userId, { isActive: true });
+[7m   [0m [91m                         ~~~~~~~~~~~~~~~[0m
+[96mconvex/seedOrganizationsAction.ts[0m:[93m18[0m:[93m14[0m - [91merror[0m[90m TS7022: [0m'seedDefaultOrganizations' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m18[0m export const seedDefaultOrganizations = internalAction({
+[7m  [0m [91m             ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m49[0m:[93m3[0m - [91merror[0m[90m TS7023: [0m'handler' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+
+[7m49[0m   handler: async (ctx) => {
+[7m  [0m [91m  ~~~~~~~[0m
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m61[0m:[93m11[0m - [91merror[0m[90m TS7022: [0m'domainStats' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m61[0m     const domainStats = await ctx.runMutation(
+[7m  [0m [91m          ~~~~~~~~~~~[0m
+
+Found 17 errors in 3 files.
+
+Errors  Files
+     8  convex/answerFeed.test.ts[90m:29[0m
+     6  convex/appAccess.test.ts[90m:27[0m
+     3  convex/seedOrganizationsAction.ts[90m:18[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/answerFeed.test.ts[0m:[93m29[0m:[93m16[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m29[0m       .filter((item) => item.kind === "answer")
+[7m  [0m [91m               ~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m30[0m:[93m13[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m30[0m       .map((item) => item.entry.title);
+[7m  [0m [91m            ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m80[0m:[93m10[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m80[0m         (item) =>
+[7m  [0m [91m         ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m96[0m:[93m27[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m96[0m     expect(feedItems.map((item) => item.kind)).toEqual([
+[7m  [0m [91m                          ~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m103[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m103[0m         .filter((item) => item.kind === "answer")
+[7m   [0m [91m                 ~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m104[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m104[0m         .map((item) => item.entry.title),
+[7m   [0m [91m              ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m108[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m108[0m         .filter((item) => item.kind === "slot")
+[7m   [0m [91m                 ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m109[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m109[0m         .map((item) => item.slot.title),
+[7m   [0m [91m              ~~~~[0m
+
+[96mconvex/appAccess.test.ts[0m:[93m28[0m:[93m30[0m - [91merror[0m[90m TS7006: [0mParameter 'user' implicitly has an 'any' type.
+
+[7m28[0m     expect(result.users.map((user) => user.email)).toEqual(
+[7m  [0m [91m                             ~~~~[0m
+[96mconvex/appAccess.test.ts[0m:[93m31[0m:[93m30[0m - [91merror[0m[90m TS7006: [0mParameter 'user' implicitly has an 'any' type.
+
+[7m31[0m     expect(result.users.map((user) => user.tempPassword)).toEqual(
+[7m  [0m [91m                             ~~~~[0m
+
+[96mconvex/appAccess.test.ts[0m:[93m96[0m:[93m31[0m - [91merror[0m[90m TS7006: [0mParameter 'user' implicitly has an 'any' type.
+
+[7m96[0m       verification.users.map((user) => ({
+[7m  [0m [91m                              ~~~~[0m
+
+[96mconvex/appAccess.test.ts[0m:[93m142[0m:[93m33[0m - [91merror[0m[90m TS7006: [0mParameter 'organization' implicitly has an 'any' type.
+
+[7m142[0m       access.organizations.map((organization) => ({
+[7m   [0m [91m                                ~~~~~~~~~~~~[0m
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m18[0m:[93m14[0m - [91merror[0m[90m TS7022: [0m'seedDefaultOrganizations' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m18[0m export const seedDefaultOrganizations = internalAction({
+[7m  [0m [91m             ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m49[0m:[93m3[0m - [91merror[0m[90m TS7023: [0m'handler' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+
+[7m49[0m   handler: async (ctx) => {
+[7m  [0m [91m  ~~~~~~~[0m
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m61[0m:[93m11[0m - [91merror[0m[90m TS7022: [0m'domainStats' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m61[0m     const domainStats = await ctx.runMutation(
+[7m  [0m [91m          ~~~~~~~~~~~[0m
+
+Found 15 errors in 3 files.
+
+Errors  Files
+     8  convex/answerFeed.test.ts[90m:29[0m
+     4  convex/appAccess.test.ts[90m:28[0m
+     3  convex/seedOrganizationsAction.ts[90m:18[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/answerFeed.test.ts[0m:[93m29[0m:[93m16[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m29[0m       .filter((item) => item.kind === "answer")
+[7m  [0m [91m               ~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m30[0m:[93m13[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m30[0m       .map((item) => item.entry.title);
+[7m  [0m [91m            ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m80[0m:[93m10[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m80[0m         (item) =>
+[7m  [0m [91m         ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m96[0m:[93m27[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m96[0m     expect(feedItems.map((item) => item.kind)).toEqual([
+[7m  [0m [91m                          ~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m103[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m103[0m         .filter((item) => item.kind === "answer")
+[7m   [0m [91m                 ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m104[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m104[0m         .map((item) => item.entry.title),
+[7m   [0m [91m              ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m108[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m108[0m         .filter((item) => item.kind === "slot")
+[7m   [0m [91m                 ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m109[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m109[0m         .map((item) => item.slot.title),
+[7m   [0m [91m              ~~~~[0m
+[96mconvex/appAccess.test.ts[0m:[93m28[0m:[93m30[0m - [91merror[0m[90m TS7006: [0mParameter 'user' implicitly has an 'any' type.
+
+[7m28[0m     expect(result.users.map((user) => user.email)).toEqual(
+[7m  [0m [91m                             ~~~~[0m
+
+[96mconvex/appAccess.test.ts[0m:[93m31[0m:[93m30[0m - [91merror[0m[90m TS7006: [0mParameter 'user' implicitly has an 'any' type.
+
+[7m31[0m     expect(result.users.map((user) => user.tempPassword)).toEqual(
+[7m  [0m [91m                             ~~~~[0m
+
+[96mconvex/appAccess.test.ts[0m:[93m96[0m:[93m31[0m - [91merror[0m[90m TS7006: [0mParameter 'user' implicitly has an 'any' type.
+
+[7m96[0m       verification.users.map((user) => ({
+[7m  [0m [91m                              ~~~~[0m
+
+[96mconvex/appAccess.test.ts[0m:[93m142[0m:[93m33[0m - [91merror[0m[90m TS7006: [0mParameter 'organization' implicitly has an 'any' type.
+
+[7m142[0m       access.organizations.map((organization) => ({
+[7m   [0m [91m                                ~~~~~~~~~~~~[0m
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m18[0m:[93m14[0m - [91merror[0m[90m TS7022: [0m'seedDefaultOrganizations' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m18[0m export const seedDefaultOrganizations = internalAction({
+[7m  [0m [91m             ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/seedOrganizationsAction.ts[0m:[93m49[0m:[93m3[0m - [91merror[0m[90m TS7023: [0m'handler' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+
+[7m49[0m   handler: async (ctx) => {
+[7m  [0m [91m  ~~~~~~~[0m
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m61[0m:[93m11[0m - [91merror[0m[90m TS7022: [0m'domainStats' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m61[0m     const domainStats = await ctx.runMutation(
+[7m  [0m [91m          ~~~~~~~~~~~[0m
+
+Found 15 errors in 3 files.
+
+Errors  Files
+     8  convex/answerFeed.test.ts[90m:29[0m
+     4  convex/appAccess.test.ts[90m:28[0m
+     3  convex/seedOrganizationsAction.ts[90m:18[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/answerFeed.test.ts[0m:[93m29[0m:[93m16[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m29[0m       .filter((item) => item.kind === "answer")
+[7m  [0m [91m               ~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m30[0m:[93m13[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m30[0m       .map((item) => item.entry.title);
+[7m  [0m [91m            ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m80[0m:[93m10[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m80[0m         (item) =>
+[7m  [0m [91m         ~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m96[0m:[93m27[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m96[0m     expect(feedItems.map((item) => item.kind)).toEqual([
+[7m  [0m [91m                          ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m103[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m103[0m         .filter((item) => item.kind === "answer")
+[7m   [0m [91m                 ~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m104[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m104[0m         .map((item) => item.entry.title),
+[7m   [0m [91m              ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m108[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m108[0m         .filter((item) => item.kind === "slot")
+[7m   [0m [91m                 ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m109[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m109[0m         .map((item) => item.slot.title),
+[7m   [0m [91m              ~~~~[0m
+
+[96mconvex/appAccess.test.ts[0m:[93m28[0m:[93m30[0m - [91merror[0m[90m TS7006: [0mParameter 'user' implicitly has an 'any' type.
+
+[7m28[0m     expect(result.users.map((user) => user.email)).toEqual(
+[7m  [0m [91m                             ~~~~[0m
+[96mconvex/appAccess.test.ts[0m:[93m31[0m:[93m30[0m - [91merror[0m[90m TS7006: [0mParameter 'user' implicitly has an 'any' type.
+
+[7m31[0m     expect(result.users.map((user) => user.tempPassword)).toEqual(
+[7m  [0m [91m                             ~~~~[0m
+
+[96mconvex/appAccess.test.ts[0m:[93m96[0m:[93m31[0m - [91merror[0m[90m TS7006: [0mParameter 'user' implicitly has an 'any' type.
+
+[7m96[0m       verification.users.map((user) => ({
+[7m  [0m [91m                              ~~~~[0m
+
+[96mconvex/appAccess.test.ts[0m:[93m142[0m:[93m33[0m - [91merror[0m[90m TS7006: [0mParameter 'organization' implicitly has an 'any' type.
+
+[7m142[0m       access.organizations.map((organization) => ({
+[7m   [0m [91m                                ~~~~~~~~~~~~[0m
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m18[0m:[93m14[0m - [91merror[0m[90m TS7022: [0m'seedDefaultOrganizations' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m18[0m export const seedDefaultOrganizations = internalAction({
+[7m  [0m [91m             ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m49[0m:[93m3[0m - [91merror[0m[90m TS7023: [0m'handler' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+
+[7m49[0m   handler: async (ctx) => {
+[7m  [0m [91m  ~~~~~~~[0m
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m61[0m:[93m11[0m - [91merror[0m[90m TS7022: [0m'domainStats' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m61[0m     const domainStats = await ctx.runMutation(
+[7m  [0m [91m          ~~~~~~~~~~~[0m
+
+Found 15 errors in 3 files.
+
+Errors  Files
+     8  convex/answerFeed.test.ts[90m:29[0m
+     4  convex/appAccess.test.ts[90m:28[0m
+     3  convex/seedOrganizationsAction.ts[90m:18[0m
+- Preparing Convex functions...
+
+[32m√[39m 17:20:15 Convex functions ready! (6.02s)
+- Preparing Convex functions...
+
+[32m√[39m 17:20:37 Convex functions ready! (5.06s)
+6/12/2026, 5:22:20 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: retrieveAccountWithCredentials'
+6/12/2026, 5:22:20 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: modifyAccount'
+6/12/2026, 5:22:21 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: retrieveAccountWithCredentials'
+6/12/2026, 5:22:21 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: createAccountFromCredentials'
+6/12/2026, 5:22:21 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: retrieveAccountWithCredentials'
+6/12/2026, 5:22:21 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: createAccountFromCredentials'
+- Preparing Convex functions...
+
+[32m√[39m 17:23:11 Convex functions ready! (6.37s)
+- Preparing Convex functions...
+
+[32m√[39m 17:24:07 Convex functions ready! (5.84s)
+- Preparing Convex functions...
+
+[32m√[39m 17:24:37 Convex functions ready! (5.52s)
+6/12/2026, 5:33:36 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: retrieveAccountWithCredentials'
+6/12/2026, 5:33:37 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signIn'
+6/12/2026, 5:33:37 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 5:33:37 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 5:34:04 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 5:34:58 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 6:01:29 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 6:34:49 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 7:01:20 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 7:05:04 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 7:34:40 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 8:01:11 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 8:04:55 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 8:34:36 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 9:01:03 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 9:04:47 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 9:34:28 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 9:54:34 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 10:00:09 PM [CONVEX Q(scripture:getPassage)] Your request couldn't be completed. Try again later.
+
+6/12/2026, 10:00:10 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/12/2026, 10:03:17 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signOut'
+6/12/2026, 10:03:58 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: retrieveAccountWithCredentials'
+6/12/2026, 10:03:58 PM [CONVEX A(auth:signIn)] Uncaught Error: InvalidSecret
+
+6/12/2026, 10:04:39 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 10:06:36 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: retrieveAccountWithCredentials'
+6/12/2026, 10:06:36 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signIn'
+6/12/2026, 10:06:36 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 10:07:30 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 10:10:23 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 10:10:29 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/auth.ts[0m:[93m31[0m:[93m22[0m - [91merror[0m[90m TS2345: [0mArgument of type '"email"' is not assignable to parameter of type 'keyof SystemIndexes'.
+
+[7m31[0m           .withIndex("email", (q) => q.eq("email", normalizedEmail))
+[7m  [0m [91m                     ~~~~~~~[0m
+[96mconvex/auth.ts[0m:[93m31[0m:[93m43[0m - [91merror[0m[90m TS2345: [0mArgument of type '"email"' is not assignable to parameter of type '"_creationTime" | "_id"'.
+
+[7m31[0m           .withIndex("email", (q) => q.eq("email", normalizedEmail))
+[7m  [0m [91m                                          ~~~~~~~[0m
+
+
+Found 2 errors in the same file, starting at: convex/auth.ts[90m:31[0m
+- Preparing Convex functions...
+
+[32m√[39m 22:14:27 Convex functions ready! (5.64s)
+6/12/2026, 10:13:12 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 10:13:35 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signOut'
+- Preparing Convex functions...
+
+[32m√[39m 22:15:49 Convex functions ready! (6.24s)
+6/12/2026, 10:37:51 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signOut'
+6/12/2026, 10:49:13 PM [CONVEX Q(testQuery)] Uncaught ReferenceError: authAccounts is not defined
+
+6/12/2026, 10:49:30 PM [CONVEX Q(testQuery)] Uncaught ReferenceError: authAccounts is not defined
+
+6/12/2026, 10:49:40 PM [CONVEX Q(testQuery)] Uncaught ReferenceError: authAccounts is not defined
+
+6/12/2026, 10:49:51 PM [CONVEX Q(testQuery)] Uncaught ReferenceError: authAccounts is not defined
+
+6/12/2026, 10:50:05 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: retrieveAccountWithCredentials'
+6/12/2026, 10:50:06 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signIn'
+6/12/2026, 10:50:06 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/12/2026, 10:51:41 PM [CONVEX Q(testQuery)] Uncaught Error: Too many documents read in a single function execution (limit: 32000). Consider using smaller limits in your queries, paginating your queries, or using indexed queries with a selective index range expressions.
+
+6/12/2026, 10:52:05 PM [CONVEX Q(testQuery)] [WARN] Many documents read in a single function execution (actual: 31102, limit: 32000). Consider using smaller limits in your queries, paginating your queries, or using indexed queries with a selective index range expressions.
+6/12/2026, 10:52:06 PM [CONVEX Q(testQuery)] [WARN] Many documents read in a single function execution (actual: 31102, limit: 32000). Consider using smaller limits in your queries, paginating your queries, or using indexed queries with a selective index range expressions.
+6/13/2026, 2:39:33 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 3:39:24 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 4:39:16 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 5:39:06 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 6:38:57 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 7:38:48 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 8:38:40 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 9:38:30 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 10:38:22 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 11:38:13 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 12:38:04 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 12:47:23 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 12:52:21 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: retrieveAccountWithCredentials'
+6/13/2026, 12:52:21 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signIn'
+6/13/2026, 12:52:21 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 1:47:14 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 2:37:49 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 2:38:27 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: retrieveAccountWithCredentials'
+6/13/2026, 2:38:27 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signIn'
+6/13/2026, 2:38:28 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 2:40:01 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 2:50:10 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 3:03:29 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 3:38:19 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 4:03:20 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 4:38:10 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 5:03:11 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 5:38:06 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 6:03:02 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 6:37:57 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 7:02:52 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 7:37:48 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 8:02:43 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 8:37:39 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 9:02:34 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 9:37:30 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 10:02:25 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 10:28:00 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/answerFeed.ts[0m:[93m393[0m:[93m3[0m - [91merror[0m[90m TS2741: [0mProperty 'contributor' is missing in type '{ id: Id<"knowledgeEntries">; title: string; knowledgeType: "words" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | ... 8 more ... | "place"; ... 5 more ...; updatedAt: number; }' but required in type 'KnowledgeEntrySummary'.
+
+[7m393[0m   return {
+[7m   [0m [91m  ~~~~~~[0m
+
+  [96mconvex/answerFeed.ts[0m:[93m114[0m:[93m3[0m
+    [7m114[0m   contributor: ContributorSummary;
+    [7m   [0m [96m  ~~~~~~~~~~~[0m
+    'contributor' is declared here.
+
+Found 1 error in convex/answerFeed.ts[90m:393[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/answerFeed.ts[0m:[93m190[0m:[93m18[0m - [91merror[0m[90m TS2552: [0mCannot find name 'summarizeKnowledgeContextExperts'. Did you mean 'knowledgeContextExpert'?
+
+[7m190[0m     return await summarizeKnowledgeContextExperts(ctx, entries, expertLimit);
+[7m   [0m [91m                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+  [96mconvex/answerFeed.ts[0m:[93m65[0m:[93m7[0m
+    [7m65[0m const knowledgeContextExpert = v.object({
+    [7m  [0m [96m      ~~~~~~~~~~~~~~~~~~~~~~[0m
+    'knowledgeContextExpert' is declared here.
+[96mconvex/answerFeed.ts[0m:[93m214[0m:[93m40[0m - [91merror[0m[90m TS2554: [0mExpected 1 arguments, but got 3.
+
+[7m214[0m       entry: await summarizeEntry(ctx, entry, contributorCache),
+[7m   [0m [91m                                       ~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/answerFeed.ts[0m:[93m243[0m:[93m31[0m - [91merror[0m[90m TS2304: [0mCannot find name 'compareEntries'.
+
+[7m243[0m   return matchingEntries.sort(compareEntries).slice(0, limit);
+[7m   [0m [91m                              ~~~~~~~~~~~~~~[0m
+[96mconvex/answerFeed.ts[0m:[93m438[0m:[93m3[0m - [91merror[0m[90m TS2741: [0mProperty 'contributor' is missing in type '{ id: Id<"knowledgeEntries">; title: string; knowledgeType: "words" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | ... 8 more ... | "place"; ... 5 more ...; updatedAt: number; }' but required in type 'KnowledgeEntrySummary'.
+
+[7m438[0m   return {
+[7m   [0m [91m  ~~~~~~[0m
+
+  [96mconvex/answerFeed.ts[0m:[93m114[0m:[93m3[0m
+    [7m114[0m   contributor: ContributorSummary;
+    [7m   [0m [96m  ~~~~~~~~~~~[0m
+    'contributor' is declared here.
+
+Found 4 errors in the same file, starting at: convex/answerFeed.ts[90m:190[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/answerFeed.ts[0m:[93m243[0m:[93m31[0m - [91merror[0m[90m TS2304: [0mCannot find name 'compareEntries'.
+
+[7m243[0m   return matchingEntries.sort(compareEntries).slice(0, limit);
+[7m   [0m [91m                              ~~~~~~~~~~~~~~[0m
+[96mconvex/answerFeed.ts[0m:[93m506[0m:[93m11[0m - [91merror[0m[90m TS2552: [0mCannot find name 'compareKnowledgeContextExperts'. Did you mean 'summarizeKnowledgeContextExperts'?
+
+[7m506[0m     .sort(compareKnowledgeContextExperts)
+[7m   [0m [91m          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+  [96mconvex/answerFeed.ts[0m:[93m460[0m:[93m16[0m
+    [7m460[0m async function summarizeKnowledgeContextExperts(
+    [7m   [0m [96m               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    'summarizeKnowledgeContextExperts' is declared here.
+[96mconvex/answerFeed.ts[0m:[93m528[0m:[93m23[0m - [91merror[0m[90m TS2304: [0mCannot find name 'getReliabilityScore'.
+
+[7m528[0m     reliabilityScore: getReliabilityScore(
+[7m   [0m [91m                      ~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/answerFeed.ts[0m:[93m573[0m:[93m11[0m - [91merror[0m[90m TS2304: [0mCannot find name 'getUserDisplayName'.
+
+[7m573[0m     name: getUserDisplayName(user),
+[7m   [0m [91m          ~~~~~~~~~~~~~~~~~~[0m
+
+Found 4 errors in the same file, starting at: convex/answerFeed.ts[90m:243[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/answerFeed.ts[0m:[93m614[0m:[93m11[0m - [91merror[0m[90m TS2304: [0mCannot find name 'aggregate'.
+
+[7m614[0m     href: aggregate.href,
+[7m   [0m [91m          ~~~~~~~~~[0m
+
+Found 1 error in convex/answerFeed.ts[90m:614[0m
+- Preparing Convex functions...
+
+[32m√[39m 22:30:25 Convex functions ready! (6.15s)
+- Preparing Convex functions...
+
+[32m√[39m 22:31:09 Convex functions ready! (6.86s)
+- Preparing Convex functions...
+
+[32m√[39m 22:31:19 Convex functions ready! (5.67s)
+- Preparing Convex functions...
+
+[32m√[39m 22:31:28 Convex functions ready! (5.65s)
+- Preparing Convex functions...
+
+[32m√[39m 22:32:11 Convex functions ready! (6.47s)
+- Preparing Convex functions...
+
+[32m√[39m 22:32:40 Convex functions ready! (6s)
+6/13/2026, 10:37:22 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 11:27:51 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 11:37:13 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/14/2026, 12:27:42 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/14/2026, 12:37:04 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[32m√[39m Added table indexes:
+  [+] smartStoragePlaygroundFeedback.by_feedbackRating_and_createdAt   feedbackRating, createdAt, _creationTime
+  [+] smartStoragePlaygroundFeedback.by_intendedKnowledgeType_and_createdAt   intendedKnowledgeType, createdAt, _creationTime
+  [+] smartStoragePlaygroundFeedback.by_userId_and_createdAt   userId, createdAt, _creationTime
+✔ 01:02:56 Convex functions ready! (7.27s)
+- Preparing Convex functions...
+
+[32m√[39m 01:03:21 Convex functions ready! (6.05s)
+- Preparing Convex functions...
+
+[32m√[39m 01:05:29 Convex functions ready! (5.94s)
+6/14/2026, 1:27:33 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/14/2026, 2:27:24 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/14/2026, 3:27:14 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[32m√[39m 04:16:07 Convex functions ready! (6.28s)
+- Preparing Convex functions...
+
+[32m√[39m 04:16:21 Convex functions ready! (5.51s)
+6/14/2026, 4:18:39 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/analytics.test.ts[0m:[93m88[0m:[93m30[0m - [91merror[0m[90m TS2304: [0mCannot find name 'seedBibleContextRows'.
+
+[7m88[0m     const seed = await t.run(seedBibleContextRows);
+[7m  [0m [91m                             ~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/analytics.test.ts[0m:[93m89[0m:[93m49[0m - [91merror[0m[90m TS18046: [0m'seed' is of type 'unknown'.
+
+[7m89[0m     const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+[7m  [0m [91m                                                ~~~~[0m
+
+[96mconvex/analytics.test.ts[0m:[93m123[0m:[93m30[0m - [91merror[0m[90m TS2304: [0mCannot find name 'seedBibleContextRows'.
+
+[7m123[0m     const seed = await t.run(seedBibleContextRows);
+[7m   [0m [91m                             ~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/analytics.test.ts[0m:[93m124[0m:[93m49[0m - [91merror[0m[90m TS18046: [0m'seed' is of type 'unknown'.
+
+[7m124[0m     const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+[7m   [0m [91m                                                ~~~~[0m
+
+Found 4 errors in the same file, starting at: convex/analytics.test.ts[90m:88[0m
+- Preparing Convex functions...
+
+[32m√[39m 04:21:26 Convex functions ready! (6.47s)
+- Preparing Convex functions...
+
+[32m√[39m 04:24:02 Convex functions ready! (5.44s)
+6/14/2026, 5:18:30 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'

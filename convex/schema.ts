@@ -80,6 +80,26 @@ const sourceOutputKind = v.union(
   v.literal("derived"),
 );
 
+const smartStorageFeedbackRating = v.union(
+  v.literal("accurate"),
+  v.literal("close"),
+  v.literal("wrong"),
+);
+
+const smartStoragePredictedEntry = v.object({
+  knowledgeType: entryKnowledgeType,
+  title: v.string(),
+  confidence: v.number(),
+  reason: v.string(),
+  sourceExcerpt: v.string(),
+});
+
+const smartStorageSubmittedEntry = v.object({
+  knowledgeType: entryKnowledgeType,
+  title: v.string(),
+  bodyPreview: v.string(),
+});
+
 const entryRepresentationKind = v.union(
   v.literal("prosemirror"),
   v.literal("plainText"),
@@ -155,6 +175,19 @@ const analyticsTargetKind = v.union(
 
 export default defineSchema({
   ...authTables,
+
+  users: defineTable({
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+    email: v.optional(v.string()),
+    emailVerificationTime: v.optional(v.number()),
+    phone: v.optional(v.string()),
+    phoneVerificationTime: v.optional(v.number()),
+    isAnonymous: v.optional(v.boolean()),
+    isActive: v.optional(v.boolean()),
+  })
+    .index("email", ["email"])
+    .index("phone", ["phone"]),
 
   referents: defineTable({
     knowledgeType: referentKnowledgeType,
@@ -238,6 +271,7 @@ export default defineSchema({
     .index("by_knowledgeType", ["knowledgeType"])
     .index("by_knowledgeType_and_createdAt", ["knowledgeType", "createdAt"])
     .index("by_knowledgeType_and_updatedAt", ["knowledgeType", "updatedAt"])
+    .index("by_humanWeight_and_updatedAt", ["humanWeight", "updatedAt"])
     .index("by_createdByUserId", ["createdByUserId"])
     .index("by_createdByUserId_and_createdAt", [
       "createdByUserId",
@@ -325,6 +359,10 @@ export default defineSchema({
       "memberUserId",
       "membershipStatus",
     ])
+    .index("by_memberUserId_and_organizationReferentId", [
+      "memberUserId",
+      "organizationReferentId",
+    ])
     .index("by_organizationReferentId_and_membershipStatus", [
       "organizationReferentId",
       "membershipStatus",
@@ -359,6 +397,29 @@ export default defineSchema({
   })
     .index("by_sourceId_and_entryId", ["sourceId", "entryId"])
     .index("by_entryId_and_sourceId", ["entryId", "sourceId"]),
+
+  smartStoragePlaygroundFeedback: defineTable({
+    userId: v.id("users"),
+    sourceKind,
+    sourceName: v.optional(v.string()),
+    sourceText: v.string(),
+    sourceSizeBytes: v.number(),
+    predictedEntries: v.array(smartStoragePredictedEntry),
+    submittedEntry: v.optional(smartStorageSubmittedEntry),
+    intendedKnowledgeType: entryKnowledgeType,
+    feedbackRating: smartStorageFeedbackRating,
+    feedbackNote: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_userId_and_createdAt", ["userId", "createdAt"])
+    .index("by_intendedKnowledgeType_and_createdAt", [
+      "intendedKnowledgeType",
+      "createdAt",
+    ])
+    .index("by_feedbackRating_and_createdAt", [
+      "feedbackRating",
+      "createdAt",
+    ]),
 
   entryRepresentations: defineTable({
     entryId: v.id("knowledgeEntries"),
@@ -493,6 +554,7 @@ export default defineSchema({
   organizationEntries: defineTable({
     entryId: v.id("knowledgeEntries"),
     organizationKind,
+    isActive: v.optional(v.boolean()),
   })
     .index("by_entryId", ["entryId"])
     .index("by_organizationKind", ["organizationKind"]),
