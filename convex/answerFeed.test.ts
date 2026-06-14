@@ -50,6 +50,10 @@ describe("Answer Feed backend adapter", () => {
     expect(feedItems).toContainEqual({
       kind: "answer",
       entry: {
+        contributor: {
+          id: seed.users.ada,
+          name: "Ada Teacher",
+        },
         id: seed.entries.highWeight,
         title: "High Weight Matching Lesson",
         knowledgeType: "lesson",
@@ -83,6 +87,33 @@ describe("Answer Feed backend adapter", () => {
     ).toBe(false);
   });
 
+  test("ranks context experts from reliable matching contributors", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedAnswerFeedRows);
+
+    const experts = await t.query(api.answerFeed.listExpertsForActiveTags, {
+      activeTagIds: [seed.tags.romans, seed.tags.holySpirit],
+      expertLimit: 3,
+    });
+
+    expect(experts).toEqual([
+      {
+        id: seed.users.ada,
+        name: "Ada Teacher",
+        averageHumanWeight: 84,
+        contributionCount: 2,
+        reliabilityScore: 109,
+      },
+      {
+        id: seed.users.ben,
+        name: "Ben Scholar",
+        averageHumanWeight: 88,
+        contributionCount: 1,
+        reliabilityScore: 100,
+      },
+    ]);
+  });
+
   test("keeps results bounded and deterministic", async () => {
     const t = convexTest({ schema, modules });
     const seed = await t.run(seedAnswerFeedRows);
@@ -112,6 +143,14 @@ describe("Answer Feed backend adapter", () => {
 });
 
 async function seedAnswerFeedRows(ctx: MutationCtx) {
+  const adaUserId = await insertUser(ctx, {
+    email: "ada.teacher@example.com",
+    name: "Ada Teacher",
+  });
+  const benUserId = await insertUser(ctx, {
+    email: "ben.scholar@example.com",
+    name: "Ben Scholar",
+  });
   const romans = await insertTag(ctx, {
     canonicalKey: "romans-8-28",
     knowledgeType: "biblePassage",
@@ -131,6 +170,7 @@ async function seedAnswerFeedRows(ctx: MutationCtx) {
   const lowerWeight = await insertEntry(ctx, {
     contextTagIds: [romans.tagId, holySpirit.tagId],
     contextPreviewTagLabels: ["Romans 8:28", "Holy Spirit"],
+    createdByUserId: adaUserId,
     humanWeight: 72,
     knowledgeType: "words",
     previewText: "A lower-weight answer preview.",
@@ -140,6 +180,7 @@ async function seedAnswerFeedRows(ctx: MutationCtx) {
   const extraTag = await insertEntry(ctx, {
     contextTagIds: [romans.tagId, holySpirit.tagId, atonement.tagId],
     contextPreviewTagLabels: ["Romans 8:28", "Holy Spirit", "Atonement"],
+    createdByUserId: benUserId,
     humanWeight: 88,
     knowledgeType: "words",
     previewText: "An answer with an extra Tag preview.",
@@ -149,6 +190,7 @@ async function seedAnswerFeedRows(ctx: MutationCtx) {
   const highWeight = await insertEntry(ctx, {
     contextTagIds: [romans.tagId, holySpirit.tagId],
     contextPreviewTagLabels: ["Romans 8:28", "Holy Spirit"],
+    createdByUserId: adaUserId,
     humanWeight: 96,
     knowledgeType: "lesson",
     previewText: "A high-weight lesson preview.",
@@ -158,6 +200,7 @@ async function seedAnswerFeedRows(ctx: MutationCtx) {
   const missingHolySpirit = await insertEntry(ctx, {
     contextTagIds: [romans.tagId],
     contextPreviewTagLabels: ["Romans 8:28"],
+    createdByUserId: benUserId,
     humanWeight: 100,
     knowledgeType: "words",
     previewText: "This answer is broader than the active Knowledge Context.",
@@ -193,7 +236,25 @@ async function seedAnswerFeedRows(ctx: MutationCtx) {
       holySpirit: holySpirit.tagId,
       romans: romans.tagId,
     },
+    users: {
+      ada: adaUserId,
+      ben: benUserId,
+    },
   };
+}
+
+async function insertUser(
+  ctx: MutationCtx,
+  user: {
+    email: string;
+    name: string;
+  },
+) {
+  return await ctx.db.insert("users", {
+    email: user.email,
+    isActive: true,
+    name: user.name,
+  });
 }
 
 async function insertTag(
@@ -224,6 +285,7 @@ async function insertEntry(
   entry: {
     contextPreviewTagLabels: string[];
     contextTagIds: Array<Id<"tags">>;
+    createdByUserId: Id<"users">;
     humanWeight: number;
     knowledgeType: Doc<"knowledgeEntries">["knowledgeType"];
     previewText: string;
@@ -245,6 +307,7 @@ async function insertEntry(
     searchText: `${entry.title} ${entry.previewText}`,
     primaryTagLabel: entry.title,
     contextPreviewTagLabels: entry.contextPreviewTagLabels,
+    createdByUserId: entry.createdByUserId,
     humanWeight: entry.humanWeight,
     visibilityKind: "public",
     visibilityTargetKey: "public",

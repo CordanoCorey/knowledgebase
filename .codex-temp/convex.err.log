@@ -927,3 +927,192 @@ Found 2 errors in the same file, starting at: convex/auth.ts[90m:31[0m
 6/13/2026, 2:38:28 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
 6/13/2026, 2:40:01 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
 6/13/2026, 2:50:10 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 3:03:29 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 3:38:19 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 4:03:20 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 4:38:10 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 5:03:11 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 5:38:06 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 6:03:02 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 6:37:57 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 7:02:52 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 7:37:48 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 8:02:43 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 8:37:39 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 9:02:34 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 9:37:30 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 10:02:25 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 10:28:00 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/answerFeed.ts[0m:[93m393[0m:[93m3[0m - [91merror[0m[90m TS2741: [0mProperty 'contributor' is missing in type '{ id: Id<"knowledgeEntries">; title: string; knowledgeType: "words" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | ... 8 more ... | "place"; ... 5 more ...; updatedAt: number; }' but required in type 'KnowledgeEntrySummary'.
+
+[7m393[0m   return {
+[7m   [0m [91m  ~~~~~~[0m
+
+  [96mconvex/answerFeed.ts[0m:[93m114[0m:[93m3[0m
+    [7m114[0m   contributor: ContributorSummary;
+    [7m   [0m [96m  ~~~~~~~~~~~[0m
+    'contributor' is declared here.
+
+Found 1 error in convex/answerFeed.ts[90m:393[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/answerFeed.ts[0m:[93m190[0m:[93m18[0m - [91merror[0m[90m TS2552: [0mCannot find name 'summarizeKnowledgeContextExperts'. Did you mean 'knowledgeContextExpert'?
+
+[7m190[0m     return await summarizeKnowledgeContextExperts(ctx, entries, expertLimit);
+[7m   [0m [91m                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+  [96mconvex/answerFeed.ts[0m:[93m65[0m:[93m7[0m
+    [7m65[0m const knowledgeContextExpert = v.object({
+    [7m  [0m [96m      ~~~~~~~~~~~~~~~~~~~~~~[0m
+    'knowledgeContextExpert' is declared here.
+[96mconvex/answerFeed.ts[0m:[93m214[0m:[93m40[0m - [91merror[0m[90m TS2554: [0mExpected 1 arguments, but got 3.
+
+[7m214[0m       entry: await summarizeEntry(ctx, entry, contributorCache),
+[7m   [0m [91m                                       ~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/answerFeed.ts[0m:[93m243[0m:[93m31[0m - [91merror[0m[90m TS2304: [0mCannot find name 'compareEntries'.
+
+[7m243[0m   return matchingEntries.sort(compareEntries).slice(0, limit);
+[7m   [0m [91m                              ~~~~~~~~~~~~~~[0m
+[96mconvex/answerFeed.ts[0m:[93m438[0m:[93m3[0m - [91merror[0m[90m TS2741: [0mProperty 'contributor' is missing in type '{ id: Id<"knowledgeEntries">; title: string; knowledgeType: "words" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | ... 8 more ... | "place"; ... 5 more ...; updatedAt: number; }' but required in type 'KnowledgeEntrySummary'.
+
+[7m438[0m   return {
+[7m   [0m [91m  ~~~~~~[0m
+
+  [96mconvex/answerFeed.ts[0m:[93m114[0m:[93m3[0m
+    [7m114[0m   contributor: ContributorSummary;
+    [7m   [0m [96m  ~~~~~~~~~~~[0m
+    'contributor' is declared here.
+
+Found 4 errors in the same file, starting at: convex/answerFeed.ts[90m:190[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/answerFeed.ts[0m:[93m243[0m:[93m31[0m - [91merror[0m[90m TS2304: [0mCannot find name 'compareEntries'.
+
+[7m243[0m   return matchingEntries.sort(compareEntries).slice(0, limit);
+[7m   [0m [91m                              ~~~~~~~~~~~~~~[0m
+[96mconvex/answerFeed.ts[0m:[93m506[0m:[93m11[0m - [91merror[0m[90m TS2552: [0mCannot find name 'compareKnowledgeContextExperts'. Did you mean 'summarizeKnowledgeContextExperts'?
+
+[7m506[0m     .sort(compareKnowledgeContextExperts)
+[7m   [0m [91m          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+  [96mconvex/answerFeed.ts[0m:[93m460[0m:[93m16[0m
+    [7m460[0m async function summarizeKnowledgeContextExperts(
+    [7m   [0m [96m               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    'summarizeKnowledgeContextExperts' is declared here.
+[96mconvex/answerFeed.ts[0m:[93m528[0m:[93m23[0m - [91merror[0m[90m TS2304: [0mCannot find name 'getReliabilityScore'.
+
+[7m528[0m     reliabilityScore: getReliabilityScore(
+[7m   [0m [91m                      ~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/answerFeed.ts[0m:[93m573[0m:[93m11[0m - [91merror[0m[90m TS2304: [0mCannot find name 'getUserDisplayName'.
+
+[7m573[0m     name: getUserDisplayName(user),
+[7m   [0m [91m          ~~~~~~~~~~~~~~~~~~[0m
+
+Found 4 errors in the same file, starting at: convex/answerFeed.ts[90m:243[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/answerFeed.ts[0m:[93m614[0m:[93m11[0m - [91merror[0m[90m TS2304: [0mCannot find name 'aggregate'.
+
+[7m614[0m     href: aggregate.href,
+[7m   [0m [91m          ~~~~~~~~~[0m
+
+Found 1 error in convex/answerFeed.ts[90m:614[0m
+- Preparing Convex functions...
+
+[32m√[39m 22:30:25 Convex functions ready! (6.15s)
+- Preparing Convex functions...
+
+[32m√[39m 22:31:09 Convex functions ready! (6.86s)
+- Preparing Convex functions...
+
+[32m√[39m 22:31:19 Convex functions ready! (5.67s)
+- Preparing Convex functions...
+
+[32m√[39m 22:31:28 Convex functions ready! (5.65s)
+- Preparing Convex functions...
+
+[32m√[39m 22:32:11 Convex functions ready! (6.47s)
+- Preparing Convex functions...
+
+[32m√[39m 22:32:40 Convex functions ready! (6s)
+6/13/2026, 10:37:22 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 11:27:51 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/13/2026, 11:37:13 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/14/2026, 12:27:42 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/14/2026, 12:37:04 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[32m√[39m Added table indexes:
+  [+] smartStoragePlaygroundFeedback.by_feedbackRating_and_createdAt   feedbackRating, createdAt, _creationTime
+  [+] smartStoragePlaygroundFeedback.by_intendedKnowledgeType_and_createdAt   intendedKnowledgeType, createdAt, _creationTime
+  [+] smartStoragePlaygroundFeedback.by_userId_and_createdAt   userId, createdAt, _creationTime
+✔ 01:02:56 Convex functions ready! (7.27s)
+- Preparing Convex functions...
+
+[32m√[39m 01:03:21 Convex functions ready! (6.05s)
+- Preparing Convex functions...
+
+[32m√[39m 01:05:29 Convex functions ready! (5.94s)
+6/14/2026, 1:27:33 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/14/2026, 2:27:24 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/14/2026, 3:27:14 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[32m√[39m 04:16:07 Convex functions ready! (6.28s)
+- Preparing Convex functions...
+
+[32m√[39m 04:16:21 Convex functions ready! (5.51s)
+6/14/2026, 4:18:39 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/analytics.test.ts[0m:[93m88[0m:[93m30[0m - [91merror[0m[90m TS2304: [0mCannot find name 'seedBibleContextRows'.
+
+[7m88[0m     const seed = await t.run(seedBibleContextRows);
+[7m  [0m [91m                             ~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/analytics.test.ts[0m:[93m89[0m:[93m49[0m - [91merror[0m[90m TS18046: [0m'seed' is of type 'unknown'.
+
+[7m89[0m     const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+[7m  [0m [91m                                                ~~~~[0m
+
+[96mconvex/analytics.test.ts[0m:[93m123[0m:[93m30[0m - [91merror[0m[90m TS2304: [0mCannot find name 'seedBibleContextRows'.
+
+[7m123[0m     const seed = await t.run(seedBibleContextRows);
+[7m   [0m [91m                             ~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/analytics.test.ts[0m:[93m124[0m:[93m49[0m - [91merror[0m[90m TS18046: [0m'seed' is of type 'unknown'.
+
+[7m124[0m     const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+[7m   [0m [91m                                                ~~~~[0m
+
+Found 4 errors in the same file, starting at: convex/analytics.test.ts[90m:88[0m
+- Preparing Convex functions...
+
+[32m√[39m 04:21:26 Convex functions ready! (6.47s)
+- Preparing Convex functions...
+
+[32m√[39m 04:24:02 Convex functions ready! (5.44s)
+6/14/2026, 5:18:30 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'

@@ -26,7 +26,7 @@
   --rp-feed-card-meta-bg: rgb(255 255 255 / 58%);
   --rp-feed-card-muted: var(--rp-muted);
   --rp-feed-card-text: var(--rp-text);
-  --rp-feed-slot-bg: linear-gradient(180deg, rgb(255 250 241 / 95%), rgb(247 238 224 / 95%));
+  --rp-feed-slot-bg: var(--rp-feed-card-bg);
   --rp-focus-ring: rgb(190 135 53 / 16%);
   --rp-gold-chip-bg: rgb(190 135 53 / 12%);
   --rp-green-chip-bg: rgb(60 122 87 / 10%);
@@ -80,7 +80,7 @@
   --rp-feed-card-meta-bg: rgb(5 10 16 / 54%);
   --rp-feed-card-muted: #c6beb3;
   --rp-feed-card-text: #fff7ed;
-  --rp-feed-slot-bg: #101a24;
+  --rp-feed-slot-bg: var(--rp-feed-card-bg);
   --rp-focus-ring: rgb(217 167 95 / 24%);
   --rp-gold-chip-bg: rgb(217 167 95 / 14%);
   --rp-green-chip-bg: rgb(146 197 166 / 12%);
@@ -1857,6 +1857,12 @@
   background: var(--rp-feed-card-meta-bg);
 }
 
+.rp-feed-slot-card dl {
+  border-style: dashed;
+  border-color: rgb(60 122 87 / 46%);
+  background: rgb(60 122 87 / 7%);
+}
+
 .rp-feed-card dt,
 .rp-feed-slot-card dt {
   color: var(--rp-feed-card-text);
@@ -1910,6 +1916,20 @@
   margin-top: auto;
 }
 
+.rp-feed-slot-card footer {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.rp-feed-slot-card footer p,
+.rp-slot-card > p {
+  margin: 0;
+  color: var(--rp-feed-card-muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .rp-feed-card footer button,
 .rp-feed-slot-card footer button {
   min-height: 36px;
@@ -1920,6 +1940,13 @@
   box-shadow: none;
 }
 
+.rp-feed-slot-card footer button {
+  width: 100%;
+  border-color: transparent;
+  color: var(--rp-on-primary);
+  background: var(--kb-gradient-button);
+}
+
 .rp-feed-card footer button:hover,
 .rp-feed-card footer button:focus-visible,
 .rp-feed-slot-card footer button:hover,
@@ -1927,9 +1954,18 @@
   border-color: var(--rp-feed-accent);
 }
 
+.rp-feed-slot-card footer button:hover,
+.rp-feed-slot-card footer button:focus-visible {
+  background: var(--kb-gradient-button-hover);
+}
+
 .rp-feed-card footer svg,
 .rp-feed-slot-card footer svg {
   color: var(--rp-feed-accent);
+}
+
+.rp-feed-slot-card footer button svg {
+  color: currentColor;
 }
 
 .rp-entry-list-waterfall .rp-feed-card,
@@ -1988,6 +2024,9 @@
 
 .rp-slot-card dl {
   grid-template-columns: 1fr;
+  border-style: dashed;
+  border-color: rgb(60 122 87 / 46%);
+  background: rgb(60 122 87 / 7%);
 }
 
 .rp-slot-card > button {

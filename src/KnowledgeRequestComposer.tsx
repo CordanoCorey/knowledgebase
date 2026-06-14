@@ -14,12 +14,14 @@ import {
   type KnowledgeRequestDraft,
 } from "./knowledgeContracts";
 import { KnowledgeTypeBadge } from "./components/KnowledgeTypeIcon";
+import { ReferentTagLink } from "./components/ReferentTagLink";
 import { Presence } from "./Presence";
 
 type KnowledgeRequestComposerProps = {
   activeTags: ActiveTag[];
   initialDraft?: KnowledgeRequestDraft;
   onApplyMappedTags: (mappedTags: ActiveTag[]) => void;
+  onNavigateToHref?: (href: string) => void;
 };
 
 type KnowledgeRequestTagRule = {
@@ -105,6 +107,7 @@ export function KnowledgeRequestComposer({
   activeTags,
   initialDraft,
   onApplyMappedTags,
+  onNavigateToHref,
 }: KnowledgeRequestComposerProps) {
   const [draft, setDraft] = useState<KnowledgeRequestDraft>(
     () => initialDraft ?? createKnowledgeRequestDraft(),
@@ -167,11 +170,16 @@ export function KnowledgeRequestComposer({
               <ul className="kb-proposed-tag-list">
                 {draft.mappedTags.map((tag) => (
                   <li key={tag.id}>
-                    <span>{tag.label}</span>
-                    <KnowledgeTypeBadge
-                      className="kb-proposed-tag-type"
-                      knowledgeType={tag.knowledgeType}
-                    />
+                    <ReferentTagLink
+                      onNavigateToHref={onNavigateToHref}
+                      tag={tag}
+                    >
+                      <span>{tag.label}</span>
+                      <KnowledgeTypeBadge
+                        className="kb-proposed-tag-type"
+                        knowledgeType={tag.knowledgeType}
+                      />
+                    </ReferentTagLink>
                   </li>
                 ))}
               </ul>

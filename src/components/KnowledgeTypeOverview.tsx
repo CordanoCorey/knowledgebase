@@ -125,10 +125,10 @@ function TopicOverview({ referent }: KnowledgeTypeOverviewProps) {
 function SeriesOverview({ referent }: KnowledgeTypeOverviewProps) {
   const detail: SeriesOverviewDetail = {
     knowledgeType: "series",
-    summary: `${referent.label} is an ordered or curated collection of related entries, Tags, or Slots.`,
+    summary: `${referent.label} is an ordered or curated collection of related entries, Tags, or requests.`,
     wordsLayer: "Keeps the shared entry identity while sequence data can grow around it.",
     typedDetailLabel: "Series Detail",
-    typedDetail: "Series members can point to entries, Tags, or Knowledge Slots.",
+    typedDetail: "Series members can point to entries, Tags, or requested entries.",
     contextLabel: "Context Role",
     context: "Groups lessons, sermons, books, or topical progressions into a named path.",
     detailFocusLabel: "Primary Shape",
@@ -146,7 +146,7 @@ function QuestionOverview({ referent }: KnowledgeTypeOverviewProps) {
     typedDetailLabel: "Question Detail",
     typedDetail: "Question text records the inquiry being asked.",
     contextLabel: "Context Role",
-    context: "Frames Answer entries and open Knowledge Slots.",
+    context: "Frames Answer entries and open requests.",
     detailFocusLabel: "Primary Shape",
     detailFocus: "Stored inquiry.",
   };

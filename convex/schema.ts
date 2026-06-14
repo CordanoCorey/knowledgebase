@@ -80,6 +80,26 @@ const sourceOutputKind = v.union(
   v.literal("derived"),
 );
 
+const smartStorageFeedbackRating = v.union(
+  v.literal("accurate"),
+  v.literal("close"),
+  v.literal("wrong"),
+);
+
+const smartStoragePredictedEntry = v.object({
+  knowledgeType: entryKnowledgeType,
+  title: v.string(),
+  confidence: v.number(),
+  reason: v.string(),
+  sourceExcerpt: v.string(),
+});
+
+const smartStorageSubmittedEntry = v.object({
+  knowledgeType: entryKnowledgeType,
+  title: v.string(),
+  bodyPreview: v.string(),
+});
+
 const entryRepresentationKind = v.union(
   v.literal("prosemirror"),
   v.literal("plainText"),
@@ -377,6 +397,29 @@ export default defineSchema({
   })
     .index("by_sourceId_and_entryId", ["sourceId", "entryId"])
     .index("by_entryId_and_sourceId", ["entryId", "sourceId"]),
+
+  smartStoragePlaygroundFeedback: defineTable({
+    userId: v.id("users"),
+    sourceKind,
+    sourceName: v.optional(v.string()),
+    sourceText: v.string(),
+    sourceSizeBytes: v.number(),
+    predictedEntries: v.array(smartStoragePredictedEntry),
+    submittedEntry: v.optional(smartStorageSubmittedEntry),
+    intendedKnowledgeType: entryKnowledgeType,
+    feedbackRating: smartStorageFeedbackRating,
+    feedbackNote: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_userId_and_createdAt", ["userId", "createdAt"])
+    .index("by_intendedKnowledgeType_and_createdAt", [
+      "intendedKnowledgeType",
+      "createdAt",
+    ])
+    .index("by_feedbackRating_and_createdAt", [
+      "feedbackRating",
+      "createdAt",
+    ]),
 
   entryRepresentations: defineTable({
     entryId: v.id("knowledgeEntries"),

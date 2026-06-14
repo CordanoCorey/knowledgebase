@@ -82,6 +82,84 @@ describe("Analytics MVP backend", () => {
       }),
     ]);
   });
+
+  test("scores active Bible contexts from recent visits and open requests", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedBibleContextRows);
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    await authed.mutation(api.analytics.recordPageVisit, {
+      pageType: "referent",
+      rawPath: "/scripture/romans-8-28",
+      targetKey: "romans-8-28",
+      targetKind: "biblePassage",
+    });
+    await authed.mutation(api.analytics.recordPageVisit, {
+      pageType: "referent",
+      rawPath: "/scripture/romans-8-28",
+      targetKey: "romans-8-28",
+      targetKind: "biblePassage",
+    });
+
+    const trend = await authed.query(api.analytics.getKnowledgeContextTrend, {
+      activeTagKeys: ["romans-8-28"],
+    });
+
+    expect(trend).toMatchObject({
+      answerCount: 0,
+      href: "/scripture/romans-8-28",
+      label: "Romans 8:28",
+      openRequestCount: 1,
+      overdueRequestCount: 0,
+      recentVisitCount: 2,
+      totalVisitCount: 2,
+      trendKind: "popularAndNeedsContribution",
+    });
+    expect(trend.trendScore).toBeGreaterThan(0);
+  });
+
+  test("lists dashboard Bible contexts from popularity and contribution gaps", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedBibleContextRows);
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    await authed.mutation(api.analytics.recordPageVisit, {
+      pageType: "referent",
+      rawPath: "/scripture/john-3-16",
+      targetKey: "john-3-16",
+      targetKind: "biblePassage",
+    });
+    await authed.mutation(api.analytics.recordPageVisit, {
+      pageType: "referent",
+      rawPath: "/scripture/john-3-16",
+      targetKey: "john-3-16",
+      targetKind: "biblePassage",
+    });
+
+    const suggestions = await authed.query(
+      api.analytics.listDashboardBibleContextSuggestions,
+      { limit: 5 },
+    );
+
+    expect(suggestions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          href: "/scripture/john-3-16",
+          label: "John 3:16",
+          recentVisitCount: 2,
+          targetKey: "john-3-16",
+          trendKind: "popular",
+        }),
+        expect.objectContaining({
+          href: "/scripture/romans-8-28",
+          label: "Romans 8:28",
+          openRequestCount: 1,
+          targetKey: "romans-8-28",
+          trendKind: "needsContribution",
+        }),
+      ]),
+    );
+  });
 });
 
 async function insertActiveUser(ctx: MutationCtx) {
@@ -108,6 +186,31 @@ async function seedNavigatorRows(ctx: MutationCtx) {
   };
 }
 
+async function seedBibleContextRows(ctx: MutationCtx) {
+  const userId = await insertActiveUser(ctx);
+  const romans = await insertTag(ctx, {
+    canonicalKey: "romans-8-28",
+    knowledgeType: "biblePassage",
+    label: "Romans 8:28",
+  });
+  await insertTag(ctx, {
+    canonicalKey: "john-3-16",
+    knowledgeType: "biblePassage",
+    label: "John 3:16",
+  });
+  await insertSlot(ctx, {
+    contextTagIds: [romans.tagId],
+    title: "Contribute Romans 8:28 teaching note",
+  });
+
+  return {
+    tags: {
+      romans: romans.tagId,
+    },
+    userId,
+  };
+}
+
 async function insertTag(
   ctx: MutationCtx,
   tag: {
@@ -129,4 +232,33 @@ async function insertTag(
   });
 
   return { referentId, tagId };
+}
+
+async function insertSlot(
+  ctx: MutationCtx,
+  slot: {
+    contextTagIds: Array<Id<"tags">>;
+    title: string;
+  },
+) {
+  const now = Date.now();
+  const slotId = await ctx.db.insert("knowledgeSlots", {
+    requestedKnowledgeType: "lesson",
+    status: "open",
+    title: slot.title,
+    contextKey: `tags:${[...slot.contextTagIds].sort().join(",")}`,
+    targetKind: "public",
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  for (const tagId of slot.contextTagIds) {
+    await ctx.db.insert("slotTags", {
+      slotId,
+      tagId,
+      addedAt: now,
+    });
+  }
+
+  return slotId;
 }

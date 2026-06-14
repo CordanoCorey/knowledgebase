@@ -62,6 +62,8 @@ describe("Contribution Editor type resolution", () => {
 
     expect(markup).toContain("Lesson on Romans 8 and the Holy Spirit");
     expect(markup).toContain("Submit Lesson");
+    expect(markup).toContain('href="/scripture/romans-8-28"');
+    expect(markup).toContain('href="/goto/holy-spirit"');
     expect(markup).toContain("disabled");
   });
 

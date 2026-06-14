@@ -7,7 +7,9 @@ import {
   getKnowledgeLocationKindFromRoute,
   getKnowledgeLoopStateFromRoute,
   getKnowledgeContextKey,
+  getReferentTagHref,
   removeActiveTag,
+  resolveTagLabel,
 } from "./knowledgeContext";
 
 const tagsById = new Map(NAVIGATOR_TAG_FIXTURES.map((tag) => [tag.id, tag]));
@@ -151,6 +153,18 @@ describe("Knowledge Context routes", () => {
     );
     expect(getCanonicalKnowledgeContextHref(firstSelection)).toBe(
       "/explore?tagIds=boethius,first-crusade,matthew-5-9",
+    );
+  });
+
+  test("resolves rendered tag labels to referent page hrefs", () => {
+    expect(getReferentTagHref(resolveTagLabel("First Crusade"))).toBe(
+      "/goto/first-crusade",
+    );
+    expect(getReferentTagHref(resolveTagLabel("Romans 8"))).toBe(
+      "/scripture/romans-8",
+    );
+    expect(getReferentTagHref(resolveTagLabel("Suffering and hope"))).toBe(
+      "/goto/suffering-and-hope",
     );
   });
 });

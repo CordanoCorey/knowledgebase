@@ -221,11 +221,12 @@ describe("MVP Explore/Contribute loop", () => {
     if (!slotItem) {
       throw new Error("Missing Micah Crusades question slot");
     }
-    expect(slotItem.textContent).toContain("Knowledge Slot");
+    expect(slotItem.textContent).toContain("Requested Entry");
+    expect(slotItem.textContent).not.toContain("Knowledge Slot");
     expect(slotItem.textContent).toContain("Matthew 5:9");
     expect(slotItem.textContent).toContain("First Crusade");
 
-    const slotContributionCta = getLinkIn(slotItem, "Contribute Comment");
+    const slotContributionCta = getLinkIn(slotItem, "Add missing Comment");
     await click(slotContributionCta);
 
     const editor = getContributionEditor();
@@ -359,6 +360,28 @@ describe("MVP Explore/Contribute loop", () => {
     expect(container.textContent).toContain("Review founding celebration event");
   });
 
+  test("hides the topbar on downward scroll and restores it on upward scroll", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/");
+
+    await renderApp();
+
+    const hostColumn = container.querySelector(".kb-host-column");
+    const hostContent = container.querySelector(".kb-host-content");
+    if (!(hostColumn instanceof HTMLElement) || !(hostContent instanceof HTMLElement)) {
+      throw new Error("Missing authenticated app shell");
+    }
+
+    expect(hostColumn.getAttribute("data-topbar-hidden")).toBeNull();
+
+    await scrollHostContent(hostContent, 120);
+
+    expect(hostColumn.getAttribute("data-topbar-hidden")).toBe("true");
+
+    await scrollHostContent(hostContent, 72);
+
+    expect(hostColumn.getAttribute("data-topbar-hidden")).toBeNull();
+  });
+
   test("renders the calendar route with month and agenda content", async () => {
     window.history.replaceState({}, "", "http://localhost:3000/calendar");
 
@@ -400,6 +423,56 @@ describe("MVP Explore/Contribute loop", () => {
     expect(
       container.querySelector('[aria-current="page"][aria-label="Analytics"]'),
     ).toBeTruthy();
+  });
+
+  test("renders the Smart Storage playground with predictions and feedback capture", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "http://localhost:3000/playground/smart-storage",
+    );
+
+    await renderApp();
+
+    expect(container.querySelector(".kb-smart-playground-main")).toBeTruthy();
+    expect(
+      container.querySelector('[aria-current="page"][aria-label="Smart Storage"]'),
+    ).toBeTruthy();
+
+    const sourceInput = container.querySelector('textarea[aria-label="Raw input"]');
+    if (!(sourceInput instanceof HTMLTextAreaElement)) {
+      throw new Error("Missing Smart Storage source input");
+    }
+
+    await setFieldValue(
+      sourceInput,
+      [
+        "Lesson: Courage in Joshua 1:6-9",
+        "Objective: Students will distinguish courage from presumption.",
+        "Materials: Bibles, board notes, discussion questions.",
+      ].join("\n"),
+    );
+
+    expect(container.textContent).toContain("Predicted Knowledge Entries");
+    expect(container.textContent).toContain("Lesson");
+    expect(container.textContent).toContain("Joshua 1:6-9");
+
+    const editor = getContributionEditor();
+    expect(getTextInputIn(editor).value).toContain("Lesson: Courage");
+    expect(getTextareaIn(editor).value).toContain("Objective: Students");
+    await click(getButtonIn(editor, "Submit Lesson"));
+
+    await click(getButton("Close"));
+    await click(getButton("Save Feedback"));
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        feedbackRating: "close",
+        intendedKnowledgeType: "lesson",
+        sourceKind: "pastedText",
+      }),
+    );
+    expect(container.textContent).toContain("Feedback saved");
   });
 
   test("renders the notifications route with filterable user notices", async () => {
@@ -550,6 +623,14 @@ describe("MVP Explore/Contribute loop", () => {
       element.dispatchEvent(
         new MouseEvent("click", { bubbles: true, cancelable: true }),
       );
+      await Promise.resolve();
+    });
+  }
+
+  async function scrollHostContent(element: HTMLElement, scrollTop: number) {
+    await act(async () => {
+      element.scrollTop = scrollTop;
+      element.dispatchEvent(new Event("scroll", { bubbles: true }));
       await Promise.resolve();
     });
   }

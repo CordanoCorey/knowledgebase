@@ -1,6 +1,8 @@
 import { resolveTags, type ActiveTag } from "./knowledgeContext";
 import type {
   AnswerFeedItem,
+  ContributorSummary,
+  KnowledgeContextExpert,
   KnowledgeEntrySummary,
   KnowledgeSlotSummary,
 } from "./knowledgeContracts";
@@ -16,6 +18,28 @@ export type AnswerFeedFixtureItem = AnswerFeedItem & {
   contextTagIds: string[];
 };
 
+const CONTRIBUTOR_CALEB: ContributorSummary = {
+  id: "contributor-caleb-gelbaugh",
+  name: "Caleb Gelbaugh",
+};
+
+const CONTRIBUTOR_MIRIAM: ContributorSummary = {
+  id: "contributor-miriam-vale",
+  name: "Miriam Vale",
+};
+
+const CONTRIBUTOR_THOMAS: ContributorSummary = {
+  id: "contributor-thomas-beckett",
+  name: "Thomas Beckett",
+};
+
+const CONTRIBUTOR_ANNA: ContributorSummary = {
+  id: "contributor-anna-matthias",
+  name: "Anna Matthias",
+};
+
+const EXPERT_CONTRIBUTION_BONUS = 12;
+
 export const ANSWER_FEED_FIXTURE: AnswerFeedFixtureItem[] = [
   {
     kind: "answer",
@@ -28,6 +52,7 @@ export const ANSWER_FEED_FIXTURE: AnswerFeedFixtureItem[] = [
       "ordered-loves",
     ],
     entry: {
+      contributor: CONTRIBUTOR_CALEB,
       id: "entry-first-crusade-ordered-loves",
       title: "Augustine, Ordered Loves, and the First Crusade",
       knowledgeType: "lesson",
@@ -55,6 +80,7 @@ export const ANSWER_FEED_FIXTURE: AnswerFeedFixtureItem[] = [
       "providence",
     ],
     entry: {
+      contributor: CONTRIBUTOR_MIRIAM,
       id: "entry-medieval-literature-boethius-lesson",
       title: "1:30 Medieval Literature: Boethius on Providence",
       knowledgeType: "lesson",
@@ -82,6 +108,7 @@ export const ANSWER_FEED_FIXTURE: AnswerFeedFixtureItem[] = [
       "ruler-of-kings-church",
     ],
     entry: {
+      contributor: CONTRIBUTOR_ANNA,
       id: "entry-courage-lewis-chesterton-quotes",
       title: "Courage at the Testing Point",
       knowledgeType: "quote",
@@ -108,6 +135,7 @@ export const ANSWER_FEED_FIXTURE: AnswerFeedFixtureItem[] = [
       "grade-9-church-history",
     ],
     entry: {
+      contributor: CONTRIBUTOR_CALEB,
       id: "entry-kingdoms-rise-and-fall",
       title: "Kingdoms Rise and Fall Under God",
       knowledgeType: "words",
@@ -134,6 +162,7 @@ export const ANSWER_FEED_FIXTURE: AnswerFeedFixtureItem[] = [
       "ruler-of-kings-church",
     ],
     entry: {
+      contributor: CONTRIBUTOR_THOMAS,
       id: "entry-trial-by-fire-sermon-event",
       title: "Trial by Fire",
       knowledgeType: "event",
@@ -160,6 +189,7 @@ export const ANSWER_FEED_FIXTURE: AnswerFeedFixtureItem[] = [
       "ruler-of-kings-church",
     ],
     entry: {
+      contributor: CONTRIBUTOR_THOMAS,
       id: "entry-pride-leads-to-death-sermon-event",
       title: "Pride Leads to Death",
       knowledgeType: "event",
@@ -187,6 +217,7 @@ export const ANSWER_FEED_FIXTURE: AnswerFeedFixtureItem[] = [
       "kingdom-of-christ",
     ],
     entry: {
+      contributor: CONTRIBUTOR_MIRIAM,
       id: "entry-americas-founding-250-event",
       title: "250th Celebration of America's Founding",
       knowledgeType: "event",
@@ -213,6 +244,7 @@ export const ANSWER_FEED_FIXTURE: AnswerFeedFixtureItem[] = [
       "ruler-of-kings-church",
     ],
     entry: {
+      contributor: CONTRIBUTOR_ANNA,
       id: "entry-deacon-courage-prayer-request",
       title: "Prayer Request: Courage for a Family Trial",
       knowledgeType: "prayerRequest",
@@ -359,6 +391,52 @@ export function selectAnswerFeedItems(
   return [...answerItems, ...slotItems];
 }
 
+export function selectKnowledgeContextExperts(
+  items: AnswerFeedFixtureItem[],
+  activeTags: ActiveTag[],
+  limit = 3,
+): KnowledgeContextExpert[] {
+  const aggregates = new Map<
+    string,
+    ContributorSummary & {
+      contributionCount: number;
+      latestUpdatedAt: number;
+      maxHumanWeight: number;
+      totalHumanWeight: number;
+    }
+  >();
+
+  for (const item of selectAnswerFeedItems(items, activeTags)) {
+    if (!isAnswerFeedAnswer(item)) {
+      continue;
+    }
+
+    const { contributor, humanWeight, updatedAt } = item.entry;
+    const aggregate = aggregates.get(contributor.id);
+    if (aggregate) {
+      aggregate.contributionCount += 1;
+      aggregate.latestUpdatedAt = Math.max(aggregate.latestUpdatedAt, updatedAt);
+      aggregate.maxHumanWeight = Math.max(aggregate.maxHumanWeight, humanWeight);
+      aggregate.totalHumanWeight += humanWeight;
+      continue;
+    }
+
+    aggregates.set(contributor.id, {
+      ...contributor,
+      contributionCount: 1,
+      latestUpdatedAt: updatedAt,
+      maxHumanWeight: humanWeight,
+      totalHumanWeight: humanWeight,
+    });
+  }
+
+  return Array.from(aggregates.values())
+    .map(toKnowledgeContextExpert)
+    .sort(compareKnowledgeContextExperts)
+    .slice(0, limit)
+    .map(removeExpertSortFields);
+}
+
 export function getPrimarySlotForContext(
   items: AnswerFeedFixtureItem[],
   activeTags: ActiveTag[],
@@ -435,4 +513,80 @@ function getSlotStatusOrder(status: KnowledgeSlotSummary["status"]) {
   }
 
   return 3;
+}
+
+function toKnowledgeContextExpert(
+  aggregate: ContributorSummary & {
+    contributionCount: number;
+    latestUpdatedAt: number;
+    maxHumanWeight: number;
+    totalHumanWeight: number;
+  },
+): KnowledgeContextExpert & { latestUpdatedAt: number } {
+  const averageHumanWeight =
+    aggregate.totalHumanWeight / aggregate.contributionCount;
+  const expert = {
+    id: aggregate.id,
+    name: aggregate.name,
+    averageHumanWeight: Math.round(averageHumanWeight),
+    contributionCount: aggregate.contributionCount,
+    latestUpdatedAt: aggregate.latestUpdatedAt,
+    reliabilityScore: getReliabilityScore(
+      averageHumanWeight,
+      aggregate.contributionCount,
+      aggregate.maxHumanWeight,
+    ),
+  };
+
+  return aggregate.href === undefined
+    ? expert
+    : {
+        ...expert,
+        href: aggregate.href,
+      };
+}
+
+function getReliabilityScore(
+  averageHumanWeight: number,
+  contributionCount: number,
+  maxHumanWeight: number,
+) {
+  return Math.round(
+    averageHumanWeight +
+      Math.min(contributionCount, 5) * EXPERT_CONTRIBUTION_BONUS +
+      Math.max(0, maxHumanWeight - averageHumanWeight) * 0.1,
+  );
+}
+
+function compareKnowledgeContextExperts(
+  first: KnowledgeContextExpert & { latestUpdatedAt?: number },
+  second: KnowledgeContextExpert & { latestUpdatedAt?: number },
+) {
+  return (
+    second.reliabilityScore - first.reliabilityScore ||
+    second.averageHumanWeight - first.averageHumanWeight ||
+    second.contributionCount - first.contributionCount ||
+    (second.latestUpdatedAt ?? 0) - (first.latestUpdatedAt ?? 0) ||
+    first.name.localeCompare(second.name) ||
+    first.id.localeCompare(second.id)
+  );
+}
+
+function removeExpertSortFields(
+  expert: KnowledgeContextExpert & { latestUpdatedAt?: number },
+): KnowledgeContextExpert {
+  const cleanExpert: KnowledgeContextExpert = {
+    id: expert.id,
+    name: expert.name,
+    averageHumanWeight: expert.averageHumanWeight,
+    contributionCount: expert.contributionCount,
+    reliabilityScore: expert.reliabilityScore,
+  };
+
+  return expert.href === undefined
+    ? cleanExpert
+    : {
+        ...cleanExpert,
+        href: expert.href,
+      };
 }

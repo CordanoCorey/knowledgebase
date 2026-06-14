@@ -11,7 +11,7 @@
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest run",
     "convex:dev": "convex dev",
-    "convex:deploy": "convex deploy --cmd \"npm run build:static\"",
+    "convex:deploy": "convex deploy --cmd \"npm run build:static\" --cmd-url-env-var-name VITE_CONVEX_URL",
     "seed:scripture": "node scripts/seed-scripture.mjs",
     "seed:organizations": "node scripts/seed-organizations.mjs"
   },

@@ -69,6 +69,9 @@ describe("KnowledgeRequestComposer draft behavior", () => {
     expect(markup).toContain("First Crusade");
     expect(markup).toContain("Matthew 5:9");
     expect(markup).toContain("The City of God");
+    expect(markup).toContain('href="/goto/first-crusade"');
+    expect(markup).toContain('href="/scripture/matthew-5-9"');
+    expect(markup).toContain('href="/goto/the-city-of-god"');
     expect(markup).toContain("Apply Tags");
     expect(markup).toContain("Ignore");
   });

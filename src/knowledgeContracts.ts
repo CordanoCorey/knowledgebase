@@ -68,6 +68,7 @@ export type KnowledgeRequestDraft = {
 };
 
 export type KnowledgeEntrySummary = {
+  contributor: ContributorSummary;
   id: string;
   title: string;
   knowledgeType: AuthorableKnowledgeType;
@@ -77,6 +78,36 @@ export type KnowledgeEntrySummary = {
   humanWeight: number;
   href: string;
   updatedAt: number;
+};
+
+export type ContributorSummary = {
+  href?: string;
+  id: string;
+  name: string;
+};
+
+export type KnowledgeContextExpert = ContributorSummary & {
+  averageHumanWeight: number;
+  contributionCount: number;
+  reliabilityScore: number;
+};
+
+export type KnowledgeContextTrendKind =
+  | "quiet"
+  | "popular"
+  | "needsContribution"
+  | "popularAndNeedsContribution";
+
+export type KnowledgeContextTrendSummary = {
+  answerCount: number;
+  href: string;
+  label: string;
+  openRequestCount: number;
+  overdueRequestCount: number;
+  recentVisitCount: number;
+  totalVisitCount: number;
+  trendKind: KnowledgeContextTrendKind;
+  trendScore: number;
 };
 
 export type KnowledgeSlotStatus = "open" | "fulfilled" | "cancelled" | "overdue";

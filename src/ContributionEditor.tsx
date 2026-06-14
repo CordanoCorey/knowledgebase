@@ -21,6 +21,7 @@ import {
   type KnowledgeType,
 } from "./knowledgeContracts";
 import { KnowledgeTypeIcon } from "./components/KnowledgeTypeIcon";
+import { ReferentTagLink } from "./components/ReferentTagLink";
 import { Presence } from "./Presence";
 
 export type ContributionKnowledgeTypeSources = {
@@ -31,7 +32,10 @@ export type ContributionKnowledgeTypeSources = {
 
 export type ContributionEditorProps = ContributionKnowledgeTypeSources & {
   context: ActiveTag[];
+  initialBody?: string;
+  initialTitle?: string;
   onKnowledgeTypeChange?: (nextType: AuthorableKnowledgeType) => void;
+  onNavigateToHref?: (href: string) => void;
   onSubmitSource: (
     input: ContributionInput,
   ) => Promise<ContributionResult> | ContributionResult;
@@ -44,14 +48,17 @@ type SubmissionState =
 
 export function ContributionEditor({
   context,
+  initialBody = "",
+  initialTitle = "",
   onKnowledgeTypeChange,
+  onNavigateToHref,
   onSubmitSource,
   selectedKnowledgeType,
   slot,
   smartStorageProposedKnowledgeType,
 }: ContributionEditorProps) {
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
+  const [title, setTitle] = useState(initialTitle);
+  const [body, setBody] = useState(initialBody);
   const [submissionState, setSubmissionState] = useState<SubmissionState>({
     kind: "idle",
   });
@@ -105,7 +112,10 @@ export function ContributionEditor({
         ) : null}
       </header>
 
-      <ContributionContextTags context={context} />
+      <ContributionContextTags
+        context={context}
+        onNavigateToHref={onNavigateToHref}
+      />
 
       <form className="kb-contribution-form" onSubmit={handleSubmit}>
         <label className="kb-contribution-field">
@@ -217,7 +227,13 @@ export function createContributionInput({
   };
 }
 
-function ContributionContextTags({ context }: { context: ActiveTag[] }) {
+function ContributionContextTags({
+  context,
+  onNavigateToHref,
+}: {
+  context: ActiveTag[];
+  onNavigateToHref?: (href: string) => void;
+}) {
   if (context.length === 0) {
     return (
       <p className="kb-contribution-context-empty" role="status">
@@ -230,8 +246,11 @@ function ContributionContextTags({ context }: { context: ActiveTag[] }) {
     <ul className="kb-contribution-context-tags" aria-label="Contribution context Tags">
       {context.map((tag) => (
         <li key={tag.id}>
-          <KnowledgeTypeIcon knowledgeType={tag.knowledgeType} />
-          <span>{tag.label}</span>
+          <ReferentTagLink
+            onNavigateToHref={onNavigateToHref}
+            showIcon
+            tag={tag}
+          />
         </li>
       ))}
     </ul>

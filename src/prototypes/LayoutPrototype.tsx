@@ -212,7 +212,7 @@ const SLOT: KnowledgeSlot = {
   target: "Grade 9 Church History",
   context: "Matthew 5:9 + Crusades",
   due: "Friday",
-  status: "Open slot",
+  status: "Open request",
   note: "Needs a student-facing thesis frame and evidence paragraph that handles zeal, repentance, and just war carefully.",
   tags: ["Matthew 5:9", "Crusades", "Student essay"],
 };
@@ -454,7 +454,7 @@ function EntryStudioVariant({ onToggleTheme, theme }: PrototypeThemeControls) {
         <section className="rp-studio-grid" aria-label="Entry-focused workspace">
           <AnswerFeed density="timeline" />
           <ContributionEditor mode="expanded" />
-          <aside className="rp-studio-aside" aria-label="Open Knowledge Slot">
+          <aside className="rp-studio-aside" aria-label="Open requested entry">
             <KnowledgeSlotCard compact />
             <EntryCard entry={KNOWLEDGE_ENTRIES[1]} pinned />
           </aside>
@@ -975,7 +975,7 @@ function ExpandableContributionComposer() {
 function MinimalAnswerFeed({ style = "default" }: { style?: EntryFeedStyle }) {
   const mixedFeed = style === "masonry" || style === "waterfall";
   const countLabel = mixedFeed
-    ? `${KNOWLEDGE_ENTRIES.length} entries + ${KNOWLEDGE_SLOTS.length} slots`
+    ? `${KNOWLEDGE_ENTRIES.length} entries + ${KNOWLEDGE_SLOTS.length} requests`
     : `${KNOWLEDGE_ENTRIES.length} entries`;
 
   return (
@@ -1192,7 +1192,7 @@ function FeedSlotCard({
       <div className="rp-entry-topline">
         <span className="rp-entry-type">
           <FolderPlus aria-hidden="true" />
-          Knowledge Slot
+          Requested Entry
         </span>
         <span className="rp-slot-status">{slot.status}</span>
       </div>
@@ -1200,8 +1200,8 @@ function FeedSlotCard({
       <p>{slot.note}</p>
       <dl>
         <div>
-          <dt>Requested Type</dt>
-          <dd>{slot.requestedType}</dd>
+          <dt>Entry needed</dt>
+          <dd>{slot.requestedType} needed</dd>
         </div>
         <div>
           <dt>Timing</dt>
@@ -1218,9 +1218,10 @@ function FeedSlotCard({
         ))}
       </div>
       <footer>
+        <p>Add content to complete this entry.</p>
         <button type="button">
           <FolderPlus aria-hidden="true" />
-          Start contribution
+          Add missing {slot.requestedType}
         </button>
       </footer>
     </article>
@@ -1235,15 +1236,15 @@ function KnowledgeSlotCard({ compact = false }: { compact?: boolean }) {
     >
       <header>
         <div>
-          <p className="rp-eyebrow">Knowledge Slot Card</p>
+          <p className="rp-eyebrow">Requested Entry</p>
           <h2 id="rp-slot-title">{SLOT.title}</h2>
         </div>
-        <span>Open</span>
+        <span>Open request</span>
       </header>
       <dl>
         <div>
-          <dt>Requested Type</dt>
-          <dd>{SLOT.requestedType}</dd>
+          <dt>Entry needed</dt>
+          <dd>{SLOT.requestedType} needed</dd>
         </div>
         <div>
           <dt>Target</dt>
@@ -1258,9 +1259,10 @@ function KnowledgeSlotCard({ compact = false }: { compact?: boolean }) {
           <dd>{SLOT.due}</dd>
         </div>
       </dl>
+      <p>Add content to complete this entry.</p>
       <button type="button">
         <FolderPlus aria-hidden="true" />
-        Start contribution
+        Add missing {SLOT.requestedType}
       </button>
     </section>
   );

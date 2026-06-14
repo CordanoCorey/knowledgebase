@@ -64,6 +64,9 @@ const REFERENT_TAG_FIXTURES: ActiveTag[] = [
 const TAGS_BY_ID = new Map(
   REFERENT_TAG_FIXTURES.map((tag) => [tag.id, tag]),
 );
+const TAGS_BY_LABEL = new Map(
+  REFERENT_TAG_FIXTURES.map((tag) => [normalizeTagLabel(tag.label), tag]),
+);
 
 export function getActiveTagsFromRoute(
   location: KnowledgeRouteLocation,
@@ -151,6 +154,10 @@ export function getCanonicalKnowledgeContextHref(tags: ActiveTag[]) {
   return `/explore?tagIds=${tagIds}`;
 }
 
+export function getReferentTagHref(tag: ActiveTag) {
+  return getSingleTagHref(tag);
+}
+
 export function getKnowledgeContextKey(tags: ActiveTag[]) {
   const tagIds = sortTagIds(tags.map((tag) => tag.id));
   return tagIds.length > 0 ? `tags:${tagIds.join(",")}` : "global";
@@ -171,6 +178,26 @@ export function getInactiveNavigatorTags(activeTags: ActiveTag[]) {
 
 export function resolveTag(tagId: string): ActiveTag {
   return TAGS_BY_ID.get(tagId) ?? tagFixture(tagId, labelFromTagId(tagId), "words");
+}
+
+export function resolveTagLabel(label: string): ActiveTag {
+  const normalizedLabel = normalizeTagLabel(label);
+  const fixtureTag = TAGS_BY_LABEL.get(normalizedLabel);
+  if (fixtureTag) {
+    return fixtureTag;
+  }
+
+  const parsedPassage = parseBiblePassageReference(label);
+  if (parsedPassage) {
+    return (
+      TAGS_BY_ID.get(parsedPassage.slug) ??
+      biblePassageTag(parsedPassage.slug, parsedPassage.label)
+    );
+  }
+
+  const trimmedLabel = label.trim();
+  const tagId = slugifyTagId(trimmedLabel);
+  return tagFixture(tagId, trimmedLabel || labelFromTagId(tagId), "words");
 }
 
 export function resolveTags(tagIds: string[]): ActiveTag[] {
@@ -283,6 +310,10 @@ function decodePathSegment(segment: string) {
   } catch {
     return segment;
   }
+}
+
+function normalizeTagLabel(label: string) {
+  return label.trim().toLowerCase();
 }
 
 function slugifyTagId(value: string) {

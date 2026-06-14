@@ -6,12 +6,20 @@ import { parseBiblePassageReference } from "./lib/scriptureReferences";
 
 const DEFAULT_POPULAR_LIMIT = 6;
 const DEFAULT_RECENT_LIMIT = 8;
+const DEFAULT_BIBLE_CONTEXT_LIMIT = 4;
+const DEFAULT_TREND_WINDOW_MS = 1000 * 60 * 60 * 24 * 7;
 const MAX_POPULAR_LIMIT = 12;
 const MAX_RECENT_LIMIT = 20;
+const MAX_BIBLE_CONTEXT_LIMIT = 8;
 const MAX_TARGET_KEY_LENGTH = 180;
 const MAX_RAW_PATH_LENGTH = 360;
 const MAX_ACTIVE_TAG_KEYS = 20;
 const MAX_CONTEXT_LABELS = 4;
+const MAX_RECENT_TREND_VISITS = 100;
+const MAX_BIBLE_CONTEXT_CANDIDATES = 24;
+const MAX_SLOT_TAGS_FOR_CONTEXT = 12;
+const MAX_SLOT_CANDIDATES = 80;
+const MAX_ANSWER_CANDIDATES = 80;
 
 const pageType = v.union(
   v.literal("dashboard"),
@@ -31,6 +39,13 @@ const navigatorUsageKind = v.union(
   v.literal("deselect"),
   v.literal("explore"),
   v.literal("contribute"),
+);
+
+const contextTrendKind = v.union(
+  v.literal("quiet"),
+  v.literal("popular"),
+  v.literal("needsContribution"),
+  v.literal("popularAndNeedsContribution"),
 );
 
 const targetSummary = v.object({
@@ -62,11 +77,68 @@ const navigatorUsageSummary = v.object({
   usageKind: navigatorUsageKind,
 });
 
+const contextTrendSummary = v.object({
+  answerCount: v.number(),
+  href: v.string(),
+  label: v.string(),
+  openRequestCount: v.number(),
+  overdueRequestCount: v.number(),
+  recentVisitCount: v.number(),
+  totalVisitCount: v.number(),
+  trendKind: contextTrendKind,
+  trendScore: v.number(),
+});
+
+const dashboardBibleContextSuggestion = v.object({
+  href: v.string(),
+  label: v.string(),
+  latestActivityAt: v.optional(v.number()),
+  openRequestCount: v.number(),
+  overdueRequestCount: v.number(),
+  recentVisitCount: v.number(),
+  targetKey: v.string(),
+  totalVisitCount: v.number(),
+  trendKind: contextTrendKind,
+  trendScore: v.number(),
+});
+
 type AnalyticsTargetKind = Doc<"pageVisitStats">["targetKind"];
 type AnalyticsPageType = Doc<"pageVisitStats">["pageType"];
 type PageVisitStat = Doc<"pageVisitStats">;
 type PageVisitEvent = Doc<"pageVisitEvents">;
 type NavigatorUsageEvent = Doc<"navigatorUsageEvents">;
+type ContextTrendKind =
+  | "quiet"
+  | "popular"
+  | "needsContribution"
+  | "popularAndNeedsContribution";
+type ContextTrendTarget = {
+  href: string;
+  label: string;
+  pageType: AnalyticsPageType;
+  targetKey: string;
+  targetKind: AnalyticsTargetKind;
+};
+type ContextTrendMetrics = {
+  answerCount: number;
+  lastVisitedAt?: number;
+  openRequestCount: number;
+  overdueRequestCount: number;
+  recentVisitCount: number;
+  totalVisitCount: number;
+};
+type BibleContextSuggestion = {
+  href: string;
+  label: string;
+  latestActivityAt?: number;
+  openRequestCount: number;
+  overdueRequestCount: number;
+  recentVisitCount: number;
+  targetKey: string;
+  totalVisitCount: number;
+  trendKind: ContextTrendKind;
+  trendScore: number;
+};
 
 const TARGET_KINDS: AnalyticsTargetKind[] = [
   "dashboard",
@@ -205,6 +277,71 @@ export const getMvpSummary = query({
   },
 });
 
+export const getKnowledgeContextTrend = query({
+  args: {
+    activeTagKeys: v.array(v.string()),
+    recentWindowMs: v.optional(v.number()),
+  },
+  returns: contextTrendSummary,
+  handler: async (ctx, args) => {
+    await requireCurrentUserId(ctx);
+
+    const activeTagKeys = normalizeActiveTagKeys(args.activeTagKeys);
+    const target = await getContextTrendTarget(ctx, activeTagKeys);
+    const activeTagIds = await resolveActiveTagIds(ctx, activeTagKeys);
+    const metrics = await getContextTrendMetrics(ctx, target, activeTagIds, {
+      recentWindowMs: args.recentWindowMs,
+    });
+    const trendScore = getTrendScore(metrics);
+
+    return {
+      answerCount: metrics.answerCount,
+      href: target.href,
+      label: target.label,
+      openRequestCount: metrics.openRequestCount,
+      overdueRequestCount: metrics.overdueRequestCount,
+      recentVisitCount: metrics.recentVisitCount,
+      totalVisitCount: metrics.totalVisitCount,
+      trendKind: getTrendKind(metrics),
+      trendScore,
+    };
+  },
+});
+
+export const listDashboardBibleContextSuggestions = query({
+  args: {
+    limit: v.optional(v.number()),
+    recentWindowMs: v.optional(v.number()),
+  },
+  returns: v.array(dashboardBibleContextSuggestion),
+  handler: async (ctx, args): Promise<BibleContextSuggestion[]> => {
+    await requireCurrentUserId(ctx);
+
+    const limit = normalizeLimit(
+      args.limit,
+      DEFAULT_BIBLE_CONTEXT_LIMIT,
+      MAX_BIBLE_CONTEXT_LIMIT,
+    );
+    if (limit < 1) {
+      return [];
+    }
+
+    const recentWindowMs = normalizeTrendWindowMs(args.recentWindowMs);
+    const since = Date.now() - recentWindowMs;
+    const targetKeys = await getDashboardBibleContextTargetKeys(ctx);
+    const suggestions = [];
+
+    for (const targetKey of targetKeys) {
+      suggestions.push(await summarizeBibleContextSuggestion(ctx, targetKey, since));
+    }
+
+    return suggestions
+      .filter((suggestion) => suggestion.trendKind !== "quiet")
+      .sort(compareBibleContextSuggestions)
+      .slice(0, limit);
+  },
+});
+
 async function getPopularTargets(ctx: QueryCtx, limit: number) {
   if (limit < 1) {
     return [];
@@ -260,6 +397,426 @@ async function getRecentNavigatorUsage(
     .take(limit);
 
   return events.map(summarizeNavigatorUsage);
+}
+
+async function getContextTrendTarget(
+  ctx: QueryCtx,
+  activeTagKeys: string[],
+): Promise<ContextTrendTarget> {
+  if (activeTagKeys.length === 0) {
+    return {
+      href: "/",
+      label: "Global Knowledge Context",
+      pageType: "dashboard",
+      targetKey: "global",
+      targetKind: "dashboard",
+    };
+  }
+
+  if (activeTagKeys.length === 1) {
+    const tag = await getTagByKey(ctx, activeTagKeys[0]);
+    if (
+      tag?.knowledgeType === "biblePassage" ||
+      parseBiblePassageReference(activeTagKeys[0])
+    ) {
+      return {
+        href: getTargetHref("biblePassage", activeTagKeys[0]),
+        label: await getTargetLabel(ctx, "biblePassage", activeTagKeys[0]),
+        pageType: "referent",
+        targetKey: activeTagKeys[0],
+        targetKind: "biblePassage",
+      };
+    }
+  }
+
+  const targetKey = getContextTargetKey(activeTagKeys);
+  return {
+    href: getTargetHref("context", targetKey),
+    label: await getContextLabel(ctx, targetKey),
+    pageType: "context",
+    targetKey,
+    targetKind: "context",
+  };
+}
+
+async function getContextTrendMetrics(
+  ctx: QueryCtx,
+  target: ContextTrendTarget,
+  activeTagIds: Id<"tags">[],
+  options: { recentWindowMs: number | undefined },
+): Promise<ContextTrendMetrics> {
+  const recentWindowMs = normalizeTrendWindowMs(options.recentWindowMs);
+  const since = Date.now() - recentWindowMs;
+  const stat = await getTargetStat(ctx, target);
+  const recentVisitCount = await countRecentVisits(
+    ctx,
+    target.targetKind,
+    target.targetKey,
+    since,
+  );
+  const canUseGlobalCounts =
+    target.targetKind === "dashboard" && activeTagIds.length === 0;
+  const hasResolvedContextTags = activeTagIds.length > 0;
+  const requestCounts =
+    canUseGlobalCounts || hasResolvedContextTags
+      ? await countMatchingOpenRequests(ctx, activeTagIds)
+      : { open: 0, overdue: 0 };
+  const answerCount =
+    canUseGlobalCounts || hasResolvedContextTags
+      ? await countMatchingAnswers(ctx, activeTagIds)
+      : 0;
+
+  return {
+    answerCount,
+    lastVisitedAt: stat?.lastVisitedAt,
+    openRequestCount: requestCounts.open,
+    overdueRequestCount: requestCounts.overdue,
+    recentVisitCount,
+    totalVisitCount: stat?.totalVisits ?? 0,
+  };
+}
+
+async function getDashboardBibleContextTargetKeys(ctx: QueryCtx) {
+  const targetKeys = new Set<string>();
+  const popularTargets = await ctx.db
+    .query("pageVisitStats")
+    .withIndex("by_targetKind_and_totalVisits", (q) =>
+      q.eq("targetKind", "biblePassage"),
+    )
+    .order("desc")
+    .take(MAX_BIBLE_CONTEXT_CANDIDATES);
+
+  for (const target of popularTargets) {
+    targetKeys.add(target.targetKey);
+  }
+
+  const requestSlots = await getOpenRequestSlotCandidates(ctx, MAX_SLOT_CANDIDATES);
+  for (const slot of requestSlots) {
+    const bibleTags = await getBiblePassageTagsForSlot(ctx, slot._id);
+    for (const tag of bibleTags) {
+      targetKeys.add(tag.lookupKey);
+    }
+  }
+
+  return Array.from(targetKeys).sort(compareStrings);
+}
+
+async function summarizeBibleContextSuggestion(
+  ctx: QueryCtx,
+  targetKey: string,
+  since: number,
+): Promise<BibleContextSuggestion> {
+  const target: ContextTrendTarget = {
+    href: getTargetHref("biblePassage", targetKey),
+    label: await getTargetLabel(ctx, "biblePassage", targetKey),
+    pageType: "referent",
+    targetKey,
+    targetKind: "biblePassage",
+  };
+  const tag = await getTagByKey(ctx, targetKey);
+  const tagIds = tag ? [tag._id] : [];
+  const stat = await getTargetStat(ctx, target);
+  const requestCounts =
+    tagIds.length > 0
+      ? await countMatchingOpenRequests(ctx, tagIds)
+      : { open: 0, overdue: 0 };
+  const metrics: ContextTrendMetrics = {
+    answerCount:
+      tagIds.length > 0 ? await countMatchingAnswers(ctx, tagIds) : 0,
+    lastVisitedAt: stat?.lastVisitedAt,
+    openRequestCount: requestCounts.open,
+    overdueRequestCount: requestCounts.overdue,
+    recentVisitCount: await countRecentVisits(
+      ctx,
+      "biblePassage",
+      targetKey,
+      since,
+    ),
+    totalVisitCount: stat?.totalVisits ?? 0,
+  };
+
+  return {
+    href: target.href,
+    label: target.label,
+    ...(metrics.lastVisitedAt === undefined
+      ? {}
+      : { latestActivityAt: metrics.lastVisitedAt }),
+    openRequestCount: metrics.openRequestCount,
+    overdueRequestCount: metrics.overdueRequestCount,
+    recentVisitCount: metrics.recentVisitCount,
+    targetKey,
+    totalVisitCount: metrics.totalVisitCount,
+    trendKind: getTrendKind(metrics),
+    trendScore: getTrendScore(metrics),
+  };
+}
+
+async function getTargetStat(ctx: QueryCtx, target: ContextTrendTarget) {
+  return await ctx.db
+    .query("pageVisitStats")
+    .withIndex("by_pageType_and_targetKind_and_targetKey", (q) =>
+      q
+        .eq("pageType", target.pageType)
+        .eq("targetKind", target.targetKind)
+        .eq("targetKey", target.targetKey),
+    )
+    .first();
+}
+
+async function countRecentVisits(
+  ctx: QueryCtx,
+  targetKind: AnalyticsTargetKind,
+  targetKey: string,
+  since: number,
+) {
+  const visits = await ctx.db
+    .query("pageVisitEvents")
+    .withIndex("by_targetKind_and_targetKey_and_visitedAt", (q) =>
+      q
+        .eq("targetKind", targetKind)
+        .eq("targetKey", targetKey)
+        .gte("visitedAt", since),
+    )
+    .take(MAX_RECENT_TREND_VISITS);
+
+  return visits.length;
+}
+
+async function countMatchingOpenRequests(
+  ctx: QueryCtx,
+  activeTagIds: Id<"tags">[],
+) {
+  const slots =
+    activeTagIds.length === 0
+      ? await getOpenRequestSlotCandidates(ctx, MAX_SLOT_CANDIDATES)
+      : await getSlotCandidatesForActiveTags(
+          ctx,
+          activeTagIds,
+          MAX_SLOT_CANDIDATES,
+        );
+  let open = 0;
+  let overdue = 0;
+
+  for (const slot of slots) {
+    if (!(await slotContainsAllTags(ctx, slot._id, activeTagIds))) {
+      continue;
+    }
+
+    if (slot.status === "overdue") {
+      overdue += 1;
+    } else if (slot.status === "open") {
+      open += 1;
+    }
+  }
+
+  return { open, overdue };
+}
+
+async function countMatchingAnswers(ctx: QueryCtx, activeTagIds: Id<"tags">[]) {
+  if (activeTagIds.length === 0) {
+    const answers = await ctx.db
+      .query("knowledgeEntries")
+      .withIndex("by_humanWeight_and_updatedAt")
+      .order("desc")
+      .take(MAX_ANSWER_CANDIDATES);
+    return answers.length;
+  }
+
+  const candidates = await getEntryCandidatesForActiveTags(
+    ctx,
+    activeTagIds,
+    MAX_ANSWER_CANDIDATES,
+  );
+  let answerCount = 0;
+
+  for (const entry of candidates) {
+    if (await entryContainsAllTags(ctx, entry._id, activeTagIds)) {
+      answerCount += 1;
+    }
+  }
+
+  return answerCount;
+}
+
+async function getOpenRequestSlotCandidates(ctx: QueryCtx, candidateLimit: number) {
+  const slots = [];
+  const seenSlotIds = new Set<string>();
+
+  for (const status of ["overdue", "open"] as const) {
+    const statusSlots = await ctx.db
+      .query("knowledgeSlots")
+      .withIndex("by_status_and_dueAt", (q) => q.eq("status", status))
+      .take(candidateLimit);
+
+    for (const slot of statusSlots) {
+      if (!seenSlotIds.has(slot._id)) {
+        seenSlotIds.add(slot._id);
+        slots.push(slot);
+      }
+    }
+  }
+
+  return slots;
+}
+
+async function getSlotCandidatesForActiveTags(
+  ctx: QueryCtx,
+  activeTagIds: Id<"tags">[],
+  candidateLimit: number,
+) {
+  const anchorRows = await getSmallestSlotTagCandidateSet(
+    ctx,
+    activeTagIds,
+    candidateLimit,
+  );
+  const slots = [];
+  const seenSlotIds = new Set<string>();
+
+  for (const row of anchorRows) {
+    if (seenSlotIds.has(row.slotId)) {
+      continue;
+    }
+
+    const slot = await ctx.db.get(row.slotId);
+    if (slot && (slot.status === "open" || slot.status === "overdue")) {
+      seenSlotIds.add(row.slotId);
+      slots.push(slot);
+    }
+  }
+
+  return slots;
+}
+
+async function getSmallestSlotTagCandidateSet(
+  ctx: QueryCtx,
+  activeTagIds: Id<"tags">[],
+  candidateLimit: number,
+) {
+  let smallestRows: Doc<"slotTags">[] | null = null;
+
+  for (const tagId of activeTagIds) {
+    const rows = await ctx.db
+      .query("slotTags")
+      .withIndex("by_tagId_and_slotId", (q) => q.eq("tagId", tagId))
+      .take(candidateLimit);
+
+    if (!smallestRows || rows.length < smallestRows.length) {
+      smallestRows = rows;
+    }
+  }
+
+  return smallestRows ?? [];
+}
+
+async function getEntryCandidatesForActiveTags(
+  ctx: QueryCtx,
+  activeTagIds: Id<"tags">[],
+  candidateLimit: number,
+) {
+  const anchorRows = await getSmallestEntryTagCandidateSet(
+    ctx,
+    activeTagIds,
+    candidateLimit,
+  );
+  const entries = [];
+  const seenEntryIds = new Set<string>();
+
+  for (const row of anchorRows) {
+    if (seenEntryIds.has(row.entryId)) {
+      continue;
+    }
+
+    const entry = await ctx.db.get(row.entryId);
+    if (entry) {
+      seenEntryIds.add(row.entryId);
+      entries.push(entry);
+    }
+  }
+
+  return entries;
+}
+
+async function getSmallestEntryTagCandidateSet(
+  ctx: QueryCtx,
+  activeTagIds: Id<"tags">[],
+  candidateLimit: number,
+) {
+  let smallestRows: Doc<"entryTags">[] | null = null;
+
+  for (const tagId of activeTagIds) {
+    const rows = await ctx.db
+      .query("entryTags")
+      .withIndex("by_tagId_and_entryId", (q) => q.eq("tagId", tagId))
+      .take(candidateLimit);
+
+    if (!smallestRows || rows.length < smallestRows.length) {
+      smallestRows = rows;
+    }
+  }
+
+  return smallestRows ?? [];
+}
+
+async function slotContainsAllTags(
+  ctx: QueryCtx,
+  slotId: Id<"knowledgeSlots">,
+  activeTagIds: Id<"tags">[],
+) {
+  for (const tagId of activeTagIds) {
+    const matchingTag = await ctx.db
+      .query("slotTags")
+      .withIndex("by_slotId_and_tagId", (q) =>
+        q.eq("slotId", slotId).eq("tagId", tagId),
+      )
+      .first();
+
+    if (!matchingTag) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+async function entryContainsAllTags(
+  ctx: QueryCtx,
+  entryId: Id<"knowledgeEntries">,
+  activeTagIds: Id<"tags">[],
+) {
+  for (const tagId of activeTagIds) {
+    const matchingTag = await ctx.db
+      .query("entryTags")
+      .withIndex("by_entryId_and_tagId", (q) =>
+        q.eq("entryId", entryId).eq("tagId", tagId),
+      )
+      .first();
+
+    if (!matchingTag) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+async function getBiblePassageTagsForSlot(
+  ctx: QueryCtx,
+  slotId: Id<"knowledgeSlots">,
+) {
+  const slotTags = await ctx.db
+    .query("slotTags")
+    .withIndex("by_slotId_and_tagId", (q) => q.eq("slotId", slotId))
+    .take(MAX_SLOT_TAGS_FOR_CONTEXT);
+  const bibleTags = [];
+
+  for (const slotTag of slotTags) {
+    const tag = await ctx.db.get(slotTag.tagId);
+    if (tag?.knowledgeType === "biblePassage") {
+      bibleTags.push(tag);
+    }
+  }
+
+  return bibleTags;
 }
 
 async function summarizeTarget(ctx: QueryCtx, stat: PageVisitStat) {
@@ -336,12 +893,16 @@ async function getContextLabel(ctx: QueryCtx, targetKey: string) {
 }
 
 async function getTagLabelByKey(ctx: QueryCtx, tagKey: string) {
+  return (await getTagByKey(ctx, tagKey))?.label ?? null;
+}
+
+async function getTagByKey(ctx: QueryCtx | MutationCtx, tagKey: string) {
   const tags = await ctx.db
     .query("tags")
     .withIndex("by_lookupKey", (q) => q.eq("lookupKey", tagKey))
     .take(1);
 
-  return tags[0]?.label ?? null;
+  return tags[0] ?? null;
 }
 
 function getTargetHref(targetKind: AnalyticsTargetKind, targetKey: string) {
@@ -368,16 +929,15 @@ function getTargetHref(targetKind: AnalyticsTargetKind, targetKey: string) {
     .join(",")}`;
 }
 
-async function resolveActiveTagIds(ctx: MutationCtx, tagKeys: string[]) {
+async function resolveActiveTagIds(
+  ctx: QueryCtx | MutationCtx,
+  tagKeys: string[],
+) {
   const tagIds: Id<"tags">[] = [];
   const seenTagIds = new Set<string>();
 
   for (const tagKey of tagKeys) {
-    const tags = await ctx.db
-      .query("tags")
-      .withIndex("by_lookupKey", (q) => q.eq("lookupKey", tagKey))
-      .take(1);
-    const tagId = tags[0]?._id;
+    const tagId = (await getTagByKey(ctx, tagKey))?._id;
     if (tagId && !seenTagIds.has(tagId)) {
       seenTagIds.add(tagId);
       tagIds.push(tagId);
@@ -403,6 +963,14 @@ function normalizeActiveTagKeys(tagKeys: string[]) {
   );
 }
 
+function normalizeTrendWindowMs(value: number | undefined) {
+  if (value === undefined) {
+    return DEFAULT_TREND_WINDOW_MS;
+  }
+
+  return Math.max(1, Math.min(value, DEFAULT_TREND_WINDOW_MS * 8));
+}
+
 function normalizeTargetKey(value: string) {
   return limitString(value.trim().toLowerCase() || "unknown", MAX_TARGET_KEY_LENGTH);
 }
@@ -425,6 +993,78 @@ function compareTargetStats(first: PageVisitStat, second: PageVisitStat) {
     second.lastVisitedAt - first.lastVisitedAt ||
     first.targetKey.localeCompare(second.targetKey)
   );
+}
+
+function compareBibleContextSuggestions(
+  first: BibleContextSuggestion,
+  second: BibleContextSuggestion,
+) {
+  return (
+    second.trendScore - first.trendScore ||
+    second.overdueRequestCount - first.overdueRequestCount ||
+    second.openRequestCount - first.openRequestCount ||
+    second.recentVisitCount - first.recentVisitCount ||
+    second.totalVisitCount - first.totalVisitCount ||
+    compareStrings(first.label, second.label) ||
+    compareStrings(first.targetKey, second.targetKey)
+  );
+}
+
+function getContextTargetKey(tagKeys: string[]) {
+  return `tags:${[...tagKeys].sort(compareStrings).join(",")}`;
+}
+
+function getTrendKind(metrics: ContextTrendMetrics): ContextTrendKind {
+  const requestCount = metrics.openRequestCount + metrics.overdueRequestCount;
+  const isPopular =
+    metrics.recentVisitCount >= 2 ||
+    metrics.totalVisitCount >= 3 ||
+    (metrics.recentVisitCount > 0 && getTrendScore(metrics) >= 16);
+  const needsContribution = requestCount > 0;
+
+  if (isPopular && needsContribution) {
+    return "popularAndNeedsContribution";
+  }
+
+  if (isPopular) {
+    return "popular";
+  }
+
+  if (needsContribution) {
+    return "needsContribution";
+  }
+
+  return "quiet";
+}
+
+function getTrendScore(metrics: ContextTrendMetrics) {
+  const requestCount = metrics.openRequestCount + metrics.overdueRequestCount;
+  const scarcityBonus = Math.max(0, requestCount * 4 - metrics.answerCount * 2);
+  const differentialPopularity = Math.max(
+    0,
+    metrics.recentVisitCount * 5 - Math.log1p(metrics.totalVisitCount) * 2,
+  );
+
+  return Math.round(
+    metrics.recentVisitCount * 8 +
+      Math.log1p(metrics.totalVisitCount) * 6 +
+      metrics.openRequestCount * 12 +
+      metrics.overdueRequestCount * 18 +
+      scarcityBonus +
+      differentialPopularity,
+  );
+}
+
+function compareStrings(left: string, right: string) {
+  if (left < right) {
+    return -1;
+  }
+
+  if (left > right) {
+    return 1;
+  }
+
+  return 0;
 }
 
 function labelFromKey(key: string) {

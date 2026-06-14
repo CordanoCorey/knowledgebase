@@ -23,6 +23,7 @@ import type * as seedOrganizations from "../seedOrganizations.js";
 import type * as seedOrganizationsAction from "../seedOrganizationsAction.js";
 import type * as seedScripture from "../seedScripture.js";
 import type * as seedScriptureAction from "../seedScriptureAction.js";
+import type * as smartStoragePlayground from "../smartStoragePlayground.js";
 
 import type {
   ApiFromModules,
@@ -46,6 +47,7 @@ declare const fullApi: ApiFromModules<{
   seedOrganizationsAction: typeof seedOrganizationsAction;
   seedScripture: typeof seedScripture;
   seedScriptureAction: typeof seedScriptureAction;
+  smartStoragePlayground: typeof smartStoragePlayground;
 }>;
 
 /**

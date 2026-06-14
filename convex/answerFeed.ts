@@ -3,14 +3,17 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
 
 const DEFAULT_ANSWER_LIMIT = 20;
+const DEFAULT_EXPERT_LIMIT = 3;
 const DEFAULT_SLOT_LIMIT = 10;
 const MAX_ANSWER_LIMIT = 50;
+const MAX_EXPERT_LIMIT = 5;
 const MAX_SLOT_LIMIT = 50;
 const MAX_ACTIVE_TAGS = 20;
 const MAX_CANDIDATE_ITEMS = 200;
 const MIN_CANDIDATE_ITEMS = 25;
 const CANDIDATE_MULTIPLIER = 5;
 const MAX_CONTEXT_PREVIEW_TAG_LABELS = 6;
+const EXPERT_CONTRIBUTION_BONUS = 12;
 
 const authorableKnowledgeType = v.union(
   v.literal("words"),
@@ -43,6 +46,11 @@ const knowledgeSlotStatus = v.union(
 );
 
 const knowledgeEntrySummary = v.object({
+  contributor: v.object({
+    id: v.string(),
+    name: v.string(),
+    href: v.optional(v.string()),
+  }),
   id: v.string(),
   title: v.string(),
   knowledgeType: authorableKnowledgeType,
@@ -52,6 +60,15 @@ const knowledgeEntrySummary = v.object({
   humanWeight: v.number(),
   href: v.string(),
   updatedAt: v.number(),
+});
+
+const knowledgeContextExpert = v.object({
+  id: v.string(),
+  name: v.string(),
+  href: v.optional(v.string()),
+  averageHumanWeight: v.number(),
+  contributionCount: v.number(),
+  reliabilityScore: v.number(),
 });
 
 const knowledgeSlotSummary = v.object({
@@ -81,7 +98,20 @@ type AnswerFeedItem =
   | { kind: "answer"; entry: KnowledgeEntrySummary }
   | { kind: "slot"; slot: KnowledgeSlotSummary };
 
+type ContributorSummary = {
+  id: string;
+  name: string;
+  href?: string;
+};
+
+type KnowledgeContextExpert = ContributorSummary & {
+  averageHumanWeight: number;
+  contributionCount: number;
+  reliabilityScore: number;
+};
+
 type KnowledgeEntrySummary = {
+  contributor: ContributorSummary;
   id: string;
   title: string;
   knowledgeType: Doc<"knowledgeEntries">["knowledgeType"];
@@ -134,6 +164,33 @@ export const listForActiveTags = query({
   },
 });
 
+export const listExpertsForActiveTags = query({
+  args: {
+    activeTagIds: v.array(v.id("tags")),
+    expertLimit: v.optional(v.number()),
+  },
+  returns: v.array(knowledgeContextExpert),
+  handler: async (ctx, args): Promise<KnowledgeContextExpert[]> => {
+    const activeTagIds = normalizeActiveTagIds(args.activeTagIds);
+    const expertLimit = normalizeLimit(
+      args.expertLimit,
+      DEFAULT_EXPERT_LIMIT,
+      MAX_EXPERT_LIMIT,
+    );
+    if (expertLimit < 1) {
+      return [];
+    }
+
+    const entries = await getMatchingAnswerEntries(
+      ctx,
+      activeTagIds,
+      MAX_CANDIDATE_ITEMS,
+    );
+
+    return await summarizeKnowledgeContextExperts(ctx, entries, expertLimit);
+  },
+});
+
 async function listMatchingAnswers(
   ctx: QueryCtx,
   activeTagIds: TagId[],
@@ -143,6 +200,29 @@ async function listMatchingAnswers(
     return [];
   }
 
+  const candidateEntries = await getMatchingAnswerEntries(
+    ctx,
+    activeTagIds,
+    limit,
+  );
+  const contributorCache = new Map<string, Promise<ContributorSummary>>();
+  const answerItems = [];
+
+  for (const entry of candidateEntries) {
+    answerItems.push({
+      kind: "answer" as const,
+      entry: await summarizeEntry(ctx, entry, contributorCache),
+    });
+  }
+
+  return answerItems.sort(compareAnswerItems).slice(0, limit);
+}
+
+async function getMatchingAnswerEntries(
+  ctx: QueryCtx,
+  activeTagIds: TagId[],
+  limit: number,
+) {
   const candidateLimit = getCandidateLimit(limit);
   const candidateEntries =
     activeTagIds.length === 0
@@ -152,20 +232,15 @@ async function listMatchingAnswers(
           .order("desc")
           .take(candidateLimit)
       : await getEntryCandidatesForActiveTags(ctx, activeTagIds, candidateLimit);
-  const answerItems = [];
+  const matchingEntries = [];
 
   for (const entry of candidateEntries) {
-    if (!(await entryContainsAllTags(ctx, entry._id, activeTagIds))) {
-      continue;
+    if (await entryContainsAllTags(ctx, entry._id, activeTagIds)) {
+      matchingEntries.push(entry);
     }
-
-    answerItems.push({
-      kind: "answer" as const,
-      entry: summarizeEntry(entry),
-    });
   }
 
-  return answerItems.sort(compareAnswerItems).slice(0, limit);
+  return matchingEntries.sort(compareEntries).slice(0, limit);
 }
 
 async function listMatchingSlots(
@@ -359,8 +434,17 @@ async function slotContainsAllTags(
   return true;
 }
 
-function summarizeEntry(entry: Doc<"knowledgeEntries">): KnowledgeEntrySummary {
+async function summarizeEntry(
+  ctx: QueryCtx,
+  entry: Doc<"knowledgeEntries">,
+  contributorCache: Map<string, Promise<ContributorSummary>>,
+): Promise<KnowledgeEntrySummary> {
   return {
+    contributor: await getContributorSummary(
+      ctx,
+      entry.createdByUserId,
+      contributorCache,
+    ),
     id: entry._id,
     title: entry.title,
     knowledgeType: entry.knowledgeType,
@@ -370,6 +454,218 @@ function summarizeEntry(entry: Doc<"knowledgeEntries">): KnowledgeEntrySummary {
     humanWeight: entry.humanWeight,
     href: `/entries/${entry._id}`,
     updatedAt: entry.updatedAt,
+  };
+}
+
+async function summarizeKnowledgeContextExperts(
+  ctx: QueryCtx,
+  entries: Array<Doc<"knowledgeEntries">>,
+  limit: number,
+): Promise<KnowledgeContextExpert[]> {
+  const contributorCache = new Map<string, Promise<ContributorSummary>>();
+  const aggregates = new Map<
+    string,
+    ContributorSummary & {
+      contributionCount: number;
+      latestUpdatedAt: number;
+      maxHumanWeight: number;
+      totalHumanWeight: number;
+    }
+  >();
+
+  for (const entry of entries) {
+    if (entry.createdByUserId === undefined) {
+      continue;
+    }
+
+    const contributor = await getContributorSummary(
+      ctx,
+      entry.createdByUserId,
+      contributorCache,
+    );
+    const aggregate = aggregates.get(contributor.id);
+    if (aggregate) {
+      aggregate.contributionCount += 1;
+      aggregate.latestUpdatedAt = Math.max(aggregate.latestUpdatedAt, entry.updatedAt);
+      aggregate.maxHumanWeight = Math.max(aggregate.maxHumanWeight, entry.humanWeight);
+      aggregate.totalHumanWeight += entry.humanWeight;
+      continue;
+    }
+
+    aggregates.set(contributor.id, {
+      ...contributor,
+      contributionCount: 1,
+      latestUpdatedAt: entry.updatedAt,
+      maxHumanWeight: entry.humanWeight,
+      totalHumanWeight: entry.humanWeight,
+    });
+  }
+
+  return Array.from(aggregates.values())
+    .map(toKnowledgeContextExpert)
+    .sort(compareKnowledgeContextExperts)
+    .slice(0, limit)
+    .map(removeExpertSortFields);
+}
+
+function toKnowledgeContextExpert(
+  aggregate: ContributorSummary & {
+    contributionCount: number;
+    latestUpdatedAt: number;
+    maxHumanWeight: number;
+    totalHumanWeight: number;
+  },
+): KnowledgeContextExpert & { latestUpdatedAt: number } {
+  const averageHumanWeight =
+    aggregate.totalHumanWeight / aggregate.contributionCount;
+  const expert = {
+    id: aggregate.id,
+    name: aggregate.name,
+    averageHumanWeight: Math.round(averageHumanWeight),
+    contributionCount: aggregate.contributionCount,
+    latestUpdatedAt: aggregate.latestUpdatedAt,
+    reliabilityScore: getReliabilityScore(
+      averageHumanWeight,
+      aggregate.contributionCount,
+      aggregate.maxHumanWeight,
+    ),
+  };
+
+  return aggregate.href === undefined
+    ? expert
+    : {
+        ...expert,
+        href: aggregate.href,
+      };
+}
+
+function getReliabilityScore(
+  averageHumanWeight: number,
+  contributionCount: number,
+  maxHumanWeight: number,
+) {
+  // Best guess: reliable experts have consistently high Human Weight plus repeat contributions.
+  return Math.round(
+    averageHumanWeight +
+      Math.min(contributionCount, 5) * EXPERT_CONTRIBUTION_BONUS +
+      Math.max(0, maxHumanWeight - averageHumanWeight) * 0.1,
+  );
+}
+
+function getUserDisplayName(user: Doc<"users">) {
+  const name = user.name?.trim();
+  if (name) {
+    return name;
+  }
+
+  if (user.email) {
+    return formatEmailDisplayName(user.email);
+  }
+
+  return "Unknown Contributor";
+}
+
+function formatEmailDisplayName(email: string) {
+  const localPart = email.split("@")[0] ?? "";
+  const parts = localPart
+    .split(/[._+-]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length === 0) {
+    return email;
+  }
+
+  return parts.map(formatNamePart).join(" ");
+}
+
+function formatNamePart(part: string) {
+  return part.charAt(0).toUpperCase() + part.slice(1);
+}
+
+function compareEntries(
+  first: Doc<"knowledgeEntries">,
+  second: Doc<"knowledgeEntries">,
+) {
+  return (
+    second.humanWeight - first.humanWeight ||
+    second.updatedAt - first.updatedAt ||
+    compareStrings(first.title, second.title) ||
+    compareStrings(first._id, second._id)
+  );
+}
+
+function compareKnowledgeContextExperts(
+  first: KnowledgeContextExpert & { latestUpdatedAt?: number },
+  second: KnowledgeContextExpert & { latestUpdatedAt?: number },
+) {
+  return (
+    second.reliabilityScore - first.reliabilityScore ||
+    second.averageHumanWeight - first.averageHumanWeight ||
+    second.contributionCount - first.contributionCount ||
+    (second.latestUpdatedAt ?? 0) - (first.latestUpdatedAt ?? 0) ||
+    compareStrings(first.name, second.name) ||
+    compareStrings(first.id, second.id)
+  );
+}
+
+function removeExpertSortFields(
+  expert: KnowledgeContextExpert & { latestUpdatedAt?: number },
+): KnowledgeContextExpert {
+  const cleanExpert: KnowledgeContextExpert = {
+    id: expert.id,
+    name: expert.name,
+    averageHumanWeight: expert.averageHumanWeight,
+    contributionCount: expert.contributionCount,
+    reliabilityScore: expert.reliabilityScore,
+  };
+
+  return expert.href === undefined
+    ? cleanExpert
+    : {
+        ...cleanExpert,
+        href: expert.href,
+      };
+}
+
+async function getContributorSummary(
+  ctx: QueryCtx,
+  userId: Id<"users"> | undefined,
+  contributorCache: Map<string, Promise<ContributorSummary>>,
+): Promise<ContributorSummary> {
+  if (userId === undefined) {
+    return {
+      id: "unknown",
+      name: "Unknown Contributor",
+    };
+  }
+
+  const cacheKey = userId;
+  const cachedContributor = contributorCache.get(cacheKey);
+  if (cachedContributor) {
+    return await cachedContributor;
+  }
+
+  const contributor = loadContributorSummary(ctx, userId);
+  contributorCache.set(cacheKey, contributor);
+  return await contributor;
+}
+
+async function loadContributorSummary(
+  ctx: QueryCtx,
+  userId: Id<"users">,
+): Promise<ContributorSummary> {
+  const user = await ctx.db.get(userId);
+  if (!user) {
+    return {
+      id: userId,
+      name: "Unknown Contributor",
+    };
+  }
+
+  return {
+    id: userId,
+    name: getUserDisplayName(user),
   };
 }
 

@@ -8,28 +8,32 @@ import {
 import type { MouseEvent } from "react";
 import {
   formatKnowledgeTypeLabel,
+  type ContributorSummary,
   type KnowledgeEntrySummary,
   type KnowledgeSlotStatus,
   type KnowledgeSlotSummary,
 } from "../knowledgeContracts";
 import { KnowledgeTypeBadge, KnowledgeTypeIcon } from "./KnowledgeTypeIcon";
+import { ReferentTagLink } from "./ReferentTagLink";
 
 type KnowledgeEntryCardProps = {
   className?: string;
   entry: KnowledgeEntrySummary;
+  onNavigateToHref?: (href: string) => void;
 };
 
 type KnowledgeSlotCardProps = {
   className?: string;
   onContribute?: (slot: KnowledgeSlotSummary) => void;
+  onNavigateToHref?: (href: string) => void;
   slot: KnowledgeSlotSummary;
 };
 
 const SLOT_STATUS_LABELS: Record<KnowledgeSlotStatus, string> = {
-  open: "Open",
-  fulfilled: "Fulfilled",
+  open: "Open request",
+  fulfilled: "Complete",
   cancelled: "Cancelled",
-  overdue: "Overdue",
+  overdue: "Past due",
 };
 
 const CARD_DATE_FORMATTER = new Intl.DateTimeFormat("en", {
@@ -39,7 +43,11 @@ const CARD_DATE_FORMATTER = new Intl.DateTimeFormat("en", {
   year: "numeric",
 });
 
-export function KnowledgeEntryCard({ className, entry }: KnowledgeEntryCardProps) {
+export function KnowledgeEntryCard({
+  className,
+  entry,
+  onNavigateToHref,
+}: KnowledgeEntryCardProps) {
   return (
     <article
       aria-labelledby={`knowledge-entry-${entry.id}-title`}
@@ -59,12 +67,20 @@ export function KnowledgeEntryCard({ className, entry }: KnowledgeEntryCardProps
         <span className="kb-human-weight-badge">Human Weight {entry.humanWeight}</span>
       </header>
 
+      <ContributorPanel contributor={entry.contributor} />
+
       <p className="kb-card-preview">{entry.previewText}</p>
 
       <dl className="kb-card-meta kb-entry-card-meta">
         <div>
           <dt>Primary Tag</dt>
-          <dd>{entry.primaryTagLabel}</dd>
+          <dd>
+            <ReferentTagLink
+              className="kb-inline-tag-link"
+              label={entry.primaryTagLabel}
+              onNavigateToHref={onNavigateToHref}
+            />
+          </dd>
         </div>
         <div>
           <dt>Updated</dt>
@@ -79,6 +95,7 @@ export function KnowledgeEntryCard({ className, entry }: KnowledgeEntryCardProps
       <TagList
         emptyLabel="No context Tags"
         labels={entry.contextPreviewTagLabels}
+        onNavigateToHref={onNavigateToHref}
         title={`${entry.title} context Tags`}
       />
 
@@ -92,15 +109,38 @@ export function KnowledgeEntryCard({ className, entry }: KnowledgeEntryCardProps
   );
 }
 
+function ContributorPanel({
+  contributor,
+}: {
+  contributor: ContributorSummary;
+}) {
+  const contributorName = contributor.href ? (
+    <a href={contributor.href}>{contributor.name}</a>
+  ) : (
+    contributor.name
+  );
+
+  return (
+    <div className="kb-entry-contributor">
+      <UserCircle aria-hidden="true" />
+      <div>
+        <span>Contributed by</span>
+        <strong>{contributorName}</strong>
+      </div>
+    </div>
+  );
+}
+
 export function KnowledgeSlotCard({
   className,
   onContribute,
+  onNavigateToHref,
   slot,
 }: KnowledgeSlotCardProps) {
   const requestedTypeLabel = formatKnowledgeTypeLabel(slot.requestedKnowledgeType);
   const statusLabel = SLOT_STATUS_LABELS[slot.status];
   const promptText =
-    slot.promptText?.trim() || "Contribution requested for this Knowledge Context.";
+    slot.promptText?.trim() || "Add the missing content for this Knowledge Context.";
 
   function handleContributeClick(event: MouseEvent<HTMLAnchorElement>) {
     if (!onContribute) {
@@ -119,7 +159,7 @@ export function KnowledgeSlotCard({
     >
       <header className="kb-card-header">
         <div className="kb-card-title-block">
-          <p className="kb-card-eyebrow">Knowledge Slot</p>
+          <p className="kb-card-eyebrow">Requested Entry</p>
           <h3 id={`knowledge-slot-${slot.id}-title`}>
             <a href={slot.href}>{slot.title}</a>
           </h3>
@@ -133,8 +173,8 @@ export function KnowledgeSlotCard({
           knowledgeType={slot.requestedKnowledgeType}
         />
         <div>
-          <span>Requested Type</span>
-          <strong>{requestedTypeLabel}</strong>
+          <span>Entry needed</span>
+          <strong>{requestedTypeLabel} needed</strong>
         </div>
       </div>
 
@@ -160,17 +200,21 @@ export function KnowledgeSlotCard({
       <TagList
         emptyLabel="No context Tags"
         labels={slot.contextPreviewTagLabels}
+        onNavigateToHref={onNavigateToHref}
         title={`${slot.title} context Tags`}
       />
 
-      <footer className="kb-card-footer">
+      <footer className="kb-card-footer kb-slot-card-footer">
+        <p className="kb-slot-contribution-note">
+          Add content to complete this entry.
+        </p>
         <a
           className="kb-card-action kb-card-action-primary"
           href={slot.href}
           onClick={handleContributeClick}
         >
           <FolderPlus aria-hidden="true" />
-          Contribute {requestedTypeLabel}
+          Add missing {requestedTypeLabel}
         </a>
       </footer>
     </article>
@@ -180,17 +224,26 @@ export function KnowledgeSlotCard({
 function TagList({
   emptyLabel,
   labels,
+  onNavigateToHref,
   title,
 }: {
   emptyLabel: string;
   labels: string[];
+  onNavigateToHref?: (href: string) => void;
   title: string;
 }) {
   return (
     <div className="kb-card-tags" aria-label={title}>
       <Tag aria-hidden="true" />
       {labels.length > 0 ? (
-        labels.map((label) => <span key={label}>{label}</span>)
+        labels.map((label) => (
+          <ReferentTagLink
+            className="kb-referent-tag-link"
+            key={label}
+            label={label}
+            onNavigateToHref={onNavigateToHref}
+          />
+        ))
       ) : (
         <span>{emptyLabel}</span>
       )}

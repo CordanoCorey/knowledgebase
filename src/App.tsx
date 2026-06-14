@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ChangeEvent,
   type ElementType,
@@ -8,6 +9,7 @@ import {
   type KeyboardEvent,
   type MouseEvent,
   type ReactNode,
+  type UIEvent,
 } from "react";
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
@@ -27,10 +29,12 @@ import {
   MousePointerClick,
   Search,
   Settings,
+  Sun,
   Tag,
   TrendingUp,
   UserCircle,
   Users,
+  UploadCloud,
   X,
 } from "lucide-react";
 import { api } from "../convex/_generated/api";
@@ -53,6 +57,7 @@ import {
 import { KnowledgeSlotCard } from "./components/KnowledgeCards";
 import { KnowledgeTypeBadge, KnowledgeTypeIcon } from "./components/KnowledgeTypeIcon";
 import { KnowledgeTypeOverview } from "./components/KnowledgeTypeOverview";
+import { SmartStoragePlayground } from "./SmartStoragePlayground";
 import {
   ANSWER_FEED_FIXTURE,
   type AnswerFeedFixtureItem,
@@ -74,11 +79,14 @@ import type {
   AuthorableKnowledgeType,
   ContributionInput,
   ContributionResult,
+  KnowledgeContextTrendKind,
+  KnowledgeContextTrendSummary,
   KnowledgeSlotSummary,
 } from "./knowledgeContracts";
 import { LayoutPrototype } from "./prototypes/LayoutPrototype";
 
 const THEME_STORAGE_KEY = "knowledgebase-theme";
+const TOPBAR_SCROLL_TOLERANCE = 8;
 
 const SAMPLE_TAG_ID = "first-crusade";
 const SAMPLE_ORG_ID = "arche-classical-academy";
@@ -104,6 +112,7 @@ type PageId =
   | "explore-context"
   | "organization-home"
   | "organization-settings"
+  | "smart-storage-playground"
   | "analytics"
   | "profile"
   | "settings"
@@ -168,6 +177,19 @@ type TodayAgendaItem = {
   statusLabel: string;
   timeLabel: string;
   title: string;
+};
+
+type DashboardBibleContextSuggestion = {
+  href: string;
+  label: string;
+  latestActivityAt?: number;
+  openRequestCount: number;
+  overdueRequestCount: number;
+  recentVisitCount: number;
+  targetKey: string;
+  totalVisitCount: number;
+  trendKind: KnowledgeContextTrendKind;
+  trendScore: number;
 };
 
 type NotificationFilter = "all" | "unread" | "knowledgeSlots" | "events";
@@ -280,6 +302,15 @@ const ROUTES: RouteDefinition[] = [
     relatedRouteIds: ["dashboard", "explore-context", "scripture"],
   },
   {
+    id: "smart-storage-playground",
+    label: "Smart Storage",
+    href: "/playground/smart-storage",
+    pattern: "/playground/smart-storage",
+    icon: UploadCloud,
+    components: [],
+    relatedRouteIds: ["dashboard", "explore-context"],
+  },
+  {
     id: "profile",
     label: "Profile",
     href: "/profile",
@@ -330,7 +361,12 @@ const PRIMARY_ROUTE_IDS: PageId[] = [
   "explore-context",
   "organization-home",
 ];
-const USER_ROUTE_IDS: PageId[] = ["analytics", "calendar", "settings"];
+const USER_ROUTE_IDS: PageId[] = [
+  "smart-storage-playground",
+  "analytics",
+  "calendar",
+  "settings",
+];
 
 const CALENDAR_MONTH_LABEL = "June 2026";
 const CALENDAR_DAY_COUNT = 30;
@@ -411,7 +447,7 @@ const USER_NOTIFICATIONS: UserNotification[] = [
     id: "notice-slot-student-crusades-question",
     title: "Micah's Crusades question is waiting",
     body:
-      "A Grade 9 Knowledge Slot needs your answer before the Church History seminar.",
+      "A Grade 9 requested entry needs your answer before the Church History seminar.",
     contextLabel: "First Crusade + Matthew 5:9",
     contextHref: "/explore?tagIds=first-crusade,matthew-5-9",
     kind: "knowledgeSlot",
@@ -473,10 +509,10 @@ const TODAY_AGENDA_ITEMS: TodayAgendaItem[] = [
     detail:
       "Student question: was the First Crusade courage, zeal without knowledge, or presumption?",
     groupLabel: "Grade 9 Church History",
-    contextLabel: "Knowledge Slot",
+    contextLabel: "Requested Entry",
     contextHref: "/explore?tagIds=first-crusade,matthew-5-9",
     knowledgeType: "comment",
-    statusLabel: "Open Slot",
+    statusLabel: "Open Request",
   },
   {
     id: "agenda-grade-10-medieval-lit",
@@ -500,7 +536,7 @@ const TODAY_AGENDA_ITEMS: TodayAgendaItem[] = [
     contextLabel: "Courage + Joshua 1:6-9",
     contextHref: "/explore?tagIds=courage,joshua-1-6-9,ruler-of-kings-deacons",
     knowledgeType: "prayerRequest",
-    statusLabel: "Open Slot",
+    statusLabel: "Open Request",
   },
   {
     id: "agenda-founding-celebration",
@@ -516,20 +552,71 @@ const TODAY_AGENDA_ITEMS: TodayAgendaItem[] = [
   },
 ];
 
+const DASHBOARD_BIBLE_CONTEXT_FALLBACKS: DashboardBibleContextSuggestion[] = [
+  {
+    href: "/scripture/daniel-4",
+    label: "Daniel 4",
+    latestActivityAt: Date.UTC(2026, 5, 12, 12),
+    openRequestCount: 1,
+    overdueRequestCount: 0,
+    recentVisitCount: 2,
+    targetKey: "daniel-4",
+    totalVisitCount: 5,
+    trendKind: "popularAndNeedsContribution",
+    trendScore: 58,
+  },
+  {
+    href: "/scripture/matthew-5-9",
+    label: "Matthew 5:9",
+    latestActivityAt: Date.UTC(2026, 5, 12, 14),
+    openRequestCount: 1,
+    overdueRequestCount: 1,
+    recentVisitCount: 1,
+    targetKey: "matthew-5-9",
+    totalVisitCount: 3,
+    trendKind: "popularAndNeedsContribution",
+    trendScore: 54,
+  },
+  {
+    href: "/scripture/joshua-1-6-9",
+    label: "Joshua 1:6-9",
+    latestActivityAt: Date.UTC(2026, 5, 12, 19),
+    openRequestCount: 1,
+    overdueRequestCount: 0,
+    recentVisitCount: 1,
+    targetKey: "joshua-1-6-9",
+    totalVisitCount: 2,
+    trendKind: "needsContribution",
+    trendScore: 32,
+  },
+  {
+    href: "/scripture/romans-8-28",
+    label: "Romans 8:28",
+    latestActivityAt: Date.UTC(2026, 5, 12, 15),
+    openRequestCount: 0,
+    overdueRequestCount: 0,
+    recentVisitCount: 2,
+    targetKey: "romans-8-28",
+    totalVisitCount: 4,
+    trendKind: "popular",
+    trendScore: 31,
+  },
+];
+
 const NOTIFICATION_FILTERS: Array<{
   id: NotificationFilter;
   label: string;
 }> = [
   { id: "all", label: "All" },
   { id: "unread", label: "Unread" },
-  { id: "knowledgeSlots", label: "Knowledge Slots" },
+  { id: "knowledgeSlots", label: "Requests" },
   { id: "events", label: "Events" },
 ];
 
 const NOTIFICATION_KIND_LABELS: Record<NotificationKind, string> = {
   answer: "Answer",
   event: "Event",
-  knowledgeSlot: "Knowledge Slot",
+  knowledgeSlot: "Request",
   subscription: "Subscription",
 };
 
@@ -832,13 +919,41 @@ function KnowledgebaseShell({
   routeState: RouteState;
   theme: ThemePreference;
 }) {
+  const [isTopbarHidden, setIsTopbarHidden] = useState(false);
+  const lastScrollTopRef = useRef(0);
   const routeMotionClassName =
     routeMotionKey % 2 === 0 ? "kb-route-motion-a" : "kb-route-motion-b";
+
+  useEffect(() => {
+    lastScrollTopRef.current = 0;
+    setIsTopbarHidden(false);
+  }, [routeState.pathname, routeState.search]);
+
+  function handleContentScroll(event: UIEvent<HTMLDivElement>) {
+    const nextScrollTop = Math.max(0, event.currentTarget.scrollTop);
+
+    if (nextScrollTop <= TOPBAR_SCROLL_TOLERANCE) {
+      lastScrollTopRef.current = nextScrollTop;
+      setIsTopbarHidden(false);
+      return;
+    }
+
+    const scrollDelta = nextScrollTop - lastScrollTopRef.current;
+    if (Math.abs(scrollDelta) < TOPBAR_SCROLL_TOLERANCE) {
+      return;
+    }
+
+    lastScrollTopRef.current = nextScrollTop;
+    setIsTopbarHidden(scrollDelta > 0);
+  }
 
   return (
     <div className="kb-shell" data-theme={theme}>
       <Sidebar activePageId={activePageId} onNavigate={onNavigate} />
-      <div className="kb-host-column">
+      <div
+        className="kb-host-column"
+        data-topbar-hidden={isTopbarHidden ? "true" : undefined}
+      >
         <TopBar
           onNavigate={onNavigate}
           onNavigateToHref={onNavigateToHref}
@@ -846,7 +961,7 @@ function KnowledgebaseShell({
           routeState={routeState}
           theme={theme}
         />
-        <div className="kb-host-content">
+        <div className="kb-host-content" onScroll={handleContentScroll}>
           <div className={`kb-route-transition ${routeMotionClassName}`}>
             {children}
           </div>
@@ -975,6 +1090,7 @@ function TopBar({
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
   const nextTheme = theme === "dark" ? "light" : "dark";
+  const ThemeIcon = theme === "dark" ? Sun : Moon;
   const brandLogoUrl =
     theme === "dark" ? archePressHorizontalLogoDarkUrl : archePressHorizontalLogoUrl;
   const trimmedSearchQuery = searchQuery.trim();
@@ -1071,7 +1187,7 @@ function TopBar({
           title={`Switch to ${nextTheme} theme`}
           type="button"
         >
-          <Moon aria-hidden="true" />
+          <ThemeIcon aria-hidden="true" />
         </button>
         <a
           aria-current={routeState.route.id === "notifications" ? "page" : undefined}
@@ -1185,6 +1301,15 @@ function PageScaffold({
     return <AnalyticsPage onNavigate={onNavigate} routeState={routeState} />;
   }
 
+  if (route.id === "smart-storage-playground") {
+    return (
+      <SmartStoragePlayground
+        onNavigateToHref={onNavigateToHref}
+        routeMeta={<RouteMeta routeState={routeState} />}
+      />
+    );
+  }
+
   if (route.id === "calendar") {
     return <CalendarPage onNavigate={onNavigate} routeState={routeState} />;
   }
@@ -1286,6 +1411,15 @@ function TodayAgenda({
 }: {
   onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
 }) {
+  const liveBibleContextSuggestions = useQuery(
+    api.analytics.listDashboardBibleContextSuggestions,
+    { limit: 4 },
+  );
+  const bibleContextSuggestions =
+    liveBibleContextSuggestions && liveBibleContextSuggestions.length > 0
+      ? liveBibleContextSuggestions
+      : DASHBOARD_BIBLE_CONTEXT_FALLBACKS;
+
   return (
     <section className="kb-today-agenda" aria-labelledby="kb-today-agenda-heading">
       <header className="kb-today-agenda-header">
@@ -1295,6 +1429,11 @@ function TodayAgenda({
         </div>
         <span>{TODAY_AGENDA_ITEMS.length} items</span>
       </header>
+
+      <DashboardBibleContexts
+        onNavigate={onNavigate}
+        suggestions={bibleContextSuggestions}
+      />
 
       <ol className="kb-today-agenda-list">
         {TODAY_AGENDA_ITEMS.map((item) => (
@@ -1324,6 +1463,72 @@ function TodayAgenda({
       </ol>
     </section>
   );
+}
+
+function DashboardBibleContexts({
+  onNavigate,
+  suggestions,
+}: {
+  onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+  suggestions: DashboardBibleContextSuggestion[];
+}) {
+  return (
+    <section
+      className="kb-dashboard-bible-contexts"
+      aria-labelledby="kb-dashboard-bible-contexts-heading"
+    >
+      <header>
+        <div>
+          <p className="kb-eyebrow">Bible Contexts</p>
+          <h3 id="kb-dashboard-bible-contexts-heading">Popular or Open</h3>
+        </div>
+        <span>{suggestions.length} passages</span>
+      </header>
+
+      <ol>
+        {suggestions.map((suggestion) => (
+          <li key={suggestion.targetKey}>
+            <a
+              href={suggestion.href}
+              onClick={(event) => onNavigate(event, suggestion.href)}
+            >
+              <BookOpen aria-hidden="true" />
+              <span>
+                <strong>{suggestion.label}</strong>
+                <small>{getBibleContextSuggestionLabel(suggestion)}</small>
+              </span>
+              <em>{suggestion.trendScore}</em>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function getBibleContextSuggestionLabel(
+  suggestion: DashboardBibleContextSuggestion,
+) {
+  const requestCount =
+    suggestion.openRequestCount + suggestion.overdueRequestCount;
+
+  if (suggestion.trendKind === "popularAndNeedsContribution") {
+    return `${formatCount(suggestion.recentVisitCount, "recent visit")} + ${formatCount(requestCount, "open request")}`;
+  }
+
+  if (suggestion.trendKind === "needsContribution") {
+    return formatCount(requestCount, "open request");
+  }
+
+  if (suggestion.recentVisitCount > 0) {
+    return formatCount(suggestion.recentVisitCount, "recent visit");
+  }
+
+  return formatCount(suggestion.totalVisitCount, "visit");
+}
+
+function formatCount(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
 }
 
 function AnalyticsPage({
@@ -1553,6 +1758,14 @@ function ComponentScaffold({
     useState<string | null>(null);
   const recordNavigatorUsage = useMutation(api.analytics.recordNavigatorUsage);
   const activeContextKey = getKnowledgeContextKey(activeTags);
+  const activeTagKeys = useMemo(
+    () => getNavigatorAnalyticsTagKeys(activeTags),
+    [activeTags],
+  );
+  const contextTrend = useQuery(
+    api.analytics.getKnowledgeContextTrend,
+    activeTagKeys.length > 0 ? { activeTagKeys } : "skip",
+  );
   const matchingFeedItems = useMemo(
     () => selectAnswerFeedItems(feedItems, activeTags),
     [activeTags, feedItems],
@@ -1627,6 +1840,7 @@ function ComponentScaffold({
               <KnowledgeRequestComposer
                 activeTags={activeTags}
                 onApplyMappedTags={handleApplyMappedTags}
+                onNavigateToHref={onNavigateToHref}
               />
             ) : null}
           </KnowledgeNavigator>
@@ -1634,6 +1848,7 @@ function ComponentScaffold({
         {components.includes("knowledge-slot-card") ? (
           <KnowledgeSlotRail
             onContributeToSlot={handleContributeToSlot}
+            onNavigateToHref={onNavigateToHref}
             slot={primarySlot}
           />
         ) : null}
@@ -1650,6 +1865,7 @@ function ComponentScaffold({
             <KnowledgeRequestComposer
               activeTags={activeTags}
               onApplyMappedTags={handleApplyMappedTags}
+              onNavigateToHref={onNavigateToHref}
             />
           </section>
         ) : null}
@@ -1672,6 +1888,7 @@ function ComponentScaffold({
           <ContributionEditorSurface
             context={contributionContext}
             onKnowledgeTypeChange={setSelectedContributionKnowledgeType}
+            onNavigateToHref={onNavigateToHref}
             onSubmitSource={handleSubmitContribution}
             selectedKnowledgeType={selectedContributionKnowledgeType}
             slot={selectedSlot}
@@ -1680,9 +1897,11 @@ function ComponentScaffold({
         {components.includes("answer-feed") ? (
           <AnswerFeedSurface
             activeTags={activeTags}
+            contextTrend={getVisibleContextTrend(contextTrend)}
             items={feedItems}
             layout="masonry"
             onContributeToSlot={handleContributeToSlot}
+            onNavigateToHref={onNavigateToHref}
           />
         ) : null}
       </section>
@@ -1698,20 +1917,38 @@ function getWorkspaceHeading(label: string, activeTags: ActiveTag[]) {
   return label;
 }
 
+function getVisibleContextTrend(
+  contextTrend: KnowledgeContextTrendSummary | undefined,
+) {
+  if (!contextTrend || contextTrend.trendKind === "quiet") {
+    return undefined;
+  }
+
+  return contextTrend;
+}
+
 function KnowledgeSlotRail({
   onContributeToSlot,
+  onNavigateToHref,
   slot,
 }: {
   onContributeToSlot: (slot: KnowledgeSlotSummary) => void;
+  onNavigateToHref: (href: string) => void;
   slot?: KnowledgeSlotSummary;
 }) {
   if (slot) {
-    return <KnowledgeSlotCard onContribute={onContributeToSlot} slot={slot} />;
+    return (
+      <KnowledgeSlotCard
+        onContribute={onContributeToSlot}
+        onNavigateToHref={onNavigateToHref}
+        slot={slot}
+      />
+    );
   }
 
   return (
-    <PlaceholderBlock code="C6" title="Knowledge Slot Card">
-      <p className="kb-rail-empty">No Knowledge Slots in this Knowledge Context.</p>
+    <PlaceholderBlock code="C6" title="Requested Entry">
+      <p className="kb-rail-empty">No requested entries in this Knowledge Context.</p>
     </PlaceholderBlock>
   );
 }
@@ -1885,6 +2122,7 @@ function SettingsPage({
   const email = appAccess.email ?? "No email on file";
   const organizationCount = appAccess.organizations.length;
   const nextTheme = theme === "dark" ? "light" : "dark";
+  const ThemeIcon = theme === "dark" ? Sun : Moon;
 
   return (
     <main className="kb-main kb-settings-main" aria-labelledby="kb-settings-heading">
@@ -1910,7 +2148,7 @@ function SettingsPage({
           </strong>
         </div>
         <div>
-          <Moon aria-hidden="true" />
+          <ThemeIcon aria-hidden="true" />
           <span>Theme</span>
           <strong>{theme === "dark" ? "Dark" : "Light"}</strong>
         </div>
@@ -2089,6 +2327,10 @@ function createDeterministicContributionFeedItem(
     kind: "answer",
     contextTagIds: input.contextTags.map((tag) => tag.id),
     entry: {
+      contributor: {
+        id: "current-user",
+        name: "Current User",
+      },
       id: entryId,
       title: input.title,
       knowledgeType: input.knowledgeType,
@@ -2156,7 +2398,7 @@ function NotificationsPage({
         </div>
         <div>
           <Users aria-hidden="true" />
-          <span>Knowledge Slots</span>
+          <span>Open Requests</span>
           <strong>{slotCount} open item</strong>
         </div>
       </section>
@@ -2240,7 +2482,7 @@ function NotificationsPage({
         ) : (
           <section className="kb-notification-empty" role="status">
             <h3>No Notifications match this view.</h3>
-            <p>Subscribed Knowledge Contexts, Knowledge Slots, and Events are quiet.</p>
+            <p>Subscribed Knowledge Contexts, requests, and Events are quiet.</p>
           </section>
         )}
       </section>
@@ -2286,7 +2528,7 @@ function getNotificationFilterHeading(filter: NotificationFilter) {
   }
 
   if (filter === "knowledgeSlots") {
-    return "Knowledge Slot Notifications";
+    return "Request Notifications";
   }
 
   if (filter === "events") {
