@@ -5281,6 +5281,145 @@ summary,
   padding: 0 12px 12px;
 }
 
+.kb-rail-focus-layout .kb-knowledge-navigator {
+  border-color: rgb(88 94 98 / 26%);
+  background:
+    linear-gradient(180deg, rgb(242 244 245 / 96%), rgb(222 227 229 / 90%)) padding-box,
+    linear-gradient(135deg, rgb(107 114 119 / 48%), rgb(226 231 233 / 76%)) border-box;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 74%),
+    0 14px 28px rgb(33 38 41 / 10%);
+}
+
+.kb-rail-focus-layout .kb-knowledge-navigator h2 {
+  color: #181b1d;
+}
+
+.kb-rail-focus-layout .kb-knowledge-navigator .kb-eyebrow {
+  color: #586065;
+}
+
+.kb-rail-focus-layout .kb-active-tag-chip,
+.kb-rail-focus-layout .kb-add-tag-button,
+.kb-rail-focus-layout .kb-navigator-empty {
+  border: 1px solid rgb(88 94 98 / 18%);
+  color: #25292c;
+  background: rgb(255 255 255 / 62%);
+}
+
+.kb-rail-focus-layout .kb-active-tag-chip svg,
+.kb-rail-focus-layout .kb-add-tag-button svg {
+  color: #4f565b;
+}
+
+.kb-rail-focus-layout .kb-active-tag-chip:hover,
+.kb-rail-focus-layout .kb-active-tag-chip:focus-visible,
+.kb-rail-focus-layout .kb-add-tag-button:hover,
+.kb-rail-focus-layout .kb-add-tag-button:focus-visible {
+  border-color: rgb(88 94 98 / 34%);
+  color: #181b1d;
+}
+
+.kb-rail-focus-layout .kb-navigator-request .kb-request-field textarea {
+  border-color: rgb(88 94 98 / 28%);
+  color: #25292c;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 76%), rgb(247 248 249 / 68%)) padding-box,
+    linear-gradient(135deg, rgb(88 94 98 / 28%), rgb(226 231 233 / 74%)) border-box;
+  box-shadow: inset 0 1px 2px rgb(33 38 41 / 10%);
+}
+
+.kb-rail-focus-layout .kb-navigator-request .kb-request-field textarea::placeholder {
+  color: #70787d;
+}
+
+.kb-rail-focus-layout .kb-navigator-request .kb-request-submit,
+.kb-rail-focus-workspace .kb-contribution-submit {
+  box-shadow: 0 4px 10px rgb(33 38 41 / 18%);
+}
+
+.kb-rail-focus-workspace .kb-contribution-editor {
+  border-color: rgb(165 172 176 / 32%);
+  background:
+    linear-gradient(180deg, rgb(249 250 250 / 92%), rgb(238 241 242 / 94%)) padding-box,
+    linear-gradient(135deg, rgb(218 224 227 / 84%), rgb(132 139 144 / 28%)) border-box;
+  box-shadow: 0 12px 28px rgb(20 24 26 / 9%);
+}
+
+.kb-rail-focus-workspace .kb-answer-feed {
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid rgb(151 158 163 / 30%);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgb(247 249 250 / 88%), rgb(255 255 255 / 92%));
+  box-shadow: 0 18px 38px rgb(20 24 26 / 9%);
+}
+
+.kb-rail-focus-workspace .kb-answer-feed-counts span {
+  border-color: rgb(137 145 150 / 32%);
+  color: #4e5458;
+  background: rgb(214 220 223 / 42%);
+}
+
+.kb-rail-focus-workspace .kb-knowledge-card {
+  border-color: rgb(154 162 167 / 28%);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 98%), rgb(240 243 244 / 86%)) padding-box,
+    linear-gradient(135deg, rgb(224 229 231 / 82%), rgb(132 139 144 / 18%)) border-box;
+}
+
+.kb-shell[data-theme="dark"] .kb-rail-focus-layout .kb-knowledge-navigator {
+  background:
+    linear-gradient(180deg, #0d0d0d, #181818) padding-box,
+    linear-gradient(135deg, rgb(231 236 238 / 42%), rgb(93 99 104 / 54%)) border-box;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 8%),
+    0 12px 28px rgb(0 0 0 / 28%);
+}
+
+.kb-shell[data-theme="dark"] .kb-rail-focus-layout .kb-knowledge-navigator h2 {
+  color: #f5f6f6;
+}
+
+.kb-shell[data-theme="dark"] .kb-rail-focus-layout .kb-knowledge-navigator .kb-eyebrow {
+  color: #c6cbce;
+}
+
+.kb-shell[data-theme="dark"] .kb-rail-focus-layout .kb-active-tag-chip,
+.kb-shell[data-theme="dark"] .kb-rail-focus-layout .kb-add-tag-button,
+.kb-shell[data-theme="dark"] .kb-rail-focus-layout .kb-navigator-empty,
+.kb-shell[data-theme="dark"] .kb-rail-focus-layout .kb-navigator-request .kb-request-field textarea {
+  border-color: rgb(231 236 238 / 20%);
+  color: #eef1f2;
+  background: rgb(255 255 255 / 8%);
+}
+
+.kb-shell[data-theme="dark"] .kb-rail-focus-layout .kb-active-tag-chip svg,
+.kb-shell[data-theme="dark"] .kb-rail-focus-layout .kb-add-tag-button svg {
+  color: #d5dadd;
+}
+
+.kb-shell[data-theme="dark"]
+  .kb-rail-focus-layout
+  .kb-navigator-request
+  .kb-request-field
+  textarea::placeholder {
+  color: #c5cbce;
+}
+
+.kb-shell[data-theme="dark"] .kb-rail-focus-workspace .kb-contribution-editor,
+.kb-shell[data-theme="dark"] .kb-rail-focus-workspace .kb-answer-feed,
+.kb-shell[data-theme="dark"] .kb-rail-focus-workspace .kb-knowledge-card {
+  background:
+    linear-gradient(180deg, rgb(34 38 40 / 96%), rgb(22 25 27 / 96%)) padding-box,
+    linear-gradient(135deg, rgb(211 217 220 / 42%), rgb(104 111 116 / 18%)) border-box;
+}
+
+.kb-shell[data-theme="dark"] .kb-rail-focus-workspace .kb-answer-feed-counts span {
+  color: #f5f6f6;
+  background: rgb(197 203 206 / 16%);
+}
+
 .kb-page-placeholder {
   display: grid;
   min-height: 360px;

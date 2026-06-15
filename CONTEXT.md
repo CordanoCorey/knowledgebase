@@ -41,7 +41,7 @@ A Knowledge Entry considered as something that can help satisfy future Knowledge
 _Avoid_: AI response, chat reply
 
 **Human Weight**:
-A rating of how strongly a Knowledge Entry reflects human authorship, judgment, use, or divine inspiration, scored from Slop at 0 to Soul at 100. Bible passages have full Soul because they are inspired by the Holy Spirit.
+A rating of how strongly a Knowledge Entry reflects human substance that artificial intelligence cannot cheaply counterfeit: agency, excellence, judgment, lived use, or divine inspiration, scored from Slop at 0 to Soul at 100. Bible passages have full Soul because they are inspired by the Holy Spirit.
 _Avoid_: AI score, quality score, robot score
 
 **Knowledge Request**:
@@ -237,8 +237,24 @@ The preserved raw record of submitted Sources, stored as close as possible to th
 _Avoid_: Bronze data, raw folder
 
 **Smart Storage**:
-The AI-assisted process of preserving a Source, identifying relevant Tags, and refining the Source toward one or more pieces of structured knowledge the application understands.
+The AI-assisted process of preserving a Source, identifying relevant Tags, and refining or enriching the Source toward one or more pieces of structured knowledge the application understands. Smart Storage can propose Gold Layer knowledge, but user confirmation is required before that knowledge becomes Gold.
 _Avoid_: Upload, import, ingestion
+
+**Factual Enrichment**:
+The Smart Storage act of using external factual information to refine a Source when the Source points to knowledge it does not itself contain. Factual Enrichment is not measured by Human Weight unless it becomes part of a user-confirmed Knowledge Entry.
+_Avoid_: AI authorship, generated answer, hallucination
+
+**Factual Provenance**:
+The evidence trail for an enriched factual field in a Smart Storage Proposal or Knowledge Entry, identifying the external URL, Knowledge Entry, or model-only basis for the proposed fact. Factual Provenance attributes a factual part without changing who confirmed or owns the whole Knowledge Entry.
+_Avoid_: Source, ownership, proof
+
+**Smart Storage Proposal**:
+A durable Silver Layer candidate for one Knowledge Entry produced by Smart Storage from a Source before user confirmation, expressed in Smart Storage Contract terms rather than persistence-specific write operations. A Smart Storage Proposal may be accepted, rejected, or edited before it becomes Gold Layer knowledge.
+_Avoid_: Draft entry, AI answer, unconfirmed Knowledge Entry
+
+**Smart Storage Contract**:
+The curated domain contract Smart Storage gives to an LLM so it can match Sources to Knowledge Types and propose structured knowledge. A Smart Storage Contract includes the domain shape needed for recognition and proposal generation without exposing the raw persistence schema as the model's contract.
+_Avoid_: Database schema prompt, raw schema, implementation prompt
 
 **Reprocessing**:
 The act of revisiting existing Sources or Knowledge Entries when the application gains new Knowledge Types or improved recognition, so previously untyped knowledge can be represented more specifically.
@@ -249,7 +265,7 @@ A Source or Knowledge Entry that may be refined further because a new or improve
 _Avoid_: Demoted entry, failed gold, invalid entry
 
 **Silver Layer**:
-An intermediate refinement layer where Source data is cleaned and structured beyond its raw form, before it becomes typed and formatted knowledge the application understands.
+A durable intermediate refinement layer where Source data is cleaned, structured, reviewed, or prepared beyond its raw form before it becomes typed and formatted knowledge the application understands.
 _Avoid_: Final answer, typed knowledge, truth
 
 **Gold Layer**:

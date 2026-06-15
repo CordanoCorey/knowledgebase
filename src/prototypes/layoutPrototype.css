@@ -848,6 +848,11 @@
   min-width: 0;
 }
 
+.rp-minimal-answer-feed header > div {
+  display: grid;
+  min-width: 0;
+}
+
 .rp-minimal-answer-feed h2 {
   margin: 0;
   color: var(--rp-text);
@@ -873,6 +878,26 @@
   gap: 24px;
 }
 
+.rp-question-answer-page {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: clamp(16px, 3vw, 28px);
+}
+
+.rp-question-answer-page .rp-rail-focus-context {
+  flex: 1 1 18rem;
+  max-inline-size: 23rem;
+}
+
+.rp-question-answer-page .rp-rail-focus-workspace {
+  display: flex;
+  flex: 999 1 34rem;
+  flex-direction: column;
+  gap: 18px;
+  min-inline-size: 0;
+}
+
 .rp-rail-focus-context,
 .rp-rail-focus-workspace {
   min-width: 0;
@@ -892,6 +917,21 @@
   display: grid;
   gap: 0;
   min-width: 0;
+}
+
+.rp-zone-label {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 24px;
+  margin: 0 0 8px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .rp-focus-rail {
@@ -970,6 +1010,598 @@
 
 .rp-focus-rail .rp-suggested-tags {
   padding: 0;
+}
+
+.rp-qa-tone .rp-focus-rail {
+  border-color: rgb(146 87 35 / 22%);
+  background:
+    linear-gradient(180deg, rgb(146 87 35 / 13%), rgb(190 135 53 / 8%)) padding-box,
+    linear-gradient(135deg, rgb(146 87 35 / 62%), rgb(190 135 53 / 26%)) border-box;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 58%),
+    0 10px 22px rgb(146 87 35 / 10%);
+}
+
+.rp-qa-tone .rp-focus-rail .rp-zone-label {
+  color: #fff8ee;
+  background: #925723;
+}
+
+.rp-qa-tone .rp-focus-rail .rp-tag-card,
+.rp-qa-tone .rp-focus-rail .rp-suggested-tags button {
+  border-color: rgb(146 87 35 / 24%);
+  background: rgb(255 250 242 / 72%);
+}
+
+.rp-qa-tone .rp-focus-rail .rp-request-composer input {
+  border-color: rgb(146 87 35 / 32%);
+  background: linear-gradient(#fffaf2, #fff7ed);
+}
+
+.rp-qa-tone .rp-answer-composer {
+  border-color: rgb(190 135 53 / 26%);
+  background:
+    linear-gradient(180deg, rgb(255 249 235 / 88%), rgb(255 252 245 / 96%)) padding-box,
+    linear-gradient(135deg, rgb(231 184 90 / 58%), rgb(190 135 53 / 18%)) border-box;
+}
+
+.rp-qa-tone .rp-answer-zone {
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid rgb(190 135 53 / 22%);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgb(255 251 235 / 76%), rgb(255 255 255 / 84%));
+  box-shadow: 0 18px 38px rgb(190 135 53 / 11%);
+}
+
+.rp-qa-tone .rp-answer-zone .rp-zone-label {
+  color: #5c3a13;
+  background: rgb(235 190 85 / 28%);
+}
+
+.rp-qa-tone .rp-answer-zone header > span {
+  border-color: rgb(190 135 53 / 26%);
+  color: #8a5a1f;
+  background: rgb(235 190 85 / 16%);
+}
+
+.rp-qa-tone .rp-answer-zone .rp-entry-card {
+  border-color: rgb(190 135 53 / 22%);
+  background:
+    linear-gradient(180deg, rgb(255 253 246 / 96%), rgb(255 247 228 / 82%)) padding-box,
+    linear-gradient(135deg, rgb(235 190 85 / 60%), rgb(190 135 53 / 16%)) border-box;
+}
+
+.rp-qa-black-silver .rp-focus-rail {
+  border-color: rgb(88 94 98 / 26%);
+  background:
+    linear-gradient(180deg, rgb(242 244 245 / 96%), rgb(222 227 229 / 90%)) padding-box,
+    linear-gradient(135deg, rgb(107 114 119 / 48%), rgb(226 231 233 / 76%)) border-box;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 74%),
+    0 14px 28px rgb(33 38 41 / 10%);
+}
+
+.rp-qa-black-silver .rp-focus-rail h2 {
+  color: #181b1d;
+}
+
+.rp-qa-black-silver .rp-focus-rail .rp-eyebrow {
+  color: #586065;
+}
+
+.rp-qa-black-silver .rp-focus-rail > header button {
+  border-color: rgb(88 94 98 / 24%);
+  color: #25292c;
+  background: linear-gradient(180deg, rgb(255 255 255 / 76%), rgb(244 246 247 / 68%));
+  box-shadow: none;
+}
+
+.rp-qa-black-silver .rp-focus-rail > header svg,
+.rp-qa-black-silver .rp-focus-rail .rp-tag-card svg,
+.rp-qa-black-silver .rp-focus-rail .rp-suggested-tags button svg {
+  color: #4f565b;
+}
+
+.rp-qa-black-silver .rp-focus-rail .rp-zone-label {
+  color: #f5f6f6;
+  background: #33383b;
+}
+
+.rp-qa-black-silver .rp-focus-rail .rp-tag-card,
+.rp-qa-black-silver .rp-focus-rail .rp-suggested-tags button {
+  border-color: rgb(88 94 98 / 18%);
+  color: #25292c;
+  background: rgb(255 255 255 / 62%);
+}
+
+.rp-qa-black-silver .rp-focus-rail .rp-request-composer input {
+  border-color: rgb(88 94 98 / 28%);
+  color: #25292c;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 76%), rgb(247 248 249 / 68%)) padding-box,
+    linear-gradient(135deg, rgb(88 94 98 / 28%), rgb(226 231 233 / 74%)) border-box;
+  box-shadow: inset 0 1px 2px rgb(33 38 41 / 10%);
+}
+
+.rp-qa-black-silver .rp-focus-rail .rp-request-composer input::placeholder {
+  color: #70787d;
+}
+
+.rp-qa-black-silver .rp-answer-composer {
+  border-color: rgb(165 172 176 / 32%);
+  background:
+    linear-gradient(180deg, rgb(249 250 250 / 92%), rgb(238 241 242 / 94%)) padding-box,
+    linear-gradient(135deg, rgb(218 224 227 / 84%), rgb(132 139 144 / 28%)) border-box;
+  box-shadow: 0 12px 28px rgb(20 24 26 / 9%);
+}
+
+.rp-qa-black-silver .rp-answer-zone {
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid rgb(151 158 163 / 30%);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgb(247 249 250 / 88%), rgb(255 255 255 / 92%));
+  box-shadow: 0 18px 38px rgb(20 24 26 / 9%);
+}
+
+.rp-qa-black-silver .rp-answer-zone .rp-zone-label {
+  color: #f5f6f6;
+  background: #4e5458;
+}
+
+.rp-qa-black-silver .rp-answer-zone header > span {
+  border-color: rgb(137 145 150 / 32%);
+  color: #4e5458;
+  background: rgb(214 220 223 / 42%);
+}
+
+.rp-qa-black-silver .rp-answer-zone .rp-entry-card {
+  border-color: rgb(154 162 167 / 28%);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 98%), rgb(240 243 244 / 86%)) padding-box,
+    linear-gradient(135deg, rgb(224 229 231 / 82%), rgb(132 139 144 / 18%)) border-box;
+}
+
+.rp-qa-slate-honey .rp-focus-rail {
+  border-color: rgb(49 95 120 / 24%);
+  background:
+    linear-gradient(180deg, rgb(232 242 246 / 94%), rgb(218 233 239 / 88%)) padding-box,
+    linear-gradient(135deg, rgb(49 95 120 / 40%), rgb(143 184 204 / 52%)) border-box;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 72%),
+    0 14px 28px rgb(49 95 120 / 10%);
+}
+
+.rp-qa-slate-honey .rp-focus-rail .rp-zone-label {
+  color: #ffffff;
+  background: #315f78;
+}
+
+.rp-qa-slate-honey .rp-focus-rail .rp-tag-card,
+.rp-qa-slate-honey .rp-focus-rail .rp-suggested-tags button {
+  border-color: rgb(49 95 120 / 18%);
+  background: rgb(255 255 255 / 62%);
+}
+
+.rp-qa-slate-honey .rp-focus-rail .rp-request-composer input {
+  border-color: rgb(49 95 120 / 26%);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 74%), rgb(245 251 253 / 78%)) padding-box,
+    linear-gradient(135deg, rgb(49 95 120 / 32%), rgb(143 184 204 / 34%)) border-box;
+}
+
+.rp-qa-slate-honey .rp-answer-composer {
+  border-color: rgb(204 145 45 / 24%);
+  background:
+    linear-gradient(180deg, rgb(255 248 229 / 88%), rgb(255 252 246 / 96%)) padding-box,
+    linear-gradient(135deg, rgb(226 174 72 / 54%), rgb(204 145 45 / 18%)) border-box;
+}
+
+.rp-qa-slate-honey .rp-answer-zone {
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid rgb(204 145 45 / 20%);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgb(255 248 229 / 76%), rgb(255 255 255 / 88%));
+  box-shadow: 0 18px 38px rgb(204 145 45 / 9%);
+}
+
+.rp-qa-slate-honey .rp-answer-zone .rp-zone-label {
+  color: #5d3c10;
+  background: rgb(236 190 91 / 32%);
+}
+
+.rp-qa-slate-honey .rp-answer-zone header > span {
+  border-color: rgb(204 145 45 / 24%);
+  color: #6c4713;
+  background: rgb(236 190 91 / 18%);
+}
+
+.rp-qa-slate-honey .rp-answer-zone .rp-entry-card {
+  border-color: rgb(204 145 45 / 20%);
+  background:
+    linear-gradient(180deg, rgb(255 253 247 / 96%), rgb(255 249 235 / 84%)) padding-box,
+    linear-gradient(135deg, rgb(236 190 91 / 56%), rgb(204 145 45 / 14%)) border-box;
+}
+
+.rp-qa-sage-clay .rp-focus-rail {
+  border-color: rgb(77 116 84 / 24%);
+  background:
+    linear-gradient(180deg, rgb(232 241 231 / 94%), rgb(217 231 216 / 88%)) padding-box,
+    linear-gradient(135deg, rgb(77 116 84 / 40%), rgb(157 191 162 / 48%)) border-box;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 72%),
+    0 14px 28px rgb(77 116 84 / 9%);
+}
+
+.rp-qa-sage-clay .rp-focus-rail .rp-zone-label {
+  color: #ffffff;
+  background: #496f4f;
+}
+
+.rp-qa-sage-clay .rp-focus-rail .rp-tag-card,
+.rp-qa-sage-clay .rp-focus-rail .rp-suggested-tags button {
+  border-color: rgb(77 116 84 / 18%);
+  background: rgb(255 255 255 / 62%);
+}
+
+.rp-qa-sage-clay .rp-focus-rail .rp-request-composer input {
+  border-color: rgb(77 116 84 / 26%);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 74%), rgb(247 252 247 / 78%)) padding-box,
+    linear-gradient(135deg, rgb(77 116 84 / 30%), rgb(157 191 162 / 32%)) border-box;
+}
+
+.rp-qa-sage-clay .rp-answer-composer {
+  border-color: rgb(173 91 72 / 24%);
+  background:
+    linear-gradient(180deg, rgb(255 242 238 / 88%), rgb(255 251 248 / 96%)) padding-box,
+    linear-gradient(135deg, rgb(210 132 111 / 42%), rgb(173 91 72 / 18%)) border-box;
+}
+
+.rp-qa-sage-clay .rp-answer-zone {
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid rgb(173 91 72 / 20%);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgb(255 242 238 / 78%), rgb(255 255 255 / 88%));
+  box-shadow: 0 18px 38px rgb(173 91 72 / 8%);
+}
+
+.rp-qa-sage-clay .rp-answer-zone .rp-zone-label {
+  color: #6a3026;
+  background: rgb(224 151 130 / 24%);
+}
+
+.rp-qa-sage-clay .rp-answer-zone header > span {
+  border-color: rgb(173 91 72 / 24%);
+  color: #7a3b2f;
+  background: rgb(224 151 130 / 14%);
+}
+
+.rp-qa-sage-clay .rp-answer-zone .rp-entry-card {
+  border-color: rgb(173 91 72 / 20%);
+  background:
+    linear-gradient(180deg, rgb(255 253 251 / 96%), rgb(255 244 240 / 84%)) padding-box,
+    linear-gradient(135deg, rgb(224 151 130 / 42%), rgb(173 91 72 / 14%)) border-box;
+}
+
+.rp-qa-type .rp-focus-rail {
+  border: 1px dashed rgb(49 95 120 / 35%);
+  background: linear-gradient(180deg, rgb(248 250 250 / 82%), rgb(243 247 247 / 76%));
+  box-shadow: none;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.rp-qa-type .rp-focus-rail .rp-zone-label {
+  color: #ffffff;
+  background: #315f78;
+}
+
+.rp-qa-type .rp-focus-rail h2,
+.rp-qa-type .rp-focus-rail .rp-eyebrow,
+.rp-qa-type .rp-focus-rail button,
+.rp-qa-type .rp-focus-rail input {
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.rp-qa-type .rp-focus-rail h2 {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.rp-qa-type .rp-focus-rail .rp-tag-card,
+.rp-qa-type .rp-focus-rail .rp-suggested-tags button {
+  border-radius: 999px;
+}
+
+.rp-qa-type .rp-answer-composer {
+  background:
+    linear-gradient(#fffdfa, #ffffff) padding-box,
+    linear-gradient(135deg, rgb(190 135 53 / 34%), rgb(49 95 120 / 14%)) border-box;
+}
+
+.rp-qa-type .rp-answer-zone {
+  padding: 14px 0 0 20px;
+  border-left: 4px solid var(--rp-primary);
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.rp-qa-type .rp-answer-zone .rp-zone-label {
+  color: #925723;
+  background: rgb(190 135 53 / 12%);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.rp-qa-type .rp-answer-zone h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 30px;
+  line-height: 1.05;
+}
+
+.rp-qa-type .rp-answer-zone header > span {
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.rp-qa-type .rp-answer-zone .rp-entry-card h3 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 24px;
+}
+
+.rp-qa-type .rp-answer-zone .rp-entry-card p,
+.rp-qa-type .rp-answer-zone .rp-entry-card dd {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.rp-qa-depth .rp-focus-rail {
+  border-color: var(--rp-line);
+  background: var(--rp-surface);
+  box-shadow:
+    inset 0 0 0 1px rgb(35 31 32 / 3%),
+    inset 0 12px 28px rgb(35 31 32 / 4%);
+}
+
+.rp-qa-depth .rp-focus-rail .rp-zone-label {
+  color: var(--rp-muted);
+  background: var(--rp-page);
+  box-shadow: inset 0 0 0 1px var(--rp-line);
+}
+
+.rp-qa-depth .rp-focus-rail .rp-tag-card,
+.rp-qa-depth .rp-focus-rail .rp-suggested-tags button,
+.rp-qa-depth .rp-focus-rail .rp-request-composer input {
+  box-shadow: none;
+}
+
+.rp-qa-depth .rp-answer-composer {
+  box-shadow:
+    0 14px 32px rgb(35 31 32 / 10%),
+    0 2px 4px rgb(35 31 32 / 5%);
+}
+
+.rp-qa-depth .rp-answer-zone {
+  padding: 16px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background:
+    linear-gradient(#ffffff, #fffdfa) padding-box,
+    linear-gradient(135deg, rgb(190 135 53 / 38%), rgb(49 95 120 / 20%)) border-box;
+  box-shadow:
+    0 22px 50px rgb(35 31 32 / 13%),
+    0 2px 4px rgb(35 31 32 / 5%);
+}
+
+.rp-qa-depth .rp-answer-zone .rp-zone-label {
+  color: var(--rp-on-primary);
+  background: var(--kb-gradient-button);
+  box-shadow: var(--rp-shadow-xs);
+}
+
+.rp-qa-depth .rp-answer-zone .rp-entry-card {
+  border-color: rgb(35 52 64 / 10%);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 98%), rgb(255 251 246 / 92%)) padding-box,
+    linear-gradient(135deg, rgb(190 135 53 / 30%), rgb(49 95 120 / 12%)) border-box;
+  box-shadow: 0 14px 26px rgb(35 31 32 / 9%);
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-tone .rp-focus-rail {
+  background:
+    linear-gradient(180deg, rgb(156 99 46 / 20%), rgb(217 167 95 / 9%)) padding-box,
+    linear-gradient(135deg, rgb(217 167 95 / 42%), rgb(96 130 148 / 16%)) border-box;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 6%),
+    0 10px 24px rgb(0 0 0 / 22%);
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-tone .rp-focus-rail .rp-zone-label {
+  color: #17110b;
+  background: #d9a75f;
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-tone .rp-focus-rail .rp-tag-card,
+.layout-prototype[data-theme="dark"] .rp-qa-tone .rp-focus-rail .rp-suggested-tags button,
+.layout-prototype[data-theme="dark"] .rp-qa-tone .rp-focus-rail .rp-request-composer input {
+  border-color: rgb(217 167 95 / 24%);
+  background: rgb(23 31 40 / 80%);
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-tone .rp-answer-composer,
+.layout-prototype[data-theme="dark"] .rp-qa-tone .rp-answer-zone,
+.layout-prototype[data-theme="dark"] .rp-qa-tone .rp-answer-zone .rp-entry-card {
+  background:
+    linear-gradient(180deg, rgb(28 35 42 / 95%), rgb(20 27 35 / 95%)) padding-box,
+    linear-gradient(135deg, rgb(217 167 95 / 34%), rgb(96 130 148 / 18%)) border-box;
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-tone .rp-answer-zone .rp-zone-label,
+.layout-prototype[data-theme="dark"] .rp-qa-tone .rp-answer-zone header > span {
+  color: #f8e9cc;
+  background: rgb(217 167 95 / 16%);
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-black-silver .rp-focus-rail {
+  background:
+    linear-gradient(180deg, #0d0d0d, #181818) padding-box,
+    linear-gradient(135deg, rgb(231 236 238 / 42%), rgb(93 99 104 / 54%)) border-box;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 8%),
+    0 12px 28px rgb(0 0 0 / 28%);
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-black-silver .rp-focus-rail h2 {
+  color: #f5f6f6;
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-black-silver .rp-focus-rail .rp-eyebrow {
+  color: #c6cbce;
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-black-silver .rp-focus-rail > header button {
+  border-color: rgb(232 236 238 / 28%);
+  color: #f5f6f6;
+  background: linear-gradient(180deg, rgb(255 255 255 / 13%), rgb(255 255 255 / 7%));
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-black-silver .rp-focus-rail > header svg,
+.layout-prototype[data-theme="dark"] .rp-qa-black-silver .rp-focus-rail .rp-tag-card svg,
+.layout-prototype[data-theme="dark"] .rp-qa-black-silver .rp-focus-rail .rp-suggested-tags button svg {
+  color: #d5dadd;
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-black-silver .rp-focus-rail .rp-zone-label {
+  color: #151515;
+  background: #d1d6d9;
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-black-silver .rp-focus-rail .rp-tag-card,
+.layout-prototype[data-theme="dark"] .rp-qa-black-silver .rp-focus-rail .rp-suggested-tags button,
+.layout-prototype[data-theme="dark"] .rp-qa-black-silver .rp-focus-rail .rp-request-composer input {
+  border-color: rgb(231 236 238 / 20%);
+  color: #eef1f2;
+  background: rgb(255 255 255 / 8%);
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-black-silver .rp-focus-rail .rp-request-composer input::placeholder {
+  color: #c5cbce;
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-black-silver .rp-answer-composer,
+.layout-prototype[data-theme="dark"] .rp-qa-black-silver .rp-answer-zone,
+.layout-prototype[data-theme="dark"] .rp-qa-black-silver .rp-answer-zone .rp-entry-card {
+  background:
+    linear-gradient(180deg, rgb(34 38 40 / 96%), rgb(22 25 27 / 96%)) padding-box,
+    linear-gradient(135deg, rgb(211 217 220 / 42%), rgb(104 111 116 / 18%)) border-box;
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-black-silver .rp-answer-zone .rp-zone-label,
+.layout-prototype[data-theme="dark"] .rp-qa-black-silver .rp-answer-zone header > span {
+  color: #f5f6f6;
+  background: rgb(197 203 206 / 16%);
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-slate-honey .rp-focus-rail {
+  background:
+    linear-gradient(180deg, rgb(13 31 40 / 94%), rgb(10 24 32 / 92%)) padding-box,
+    linear-gradient(135deg, rgb(143 184 204 / 36%), rgb(49 95 120 / 26%)) border-box;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 5%),
+    0 12px 28px rgb(0 0 0 / 24%);
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-slate-honey .rp-focus-rail .rp-zone-label {
+  color: #061018;
+  background: #8fb8cc;
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-slate-honey .rp-focus-rail .rp-tag-card,
+.layout-prototype[data-theme="dark"] .rp-qa-slate-honey .rp-focus-rail .rp-suggested-tags button,
+.layout-prototype[data-theme="dark"] .rp-qa-slate-honey .rp-focus-rail .rp-request-composer input {
+  border-color: rgb(143 184 204 / 22%);
+  background: rgb(255 255 255 / 7%);
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-slate-honey .rp-answer-composer,
+.layout-prototype[data-theme="dark"] .rp-qa-slate-honey .rp-answer-zone,
+.layout-prototype[data-theme="dark"] .rp-qa-slate-honey .rp-answer-zone .rp-entry-card {
+  background:
+    linear-gradient(180deg, rgb(35 30 20 / 96%), rgb(23 22 18 / 96%)) padding-box,
+    linear-gradient(135deg, rgb(226 174 72 / 34%), rgb(143 184 204 / 14%)) border-box;
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-slate-honey .rp-answer-zone .rp-zone-label,
+.layout-prototype[data-theme="dark"] .rp-qa-slate-honey .rp-answer-zone header > span {
+  color: #f8e9cc;
+  background: rgb(226 174 72 / 15%);
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-sage-clay .rp-focus-rail {
+  background:
+    linear-gradient(180deg, rgb(16 34 20 / 94%), rgb(12 27 16 / 92%)) padding-box,
+    linear-gradient(135deg, rgb(157 191 162 / 34%), rgb(77 116 84 / 24%)) border-box;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 5%),
+    0 12px 28px rgb(0 0 0 / 22%);
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-sage-clay .rp-focus-rail .rp-zone-label {
+  color: #07140a;
+  background: #9dc0a1;
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-sage-clay .rp-focus-rail .rp-tag-card,
+.layout-prototype[data-theme="dark"] .rp-qa-sage-clay .rp-focus-rail .rp-suggested-tags button,
+.layout-prototype[data-theme="dark"] .rp-qa-sage-clay .rp-focus-rail .rp-request-composer input {
+  border-color: rgb(157 191 162 / 22%);
+  background: rgb(255 255 255 / 7%);
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-sage-clay .rp-answer-composer,
+.layout-prototype[data-theme="dark"] .rp-qa-sage-clay .rp-answer-zone,
+.layout-prototype[data-theme="dark"] .rp-qa-sage-clay .rp-answer-zone .rp-entry-card {
+  background:
+    linear-gradient(180deg, rgb(38 26 23 / 96%), rgb(26 21 19 / 96%)) padding-box,
+    linear-gradient(135deg, rgb(224 151 130 / 28%), rgb(157 191 162 / 12%)) border-box;
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-sage-clay .rp-answer-zone .rp-zone-label,
+.layout-prototype[data-theme="dark"] .rp-qa-sage-clay .rp-answer-zone header > span {
+  color: #f6ddd6;
+  background: rgb(224 151 130 / 14%);
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-type .rp-focus-rail {
+  border-color: rgb(143 184 204 / 32%);
+  background: linear-gradient(180deg, rgb(15 24 32 / 86%), rgb(18 28 37 / 72%));
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-type .rp-focus-rail .rp-zone-label {
+  color: #061018;
+  background: #8fb8cc;
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-type .rp-answer-zone .rp-zone-label {
+  color: #efbf78;
+  background: rgb(217 167 95 / 14%);
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-depth .rp-focus-rail {
+  background: #111820;
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 3%),
+    inset 0 12px 28px rgb(0 0 0 / 20%);
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-depth .rp-focus-rail .rp-zone-label {
+  background: #0d131b;
+}
+
+.layout-prototype[data-theme="dark"] .rp-qa-depth .rp-answer-zone,
+.layout-prototype[data-theme="dark"] .rp-qa-depth .rp-answer-zone .rp-entry-card {
+  background:
+    linear-gradient(180deg, rgb(22 31 41 / 98%), rgb(15 22 31 / 94%)) padding-box,
+    linear-gradient(135deg, rgb(217 167 95 / 30%), rgb(143 184 204 / 16%)) border-box;
 }
 
 .rp-navigator {
@@ -2467,6 +3099,63 @@
 
   .rp-rail-focus-context {
     position: static;
+  }
+
+  .rp-question-answer-page {
+    align-items: stretch;
+  }
+
+  .rp-question-answer-page .rp-rail-focus-context,
+  .rp-question-answer-page .rp-rail-focus-workspace {
+    flex: 1 1 100%;
+    max-inline-size: none;
+  }
+
+  .rp-question-answer-page .rp-answer-zone {
+    padding: 14px;
+  }
+
+  .rp-qa-type .rp-answer-zone {
+    padding: 14px 0 0 14px;
+  }
+
+  .rp-question-answer-page .rp-focus-rail > header button {
+    width: 100%;
+    max-width: 100%;
+    justify-self: stretch;
+  }
+
+  .rp-question-answer-page .rp-focus-rail-tags,
+  .rp-question-answer-page .rp-focus-rail .rp-suggested-tags {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .rp-question-answer-page .rp-focus-rail .rp-request-composer,
+  .rp-question-answer-page .rp-focus-rail .rp-request-composer label {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .rp-question-answer-page .rp-tag-card,
+  .rp-question-answer-page .rp-suggested-tags button {
+    justify-content: flex-start;
+    width: 100%;
+    min-height: 40px;
+    line-height: 1.2;
+    text-align: left;
+  }
+
+  .rp-question-answer-page .rp-minimal-answer-feed header {
+    display: grid;
+    align-items: flex-start;
+    justify-items: start;
+  }
+
+  .rp-question-answer-page .rp-minimal-answer-feed header > span {
+    flex: 0 1 auto;
+    max-width: 100%;
   }
 
   .rp-focus-rail {

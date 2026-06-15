@@ -55,6 +55,12 @@ const VARIANT_ORDER = [
   "L",
   "M",
   "N",
+  "O",
+  "P",
+  "Q",
+  "R",
+  "S",
+  "T",
 ] as const;
 type VariantKey = (typeof VARIANT_ORDER)[number];
 type EntryFeedStyle =
@@ -72,6 +78,13 @@ type PrototypeThemeControls = {
   onToggleTheme: () => void;
   theme: ThemePreference;
 };
+type SeparationStyle =
+  | "tone"
+  | "type"
+  | "depth"
+  | "black-silver"
+  | "slate-honey"
+  | "sage-clay";
 
 type VariantDefinition = {
   label: string;
@@ -262,6 +275,21 @@ const VARIANTS: Record<VariantKey, VariantDefinition> = {
   L: { label: "Rail focus notes", component: RailFocusAnnotatedVariant },
   M: { label: "Rail focus masonry", component: RailFocusMasonryVariant },
   N: { label: "Rail focus waterfall", component: RailFocusWaterfallVariant },
+  O: { label: "Questions bronze, Answers gold", component: QuestionAnswerToneVariant },
+  P: { label: "Question sans, Answer serif", component: QuestionAnswerTypeVariant },
+  Q: { label: "Flat Questions, raised Answers", component: QuestionAnswerDepthVariant },
+  R: {
+    label: "Questions matte black, Answers silver",
+    component: QuestionAnswerBlackSilverVariant,
+  },
+  S: {
+    label: "Questions slate, Answers honey",
+    component: QuestionAnswerSlateHoneyVariant,
+  },
+  T: {
+    label: "Questions sage, Answers clay",
+    component: QuestionAnswerSageClayVariant,
+  },
 };
 
 export function LayoutPrototype({ onToggleTheme, theme }: PrototypeThemeControls) {
@@ -345,7 +373,13 @@ function isVariantKey(value: string | null): value is VariantKey {
     value === "K" ||
     value === "L" ||
     value === "M" ||
-    value === "N"
+    value === "N" ||
+    value === "O" ||
+    value === "P" ||
+    value === "Q" ||
+    value === "R" ||
+    value === "S" ||
+    value === "T"
   );
 }
 
@@ -651,28 +685,111 @@ function RailFocusWaterfallVariant({ onToggleTheme, theme }: PrototypeThemeContr
   );
 }
 
+function QuestionAnswerToneVariant({ onToggleTheme, theme }: PrototypeThemeControls) {
+  return (
+    <RailFocusLayout
+      feedStyle="default"
+      heading="Crusades, kingdoms, and Christian courage"
+      onToggleTheme={onToggleTheme}
+      separationStyle="tone"
+      theme={theme}
+    />
+  );
+}
+
+function QuestionAnswerTypeVariant({ onToggleTheme, theme }: PrototypeThemeControls) {
+  return (
+    <RailFocusLayout
+      feedStyle="default"
+      heading="Crusades, kingdoms, and Christian courage"
+      onToggleTheme={onToggleTheme}
+      separationStyle="type"
+      theme={theme}
+    />
+  );
+}
+
+function QuestionAnswerDepthVariant({ onToggleTheme, theme }: PrototypeThemeControls) {
+  return (
+    <RailFocusLayout
+      feedStyle="default"
+      heading="Crusades, kingdoms, and Christian courage"
+      onToggleTheme={onToggleTheme}
+      separationStyle="depth"
+      theme={theme}
+    />
+  );
+}
+
+function QuestionAnswerBlackSilverVariant({ onToggleTheme, theme }: PrototypeThemeControls) {
+  return (
+    <RailFocusLayout
+      feedStyle="default"
+      heading="Crusades, kingdoms, and Christian courage"
+      onToggleTheme={onToggleTheme}
+      separationStyle="black-silver"
+      theme={theme}
+    />
+  );
+}
+
+function QuestionAnswerSlateHoneyVariant({ onToggleTheme, theme }: PrototypeThemeControls) {
+  return (
+    <RailFocusLayout
+      feedStyle="default"
+      heading="Crusades, kingdoms, and Christian courage"
+      onToggleTheme={onToggleTheme}
+      separationStyle="slate-honey"
+      theme={theme}
+    />
+  );
+}
+
+function QuestionAnswerSageClayVariant({ onToggleTheme, theme }: PrototypeThemeControls) {
+  return (
+    <RailFocusLayout
+      feedStyle="default"
+      heading="Crusades, kingdoms, and Christian courage"
+      onToggleTheme={onToggleTheme}
+      separationStyle="sage-clay"
+      theme={theme}
+    />
+  );
+}
+
 function RailFocusLayout({
   feedStyle,
   heading,
   onToggleTheme,
+  separationStyle,
   theme,
 }: {
   feedStyle: EntryFeedStyle;
   heading: string;
+  separationStyle?: SeparationStyle;
 } & PrototypeThemeControls) {
+  const pageClassName = [
+    "rp-page",
+    "rp-rail-focus-page",
+    separationStyle ? "rp-question-answer-page" : "",
+    separationStyle ? `rp-qa-${separationStyle}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <PrototypeShell onToggleTheme={onToggleTheme} theme={theme}>
-      <main className="rp-page rp-rail-focus-page" aria-labelledby="rp-rail-focus-title">
+      <main className={pageClassName} aria-labelledby="rp-rail-focus-title">
         <aside className="rp-rail-focus-context" aria-label="Knowledge context and search">
-          <ContextSearchRail />
+          <ContextSearchRail separationStyle={separationStyle} />
         </aside>
         <section className="rp-rail-focus-workspace" aria-label="Contribute and read Answers">
           <header className="rp-rail-focus-heading">
             <p className="rp-eyebrow">Context Page</p>
             <h1 id="rp-rail-focus-title">{heading}</h1>
           </header>
-          <ExpandableContributionComposer />
-          <MinimalAnswerFeed style={feedStyle} />
+          <ExpandableContributionComposer separationStyle={separationStyle} />
+          <MinimalAnswerFeed separationStyle={separationStyle} style={feedStyle} />
         </section>
       </main>
     </PrototypeShell>
@@ -898,11 +1015,15 @@ function ContextSearchNavigator() {
   );
 }
 
-function ContextSearchRail() {
+function ContextSearchRail({ separationStyle }: { separationStyle?: SeparationStyle }) {
   return (
-    <section className="rp-focus-rail" aria-labelledby="rp-focus-rail-title">
+    <section
+      className={separationStyle ? "rp-focus-rail rp-question-zone" : "rp-focus-rail"}
+      aria-labelledby="rp-focus-rail-title"
+    >
       <header>
         <div>
+          {separationStyle ? <span className="rp-zone-label">Questions</span> : null}
           <p className="rp-eyebrow">Knowledge Navigator</p>
           <h2 id="rp-focus-rail-title">Active Knowledge Context</h2>
         </div>
@@ -944,16 +1065,23 @@ function ContextSearchRail() {
   );
 }
 
-function ExpandableContributionComposer() {
+function ExpandableContributionComposer({
+  separationStyle,
+}: {
+  separationStyle?: SeparationStyle;
+}) {
   const [expanded, setExpanded] = useState(false);
+  const className = [
+    "rp-focus-contribution",
+    expanded ? "rp-focus-contribution-expanded" : "",
+    separationStyle ? "rp-answer-composer" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <form
-      className={
-        expanded
-          ? "rp-focus-contribution rp-focus-contribution-expanded"
-          : "rp-focus-contribution"
-      }
+      className={className}
       onSubmit={(event) => event.preventDefault()}
     >
       <label>
@@ -972,7 +1100,13 @@ function ExpandableContributionComposer() {
   );
 }
 
-function MinimalAnswerFeed({ style = "default" }: { style?: EntryFeedStyle }) {
+function MinimalAnswerFeed({
+  separationStyle,
+  style = "default",
+}: {
+  separationStyle?: SeparationStyle;
+  style?: EntryFeedStyle;
+}) {
   const mixedFeed = style === "masonry" || style === "waterfall";
   const countLabel = mixedFeed
     ? `${KNOWLEDGE_ENTRIES.length} entries + ${KNOWLEDGE_SLOTS.length} requests`
@@ -980,11 +1114,20 @@ function MinimalAnswerFeed({ style = "default" }: { style?: EntryFeedStyle }) {
 
   return (
     <section
-      className={`rp-minimal-answer-feed rp-minimal-answer-feed-${style}`}
+      className={[
+        "rp-minimal-answer-feed",
+        `rp-minimal-answer-feed-${style}`,
+        separationStyle ? "rp-answer-zone" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       aria-labelledby="rp-minimal-feed-title"
     >
       <header>
-        <h2 id="rp-minimal-feed-title">Answers</h2>
+        <div>
+          {separationStyle ? <span className="rp-zone-label">Answers</span> : null}
+          <h2 id="rp-minimal-feed-title">Answers</h2>
+        </div>
         <span>{countLabel}</span>
       </header>
       {style === "waterfall" ? (
