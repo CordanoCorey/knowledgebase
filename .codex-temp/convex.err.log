@@ -1142,3 +1142,1516 @@ Found 4 errors in the same file, starting at: convex/analytics.test.ts[90m:88[
 6/14/2026, 10:22:59 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signIn'
 6/14/2026, 10:22:59 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
 6/14/2026, 10:37:29 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[32m√[39m 22:57:08 Convex functions ready! (7.22s)
+- Preparing Convex functions...
+
+[32m√[39m 22:57:24 Convex functions ready! (5.24s)
+6/14/2026, 11:37:20 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 12:37:11 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 1:12:47 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 1:37:02 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 2:12:38 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 2:36:53 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 3:12:29 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 3:36:45 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:12:20 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:36:36 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:12:11 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:36:27 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 6:12:02 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 6:36:19 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 7:11:53 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 7:25:51 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 7:36:10 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 8:25:43 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 8:36:01 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 8:58:04 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 9:25:34 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 9:35:52 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 9:57:56 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 10:25:30 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 10:35:43 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 10:57:47 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 11:25:21 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 11:35:34 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 11:57:38 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 12:25:12 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 12:35:25 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 12:57:29 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 1:25:03 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 1:35:16 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 1:57:20 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 2:24:54 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 2:35:07 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 2:57:11 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 3:24:45 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 3:34:58 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 3:57:02 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:23:22 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:23:22 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:23:22 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:24:58 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:24:58 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:24:58 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:25:06 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:25:06 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:25:06 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:25:13 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:25:13 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:25:13 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:25:30 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:25:30 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:25:30 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:26:20 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:26:20 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:26:20 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:26:44 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:26:44 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:26:44 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:26:54 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:26:54 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:26:54 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:27:04 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:27:04 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:27:04 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:27:21 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:27:21 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:27:21 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:40:54 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:41:19 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:41:19 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:41:32 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 4:41:32 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[32m√[39m Added table indexes:
+  [+] smartStorageRuns.by_createdByUserId_and_createdAt   createdByUserId, createdAt, _creationTime
+  [+] smartStorageRuns.by_sourceId_and_createdAt   sourceId, createdAt, _creationTime
+  [+] smartStorageRuns.by_status_and_createdAt   status, createdAt, _creationTime
+✔ 16:57:35 Convex functions ready! (7.6s)
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m90[0m:[93m3[0m - [91merror[0m[90m TS2719: [0mType '(ctx: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/server/registration").GenericMutationCtx<{ users: { document: { _id: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/values/value").Id<"users">; _creationTime: number; name?: string | undefined; ... ...' is not assignable to type '(ctx: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/server/registration").GenericMutationCtx<{ users: { document: { _id: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/values/value").Id<"users">; _creationTime: number; name?: string | undefined; ... ...'. Two different types with this name exist, but they are unrelated.
+  Type 'Promise<{ smartStorageRunId: Id<"smartStorageRuns">; sourceId: Id<"sources">; status: string; }>' is not assignable to type 'ValidatorTypeToReturnType<{ sourceId: Id<"sources">; status: "queued"; smartStorageRunId: Id<"smartStorageRuns">; }>'.
+    Type 'Promise<{ smartStorageRunId: Id<"smartStorageRuns">; sourceId: Id<"sources">; status: string; }>' is not assignable to type 'Promise<{ sourceId: Id<"sources">; status: "queued"; smartStorageRunId: Id<"smartStorageRuns">; }>'.
+      Type '{ smartStorageRunId: Id<"smartStorageRuns">; sourceId: Id<"sources">; status: string; }' is not assignable to type '{ sourceId: Id<"sources">; status: "queued"; smartStorageRunId: Id<"smartStorageRuns">; }'.
+        Types of property 'status' are incompatible.
+          Type 'string' is not assignable to type '"queued"'.
+
+[7m90[0m   handler: async (ctx, args) => {
+[7m  [0m [91m  ~~~~~~~[0m
+[96mconvex/smartStorage.ts[0m:[93m115[0m:[93m7[0m - [91merror[0m[90m TS2322: [0mType '{ passageString?: string | undefined; canonicalKey: string; href: string; id: string; knowledgeType: string; label: string; }[]' is not assignable to type '{ passageString?: string | undefined; id: string; knowledgeType: "words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | ... 9 more ... | "place"; canonicalKey: string; href: string; label: string; }[]'.
+  Type '{ passageString?: string | undefined; canonicalKey: string; href: string; id: string; knowledgeType: string; label: string; }' is not assignable to type '{ passageString?: string | undefined; id: string; knowledgeType: "words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | ... 9 more ... | "place"; canonicalKey: string; href: string; label: string; }'.
+    Types of property 'knowledgeType' are incompatible.
+      Type 'string' is not assignable to type '"words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | "lesson" | "comment" | "prayerRequest" | "event" | ... 4 more ... | "place"'.
+
+[7m115[0m       contextTags: normalizeContextTags(args.contextTags),
+[7m   [0m [91m      ~~~~~~~~~~~[0m
+
+  [96mnode_modules/convex/dist/esm-types/type_utils.d.ts[0m:[93m11[0m:[93m97[0m
+    [7m11[0m export type Expand<ObjectType extends Record<any, any>> = ObjectType extends Record<any, any> ? {
+    [7m  [0m [96m                                                                                                ~[0m
+    [7m12[0m     [Key in keyof ObjectType]: ObjectType[Key];
+    [7m  [0m [96m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    [7m13[0m } : never;
+    [7m  [0m [96m~[0m
+    The expected type comes from property 'contextTags' which is declared here on type '{ slotId?: string | undefined; contractSnapshotVersion?: string | undefined; contractSnapshotText?: string | undefined; typeBehaviorSnapshotVersion?: string | undefined; typeBehaviorSnapshotText?: string | undefined; ... 11 more ...; contextTags: { ...; }[]; }'
+
+Found 2 errors in the same file, starting at: convex/smartStorage.ts[90m:90[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m90[0m:[93m3[0m - [91merror[0m[90m TS2719: [0mType '(ctx: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/server/registration").GenericMutationCtx<{ users: { document: { _id: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/values/value").Id<"users">; _creationTime: number; name?: string | undefined; ... ...' is not assignable to type '(ctx: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/server/registration").GenericMutationCtx<{ users: { document: { _id: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/values/value").Id<"users">; _creationTime: number; name?: string | undefined; ... ...'. Two different types with this name exist, but they are unrelated.
+  Type 'Promise<{ smartStorageRunId: Id<"smartStorageRuns">; sourceId: Id<"sources">; status: string; }>' is not assignable to type 'ValidatorTypeToReturnType<{ sourceId: Id<"sources">; status: "queued"; smartStorageRunId: Id<"smartStorageRuns">; }>'.
+    Type 'Promise<{ smartStorageRunId: Id<"smartStorageRuns">; sourceId: Id<"sources">; status: string; }>' is not assignable to type 'Promise<{ sourceId: Id<"sources">; status: "queued"; smartStorageRunId: Id<"smartStorageRuns">; }>'.
+      Type '{ smartStorageRunId: Id<"smartStorageRuns">; sourceId: Id<"sources">; status: string; }' is not assignable to type '{ sourceId: Id<"sources">; status: "queued"; smartStorageRunId: Id<"smartStorageRuns">; }'.
+        Types of property 'status' are incompatible.
+          Type 'string' is not assignable to type '"queued"'.
+
+[7m90[0m   handler: async (ctx, args) => {
+[7m  [0m [91m  ~~~~~~~[0m
+[96mconvex/smartStorage.ts[0m:[93m115[0m:[93m7[0m - [91merror[0m[90m TS2322: [0mType '{ passageString?: string | undefined; canonicalKey: string; href: string; id: string; knowledgeType: string; label: string; }[]' is not assignable to type '{ passageString?: string | undefined; id: string; knowledgeType: "words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | ... 9 more ... | "place"; canonicalKey: string; href: string; label: string; }[]'.
+  Type '{ passageString?: string | undefined; canonicalKey: string; href: string; id: string; knowledgeType: string; label: string; }' is not assignable to type '{ passageString?: string | undefined; id: string; knowledgeType: "words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | ... 9 more ... | "place"; canonicalKey: string; href: string; label: string; }'.
+    Types of property 'knowledgeType' are incompatible.
+      Type 'string' is not assignable to type '"words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | "lesson" | "comment" | "prayerRequest" | "event" | ... 4 more ... | "place"'.
+
+[7m115[0m       contextTags: normalizeContextTags(args.contextTags),
+[7m   [0m [91m      ~~~~~~~~~~~[0m
+
+  [96mnode_modules/convex/dist/esm-types/type_utils.d.ts[0m:[93m11[0m:[93m97[0m
+    [7m11[0m export type Expand<ObjectType extends Record<any, any>> = ObjectType extends Record<any, any> ? {
+    [7m  [0m [96m                                                                                                ~[0m
+    [7m12[0m     [Key in keyof ObjectType]: ObjectType[Key];
+    [7m  [0m [96m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    [7m13[0m } : never;
+    [7m  [0m [96m~[0m
+    The expected type comes from property 'contextTags' which is declared here on type '{ slotId?: string | undefined; contractSnapshotVersion?: string | undefined; contractSnapshotText?: string | undefined; typeBehaviorSnapshotVersion?: string | undefined; typeBehaviorSnapshotText?: string | undefined; ... 11 more ...; contextTags: { ...; }[]; }'
+
+
+Found 2 errors in the same file, starting at: convex/smartStorage.ts[90m:90[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m90[0m:[93m3[0m - [91merror[0m[90m TS2719: [0mType '(ctx: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/server/registration").GenericMutationCtx<{ users: { document: { _id: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/values/value").Id<"users">; _creationTime: number; name?: string | undefined; ... ...' is not assignable to type '(ctx: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/server/registration").GenericMutationCtx<{ users: { document: { _id: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/values/value").Id<"users">; _creationTime: number; name?: string | undefined; ... ...'. Two different types with this name exist, but they are unrelated.
+  Type 'Promise<{ smartStorageRunId: Id<"smartStorageRuns">; sourceId: Id<"sources">; status: string; }>' is not assignable to type 'ValidatorTypeToReturnType<{ sourceId: Id<"sources">; status: "queued"; smartStorageRunId: Id<"smartStorageRuns">; }>'.
+    Type 'Promise<{ smartStorageRunId: Id<"smartStorageRuns">; sourceId: Id<"sources">; status: string; }>' is not assignable to type 'Promise<{ sourceId: Id<"sources">; status: "queued"; smartStorageRunId: Id<"smartStorageRuns">; }>'.
+      Type '{ smartStorageRunId: Id<"smartStorageRuns">; sourceId: Id<"sources">; status: string; }' is not assignable to type '{ sourceId: Id<"sources">; status: "queued"; smartStorageRunId: Id<"smartStorageRuns">; }'.
+        Types of property 'status' are incompatible.
+          Type 'string' is not assignable to type '"queued"'.
+
+[7m90[0m   handler: async (ctx, args) => {
+[7m  [0m [91m  ~~~~~~~[0m
+[96mconvex/smartStorage.ts[0m:[93m115[0m:[93m7[0m - [91merror[0m[90m TS2322: [0mType '{ passageString?: string | undefined; canonicalKey: string; href: string; id: string; knowledgeType: string; label: string; }[]' is not assignable to type '{ passageString?: string | undefined; id: string; knowledgeType: "words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | ... 9 more ... | "place"; canonicalKey: string; href: string; label: string; }[]'.
+  Type '{ passageString?: string | undefined; canonicalKey: string; href: string; id: string; knowledgeType: string; label: string; }' is not assignable to type '{ passageString?: string | undefined; id: string; knowledgeType: "words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | ... 9 more ... | "place"; canonicalKey: string; href: string; label: string; }'.
+    Types of property 'knowledgeType' are incompatible.
+      Type 'string' is not assignable to type '"words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | "lesson" | "comment" | "prayerRequest" | "event" | ... 4 more ... | "place"'.
+
+[7m115[0m       contextTags: normalizeContextTags(args.contextTags),
+[7m   [0m [91m      ~~~~~~~~~~~[0m
+
+  [96mnode_modules/convex/dist/esm-types/type_utils.d.ts[0m:[93m11[0m:[93m97[0m
+    [7m11[0m export type Expand<ObjectType extends Record<any, any>> = ObjectType extends Record<any, any> ? {
+    [7m  [0m [96m                                                                                                ~[0m
+    [7m12[0m     [Key in keyof ObjectType]: ObjectType[Key];
+    [7m  [0m [96m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    [7m13[0m } : never;
+    [7m  [0m [96m~[0m
+    The expected type comes from property 'contextTags' which is declared here on type '{ slotId?: string | undefined; contractSnapshotVersion?: string | undefined; contractSnapshotText?: string | undefined; typeBehaviorSnapshotVersion?: string | undefined; typeBehaviorSnapshotText?: string | undefined; ... 11 more ...; contextTags: { ...; }[]; }'
+
+Found 2 errors in the same file, starting at: convex/smartStorage.ts[90m:90[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m90[0m:[93m3[0m - [91merror[0m[90m TS2719: [0mType '(ctx: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/server/registration").GenericMutationCtx<{ users: { document: { _id: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/values/value").Id<"users">; _creationTime: number; name?: string | undefined; ... ...' is not assignable to type '(ctx: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/server/registration").GenericMutationCtx<{ users: { document: { _id: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/values/value").Id<"users">; _creationTime: number; name?: string | undefined; ... ...'. Two different types with this name exist, but they are unrelated.
+  Type 'Promise<{ smartStorageRunId: Id<"smartStorageRuns">; sourceId: Id<"sources">; status: string; }>' is not assignable to type 'ValidatorTypeToReturnType<{ sourceId: Id<"sources">; status: "queued"; smartStorageRunId: Id<"smartStorageRuns">; }>'.
+    Type 'Promise<{ smartStorageRunId: Id<"smartStorageRuns">; sourceId: Id<"sources">; status: string; }>' is not assignable to type 'Promise<{ sourceId: Id<"sources">; status: "queued"; smartStorageRunId: Id<"smartStorageRuns">; }>'.
+      Type '{ smartStorageRunId: Id<"smartStorageRuns">; sourceId: Id<"sources">; status: string; }' is not assignable to type '{ sourceId: Id<"sources">; status: "queued"; smartStorageRunId: Id<"smartStorageRuns">; }'.
+        Types of property 'status' are incompatible.
+          Type 'string' is not assignable to type '"queued"'.
+
+[7m90[0m   handler: async (ctx, args) => {
+[7m  [0m [91m  ~~~~~~~[0m
+[96mconvex/smartStorage.ts[0m:[93m115[0m:[93m7[0m - [91merror[0m[90m TS2322: [0mType '{ passageString?: string | undefined; canonicalKey: string; href: string; id: string; knowledgeType: string; label: string; }[]' is not assignable to type '{ passageString?: string | undefined; id: string; knowledgeType: "words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | ... 9 more ... | "place"; canonicalKey: string; href: string; label: string; }[]'.
+  Type '{ passageString?: string | undefined; canonicalKey: string; href: string; id: string; knowledgeType: string; label: string; }' is not assignable to type '{ passageString?: string | undefined; id: string; knowledgeType: "words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | ... 9 more ... | "place"; canonicalKey: string; href: string; label: string; }'.
+    Types of property 'knowledgeType' are incompatible.
+      Type 'string' is not assignable to type '"words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | "lesson" | "comment" | "prayerRequest" | "event" | ... 4 more ... | "place"'.
+
+[7m115[0m       contextTags: normalizeContextTags(args.contextTags),
+[7m   [0m [91m      ~~~~~~~~~~~[0m
+
+  [96mnode_modules/convex/dist/esm-types/type_utils.d.ts[0m:[93m11[0m:[93m97[0m
+    [7m11[0m export type Expand<ObjectType extends Record<any, any>> = ObjectType extends Record<any, any> ? {
+    [7m  [0m [96m                                                                                                ~[0m
+    [7m12[0m     [Key in keyof ObjectType]: ObjectType[Key];
+    [7m  [0m [96m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    [7m13[0m } : never;
+    [7m  [0m [96m~[0m
+    The expected type comes from property 'contextTags' which is declared here on type '{ slotId?: string | undefined; contractSnapshotVersion?: string | undefined; contractSnapshotText?: string | undefined; typeBehaviorSnapshotVersion?: string | undefined; typeBehaviorSnapshotText?: string | undefined; ... 11 more ...; contextTags: { ...; }[]; }'
+
+Found 2 errors in the same file, starting at: convex/smartStorage.ts[90m:90[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/pinnedKnowledgePages.test.ts[0m:[93m262[0m:[93m18[0m - [91merror[0m[90m TS2345: [0mArgument of type '"by_userId_and_pageKey"' is not assignable to parameter of type 'keyof SystemIndexes'.
+
+[7m262[0m       .withIndex("by_userId_and_pageKey", (q) =>
+[7m   [0m [91m                 ~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/pinnedKnowledgePages.test.ts[0m:[93m263[0m:[93m14[0m - [91merror[0m[90m TS2345: [0mArgument of type '"userId"' is not assignable to parameter of type '"_creationTime" | "_id"'.
+
+[7m263[0m         q.eq("userId", userId).eq("pageKey", pageKey),
+[7m   [0m [91m             ~~~~~~~~[0m
+
+[96mconvex/pinnedKnowledgePages.test.ts[0m:[93m263[0m:[93m32[0m - [91merror[0m[90m TS2339: [0mProperty 'eq' does not exist on type 'IndexRange'.
+
+[7m263[0m         q.eq("userId", userId).eq("pageKey", pageKey),
+[7m   [0m [91m                               ~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m90[0m:[93m3[0m - [91merror[0m[90m TS2719: [0mType '(ctx: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/server/registration").GenericMutationCtx<{ users: { document: { _id: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/values/value").Id<"users">; _creationTime: number; name?: string | undefined; ... ...' is not assignable to type '(ctx: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/server/registration").GenericMutationCtx<{ users: { document: { _id: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/values/value").Id<"users">; _creationTime: number; name?: string | undefined; ... ...'. Two different types with this name exist, but they are unrelated.
+  Type 'Promise<{ smartStorageRunId: Id<"smartStorageRuns">; sourceId: Id<"sources">; status: string; }>' is not assignable to type 'ValidatorTypeToReturnType<{ sourceId: Id<"sources">; status: "queued"; smartStorageRunId: Id<"smartStorageRuns">; }>'.
+    Type 'Promise<{ smartStorageRunId: Id<"smartStorageRuns">; sourceId: Id<"sources">; status: string; }>' is not assignable to type 'Promise<{ sourceId: Id<"sources">; status: "queued"; smartStorageRunId: Id<"smartStorageRuns">; }>'.
+      Type '{ smartStorageRunId: Id<"smartStorageRuns">; sourceId: Id<"sources">; status: string; }' is not assignable to type '{ sourceId: Id<"sources">; status: "queued"; smartStorageRunId: Id<"smartStorageRuns">; }'.
+        Types of property 'status' are incompatible.
+          Type 'string' is not assignable to type '"queued"'.
+
+[7m90[0m   handler: async (ctx, args) => {
+[7m  [0m [91m  ~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m115[0m:[93m7[0m - [91merror[0m[90m TS2322: [0mType '{ passageString?: string | undefined; canonicalKey: string; href: string; id: string; knowledgeType: string; label: string; }[]' is not assignable to type '{ passageString?: string | undefined; id: string; knowledgeType: "words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | ... 9 more ... | "place"; canonicalKey: string; href: string; label: string; }[]'.
+  Type '{ passageString?: string | undefined; canonicalKey: string; href: string; id: string; knowledgeType: string; label: string; }' is not assignable to type '{ passageString?: string | undefined; id: string; knowledgeType: "words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | ... 9 more ... | "place"; canonicalKey: string; href: string; label: string; }'.
+    Types of property 'knowledgeType' are incompatible.
+      Type 'string' is not assignable to type '"words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | "lesson" | "comment" | "prayerRequest" | "event" | ... 4 more ... | "place"'.
+
+[7m115[0m       contextTags: normalizeContextTags(args.contextTags),
+[7m   [0m [91m      ~~~~~~~~~~~[0m
+
+  [96mnode_modules/convex/dist/esm-types/type_utils.d.ts[0m:[93m11[0m:[93m97[0m
+    [7m11[0m export type Expand<ObjectType extends Record<any, any>> = ObjectType extends Record<any, any> ? {
+    [7m  [0m [96m                                                                                                ~[0m
+    [7m12[0m     [Key in keyof ObjectType]: ObjectType[Key];
+    [7m  [0m [96m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    [7m13[0m } : never;
+    [7m  [0m [96m~[0m
+    The expected type comes from property 'contextTags' which is declared here on type '{ slotId?: string | undefined; contractSnapshotVersion?: string | undefined; contractSnapshotText?: string | undefined; typeBehaviorSnapshotVersion?: string | undefined; typeBehaviorSnapshotText?: string | undefined; ... 11 more ...; contextTags: { ...; }[]; }'
+
+Found 5 errors in 2 files.
+
+Errors  Files
+     3  convex/pinnedKnowledgePages.test.ts[90m:262[0m
+     2  convex/smartStorage.ts[90m:90[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m90[0m:[93m3[0m - [91merror[0m[90m TS2719: [0mType '(ctx: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/server/registration").GenericMutationCtx<{ users: { document: { _id: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/values/value").Id<"users">; _creationTime: number; name?: string | undefined; ... ...' is not assignable to type '(ctx: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/server/registration").GenericMutationCtx<{ users: { document: { _id: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/values/value").Id<"users">; _creationTime: number; name?: string | undefined; ... ...'. Two different types with this name exist, but they are unrelated.
+  Type 'Promise<{ smartStorageRunId: Id<"smartStorageRuns">; sourceId: Id<"sources">; status: string; }>' is not assignable to type 'ValidatorTypeToReturnType<{ sourceId: Id<"sources">; status: "queued"; smartStorageRunId: Id<"smartStorageRuns">; }>'.
+    Type 'Promise<{ smartStorageRunId: Id<"smartStorageRuns">; sourceId: Id<"sources">; status: string; }>' is not assignable to type 'Promise<{ sourceId: Id<"sources">; status: "queued"; smartStorageRunId: Id<"smartStorageRuns">; }>'.
+      Type '{ smartStorageRunId: Id<"smartStorageRuns">; sourceId: Id<"sources">; status: string; }' is not assignable to type '{ sourceId: Id<"sources">; status: "queued"; smartStorageRunId: Id<"smartStorageRuns">; }'.
+        Types of property 'status' are incompatible.
+          Type 'string' is not assignable to type '"queued"'.
+
+[7m90[0m   handler: async (ctx, args) => {
+[7m  [0m [91m  ~~~~~~~[0m
+[96mconvex/smartStorage.ts[0m:[93m115[0m:[93m7[0m - [91merror[0m[90m TS2322: [0mType '{ passageString?: string | undefined; canonicalKey: string; href: string; id: string; knowledgeType: string; label: string; }[]' is not assignable to type '{ passageString?: string | undefined; id: string; knowledgeType: "words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | ... 9 more ... | "place"; canonicalKey: string; href: string; label: string; }[]'.
+  Type '{ passageString?: string | undefined; canonicalKey: string; href: string; id: string; knowledgeType: string; label: string; }' is not assignable to type '{ passageString?: string | undefined; id: string; knowledgeType: "words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | ... 9 more ... | "place"; canonicalKey: string; href: string; label: string; }'.
+    Types of property 'knowledgeType' are incompatible.
+      Type 'string' is not assignable to type '"words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | "lesson" | "comment" | "prayerRequest" | "event" | ... 4 more ... | "place"'.
+
+[7m115[0m       contextTags: normalizeContextTags(args.contextTags),
+[7m   [0m [91m      ~~~~~~~~~~~[0m
+
+  [96mnode_modules/convex/dist/esm-types/type_utils.d.ts[0m:[93m11[0m:[93m97[0m
+    [7m11[0m export type Expand<ObjectType extends Record<any, any>> = ObjectType extends Record<any, any> ? {
+    [7m  [0m [96m                                                                                                ~[0m
+    [7m12[0m     [Key in keyof ObjectType]: ObjectType[Key];
+    [7m  [0m [96m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    [7m13[0m } : never;
+    [7m  [0m [96m~[0m
+    The expected type comes from property 'contextTags' which is declared here on type '{ slotId?: string | undefined; contractSnapshotVersion?: string | undefined; contractSnapshotText?: string | undefined; typeBehaviorSnapshotVersion?: string | undefined; typeBehaviorSnapshotText?: string | undefined; ... 11 more ...; contextTags: { ...; }[]; }'
+
+Found 2 errors in the same file, starting at: convex/smartStorage.ts[90m:90[0m
+- Preparing Convex functions...
+
+[32m√[39m 17:09:36 Convex functions ready! (6.93s)
+6/15/2026, 5:02:38 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:02:38 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:02:38 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:02:57 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:02:57 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:02:57 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:03:09 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:03:09 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:03:09 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:03:38 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:03:38 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:03:38 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:03:48 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:03:48 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:03:48 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:04:01 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:04:01 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:04:01 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:04:12 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:04:12 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:04:12 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:04:23 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:04:23 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:04:23 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:04:23 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:04:23 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:04:23 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 5:04:24 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:04:25 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:04:25 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:04:26 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:04:27 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:04:28 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:04:31 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:04:32 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:04:33 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:04:39 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:04:42 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:04:42 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:04:51 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:04:52 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:05:02 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:05:04 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:05:09 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:05:14 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:05:25 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:05:27 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:05:35 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:05:38 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:05:48 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:05:48 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:05:50 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:06:01 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:06:10 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:06:13 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:06:20 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:06:32 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:06:34 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:06:36 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:06:45 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:06:48 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:06:54 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:07:03 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:07:09 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:07:13 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:07:16 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:07:32 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:07:33 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:07:36 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:07:45 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:07:47 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:07:55 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:07:56 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:08:03 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:08:07 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:08:18 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:08:22 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:08:30 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:08:32 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:08:40 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:08:45 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:08:49 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:08:58 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:09:00 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:09:08 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:09:11 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:09:24 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:09:27 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:09:36 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+6/15/2026, 5:09:36 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Could not find public function for 'pinnedKnowledgePages:listForSidebar'.
+
+- Preparing Convex functions...
+
+[32m√[39m Added table indexes:
+  [+] smartStorageProposals.by_createdByUserId_and_status_and_createdAt   createdByUserId, status, createdAt, _creationTime
+  [+] smartStorageProposals.by_smartStorageRunId   smartStorageRunId, _creationTime
+  [+] smartStorageProposals.by_sourceId_and_status   sourceId, status, _creationTime
+✔ 17:19:01 Convex functions ready! (6.73s)
+- Preparing Convex functions...
+
+[32m√[39m 17:19:52 Convex functions ready! (6.18s)
+- Preparing Convex functions...
+
+[32m√[39m 17:20:19 Convex functions ready! (6.3s)
+- Preparing Convex functions...
+
+[32m√[39m 17:21:31 Convex functions ready! (6.86s)
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.test.ts[0m:[93m123[0m:[93m7[0m - [91merror[0m[90m TS2345: [0mArgument of type '{ readonly body: "  Objective: students will distinguish courage from presumption.  "; readonly contextTags: readonly [{ readonly canonicalKey: "joshua-1-6-9"; readonly href: "/scripture/joshua-1-6-9"; readonly id: "joshua-1-6-9"; readonly knowledgeType: "biblePassage"; readonly label: "Joshua 1:6-9"; readonly passa...' is not assignable to parameter of type '{ slotId?: string | undefined; knowledgeType: "words" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | "lesson" | "comment" | ... 6 more ... | "place"; title: string; contextTags: { ...; }[]; body: string; }'.
+  Types of property 'contextTags' are incompatible.
+    The type 'readonly [{ readonly canonicalKey: "joshua-1-6-9"; readonly href: "/scripture/joshua-1-6-9"; readonly id: "joshua-1-6-9"; readonly knowledgeType: "biblePassage"; readonly label: "Joshua 1:6-9"; readonly passageString: "Joshua 1:6-9"; }, { ...; }]' is 'readonly' and cannot be assigned to the mutable type '{ passageString?: string | undefined; id: string; knowledgeType: "words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | ... 9 more ... | "place"; canonicalKey: string; href: string; label: string; }[]'.
+
+[7m123[0m       getLessonSmartStorageInput(),
+[7m   [0m [91m      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.test.ts[0m:[93m206[0m:[93m7[0m - [91merror[0m[90m TS2345: [0mArgument of type '{ readonly body: "  Objective: students will distinguish courage from presumption.  "; readonly contextTags: readonly [{ readonly canonicalKey: "joshua-1-6-9"; readonly href: "/scripture/joshua-1-6-9"; readonly id: "joshua-1-6-9"; readonly knowledgeType: "biblePassage"; readonly label: "Joshua 1:6-9"; readonly passa...' is not assignable to parameter of type '{ slotId?: string | undefined; knowledgeType: "words" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | "lesson" | "comment" | ... 6 more ... | "place"; title: string; contextTags: { ...; }[]; body: string; }'.
+  Types of property 'contextTags' are incompatible.
+    The type 'readonly [{ readonly canonicalKey: "joshua-1-6-9"; readonly href: "/scripture/joshua-1-6-9"; readonly id: "joshua-1-6-9"; readonly knowledgeType: "biblePassage"; readonly label: "Joshua 1:6-9"; readonly passageString: "Joshua 1:6-9"; }, { ...; }]' is 'readonly' and cannot be assigned to the mutable type '{ passageString?: string | undefined; id: string; knowledgeType: "words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | ... 9 more ... | "place"; canonicalKey: string; href: string; label: string; }[]'.
+
+[7m206[0m       getLessonSmartStorageInput(),
+[7m   [0m [91m      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m241[0m:[93m7[0m - [91merror[0m[90m TS2345: [0mArgument of type '{ readonly body: "  Objective: students will distinguish courage from presumption.  "; readonly contextTags: readonly [{ readonly canonicalKey: "joshua-1-6-9"; readonly href: "/scripture/joshua-1-6-9"; readonly id: "joshua-1-6-9"; readonly knowledgeType: "biblePassage"; readonly label: "Joshua 1:6-9"; readonly passa...' is not assignable to parameter of type '{ slotId?: string | undefined; knowledgeType: "words" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | "lesson" | "comment" | ... 6 more ... | "place"; title: string; contextTags: { ...; }[]; body: string; }'.
+  Types of property 'contextTags' are incompatible.
+    The type 'readonly [{ readonly canonicalKey: "joshua-1-6-9"; readonly href: "/scripture/joshua-1-6-9"; readonly id: "joshua-1-6-9"; readonly knowledgeType: "biblePassage"; readonly label: "Joshua 1:6-9"; readonly passageString: "Joshua 1:6-9"; }, { ...; }]' is 'readonly' and cannot be assigned to the mutable type '{ passageString?: string | undefined; id: string; knowledgeType: "words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | ... 9 more ... | "place"; canonicalKey: string; href: string; label: string; }[]'.
+
+[7m241[0m       getLessonSmartStorageInput(),
+[7m   [0m [91m      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+Found 3 errors in the same file, starting at: convex/smartStorage.test.ts[90m:123[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.test.ts[0m:[93m122[0m:[93m7[0m - [91merror[0m[90m TS2345: [0mArgument of type '{ readonly body: "  Objective: students will distinguish courage from presumption.  "; readonly contextTags: readonly [{ readonly canonicalKey: "joshua-1-6-9"; readonly href: "/scripture/joshua-1-6-9"; readonly id: "joshua-1-6-9"; readonly knowledgeType: "biblePassage"; readonly label: "Joshua 1:6-9"; readonly passa...' is not assignable to parameter of type '{ slotId?: string | undefined; knowledgeType: "words" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | "lesson" | "comment" | ... 6 more ... | "place"; title: string; contextTags: { ...; }[]; body: string; }'.
+  Types of property 'contextTags' are incompatible.
+    The type 'readonly [{ readonly canonicalKey: "joshua-1-6-9"; readonly href: "/scripture/joshua-1-6-9"; readonly id: "joshua-1-6-9"; readonly knowledgeType: "biblePassage"; readonly label: "Joshua 1:6-9"; readonly passageString: "Joshua 1:6-9"; }, { ...; }]' is 'readonly' and cannot be assigned to the mutable type '{ passageString?: string | undefined; id: string; knowledgeType: "words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | ... 9 more ... | "place"; canonicalKey: string; href: string; label: string; }[]'.
+
+[7m122[0m       getLessonSmartStorageInput(),
+[7m   [0m [91m      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.test.ts[0m:[93m205[0m:[93m7[0m - [91merror[0m[90m TS2345: [0mArgument of type '{ readonly body: "  Objective: students will distinguish courage from presumption.  "; readonly contextTags: readonly [{ readonly canonicalKey: "joshua-1-6-9"; readonly href: "/scripture/joshua-1-6-9"; readonly id: "joshua-1-6-9"; readonly knowledgeType: "biblePassage"; readonly label: "Joshua 1:6-9"; readonly passa...' is not assignable to parameter of type '{ slotId?: string | undefined; knowledgeType: "words" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | "lesson" | "comment" | ... 6 more ... | "place"; title: string; contextTags: { ...; }[]; body: string; }'.
+  Types of property 'contextTags' are incompatible.
+    The type 'readonly [{ readonly canonicalKey: "joshua-1-6-9"; readonly href: "/scripture/joshua-1-6-9"; readonly id: "joshua-1-6-9"; readonly knowledgeType: "biblePassage"; readonly label: "Joshua 1:6-9"; readonly passageString: "Joshua 1:6-9"; }, { ...; }]' is 'readonly' and cannot be assigned to the mutable type '{ passageString?: string | undefined; id: string; knowledgeType: "words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | ... 9 more ... | "place"; canonicalKey: string; href: string; label: string; }[]'.
+
+[7m205[0m       getLessonSmartStorageInput(),
+[7m   [0m [91m      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m240[0m:[93m7[0m - [91merror[0m[90m TS2345: [0mArgument of type '{ readonly body: "  Objective: students will distinguish courage from presumption.  "; readonly contextTags: readonly [{ readonly canonicalKey: "joshua-1-6-9"; readonly href: "/scripture/joshua-1-6-9"; readonly id: "joshua-1-6-9"; readonly knowledgeType: "biblePassage"; readonly label: "Joshua 1:6-9"; readonly passa...' is not assignable to parameter of type '{ slotId?: string | undefined; knowledgeType: "words" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | "lesson" | "comment" | ... 6 more ... | "place"; title: string; contextTags: { ...; }[]; body: string; }'.
+  Types of property 'contextTags' are incompatible.
+    The type 'readonly [{ readonly canonicalKey: "joshua-1-6-9"; readonly href: "/scripture/joshua-1-6-9"; readonly id: "joshua-1-6-9"; readonly knowledgeType: "biblePassage"; readonly label: "Joshua 1:6-9"; readonly passageString: "Joshua 1:6-9"; }, { ...; }]' is 'readonly' and cannot be assigned to the mutable type '{ passageString?: string | undefined; id: string; knowledgeType: "words" | "biblePassage" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | ... 9 more ... | "place"; canonicalKey: string; href: string; label: string; }[]'.
+
+[7m240[0m       getLessonSmartStorageInput(),
+[7m   [0m [91m      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 3 errors in the same file, starting at: convex/smartStorage.test.ts[90m:122[0m
+- Preparing Convex functions...
+
+[32m√[39m 17:25:49 Convex functions ready! (6.41s)
+- Preparing Convex functions...
+
+[32m√[39m Added table indexes:
+  [+] bookmarkedKnowledgePages.by_userId_and_createdAt   userId, createdAt, _creationTime
+  [+] bookmarkedKnowledgePages.by_userId_and_pageKey   userId, pageKey, _creationTime
+  [+] bookmarkedKnowledgePages.by_userId_and_pageKind_and_updatedAt   userId, pageKind, updatedAt, _creationTime
+  [+] bookmarkedKnowledgePages.by_userId_and_updatedAt   userId, updatedAt, _creationTime
+✔ 17:27:39 Convex functions ready! (6.22s)
+- Preparing Convex functions...
+
+[32m√[39m 17:28:29 Convex functions ready! (6.07s)
+- Preparing Convex functions...
+
+[32m√[39m 17:28:52 Convex functions ready! (6.61s)
+- Preparing Convex functions...
+
+[32m√[39m 17:32:42 Convex functions ready! (6.68s)
+- Preparing Convex functions...
+
+[32m√[39m 17:37:19 Convex functions ready! (6.97s)
+- Preparing Convex functions...
+
+[32m√[39m 17:37:31 Convex functions ready! (8.26s)
+- Preparing Convex functions...
+
+[32m√[39m Added table indexes:
+  [+] knowledgeSubscriptions.by_targetKind_and_targetReferentId   targetKind, targetReferentId, _creationTime
+  [+] knowledgeSubscriptions.by_targetTagId   targetTagId, _creationTime
+  [+] knowledgeSubscriptions.by_userId_and_subscriptionKey   userId, subscriptionKey, _creationTime
+  [+] knowledgeSubscriptions.by_userId_and_targetKind_and_updatedAt   userId, targetKind, updatedAt, _creationTime
+  [+] knowledgeSubscriptions.by_userId_and_updatedAt   userId, updatedAt, _creationTime
+✔ 17:53:21 Convex functions ready! (7.23s)
+- Preparing Convex functions...
+
+[32m√[39m 17:54:13 Convex functions ready! (6.61s)
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/knowledgeSubscriptions.test.ts[0m:[93m433[0m:[93m18[0m - [91merror[0m[90m TS2345: [0mArgument of type '"by_userId_and_pageKey"' is not assignable to parameter of type 'keyof SystemIndexes'.
+
+[7m433[0m       .withIndex("by_userId_and_pageKey", (q) =>
+[7m   [0m [91m                 ~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/knowledgeSubscriptions.test.ts[0m:[93m434[0m:[93m14[0m - [91merror[0m[90m TS2345: [0mArgument of type '"userId"' is not assignable to parameter of type '"_creationTime" | "_id"'.
+
+[7m434[0m         q.eq("userId", userId).eq("pageKey", pageKey),
+[7m   [0m [91m             ~~~~~~~~[0m
+
+[96mconvex/knowledgeSubscriptions.test.ts[0m:[93m434[0m:[93m32[0m - [91merror[0m[90m TS2339: [0mProperty 'eq' does not exist on type 'IndexRange'.
+
+[7m434[0m         q.eq("userId", userId).eq("pageKey", pageKey),
+[7m   [0m [91m                               ~~[0m
+
+[96mconvex/knowledgeSubscriptions.test.ts[0m:[93m439[0m:[93m18[0m - [91merror[0m[90m TS2345: [0mArgument of type '"by_userId_and_pageKey"' is not assignable to parameter of type 'keyof SystemIndexes'.
+
+[7m439[0m       .withIndex("by_userId_and_pageKey", (q) =>
+[7m   [0m [91m                 ~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/knowledgeSubscriptions.test.ts[0m:[93m440[0m:[93m14[0m - [91merror[0m[90m TS2345: [0mArgument of type '"userId"' is not assignable to parameter of type '"_creationTime" | "_id"'.
+
+[7m440[0m         q.eq("userId", userId).eq("pageKey", pageKey),
+[7m   [0m [91m             ~~~~~~~~[0m
+
+[96mconvex/knowledgeSubscriptions.test.ts[0m:[93m440[0m:[93m32[0m - [91merror[0m[90m TS2339: [0mProperty 'eq' does not exist on type 'IndexRange'.
+
+[7m440[0m         q.eq("userId", userId).eq("pageKey", pageKey),
+[7m   [0m [91m                               ~~[0m
+
+Found 6 errors in the same file, starting at: convex/knowledgeSubscriptions.test.ts[90m:433[0m
+- Preparing Convex functions...
+
+[32m√[39m 17:59:27 Convex functions ready! (6.57s)
+6/15/2026, 6:04:15 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 6:04:16 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 6:04:16 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[32m√[39m Added table indexes:
+  [+] userNotifications.by_sourceSubscriptionKey_and_receivedAt   sourceSubscriptionKey, receivedAt, _creationTime
+  [+] userNotifications.by_userId_and_notificationKind_and_receivedAt   userId, notificationKind, receivedAt, _creationTime
+  [+] userNotifications.by_userId_and_notificationStatus_and_receivedAt   userId, notificationStatus, receivedAt, _creationTime
+  [+] userNotifications.by_userId_and_receivedAt   userId, receivedAt, _creationTime
+✔ 18:19:24 Convex functions ready! (7.59s)
+6/15/2026, 6:19:20 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:20 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:20 PM [CONVEX Q(analytics:getKnowledgeContextTrend)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:20 PM [CONVEX Q(analytics:listDashboardBibleContextSuggestions)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:20 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:20 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:20 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:20 PM [CONVEX Q(authAvailability:get)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:20 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:20 PM [CONVEX Q(authAvailability:get)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:20 PM [CONVEX Q(authAvailability:get)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:20 PM [CONVEX Q(authAvailability:get)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:20 PM [CONVEX Q(authAvailability:get)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:20 PM [CONVEX Q(authAvailability:get)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:20 PM [CONVEX Q(authAvailability:get)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:21 PM [CONVEX Q(analytics:getKnowledgeContextTrend)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:22 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:23 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:23 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:25 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:28 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:28 PM [CONVEX Q(analytics:getKnowledgeContextTrend)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:28 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:29 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:29 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:36 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:36 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:39 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:39 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:39 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:39 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:39 PM [CONVEX Q(analytics:getKnowledgeContextTrend)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:56 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:56 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:56 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:19:56 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:02 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:02 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:02 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:02 PM [CONVEX Q(analytics:getKnowledgeContextTrend)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:02 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:16 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:16 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:16 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:16 PM [CONVEX Q(analytics:getKnowledgeContextTrend)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:16 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:16 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:16 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:16 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:16 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:25 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:25 PM [CONVEX Q(analytics:getKnowledgeContextTrend)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:25 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:25 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+- Preparing Convex functions...
+
+[32m√[39m 18:20:33 Convex functions ready! (6.13s)
+6/15/2026, 6:20:31 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:31 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:31 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:43 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:43 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:43 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:43 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:45 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:45 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:45 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:45 PM [CONVEX Q(analytics:getKnowledgeContextTrend)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:45 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:55 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:55 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:20:55 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:04 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:04 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:04 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:07 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:07 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:07 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:07 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:16 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:16 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:16 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:19 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:19 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:19 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:19 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:27 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:27 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:27 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:27 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:39 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:39 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:41 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:41 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+- Preparing Convex functions...
+
+[32m√[39m 18:21:55 Convex functions ready! (7.45s)
+6/15/2026, 6:21:56 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:56 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:56 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:59 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:59 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:21:59 PM [CONVEX Q(analytics:getKnowledgeContextTrend)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:22:09 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:22:09 PM [CONVEX Q(analytics:getKnowledgeContextTrend)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:22:09 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:22:09 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:22:18 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:22:18 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:22:18 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:22:18 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/userNotifications.test.ts[0m:[93m301[0m:[93m21[0m - [91merror[0m[90m TS2304: [0mCannot find name 'MutationCtx'.
+
+[7m301[0m     callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>,
+[7m   [0m [91m                    ~~~~~~~~~~~[0m
+
+Found 1 error in convex/userNotifications.test.ts[90m:301[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/userNotifications.test.ts[0m:[93m49[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m49[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+[96mconvex/userNotifications.test.ts[0m:[93m301[0m:[93m21[0m - [91merror[0m[90m TS2304: [0mCannot find name 'MutationCtx'.
+
+[7m301[0m     callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>,
+[7m   [0m [91m                    ~~~~~~~~~~~[0m
+
+Found 2 errors in the same file, starting at: convex/userNotifications.test.ts[90m:49[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/userNotifications.test.ts[0m:[93m49[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m49[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+[96mconvex/userNotifications.test.ts[0m:[93m56[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m56[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m301[0m:[93m21[0m - [91merror[0m[90m TS2304: [0mCannot find name 'MutationCtx'.
+
+[7m301[0m     callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>,
+[7m   [0m [91m                    ~~~~~~~~~~~[0m
+
+Found 3 errors in the same file, starting at: convex/userNotifications.test.ts[90m:49[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/userNotifications.test.ts[0m:[93m49[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m49[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+[96mconvex/userNotifications.test.ts[0m:[93m56[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m56[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m63[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m63[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m91[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m91[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+[96mconvex/userNotifications.test.ts[0m:[93m301[0m:[93m21[0m - [91merror[0m[90m TS2304: [0mCannot find name 'MutationCtx'.
+
+[7m301[0m     callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>,
+[7m   [0m [91m                    ~~~~~~~~~~~[0m
+
+Found 5 errors in the same file, starting at: convex/userNotifications.test.ts[90m:49[0m
+Filesystem changed during push, retrying...
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/userNotifications.test.ts[0m:[93m49[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m49[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+[96mconvex/userNotifications.test.ts[0m:[93m56[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m56[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m63[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m63[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m91[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m91[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+[96mconvex/userNotifications.test.ts[0m:[93m98[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m98[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m301[0m:[93m21[0m - [91merror[0m[90m TS2304: [0mCannot find name 'MutationCtx'.
+
+[7m301[0m     callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>,
+[7m   [0m [91m                    ~~~~~~~~~~~[0m
+
+Found 6 errors in the same file, starting at: convex/userNotifications.test.ts[90m:49[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/userNotifications.test.ts[0m:[93m49[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m49[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+[96mconvex/userNotifications.test.ts[0m:[93m56[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m56[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m63[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m63[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m91[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m91[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+[96mconvex/userNotifications.test.ts[0m:[93m98[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m98[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m125[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m125[0m     await insertNotification(t, {
+[7m   [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m132[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m132[0m     await insertNotification(t, {
+[7m   [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m301[0m:[93m21[0m - [91merror[0m[90m TS2304: [0mCannot find name 'MutationCtx'.
+
+[7m301[0m     callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>,
+[7m   [0m [91m                    ~~~~~~~~~~~[0m
+
+Found 8 errors in the same file, starting at: convex/userNotifications.test.ts[90m:49[0m
+Filesystem changed during push, retrying...
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/userNotifications.test.ts[0m:[93m49[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m49[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+[96mconvex/userNotifications.test.ts[0m:[93m56[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m56[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m63[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m63[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m91[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m91[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+[96mconvex/userNotifications.test.ts[0m:[93m98[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m98[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m125[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m125[0m     await insertNotification(t, {
+[7m   [0m [91m                             ~[0m
+[96mconvex/userNotifications.test.ts[0m:[93m132[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m132[0m     await insertNotification(t, {
+[7m   [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m139[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m139[0m     await insertNotification(t, {
+[7m   [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m301[0m:[93m21[0m - [91merror[0m[90m TS2304: [0mCannot find name 'MutationCtx'.
+
+[7m301[0m     callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>,
+[7m   [0m [91m                    ~~~~~~~~~~~[0m
+
+Found 9 errors in the same file, starting at: convex/userNotifications.test.ts[90m:49[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/userNotifications.test.ts[0m:[93m49[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m49[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+[96mconvex/userNotifications.test.ts[0m:[93m56[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m56[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m63[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m63[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m91[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m91[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+[96mconvex/userNotifications.test.ts[0m:[93m98[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m98[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m125[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m125[0m     await insertNotification(t, {
+[7m   [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m132[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m132[0m     await insertNotification(t, {
+[7m   [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m139[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m139[0m     await insertNotification(t, {
+[7m   [0m [91m                             ~[0m
+[96mconvex/userNotifications.test.ts[0m:[93m157[0m:[93m53[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m157[0m     const notificationId = await insertNotification(t, {
+[7m   [0m [91m                                                    ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m301[0m:[93m21[0m - [91merror[0m[90m TS2304: [0mCannot find name 'MutationCtx'.
+
+[7m301[0m     callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>,
+[7m   [0m [91m                    ~~~~~~~~~~~[0m
+
+Found 10 errors in the same file, starting at: convex/userNotifications.test.ts[90m:49[0m
+Filesystem changed during push, retrying...
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/userNotifications.test.ts[0m:[93m49[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m49[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+[96mconvex/userNotifications.test.ts[0m:[93m56[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m56[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m63[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m63[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+[96mconvex/userNotifications.test.ts[0m:[93m91[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m91[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m98[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m98[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+[96mconvex/userNotifications.test.ts[0m:[93m125[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m125[0m     await insertNotification(t, {
+[7m   [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m132[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m132[0m     await insertNotification(t, {
+[7m   [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m139[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m139[0m     await insertNotification(t, {
+[7m   [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m157[0m:[93m53[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m157[0m     const notificationId = await insertNotification(t, {
+[7m   [0m [91m                                                    ~[0m
+[96mconvex/userNotifications.test.ts[0m:[93m194[0m:[93m53[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m194[0m     const notificationId = await insertNotification(t, {
+[7m   [0m [91m                                                    ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m218[0m:[93m53[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m218[0m     const notificationId = await insertNotification(t, {
+[7m   [0m [91m                                                    ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m301[0m:[93m21[0m - [91merror[0m[90m TS2304: [0mCannot find name 'MutationCtx'.
+
+[7m301[0m     callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>,
+[7m   [0m [91m                    ~~~~~~~~~~~[0m
+
+Found 12 errors in the same file, starting at: convex/userNotifications.test.ts[90m:49[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/userNotifications.test.ts[0m:[93m49[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m49[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+[96mconvex/userNotifications.test.ts[0m:[93m56[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m56[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m63[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m63[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m91[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m91[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+[96mconvex/userNotifications.test.ts[0m:[93m98[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m98[0m     await insertNotification(t, {
+[7m  [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m125[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m125[0m     await insertNotification(t, {
+[7m   [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m132[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m132[0m     await insertNotification(t, {
+[7m   [0m [91m                             ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m139[0m:[93m30[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m139[0m     await insertNotification(t, {
+[7m   [0m [91m                             ~[0m
+[96mconvex/userNotifications.test.ts[0m:[93m157[0m:[93m53[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m157[0m     const notificationId = await insertNotification(t, {
+[7m   [0m [91m                                                    ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m194[0m:[93m53[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m194[0m     const notificationId = await insertNotification(t, {
+[7m   [0m [91m                                                    ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m218[0m:[93m53[0m - [91merror[0m[90m TS2345: [0mArgument of type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' is not assignable to parameter of type '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>) => Promise<Id<"userNotifications">>'.
+  Type 'TestConvex<SchemaDefinition<{ users: TableDefinition<VObject<{ name?: string | undefined; image?: string | undefined; email?: string | undefined; emailVerificationTime?: number | undefined; phone?: string | undefined; phoneVerificationTime?: number | undefined; isAnonymous?: boolean | undefined; isActive?: boolean |...' provides no match for the signature '(callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>): Promise<Id<"userNotifications">>'.
+
+[7m218[0m     const notificationId = await insertNotification(t, {
+[7m   [0m [91m                                                    ~[0m
+
+[96mconvex/userNotifications.test.ts[0m:[93m301[0m:[93m21[0m - [91merror[0m[90m TS2304: [0mCannot find name 'MutationCtx'.
+
+[7m301[0m     callback: (ctx: MutationCtx) => Promise<Id<"userNotifications">>,
+[7m   [0m [91m                    ~~~~~~~~~~~[0m
+
+Found 12 errors in the same file, starting at: convex/userNotifications.test.ts[90m:49[0m
+- Preparing Convex functions...
+
+[32m√[39m 18:25:01 Convex functions ready! (6.59s)
+6/15/2026, 6:22:28 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:22:28 PM [CONVEX Q(analytics:getKnowledgeContextTrend)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:22:28 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:22:29 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:22:29 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:22:29 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:22:42 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:22:42 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:22:53 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:22:53 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:22:53 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:22:53 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:23:03 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:23:03 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:23:04 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:23:16 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:23:22 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:23:22 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:23:22 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:23:32 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:23:32 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:23:32 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:23:35 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:23:35 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:23:35 PM [CONVEX Q(analytics:getKnowledgeContextTrend)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:23:44 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:23:44 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:23:44 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:23:44 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:23:49 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:23:49 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:23:59 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:23:59 PM [CONVEX Q(analytics:getKnowledgeContextTrend)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:24:01 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:24:01 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:24:01 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:24:16 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:24:16 PM [CONVEX Q(analytics:getKnowledgeContextTrend)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:24:16 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:24:16 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:24:23 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:24:31 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:24:31 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:24:31 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:24:42 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:24:42 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:24:42 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:24:42 PM [CONVEX Q(analytics:getKnowledgeContextTrend)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:24:52 PM [CONVEX Q(analytics:getKnowledgeContextTrend)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:25:03 PM [CONVEX Q(appAccess:getCurrentUserAccess)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:25:23 PM [CONVEX H(GET /.well-known/openid-configuration)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:25:23 PM [CONVEX H(GET /.well-known/jwks.json)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:25:23 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Your request couldn't be completed. Try again later.
+
+6/15/2026, 6:26:27 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 6:26:27 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 6:26:27 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 6:26:36 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 6:26:36 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 6:26:36 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 6:26:47 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 6:26:47 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 6:26:47 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 6:30:03 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signOut'
+6/15/2026, 6:30:03 PM [CONVEX Q(userNotifications:getUnreadSummary)] Uncaught Error: Unauthorized
+    at async handler (../convex/userNotifications.ts:102:17)
+
+6/15/2026, 6:30:03 PM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Uncaught Error: Unauthorized
+    at async handler (../convex/pinnedKnowledgePages.ts:64:29)
+
+6/15/2026, 6:49:01 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: retrieveAccountWithCredentials'
+6/15/2026, 6:49:01 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signIn'
+6/15/2026, 6:49:01 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 7:26:38 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 7:26:38 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 8:26:29 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 8:26:29 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 8:45:13 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 9:26:20 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 9:26:20 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 9:45:04 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 10:26:11 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 10:26:11 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 10:44:56 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 11:26:02 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 11:26:02 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/15/2026, 11:44:48 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 12:25:53 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 12:25:53 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 12:44:39 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 1:25:44 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 1:25:44 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 1:44:30 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 2:25:36 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 2:25:36 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 2:44:27 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+Retrying request (attempt 3/6)...
+Retrying request (attempt 4/6)...
+Retrying request (attempt 5/6)...
+Retrying request (attempt 6/6)...
+Retrying request (attempt 3/6)...
+Retrying request (attempt 4/6)...
+Retrying request (attempt 5/6)...
+Retrying request (attempt 6/6)...
+Retrying request (attempt 3/6)...
+Retrying request (attempt 4/6)...
+Retrying request (attempt 5/6)...
+6/16/2026, 3:25:27 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 3:25:27 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 3:44:23 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 4:25:18 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 4:25:18 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 4:44:14 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 5:25:09 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 5:25:09 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 5:44:05 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 6:25:00 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 6:25:00 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 6:43:56 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 7:24:52 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 7:24:52 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 7:43:47 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 8:24:43 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 8:24:43 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 8:43:38 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[32m√[39m 09:15:57 Convex functions ready! (8.51s)
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/answerFeed.ts[0m:[93m274[0m:[93m23[0m - [91merror[0m[90m TS2304: [0mCannot find name 'getActiveTagLookupKey'.
+
+[7m274[0m     const lookupKey = getActiveTagLookupKey(snapshot);
+[7m   [0m [91m                      ~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/answerFeed.ts[0m:[93m300[0m:[93m31[0m - [91merror[0m[90m TS2304: [0mCannot find name 'getActiveTagLookupKey'.
+
+[7m300[0m       `${tag.knowledgeType}:${getActiveTagLookupKey(tag)}`,
+[7m   [0m [91m                              ~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+Found 2 errors in the same file, starting at: convex/answerFeed.ts[90m:274[0m
+- Preparing Convex functions...
+
+[32m√[39m 09:16:49 Convex functions ready! (7.39s)
+- Preparing Convex functions...
+
+[32m√[39m 09:17:01 Convex functions ready! (6.55s)
+6/16/2026, 9:18:42 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 9:18:42 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 9:19:04 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 9:19:04 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[32m√[39m 09:21:20 Convex functions ready! (6.64s)
+6/16/2026, 9:24:34 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 10:18:56 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 10:18:56 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 10:24:25 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 10:59:34 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 10:59:38 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signOut'
+6/16/2026, 10:59:47 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: retrieveAccountWithCredentials'
+6/16/2026, 10:59:47 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: createVerificationCode'
+6/16/2026, 11:00:04 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifyCodeAndSignIn'
+6/16/2026, 11:00:05 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'

@@ -459,15 +459,15 @@ export function getAnswerFeedItemId(item: AnswerFeedItem) {
   return item.kind === "answer" ? item.entry.id : item.slot.id;
 }
 
-export function isAnswerFeedAnswer(
-  item: AnswerFeedFixtureItem,
-): item is AnswerFeedFixtureItem & { kind: "answer" } {
+export function isAnswerFeedAnswer<T extends AnswerFeedItem>(
+  item: T,
+): item is T & { kind: "answer" } {
   return item.kind === "answer";
 }
 
-export function isAnswerFeedSlot(
-  item: AnswerFeedFixtureItem,
-): item is AnswerFeedFixtureItem & { kind: "slot" } {
+export function isAnswerFeedSlot<T extends AnswerFeedItem>(
+  item: T,
+): item is T & { kind: "slot" } {
   return item.kind === "slot";
 }
 

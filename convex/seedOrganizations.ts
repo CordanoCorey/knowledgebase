@@ -24,6 +24,18 @@ export const DEFAULT_ORGANIZATION_SEEDS = [
     name: "Ruler of Kings Church",
     previewText: "Church organization.",
   },
+  {
+    canonicalKey: "my-family",
+    kind: "family",
+    name: "My Family",
+    previewText: "Family organization.",
+  },
+  {
+    canonicalKey: "my-community",
+    kind: "community",
+    name: "My Community",
+    previewText: "Community organization.",
+  },
 ] as const;
 
 export const DEFAULT_USER_SEEDS = [
@@ -32,6 +44,8 @@ export const DEFAULT_USER_SEEDS = [
     memberships: [
       { organizationKey: "arche-classical-academy", role: "admin" },
       { organizationKey: "ruler-of-kings-church", role: "admin" },
+      { organizationKey: "my-family", role: "admin" },
+      { organizationKey: "my-community", role: "admin" },
     ],
     name: "gelbaughcm@gmail.com",
     tempPassword: "Temp-Gelbaugh-2026!",
@@ -41,6 +55,8 @@ export const DEFAULT_USER_SEEDS = [
     memberships: [
       { organizationKey: "ruler-of-kings-church", role: "admin" },
       { organizationKey: "arche-classical-academy", role: "member" },
+      { organizationKey: "my-family", role: "member" },
+      { organizationKey: "my-community", role: "member" },
     ],
     name: "corey@rulerofkingschurch.com",
     tempPassword: "Temp-Corey-Rok-2026!",
@@ -50,6 +66,8 @@ export const DEFAULT_USER_SEEDS = [
     memberships: [
       { organizationKey: "arche-classical-academy", role: "admin" },
       { organizationKey: "ruler-of-kings-church", role: "member" },
+      { organizationKey: "my-family", role: "member" },
+      { organizationKey: "my-community", role: "member" },
     ],
     name: "corey@archeclassicalacademy.com",
     tempPassword: "Temp-Corey-Arche-2026!",

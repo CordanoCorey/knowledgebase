@@ -10,7 +10,6 @@ import {
   BarChart3,
   Bell,
   BookOpen,
-  BookmarkPlus,
   ChevronLeft,
   ChevronRight,
   Compass,
@@ -20,6 +19,7 @@ import {
   LayoutGrid,
   MessageSquare,
   Moon,
+  Pin,
   Search,
   Send,
   Settings,
@@ -1306,7 +1306,7 @@ function EntryCard({
           Open Entry
         </button>
         <button type="button">
-          <BookmarkPlus aria-hidden="true" />
+          <Pin aria-hidden="true" />
           Use in Editor
         </button>
       </footer>

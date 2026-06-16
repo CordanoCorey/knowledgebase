@@ -84,12 +84,12 @@ describe("App organization access", () => {
       DEFAULT_USER_SEEDS.map((user) => user.tempPassword),
     );
     expect(result.organizations).toEqual({
-      inserted: 2,
+      inserted: 4,
       skipped: 0,
       updated: 0,
     });
     expect(result.memberships).toEqual({
-      inserted: 6,
+      inserted: 12,
       skipped: 0,
       updated: 0,
     });
@@ -105,12 +105,12 @@ describe("App organization access", () => {
     )) as SeedActionTestResult;
     expect(secondResult.organizations).toEqual({
       inserted: 0,
-      skipped: 2,
+      skipped: 4,
       updated: 0,
     });
     expect(secondResult.memberships).toEqual({
       inserted: 0,
-      skipped: 6,
+      skipped: 12,
       updated: 0,
     });
     expect(secondResult.profiles).toEqual({
@@ -143,6 +143,20 @@ describe("App organization access", () => {
         kind: "church",
         name: "Ruler of Kings Church",
       },
+      {
+        canonicalKey: "my-family",
+        exists: true,
+        isActive: true,
+        kind: "family",
+        name: "My Family",
+      },
+      {
+        canonicalKey: "my-community",
+        exists: true,
+        isActive: true,
+        kind: "community",
+        name: "My Community",
+      },
     ]);
     expect(
       verification.users.map((user) => ({
@@ -156,19 +170,19 @@ describe("App organization access", () => {
         email: "gelbaughcm@gmail.com",
         exists: true,
         isActive: true,
-        membershipCount: 2,
+        membershipCount: 4,
       },
       {
         email: "corey@rulerofkingschurch.com",
         exists: true,
         isActive: true,
-        membershipCount: 2,
+        membershipCount: 4,
       },
       {
         email: "corey@archeclassicalacademy.com",
         exists: true,
         isActive: true,
-        membershipCount: 2,
+        membershipCount: 4,
       },
     ]);
   });
@@ -205,6 +219,16 @@ describe("App organization access", () => {
       {
         kind: "church",
         name: "Ruler of Kings Church",
+        role: "admin",
+      },
+      {
+        kind: "family",
+        name: "My Family",
+        role: "admin",
+      },
+      {
+        kind: "community",
+        name: "My Community",
         role: "admin",
       },
     ]);
