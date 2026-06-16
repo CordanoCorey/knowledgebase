@@ -12,6 +12,7 @@ import {
   selectKnowledgeContextExperts,
 } from "./answerFeedData";
 import type {
+  AnswerFeedItem,
   KnowledgeContextExpert,
   KnowledgeContextTrendSummary,
   KnowledgeSlotSummary,
@@ -21,7 +22,8 @@ type AnswerFeedProps = {
   activeTags: ActiveTag[];
   contextExperts?: KnowledgeContextExpert[];
   contextTrend?: KnowledgeContextTrendSummary;
-  items?: AnswerFeedFixtureItem[];
+  filterByActiveTags?: boolean;
+  items?: AnswerFeedItem[];
   layout?: "list" | "masonry";
   onContributeToSlot?: (slot: KnowledgeSlotSummary) => void;
   onNavigateToHref?: (href: string) => void;
@@ -31,14 +33,20 @@ export function AnswerFeed({
   activeTags,
   contextExperts,
   contextTrend,
+  filterByActiveTags = true,
   items = ANSWER_FEED_FIXTURE,
   layout = "list",
   onContributeToSlot,
   onNavigateToHref,
 }: AnswerFeedProps) {
-  const feedItems = selectAnswerFeedItems(items, activeTags);
+  const feedItems = filterByActiveTags
+    ? selectAnswerFeedItems(items as AnswerFeedFixtureItem[], activeTags)
+    : items;
   const experts =
-    contextExperts ?? selectKnowledgeContextExperts(items, activeTags);
+    contextExperts ??
+    (filterByActiveTags
+      ? selectKnowledgeContextExperts(items as AnswerFeedFixtureItem[], activeTags)
+      : []);
   const answerCount = feedItems.filter(isAnswerFeedAnswer).length;
   const slotCount = feedItems.filter(isAnswerFeedSlot).length;
   const isMasonry = layout === "masonry";

@@ -15,6 +15,30 @@ const CANDIDATE_MULTIPLIER = 5;
 const MAX_CONTEXT_PREVIEW_TAG_LABELS = 6;
 const EXPERT_CONTRIBUTION_BONUS = 12;
 
+const referentKnowledgeType = v.union(
+  v.literal("words"),
+  v.literal("biblePassage"),
+  v.literal("topic"),
+  v.literal("series"),
+  v.literal("question"),
+  v.literal("quote"),
+  v.literal("sermon"),
+  v.literal("essay"),
+  v.literal("poem"),
+  v.literal("song"),
+  v.literal("book"),
+  v.literal("shortStory"),
+  v.literal("lesson"),
+  v.literal("comment"),
+  v.literal("prayerRequest"),
+  v.literal("event"),
+  v.literal("rsvp"),
+  v.literal("person"),
+  v.literal("organization"),
+  v.literal("group"),
+  v.literal("place"),
+);
+
 const authorableKnowledgeType = v.union(
   v.literal("words"),
   v.literal("topic"),
@@ -44,6 +68,15 @@ const knowledgeSlotStatus = v.union(
   v.literal("cancelled"),
   v.literal("overdue"),
 );
+
+const activeTagSnapshot = v.object({
+  canonicalKey: v.string(),
+  href: v.string(),
+  id: v.string(),
+  knowledgeType: referentKnowledgeType,
+  label: v.string(),
+  passageString: v.optional(v.string()),
+});
 
 const knowledgeEntrySummary = v.object({
   contributor: v.object({
@@ -136,6 +169,14 @@ type KnowledgeSlotSummary = {
 };
 
 type TagId = Id<"tags">;
+type ActiveTagSnapshot = {
+  canonicalKey: string;
+  href: string;
+  id: string;
+  knowledgeType: Doc<"referents">["knowledgeType"];
+  label: string;
+  passageString?: string;
+};
 
 export const listForActiveTags = query({
   args: {
@@ -146,6 +187,37 @@ export const listForActiveTags = query({
   returns: v.array(answerFeedItem),
   handler: async (ctx, args): Promise<AnswerFeedItem[]> => {
     const activeTagIds = normalizeActiveTagIds(args.activeTagIds);
+    const answerLimit = normalizeLimit(
+      args.answerLimit,
+      DEFAULT_ANSWER_LIMIT,
+      MAX_ANSWER_LIMIT,
+    );
+    const slotLimit = normalizeLimit(
+      args.slotLimit,
+      DEFAULT_SLOT_LIMIT,
+      MAX_SLOT_LIMIT,
+    );
+
+    const answers = await listMatchingAnswers(ctx, activeTagIds, answerLimit);
+    const slots = await listMatchingSlots(ctx, activeTagIds, slotLimit);
+
+    return [...answers, ...slots];
+  },
+});
+
+export const listForActiveTagKeys = query({
+  args: {
+    activeTags: v.array(activeTagSnapshot),
+    answerLimit: v.optional(v.number()),
+    slotLimit: v.optional(v.number()),
+  },
+  returns: v.array(answerFeedItem),
+  handler: async (ctx, args): Promise<AnswerFeedItem[]> => {
+    const activeTagIds = await resolveActiveTagIds(ctx, args.activeTags);
+    if (activeTagIds === null) {
+      return [];
+    }
+
     const answerLimit = normalizeLimit(
       args.answerLimit,
       DEFAULT_ANSWER_LIMIT,
@@ -190,6 +262,48 @@ export const listExpertsForActiveTags = query({
     return await summarizeKnowledgeContextExperts(ctx, entries, expertLimit);
   },
 });
+
+async function resolveActiveTagIds(
+  ctx: QueryCtx,
+  activeTags: ActiveTagSnapshot[],
+): Promise<TagId[] | null> {
+  const snapshots = normalizeActiveTagSnapshots(activeTags);
+  const tagIds: TagId[] = [];
+
+  for (const snapshot of snapshots) {
+    const lookupKey = getActiveTagLookupKey(snapshot);
+    const tag = await ctx.db
+      .query("tags")
+      .withIndex("by_knowledgeType_and_lookupKey", (q) =>
+        q.eq("knowledgeType", snapshot.knowledgeType).eq("lookupKey", lookupKey),
+      )
+      .first();
+
+    if (!tag) {
+      return null;
+    }
+
+    tagIds.push(tag._id);
+  }
+
+  return normalizeActiveTagIds(tagIds);
+}
+
+function normalizeActiveTagSnapshots(activeTags: ActiveTagSnapshot[]) {
+  if (activeTags.length > MAX_ACTIVE_TAGS) {
+    throw new Error(`Answer Feed supports at most ${MAX_ACTIVE_TAGS} active Tags.`);
+  }
+
+  const uniqueSnapshots = new Map<string, ActiveTagSnapshot>();
+  for (const tag of activeTags) {
+    uniqueSnapshots.set(
+      `${tag.knowledgeType}:${getActiveTagLookupKey(tag)}`,
+      tag,
+    );
+  }
+
+  return Array.from(uniqueSnapshots.values());
+}
 
 async function listMatchingAnswers(
   ctx: QueryCtx,
@@ -812,4 +926,18 @@ function compareStrings(left: string, right: string) {
   }
 
   return 0;
+}
+
+function getActiveTagLookupKey(tag: ActiveTagSnapshot) {
+  return normalizeLookupKey(tag.canonicalKey || tag.id || tag.label);
+}
+
+function normalizeLookupKey(value: string) {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return slug || "untitled";
 }

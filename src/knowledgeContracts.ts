@@ -22,6 +22,7 @@ export type KnowledgeType =
   | "place";
 
 export type AuthorableKnowledgeType = Exclude<KnowledgeType, "biblePassage">;
+export type GuidedContributionType = Extract<AuthorableKnowledgeType, "group">;
 
 export const AUTHORABLE_KNOWLEDGE_TYPES = [
   "words",
@@ -45,6 +46,17 @@ export const AUTHORABLE_KNOWLEDGE_TYPES = [
   "group",
   "place",
 ] as const satisfies readonly AuthorableKnowledgeType[];
+
+export type GenericContributionKnowledgeType = Exclude<
+  AuthorableKnowledgeType,
+  "rsvp"
+>;
+
+export const GENERIC_CONTRIBUTION_KNOWLEDGE_TYPES =
+  AUTHORABLE_KNOWLEDGE_TYPES.filter(
+    (knowledgeType): knowledgeType is GenericContributionKnowledgeType =>
+      knowledgeType !== "rsvp",
+  );
 
 export type KnowledgeLocationKind =
   | "dashboard"
@@ -132,9 +144,46 @@ export type ContributionInput = {
   title: string;
 };
 
+export type ProposalConfidence = "low" | "medium" | "high";
+
+export type SmartStorageProposedEntrySummary = {
+  bodyPreview: string;
+  contextTags: ActiveTag[];
+  knowledgeType: AuthorableKnowledgeType;
+  proposalConfidence: ProposalConfidence;
+  rationale: string;
+  title: string;
+};
+
+export type SmartStorageProposalReviewSummary = {
+  currentProposal: SmartStorageProposedEntrySummary;
+  id: string;
+  smartStorageRunId: string;
+  sourceId: string;
+  status: "drafted";
+};
+
 export type ContributionResult = {
   entryId?: string;
+  smartStorageProposalId?: string;
+  smartStorageRunId?: string;
+  sourceId?: string;
   status: "submitted";
+};
+
+export type ContributionMode = "direct" | "smartStorage";
+
+export type ContributionPreviewAttribute = {
+  label: string;
+  value: string;
+};
+
+export type ContributionPreview = {
+  attributes: ContributionPreviewAttribute[];
+  context: ActiveTag[];
+  knowledgeType: AuthorableKnowledgeType;
+  mode: ContributionMode;
+  submitLabel: string;
 };
 
 export type AnswerFeedItem =

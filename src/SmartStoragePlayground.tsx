@@ -90,6 +90,7 @@ export function SmartStoragePlayground({
 
   useEffect(() => {
     if (primaryEntry && !selectedKnowledgeType && !submittedContribution) {
+      setSelectedKnowledgeType(primaryEntry.knowledgeType);
       setIntendedKnowledgeType(primaryEntry.knowledgeType);
     }
   }, [primaryEntry?.knowledgeType, selectedKnowledgeType, submittedContribution]);

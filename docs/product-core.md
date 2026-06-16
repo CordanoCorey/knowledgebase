@@ -10,7 +10,19 @@ The application is built for Christians who affirm the inerrancy of Scripture. T
 
 The application should promote human thought over automated output while still using AI for useful recognition, extraction, structuring, and retrieval. AI helps store and surface knowledge; it does not replace human judgment.
 
-Knowledge Entries are rated by Human Weight on a Slop to Soul scale from 0 to 100. Bible passages have full Soul because they are inspired by the Holy Spirit.
+Weight-bearing Knowledge Entries are rated by Human Weight on a Slop to Soul scale from 0 to 100. Human Weight is interpreted through the entry's Knowledge Type, and each weight-bearing Type Behavior should define the credited human role: a Quote should credit the human substance of the person to whom the quote is attributed, while a Words entry should credit the user or person who authored those words. Some workflow types, such as RSVP, may have no Human Weight because they do not meaningfully express human ingenuity. Bible passages have full Soul because they are inspired by the Holy Spirit.
+
+The MVP weight-bearing Knowledge Types are Words, Question, Quote, Sermon, Essay, Poem, Song, Book, Short Story, Lesson, Comment, Prayer Request, Series, and Event. The MVP non-weight-bearing Knowledge Types are RSVP, Person, Organization, Group, Place, and Topic. Bible Passage is a special case: it has full Soul as Scripture, but it is not an authorable Knowledge Entry type in the MVP.
+
+The initial Human Weight bands are Slop at 0-19, Assisted at 20-39, Shaped at 40-59, Substantial at 60-79, Weighty at 80-94, and Soul at 95-100. These bands are interpretive anchors for the product and implementation; they may be refined as the product learns how users recognize human substance.
+
+Human Weight is a recalculable current estimate, not immutable entry metadata. The product should preserve Human Weight Evidence and enough evaluation context to revise scores when the Human Weight definition improves. User feedback, ratings, recognition, or other gamified signals may contribute evidence, but they should support the rating rather than directly determine it or replace the Type Behavior's credited human role.
+
+Evidence Maturity should be tracked separately from Human Weight. Human Weight answers how much human substance the entry carries; Evidence Maturity answers how settled that rating is. A promising new entry may have high estimated Human Weight with low Evidence Maturity, while a long-used reviewed entry may have the same Human Weight with high Evidence Maturity.
+
+Human Weight Feedback should begin with a small set of evidence-oriented responses, such as recognize, used, not human, and wrong context. Recognize and used may also be derived from other product activity when the application has enough data to infer them responsibly, rather than requiring explicit feedback every time.
+
+Answer Feed ranking should use Feed Priority: a derived ordering value that prioritizes Human Weight while also giving low-Evidence Maturity weight-bearing entries enough exposure to gather Human Weight Evidence from users. Human Weight calculation may happen asynchronously, such as through scheduled recalculation, when evidence changes or the scoring definition is refined.
 
 ## Core Model
 
@@ -26,6 +38,50 @@ Tags should be canonical per Referent, not duplicated per user or organization. 
 
 The first schema pass should include Tag Recognition so users and organizations can record that a canonical Tag is meaningful to them without creating local duplicate Tags.
 
+Active Knowledge Context is the Knowledge Context in effect for the user's current Knowledge Page. Recognized Context is historical: the union of Knowledge Contexts where the user or organization has taken meaningful action, recorded through canonical Tags without making those Tags active for every request.
+
+Plain Knowledge Page visits should not add to Recognized Context by default. Page visits are analytics and may serve as weak recommendation evidence, while Recognized Context should come from intentional actions such as bookmarking, pinning, subscribing, contributing, commenting, asking from a Knowledge Context, fulfilling a Knowledge Slot, editing Tags, sharing, or assigning work.
+
+Bookmarked Knowledge Pages should not appear directly in the primary sidebar by default. They belong in user/account navigation, such as the user's Profile or a user dropdown from the profile control, while the sidebar remains focused on Pinned Knowledge Pages and primary navigation.
+
+Bookmarks should be available as a section or tab on the User's profile, with the sidebar avatar menu offering a shortcut to that profile section. Bookmarks do not need a separate User View unless the saved set becomes large or workflow-heavy enough to require one.
+
+Knowledge Pages and User Views should remain distinct in navigation. Knowledge Pages are grounded in a shared Knowledge Context, Referent, Knowledge Entry, Organization, or other world-facing knowledge object. User Views are assembled around the current User's activity, responsibilities, preferences, or account state, such as Calendar, Notifications, Settings, or editing the user's profile. A public profile is a Knowledge Page for a Person or User presentation; editing one's own profile is a User View.
+
+The primary sidebar should carry destination navigation: Dashboard as the first global Knowledge Page, Pinned Knowledge Pages in the middle, and User Views or account navigation at the bottom. The sidebar avatar should be the account-menu entry point for the User's profile, Bookmarks, Settings, and Sign out. The header should stay focused on the user's Active Role and Global Search. The current Knowledge Page or Active Knowledge Context should be presented below the header in the page content area rather than inside the header, so users do not mistake Global Search for context-scoped search. Account controls should live in one place, not duplicated in both sidebar and header.
+
+Global Search should search everything the current User can access, independent of the current Active Knowledge Context. It should not mean public-only search or search limited to the Global Knowledge Context. Search results should make scope legible with labels such as Global, an Organization name, or Personal when needed.
+
+Knowledge Pages may also provide context-scoped Search, Ask, or Explore controls, but those controls should live below the header near the page title or Active Knowledge Context. Context-scoped controls should be visually distinct from header Global Search so users can tell which scope they are using.
+
+When a User selects a Global Search result, the app should navigate to that result's Knowledge Page and synchronize the Knowledge Navigator's active Tags to that page's Active Knowledge Context. For example, opening `Arche Classical Academy` from Global Search lands on Arche's Knowledge Page with Arche's Tag as the single active Tag.
+
+The Knowledge Navigator should be visible on every Knowledge Page because it is the canonical control for the Active Knowledge Context. Its presentation may vary: compact on simple Knowledge Pages and expanded on Dashboard or exploration-heavy pages.
+
+The Knowledge Navigator should not be shown as the main navigator on User Views such as Calendar or Notifications. User Views may show context chips or links inside their items, but those should navigate to the relevant Knowledge Pages rather than making the User View itself context-scoped.
+
+Dashboard should be a fixed first sidebar route for the Global Knowledge Context, not a user-removable Pinned Knowledge Page.
+
+Explore should not be a separate primary sidebar icon for now. Explore is an action available from Dashboard and other Knowledge Pages, while Dashboard is the fixed global Knowledge Page.
+
+Pinned Knowledge Pages should not rely on icon-only recognition. The sidebar may have a compact or collapsed state, but Pinned Knowledge Pages need a visible label affordance beyond hover tooltips because user-pinned pages and default Organization pages are not universally recognizable from icons alone.
+
+On desktop, the sidebar should prefer visible labels for Pinned Knowledge Pages. On smaller screens or constrained layouts, the sidebar may collapse into a compact rail or drawer. When there are more Pinned Knowledge Pages than the available sidebar space can show, overflow should collapse into a concise control such as `+3 more` rather than crowding or shrinking every item.
+
+Default Pinned Knowledge Pages for Organizations should use the specific Organization name as the primary label, such as `Arche Classical Academy`, rather than only generic labels like `My School`. The Organization kind, such as School, Church, Family, or Community, may appear through an icon, secondary label, or grouping.
+
+Default Pinned Knowledge Page seeding should be capped so initial navigation stays calm. When a User has multiple Organizations of the same kind, the app should seed at most the most relevant one per kind and make the others available through pin management or recommendations rather than pinning every affiliation automatically.
+
+The Active Role display in the header should also be the Role switcher. Switching Active Role should change acting capacity, permissions, prompts, and defaults without navigating the User away from the current Knowledge Page or User View.
+
+Navigating to an Organization Knowledge Page should not silently change the User's Active Role. The app may suggest a more relevant Role or show a mismatch hint, but Role switching should remain user-controlled.
+
+Notifications should remain a visible bottom User View icon rather than being hidden inside the avatar menu, because notification count and unread status need a persistent badge.
+
+Calendar should be a bottom User View icon because it is assembled around the current User's roles, assignments, Events, subscriptions, and memberships. Specific Events remain Knowledge Pages; the Calendar itself is a User View.
+
+Settings should live in the sidebar avatar menu rather than as a persistent bottom icon unless future usage proves it needs more prominence. The User's own profile should be reached through the sidebar avatar and edited inline through editable profile fields rather than through a separate Edit Profile view. Organization settings should be reached from the relevant Organization Knowledge Page by Users whose Active Role permits that action.
+
 The base Knowledge Type is Words. When the application does not yet understand a more specific type, a Referent may be represented as Words until that type is added. Later, Type Reclassification can refine the Tag from Words to a more specific Knowledge Type when the Referent's identity is the same.
 
 Knowledge Types are how the application learns new domain behavior. Adding a type means teaching the app how to recognize, relate, display, scope, and work with entries of that type.
@@ -37,7 +93,15 @@ The product loop has two main user actions:
 1. **Explore**: the user makes a Knowledge Request, and the app maps it to a Knowledge Context where relevant Answers can be browsed.
 2. **Contribute**: the user adds a future Answer by submitting a Source, creating a Knowledge Entry directly, or responding to an existing Knowledge Entry.
 
+A Knowledge Request is transient by default. It becomes durable knowledge only when the user intentionally Contributes it as a Question or another Knowledge Type.
+
+A contributed Question should create a Knowledge Entry and represented Question Tag, but it should not automatically move the user into that Question's Knowledge Context. The user may then navigate to or select the Question Tag to Explore and Contribute within the narrower context defined by the original context plus that Question.
+
+Contribute should support both direct Knowledge Entry creation and Smart Storage. Smart Storage should not run automatically for every Contribution; some Knowledge Types and workflows, such as straightforward Comments, should be posted directly as the Knowledge Entry currently shown to the user. Direct posting should create only the Knowledge Entry by default; a Bronze Layer Source is needed when the user chooses Smart Storage, import, upload, or another workflow that preserves raw material for later refinement.
+
 Explore and Contribute should happen in the same place. Wherever users see Answers, they should also be able to add the missing future Answer that belongs in that Knowledge Context.
+
+The product should treat search boxes, ask boxes, and contribution editors as related Knowledge Composer surfaces. A composer may support a transient Knowledge Request, a durable Contribution, or both, but the user action should remain clear at the moment of submission.
 
 The user-facing place for this loop depends on how many Tags are active in the Knowledge Navigator. The Dashboard is used when no Tags are active and the user is located in the Global Knowledge Context. A Referent Page is used when exactly one Tag is active and the user is focused on the Referent that Tag points to. A Context Page is used when two or more Tags are active and the user is exploring their combined Knowledge Context.
 
@@ -87,6 +151,42 @@ Collection is not an MVP Knowledge Type. Series covers named curated or ordered 
 
 Smart Storage is the AI-assisted process of preserving a Source, identifying relevant Tags, and refining that Source toward one or more pieces of structured knowledge the application understands.
 
+Smart Storage is an optional contribution path rather than the only way to Contribute. When direct posting and Smart Storage are both available, the user should be able to choose between posting the entry as currently displayed and storing smartly for AI-assisted proposal generation.
+
+Smart Storage may use Factual Enrichment when a Source points to factual knowledge it does not itself contain, such as a fuzzy description of a known quotation. Factual Enrichment is encouraged for factual information, but it must produce a user-confirmable proposal rather than writing directly to the Gold Layer.
+
+Every enriched factual field in a Smart Storage Proposal should carry Factual Provenance whenever feasible. Factual Provenance may point to an external URL, to another Knowledge Entry, or to a model-only basis when no external evidence was checked.
+
+Factual Provenance may attach to the whole Smart Storage Proposal or Knowledge Entry when one evidence trail supports the proposal as a whole. When enriched factual fields come from different evidence or have different confidence, Factual Provenance should attach to the specific field or claim it supports.
+
+Required Factual Provenance should be determined by the Smart Storage Contract and the Type Behavior for each Knowledge Type and field. Type Behavior may mark fields as enrichable and may require provenance for enriched values, such as a Book proposal enriching a fuzzy Source into the title `Pride and Prejudice` and author `Jane Austen`.
+
+Smart Storage Proposals and enriched factual fields may include coarse Proposal Confidence such as high, medium, or low. Proposal Confidence should guide user review, especially for model-only provenance or ambiguous candidates, but it must not be presented as Human Weight or as a substitute for user confirmation.
+
+Low Proposal Confidence should warn the user but should not universally block acceptance. Acceptance should be blocked by invalid Smart Storage Contract shape, unresolved required fields, unresolved identity ambiguity, or missing required Factual Provenance rather than by confidence alone.
+
+Smart Storage should send a curated Smart Storage Contract to the LLM rather than the raw database schema. The contract should include whatever domain information the LLM needs to match Sources to Knowledge Types and propose Gold Layer structure, such as allowed Knowledge Types, type-specific fields, proposal requirements, current Knowledge Context, relevant existing Tags or Referents, examples, and provenance expectations.
+
+Smart Storage Contracts and Type Behaviors must be versioned and tracked in the database as immutable content snapshots, not only as version labels pointing to code or configuration. Each Smart Storage Proposal should record the Smart Storage Contract version and Type Behavior version that generated it, so later rule changes can mark proposals stale or route them through Reprocessing intentionally.
+
+Type Behavior should be versioned as a whole per Knowledge Type, with field-level rules inside the immutable snapshot. For example, a Book Type Behavior snapshot may define whether `title` and `author` are enrichable and whether enriched values require Factual Provenance, without creating separate version records for each field.
+
+Smart Storage Contract versions should contain stable reusable rules and templates, not request-specific data. Request-specific input should be snapshotted separately with the enrichment run or Smart Storage Proposal, including the Source reference, the specific Source text or excerpts sent to the LLM, active Knowledge Context, candidate existing Tags or Referents, retrieved evidence, and other facts used for that specific proposal generation.
+
+Request-specific input snapshots should record what the LLM actually saw while linking back to the full Bronze Layer Source as the durable raw record. The full raw Source should not be duplicated into the input snapshot unless the full Source was actually sent to the LLM.
+
+Smart Storage Runs should preserve the raw model output separately from parsed Smart Storage Proposals. The raw output supports audit, debugging, parser failure recovery, and future contract improvement, while the Smart Storage Proposal remains the cleaned, validated, contract-shaped Silver Layer record users review.
+
+Failed LLM calls, parse failures, and validation failures should create or update Smart Storage Runs, not Smart Storage Proposals. A Smart Storage Proposal should exist only after the app has parsed and validated a contract-shaped candidate that the user can review.
+
+Smart Storage Run status should describe operational processing rather than user review. A queued run is waiting to call the model. A running run is actively enriching. A succeeded run produced at least one parsed Smart Storage Proposal. A no-proposal run completed without producing a reviewable proposal. A failed run stopped because the LLM call, parse, or validation failed before any proposal existed. A superseded run was replaced by a newer run for the same Source and request context.
+
+No-proposal outcomes should be surfaced quietly in the contribution or review area, such as "Saved as Source; no structured proposal found." They should not create Answer Feed items, Knowledge Slots, or failed Smart Storage Proposal cards.
+
+Smart Storage Proposal acceptance should validate against the Smart Storage Contract and Type Behavior versions that generated the proposal unless those versions have been marked incompatible or retired. Incompatible or retired versions should make affected proposals stale and require Reprocessing before acceptance.
+
+Smart Storage may challenge a user-selected Knowledge Type when the Source appears to match a more specific or more appropriate Knowledge Type. A Knowledge Slot's requested Knowledge Type remains fixed during Slot fulfillment, so Smart Storage should not challenge it.
+
 When a user creates or refines a Knowledge Entry, the creation flow should first search for existing Tags and Referents before creating new ones. The accepted behavior is to reuse the canonical Tag when the intended Referent already exists, and to create a new Tag only when the app cannot confidently match an existing Referent or the user confirms the proposed new Referent is distinct.
 
 The bronze, silver, and gold progression describes the degree to which useful information has been extracted, cleaned, structured, and shaped from the original Source:
@@ -95,9 +195,67 @@ The bronze, silver, and gold progression describes the degree to which useful in
 - The Silver Layer is an intermediate refinement layer for cleaned and structured data that has not yet become fully typed knowledge.
 - The Gold Layer contains Knowledge Entries represented according to the most specific Knowledge Types the application currently understands.
 
+For Smart Storage, Bronze Layer is to Source as Silver Layer is to Smart Storage Proposal and Gold Layer is to Knowledge Entry. Bronze preserves raw data, Silver holds reviewable proposed knowledge, and Gold stores confirmed Knowledge Entries.
+
+For Smart Storage, the Bronze Layer Source should be preserved immediately when the user submits, before any LLM call or Smart Storage proposal generation. If enrichment fails, times out, or produces no acceptable proposal, the preserved Source should remain available for retry or Reprocessing.
+
+When a user later opts a directly created Knowledge Entry into Smart Storage or Reprocessing, the app should create a Bronze Layer Source snapshot of the entry's current representation at that moment and link it back to the existing Knowledge Entry. That Source preserves the reprocessing input; it should not be treated as the original raw direct-post submission.
+
+Before direct posting or Smart Storage, the application should provide a deterministic Contribution Preview that shows the best current guess for the Knowledge Type, Knowledge Context, and visible entry attributes that would be contributed. This preview should be computed by application logic rather than an LLM and should update as user input, uploaded material, or selected context changes.
+
+Gold Layer Knowledge Entries produced through Smart Storage require user confirmation. LLM-assisted enrichment can improve a proposal, but confirmation is the boundary where proposed structured knowledge becomes stored Knowledge Entry data.
+
+User confirmation can make the confirming user responsible for the whole Knowledge Entry while individual factual fields remain attributed to their Factual Provenance. External factual material that should remain navigable in the knowledgebase may be represented by a Knowledge Entry; otherwise an external URL can serve as the provenance target.
+
+Factual Provenance should default to an external URL when the source is only needed as evidence for a proposed fact. Smart Storage should create or propose a Knowledge Entry for the provenance target only when that target is itself a meaningful Referent users may navigate, tag, search, reuse, or cite repeatedly.
+
 One Source can produce many Knowledge Entries. For example, an uploaded essay or transcript can produce one parent entry and many Quote entries, each with its own Knowledge Context. The parent entry's Knowledge Context may be a superset of the union of its quotes' Knowledge Contexts.
 
+The user review unit for Smart Storage should be a durable Smart Storage Proposal linked to the saved Source, and each Smart Storage Proposal should correspond to one proposed Knowledge Entry. A single Source may therefore produce many Smart Storage Proposals, letting the user accept, reject, or edit each proposed Knowledge Entry independently.
+
+Smart Storage Proposals belong to the Silver Layer and should survive refresh, navigation, failed enrichment, and deferred review. They are review records tied to Bronze Sources, not temporary UI previews and not Gold Layer Knowledge Entries.
+
+Smart Storage Proposals should store contract-shaped domain proposals rather than raw Convex write payloads. On acceptance, the backend should validate the proposal and translate it into the current persistence shape, keeping Silver Layer records portable if the application later migrates away from Convex or changes its internal schema.
+
+Smart Storage Proposal records should preserve the original generated proposal separately from the current reviewed proposal. The original generated proposal supports audit, debugging, and Reprocessing, while the current reviewed proposal is the editable version the user may accept into Gold Layer knowledge.
+
+Guided Smart Storage follow-up questions should update the current reviewed Smart Storage Proposal before acceptance. Follow-up answers may resolve required fields, identity ambiguity, context Tags, referenced Referents, or proposal details, but they should not create partial Gold Layer Knowledge Entries while the proposal remains under review.
+
+Guided Smart Storage follow-up questions should resolve required fields and blocking ambiguities first, one question at a time. Once the proposal is valid and accept-ready, optional enrichment questions may be offered as skippable prompts or suggestions, but they should not block acceptance.
+
+Smart Storage Proposal status should stay small. A drafted proposal is generated and awaiting review. A needs-resolution proposal requires the user to choose between candidates or resolve ambiguity. An accepted proposal has produced a Gold Layer Knowledge Entry. A rejected proposal was declined by the user. A stale proposal was superseded by a newer Smart Storage Contract, Type Behavior, or Reprocessing run.
+
+Accepting a Smart Storage Proposal should be atomic for one complete proposed Knowledge Entry. Users should edit the proposal, split it into multiple proposals, or reject unwanted proposals before acceptance rather than partially accepting individual fields into Gold Layer knowledge.
+
+Proposal generation may suggest existing Tags, Referents, and Knowledge Entries, but acceptance is the authoritative identity check. At acceptance time, the application should re-check current canonical Tags and Referents, reuse existing matches, and refuse or redirect when another same-typed Knowledge Entry already represents the proposed Referent.
+
+Smart Storage should create one primary Smart Storage Proposal for the user's intended Knowledge Entry and include referenced Tags or Referents inside that proposal. If a referenced Referent already exists, the proposal should explicitly show that the resulting Knowledge Entry will reference that existing Referent through its Tag. If the referenced Referent does not yet exist, the proposal should explicitly show that acceptance will create the new Referent and Tag and then include that Tag in the Knowledge Entry's Knowledge Context. Smart Storage should create a separate Knowledge Entry proposal for a referenced Referent only when the Source contains separate entry content for that Referent.
+
+When Factual Enrichment finds multiple plausible matches for a user's intent, ambiguity should remain inside Smart Storage Proposal review. The user must choose the exact candidate before the proposal becomes Gold Layer knowledge, and Smart Storage should create multiple Gold Layer Knowledge Entries from a fuzzy Source only when the user explicitly accepts multiple proposals.
+
 Reprocessing revisits existing Sources or Knowledge Entries when the application gains new Knowledge Types or improved recognition. A previously complete entry can become an Upgrade Candidate when a new type reveals knowledge it held only indirectly.
+
+Reprocessing may propose edits to an existing Gold Layer Knowledge Entry when the same knowledge can be represented more specifically, such as changing its Knowledge Type, fields, represented Referent, or Tags. It may also propose additional linked Knowledge Entries when the Source or existing entry contains separate knowledge units. The proposal review must make the outcome explicit: acceptance either updates an existing Gold entry, creates new Gold entries, or does both through clearly separated proposals.
+
+When a Smart Storage Contract or Type Behavior version changes, the app may run Reprocessing across a selected dataset or the entire eligible dataset to produce suggested edits and new proposals. Dataset-wide Reprocessing should create reviewable Smart Storage Proposals or mark Upgrade Candidates; it should not silently rewrite Gold Layer Knowledge Entries.
+
+Dataset-wide Reprocessing may include direct-post Knowledge Entries by default. For direct-post entries that do not already have Bronze Sources, the app should first create a Bronze Layer Source snapshot of each eligible entry's current representation before running Smart Storage. Existing Smart Storage, import, or upload entries can reuse their preserved Bronze Sources when those Sources remain the correct input for the new run.
+
+Dataset-wide Reprocessing suggestions should be routed to users with authority over the affected Visibility Scope, Organization, or entry. Personal suggestions should go to the owning user; organization-context suggestions should go to users with the relevant organization role; public or global suggestions should use a trusted maintainer workflow. Bulk Reprocessing may generate suggestions at scale, but accepting suggested edits remains permissioned per affected entry or proposal.
+
+Reprocessing notifications should present new type or contract improvements as opportunities to enrich the knowledgebase, not as errors in existing data. For example, when a new Canon of Literature type is added later, a school user might see: "Exciting news! We just added the Canon of Literature type. You have books in your school's context that look like they might make good additions to your canon. Click to see suggestions." The exact copy may vary, but the posture should be invitational and review-oriented.
+
+Clicking a Reprocessing notification should open a scoped suggestions queue rather than jumping directly to the first suggestion. The queue should be filtered to the relevant Knowledge Context, Organization, new Knowledge Type, or contract improvement, show the size and shape of the opportunity, and let authorized users accept, reject, or open individual suggestions for review.
+
+The MVP suggestions queue should not support bulk accept for Reprocessing suggestions. Accepting suggested edits or new Gold entries should remain one suggestion at a time. Bulk dismiss, bulk reject, or "not now" actions may be allowed because they avoid writing Gold Layer knowledge; bulk accept can be reconsidered later for low-risk suggestions with strong provenance, audit, and rollback.
+
+Rejected or dismissed Reprocessing suggestions should be remembered so the app does not repeatedly present the same candidate to the same review scope. The dismissal should be tied to the proposal or candidate key, the Smart Storage Contract or Type Behavior version that produced it, and the relevant reviewer scope. A materially changed suggestion from a later contract or behavior version may be surfaced again.
+
+Accepted Reprocessing edits should preserve explicit upgrade provenance, such as the prior Knowledge Type or shape, the accepted proposal, and the Smart Storage Run or contract versions that produced the suggestion. User-facing UI should present this subtly, such as in history or metadata rather than as a persistent warning. Upgrade provenance and old versions should not be stored in a way that bloats hot Knowledge Entry records or slows normal reads; after an appropriate retention window, older versions may be archived into colder history or audit storage while preserving enough summary provenance to explain the upgrade.
+
+Archived old versions should remain governed by the affected entry's Visibility Scope and relevant role checks. A user who can view the current entry may see subtle summary provenance such as "upgraded from Words," but full old-version contents should be visible only to users who could view the relevant entry/version under its scope or to current authorized maintainers for that scope.
+
+Dataset-wide Reprocessing is descriptive product language, not a new domain glossary term in the MVP. If the implementation later needs a persisted batch object for scheduling, progress, retries, or audit, it may introduce a product or implementation concept such as a Reprocessing Pass without changing the core domain term Reprocessing.
 
 Source is not an MVP Knowledge Type. A Source belongs to the Bronze Layer as raw submitted material and can produce Knowledge Entries, but it should not itself be treated as represented knowledge in the Gold Layer.
 
@@ -108,6 +266,8 @@ Long-form or rich editable content belongs to Entry Representations rather than 
 ## Knowledge Slots
 
 A Knowledge Slot is a predefined request for one Knowledge Entry of a specified Knowledge Type within a specified Knowledge Context. It is the app's way to request future Answers from users.
+
+A saved Question should not automatically create a Knowledge Slot. The Question records a durable question and can define a narrower Knowledge Context; a Knowledge Slot is created only when a user intentionally requests a future Answer from a user, group, organization, network, or open audience.
 
 Examples:
 
@@ -213,7 +373,9 @@ Notification is not a Knowledge Type. Notifications are reactions to existing Kn
 
 Reaction is not a Knowledge Type. Reactions are interaction state attached to Knowledge Entries or Comments.
 
-Bookmark is not a Knowledge Type. A bookmark is a User relationship to a Knowledge Entry, Referent Page, or Context Page, used to create saved views and possibly subscription-style notifications.
+Bookmark is not a Knowledge Type. Bookmark is a User relationship to a Knowledge Page that saves it for later reference without sidebar placement or notification behavior. Bookmarks may inform user-specific tagging recommendations and Knowledge Context recommendations because they record Knowledge Pages the user has intentionally brought into relationship with their activity.
+
+Pinning is not a Knowledge Type. Pinning is a User relationship to a Knowledge Page that keeps it easy to return to through navigation, while Subscription separately controls notification behavior.
 
 Subscription is not a Knowledge Type. A subscription is a User relationship to a Referent Page, Context Page, Tag, Knowledge Entry, Group, Event, or Organization that affects notification behavior.
 
@@ -364,7 +526,7 @@ These invariants are implied by the MVP domain model and `convex/schema.ts`. Con
 - `contextPreviewTagLabels` is denormalized card data and must stay bounded.
 - `searchText`, `previewText`, and `publicPreviewText` must stay bounded enough for card/search use.
 - Long or rich content must live in `entryRepresentations`, not directly on `knowledgeEntries`.
-- `humanWeight` should stay within the product scale of 0 through 100.
+- `humanWeight`, when present, should stay within the product scale of 0 through 100.
 - `createdAt` should be set once; `updatedAt` should move forward when entry-visible data changes.
 - Discoverability and visibility are separate: a public preview may exist without read access to the full entry.
 - When `publicPreviewText` is exposed through discovery, it must be safe to show to that discoverability audience.
@@ -378,6 +540,8 @@ These invariants are implied by the MVP domain model and `convex/schema.ts`. Con
 - Empty-ish detail tables with only `entryId` are acceptable until a type has real MVP-specific fields.
 - `commentEntries.parentEntryId` must point to the entry being answered or discussed.
 - A Comment should not use itself as its parent.
+- A Comment's represented Referent identity should be generated from stable relational facts, such as parent Knowledge Entry, commenting Person Referent, and generated uniqueness, not from user-authored body text.
+- Comment UI should not ask for a title; any stored title or display label should be generated from the parent entry while the body or preview text carries the comment substance.
 - `quoteEntries.quotedPersonReferentId`, when present, must point to a Person Referent.
 - `quoteEntries.sourceEntryId`, when present, must point to the larger entry/source represented by the Quote.
 - `eventEntries.locationPlaceReferentId`, when present, must point to a Place Referent.
@@ -386,6 +550,10 @@ These invariants are implied by the MVP domain model and `convex/schema.ts`. Con
 - `rsvpEntries.personReferentId` must point to a Person Referent.
 - An RSVP should be unique per Event and Person unless the product later supports response history.
 - `organizationEntries.organizationKind` must be one of School, Church, Family, or Community.
+- An Organization requires a name and Organization kind in the MVP. Place, address, website, members, and parent relationships are optional enrichment unless a later Type Behavior makes one required for a specific Organization kind.
+- In general, Person, Group, Place, and similar world-modeling Knowledge Types should require only a name to establish their initial represented Referent identity. Additional details such as membership, address, relationships, roles, contact information, or biographical facts should be optional enrichment unless the Type Behavior requires a specific discriminator to create a valid entry.
+- A Person can be validly created before role, organization membership, user-account linkage, email, or family relationships are known. Smart Storage should ask follow-up questions only when needed to resolve plausible identity ambiguity or optional enrichment.
+- A Place can be validly created from a name alone. Address, locality, region, country, and geographic precision are optional enrichment unless needed to distinguish between plausible matching Places.
 
 ### Entry Representations and Sources
 
@@ -394,9 +562,36 @@ These invariants are implied by the MVP domain model and `convex/schema.ts`. Con
 - `prosemirrorDocumentId` remains an arbitrary string compatible with the collaborative editor.
 - File, audio, video, URL, and plain text representations should use the fields matching their `representationKind`.
 - A Source is Bronze Layer raw material, not a Knowledge Type and not a Knowledge Entry.
+- A Source created for later Smart Storage or Reprocessing of a directly created Knowledge Entry is a snapshot of that entry's current representation at the time of reprocessing, not the original raw direct-post submission.
 - A Source may produce many Knowledge Entries through `sourceOutputs`.
 - A `sourceOutputs` row must point to an existing Source and an existing produced or derived Knowledge Entry.
-- Formal Silver Layer tables are intentionally deferred until review, retry, or partial acceptance workflows need them.
+- In Smart Storage, Bronze Layer maps to Sources, Silver Layer maps to Smart Storage Proposals, and Gold Layer maps to confirmed Knowledge Entries.
+- Smart Storage should not run automatically for every Contribution; direct posting should create the Knowledge Entry currently displayed to the user when that path is selected, without creating a Bronze Layer Source by default.
+- Contribution Preview should use deterministic application logic, not an LLM, to show the proposed Knowledge Type, Knowledge Context, and visible entry attributes before the user submits.
+- Formal Silver Layer records are required for Smart Storage Proposals because review, retry, and partial acceptance workflows need durable state between Bronze Sources and Gold Layer Knowledge Entries.
+- Smart Storage Proposals should store contract-shaped domain data rather than raw Convex write payloads, and acceptance should translate validated proposals into the current persistence schema.
+- Smart Storage Contracts and Type Behaviors must be versioned in the database as immutable content snapshots, and each Smart Storage Proposal should record the versions used to generate it.
+- Type Behavior should be versioned as a whole per Knowledge Type, with field-level enrichment and provenance rules inside the immutable snapshot.
+- Smart Storage Contract versions should contain stable reusable rules and templates; request-specific Source, context, candidate, and evidence input should be snapshotted separately with the enrichment run or proposal.
+- Request-specific input snapshots should record what the LLM actually saw and link to the full Bronze Layer Source rather than duplicating raw Source content by default.
+- Smart Storage Runs should preserve raw model output separately from parsed Smart Storage Proposals.
+- Failed LLM calls, parse failures, and validation failures should be represented on Smart Storage Runs rather than by creating Smart Storage Proposals.
+- Smart Storage Run status should track operational processing with queued, running, succeeded, no-proposal, failed, and superseded states, separate from Smart Storage Proposal review status.
+- No-proposal Smart Storage Runs should be visible only as quiet Source/review state, not as Answers, Knowledge Slots, or proposal cards.
+- Smart Storage Proposal acceptance should validate against the original recorded Smart Storage Contract and Type Behavior versions unless those versions are marked incompatible or retired.
+- Smart Storage Proposal records should preserve the original generated proposal separately from the current reviewed proposal.
+- Accepting a Smart Storage Proposal should atomically create or connect the complete proposed Knowledge Entry shape; partial acceptance should be represented by editing, splitting, or rejecting proposals before acceptance.
+- Smart Storage Proposal acceptance must perform the authoritative current identity check for Tags, Referents, and same-typed represented Knowledge Entries, regardless of matches proposed earlier.
+- Smart Storage Proposal review should explicitly distinguish existing referenced Referents and Tags from new Referents and Tags that acceptance will create.
+- Reprocessing proposals should explicitly distinguish edits to an existing Gold Layer Knowledge Entry from creation of additional Gold Layer Knowledge Entries.
+- Smart Storage Contract or Type Behavior version changes may trigger dataset-wide Reprocessing to create suggested edits, Smart Storage Proposals, or Upgrade Candidates, but should not silently rewrite existing Gold Layer Knowledge Entries.
+- Accepted Reprocessing edits should preserve explicit upgrade provenance without storing old versions on hot Knowledge Entry records in a way that harms normal read performance.
+- Older upgrade versions may be archived after a retention window as long as enough summary provenance remains to explain the upgrade and locate audit history when authorized.
+- Factual Provenance may be entry-level when one evidence trail supports the whole proposal, but enriched factual fields with distinct evidence should carry field-level provenance.
+- Required Factual Provenance should be specified by the Smart Storage Contract and Knowledge Type field behavior rather than applied globally to every field.
+- Proposal Confidence should be coarse review guidance for proposals or enriched factual fields, not Human Weight, truth, or a replacement for user confirmation.
+- Low Proposal Confidence should warn but not universally block acceptance; contract validity, required field completion, required provenance, and identity resolution are the blocking conditions.
+- Smart Storage Proposal status should distinguish review state from enrichment-run failures; failed LLM calls should belong to the run or retry state rather than to a proposal that may never have been created.
 
 ### Bible Passage and Scripture
 
@@ -421,6 +616,7 @@ These invariants are implied by the MVP domain model and `convex/schema.ts`. Con
 - `userProfiles.personReferentId` must be the represented Referent for `personEntryId`.
 - `userProfiles.personTagId` must be the canonical Tag for `personReferentId`.
 - A User should have exactly one active `userProfiles` row.
+- Profile-facing identity facts should belong to the linked Person Knowledge Entry or related world-model records, while account-only access settings should remain on User/auth/profile infrastructure.
 - A Person may be a member of Organizations and Groups through `memberships`.
 - `memberships.personReferentId` must point to a Person Referent.
 - A membership target must identify exactly one target matching `targetKind`.
@@ -430,6 +626,7 @@ These invariants are implied by the MVP domain model and `convex/schema.ts`. Con
 - Group membership targets must point to Group Referents.
 - When `memberUserId` is present, it should match the User linked to `personReferentId`.
 - The onboarding rule that a User belongs to at least one Organization is required later, but not enforced by schema alone.
+- A Group can be validly created before its full membership is known. Group membership should be optional enrichment rather than a blocking requirement for accepting a Group Smart Storage Proposal.
 
 ### Knowledge Slots
 
@@ -461,7 +658,6 @@ These invariants are implied by the MVP domain model and `convex/schema.ts`. Con
 
 ## Open Questions
 
-- What does the Silver Layer need to contain before a Knowledge Entry reaches the Gold Layer?
 - How should Human Weight be calculated or assigned for ordinary user-created entries?
 - What Type Behaviors belong to the first non-Scripture Knowledge Types?
 - How should networks of organizations be represented in Visibility Scope?
