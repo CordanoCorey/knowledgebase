@@ -5,6 +5,7 @@ import { describe, expect, test } from "vitest";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
+import type { OrganizationMembershipRole } from "./lib/organizationRoles";
 import schema from "./schema";
 
 const modules = {
@@ -93,7 +94,7 @@ describe("Pinned Knowledge Pages", () => {
         canonicalKey: "second-school",
         kind: "school",
         name: "Second School",
-        role: "teacher",
+        role: "member",
         userId,
       }),
     );
@@ -269,7 +270,7 @@ async function insertOrganizationForUser(
     canonicalKey: string;
     kind: "church" | "community" | "family" | "school";
     name: string;
-    role: string;
+    role: OrganizationMembershipRole;
     userId: Id<"users">;
   },
 ) {

@@ -50,7 +50,7 @@ export function CollaborativeEditor({ documentId, headerActions }: Collaborative
     return (
       <section className="editor-panel editor-loading" aria-busy="true">
         <Cloud aria-hidden="true" />
-        <span>Opening editor</span>
+        <span>Opening Logeion editor</span>
       </section>
     );
   }
@@ -89,7 +89,7 @@ function SyncedEditor({
       editorProps: {
         attributes: {
           class: "prose-editor",
-          "aria-label": "Collaborative editor",
+          "aria-label": "Logeion editor",
         },
       },
     },
@@ -101,7 +101,7 @@ function SyncedEditor({
       <header className="editor-header">
         <div>
           <p className="eyebrow">Live document</p>
-          <h1>Collaborative Editor</h1>
+          <h1>Logeion Editor</h1>
         </div>
         <div className="editor-header-actions">
           <div className="sync-state" data-error={syncError ? "true" : "false"}>

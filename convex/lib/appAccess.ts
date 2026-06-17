@@ -14,6 +14,7 @@ export type AllowedOrganization = {
   name: string;
   role: string;
 };
+export type SystemRole = NonNullable<Doc<"users">["systemRole"]>;
 
 export type AppAccessState =
   | { status: "unauthenticated" }
@@ -23,6 +24,7 @@ export type AppAccessState =
       email?: string;
       organizations: AllowedOrganization[];
       status: "allowed";
+      systemRole?: SystemRole;
       userId: Id<"users">;
     };
 
@@ -39,6 +41,8 @@ export async function getCurrentAppAccess(
   if (!user || user.isActive !== true) {
     return { ...identity, status: "inactiveUser" };
   }
+  const systemRole = user.systemRole;
+  const hasSystemAdminAccess = systemRole === "systemAdmin";
 
   const activeMemberships = await ctx.db
     .query("memberships")
@@ -70,7 +74,7 @@ export async function getCurrentAppAccess(
     });
   }
 
-  if (organizations.length === 0) {
+  if (organizations.length === 0 && !hasSystemAdminAccess) {
     return { ...identity, status: "needsOrganization" };
   }
 
@@ -78,6 +82,7 @@ export async function getCurrentAppAccess(
     ...identity,
     organizations,
     status: "allowed",
+    ...(systemRole === undefined ? {} : { systemRole }),
   };
 }
 
@@ -86,6 +91,36 @@ export async function requireAppAccess(ctx: AppAccessCtx) {
   if (access.status !== "allowed") {
     throw new Error("Unauthorized");
   }
+  return access;
+}
+
+export async function requireSystemAdmin(ctx: AppAccessCtx) {
+  const access = await requireAppAccess(ctx);
+  if (access.systemRole !== "systemAdmin") {
+    throw new Error("Unauthorized");
+  }
+  return access;
+}
+
+export async function requireOrganizationAdmin(
+  ctx: AppAccessCtx,
+  organizationReferentId: Id<"referents">,
+) {
+  const access = await requireAppAccess(ctx);
+  if (access.systemRole === "systemAdmin") {
+    return access;
+  }
+
+  const adminMembership = access.organizations.find((organization) => {
+    return (
+      organization.organizationReferentId === organizationReferentId &&
+      organization.role === "admin"
+    );
+  });
+  if (!adminMembership) {
+    throw new Error("Unauthorized");
+  }
+
   return access;
 }
 

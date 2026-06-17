@@ -6,6 +6,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
+import type { OrganizationMembershipRole } from "./lib/organizationRoles";
 
 const BASE_HUMAN_WEIGHT = 0;
 const DEFAULT_CONTEXT_TAG_LABELS: string[] = [];
@@ -48,6 +49,7 @@ export const DEFAULT_USER_SEEDS = [
       { organizationKey: "my-community", role: "admin" },
     ],
     name: "gelbaughcm@gmail.com",
+    systemRole: "systemAdmin",
     tempPassword: "Temp-Gelbaugh-2026!",
   },
   {
@@ -77,6 +79,7 @@ export const DEFAULT_USER_SEEDS = [
 const seededUserInput = v.object({
   email: v.string(),
   name: v.string(),
+  systemRole: v.optional(v.literal("systemAdmin")),
   userId: v.id("users"),
 });
 
@@ -85,6 +88,7 @@ type OrganizationKind = Doc<"organizationEntries">["organizationKind"];
 type SeededUser = {
   email: string;
   name: string;
+  systemRole?: "systemAdmin";
   userId: Id<"users">;
 };
 type SeedStats = {
@@ -293,6 +297,9 @@ async function updateSeededUser(
   if (existingUser.isActive !== true) {
     patch.isActive = true;
   }
+  if (user.systemRole !== undefined && existingUser.systemRole !== user.systemRole) {
+    patch.systemRole = user.systemRole;
+  }
 
   if (!hasPatch(patch)) {
     return "skipped";
@@ -383,7 +390,7 @@ async function upsertOrganizationMembership(
     memberUserId: Id<"users">;
     organizationReferentId: Id<"referents">;
     personReferentId: Id<"referents">;
-    role: string;
+    role: OrganizationMembershipRole;
     updatedAt: number;
   },
 ): Promise<UpsertState> {

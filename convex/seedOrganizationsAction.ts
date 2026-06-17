@@ -79,13 +79,18 @@ export const seedDefaultOrganizations = internalAction({
     const domainStats: DomainSeedStats = await ctx.runMutation(
       internal.seedOrganizations.upsertDefaultOrganizationsAndMemberships,
       {
-        users: users.map((user) => ({
-          email: user.email,
-          name:
-            DEFAULT_USER_SEEDS.find((seed) => seed.email === user.email)?.name ??
-            user.email,
-          userId: user.userId,
-        })),
+        users: users.map((user) => {
+          const userSeed = DEFAULT_USER_SEEDS.find(
+            (seed) => seed.email === user.email,
+          );
+
+          return {
+            email: user.email,
+            name: userSeed?.name ?? user.email,
+            systemRole: getSeedSystemRole(userSeed),
+            userId: user.userId,
+          };
+        }),
       },
     );
 
@@ -133,4 +138,14 @@ async function upsertPasswordUser(
   });
 
   return created.user._id;
+}
+
+function getSeedSystemRole(
+  userSeed: (typeof DEFAULT_USER_SEEDS)[number] | undefined,
+) {
+  if (!userSeed || !("systemRole" in userSeed)) {
+    return undefined;
+  }
+
+  return userSeed.systemRole;
 }

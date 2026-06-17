@@ -1,6 +1,7 @@
 import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { organizationMembershipRole } from "./lib/organizationRoles";
 
 const referentKnowledgeType = v.union(
   v.literal("words"),
@@ -256,6 +257,7 @@ export default defineSchema({
     phoneVerificationTime: v.optional(v.number()),
     isAnonymous: v.optional(v.boolean()),
     isActive: v.optional(v.boolean()),
+    systemRole: v.optional(v.literal("systemAdmin")),
   })
     .index("email", ["email"])
     .index("phone", ["phone"]),
@@ -418,7 +420,7 @@ export default defineSchema({
     organizationReferentId: v.optional(v.id("referents")),
     groupReferentId: v.optional(v.id("referents")),
     membershipStatus,
-    memberRole: v.optional(v.string()),
+    memberRole: v.optional(organizationMembershipRole),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

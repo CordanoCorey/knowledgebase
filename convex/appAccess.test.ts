@@ -12,6 +12,7 @@ const modules = {
   "./appAccess.ts": () => import("./appAccess"),
   "./auth.ts": () => import("./auth"),
   "./authProviderConfig.ts": () => import("./authProviderConfig"),
+  "./organizationAccounts.ts": () => import("./organizationAccounts"),
   "./seedOrganizations.ts": () => import("./seedOrganizations"),
   "./seedOrganizationsAction.ts": () => import("./seedOrganizationsAction"),
 };
@@ -50,6 +51,15 @@ type SeedVerificationResult = {
     isActive: boolean | null;
   }>;
 };
+type OrganizationMembershipSettings = {
+  members: Array<{
+    email?: string;
+    name: string;
+    role: "admin" | "member";
+    userId: Id<"users">;
+  }>;
+  name: string;
+};
 type AppAccessTestState =
   | { status: "unauthenticated" }
   | {
@@ -65,6 +75,7 @@ type AppAccessTestState =
         role: string;
       }>;
       status: "allowed";
+      systemRole?: "systemAdmin";
       userId: Id<"users">;
     };
 
@@ -97,6 +108,11 @@ describe("App organization access", () => {
       inserted: 3,
       skipped: 0,
       updated: 0,
+    });
+    expect(result.userRows).toEqual({
+      inserted: 0,
+      skipped: 2,
+      updated: 1,
     });
 
     const secondResult = (await t.action(
@@ -204,6 +220,7 @@ describe("App organization access", () => {
       throw new Error("Expected seeded user to have app access.");
     }
     expect(access.email).toBe("gelbaughcm@gmail.com");
+    expect(access.systemRole).toBe("systemAdmin");
     expect(
       access.organizations.map((organization) => ({
         kind: organization.organizationKind,
@@ -234,6 +251,114 @@ describe("App organization access", () => {
     ]);
   });
 
+  test("allows organization admins to add existing users with predefined roles", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = (await t.action(
+      internal.seedOrganizationsAction.seedDefaultOrganizations,
+      {},
+    )) as SeedActionTestResult;
+    const gelbaugh = getSeededUser(seed.users, "gelbaughcm@gmail.com");
+    const newUserId = await t.run(async (ctx) => {
+      return await ctx.db.insert("users", {
+        email: "new.member@example.com",
+        isActive: false,
+        name: "New Member",
+      });
+    });
+    const admin = t.withIdentity({
+      subject: `${gelbaugh.userId}|test-session`,
+    });
+
+    const member = await admin.mutation(
+      api.organizationAccounts.addOrganizationMember,
+      {
+        email: "New.Member@Example.com",
+        organizationId: "arche-classical-academy",
+        role: "member",
+      },
+    );
+
+    expect(member).toMatchObject({
+      email: "new.member@example.com",
+      name: "New Member",
+      role: "member",
+      userId: newUserId,
+    });
+
+    const promotedMember = await admin.mutation(
+      api.organizationAccounts.addOrganizationMember,
+      {
+        email: "new.member@example.com",
+        organizationId: "arche-classical-academy",
+        role: "admin",
+      },
+    );
+    expect(promotedMember).toMatchObject({
+      email: "new.member@example.com",
+      name: "New Member",
+      role: "admin",
+      userId: newUserId,
+    });
+
+    const settings = (await admin.query(
+      api.organizationAccounts.getOrganizationMembershipSettings,
+      {
+        organizationId: "arche-classical-academy",
+      },
+    )) as OrganizationMembershipSettings;
+    expect(settings.name).toBe("Arche Classical Academy");
+    expect(
+      settings.members.map((listedMember) => ({
+        email: listedMember.email,
+        role: listedMember.role,
+      })),
+    ).toContainEqual({
+      email: "new.member@example.com",
+      role: "admin",
+    });
+
+    const access = (await t
+      .withIdentity({ subject: `${newUserId}|test-session` })
+      .query(api.appAccess.getCurrentUserAccess, {})) as AppAccessTestState;
+    expect(access.status).toBe("allowed");
+    if (access.status !== "allowed") {
+      throw new Error("Expected added member to have app access.");
+    }
+    expect(access.organizations).toContainEqual({
+      name: "Arche Classical Academy",
+      organizationEntryId: expect.any(String),
+      organizationKind: "school",
+      organizationReferentId: expect.any(String),
+      role: "admin",
+    });
+  });
+
+  test("rejects organization member management from non-admin members", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = (await t.action(
+      internal.seedOrganizationsAction.seedDefaultOrganizations,
+      {},
+    )) as SeedActionTestResult;
+    const corey = getSeededUser(seed.users, "corey@rulerofkingschurch.com");
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        email: "blocked.member@example.com",
+        isActive: true,
+        name: "Blocked Member",
+      });
+    });
+
+    await expect(
+      t
+        .withIdentity({ subject: `${corey.userId}|test-session` })
+        .mutation(api.organizationAccounts.addOrganizationMember, {
+          email: "blocked.member@example.com",
+          organizationId: "arche-classical-academy",
+          role: "member",
+        }),
+    ).rejects.toThrow("Unauthorized");
+  });
+
   test("blocks active users without active organization membership", async () => {
     const t = convexTest({ schema, modules });
     const userId = await t.run(async (ctx) => {
@@ -255,25 +380,136 @@ describe("App organization access", () => {
     });
   });
 
+  test("bypasses organization membership checks for system admins", async () => {
+    const t = convexTest({ schema, modules });
+    const systemAdminUserId = await t.run(async (ctx) => {
+      return await ctx.db.insert("users", {
+        email: "sysadmin@example.com",
+        isActive: true,
+        name: "System Admin",
+        systemRole: "systemAdmin",
+      });
+    });
+
+    const access = (await t
+      .withIdentity({ subject: `${systemAdminUserId}|test-session` })
+      .query(api.appAccess.getCurrentUserAccess, {})) as AppAccessTestState;
+
+    expect(access).toEqual({
+      email: "sysadmin@example.com",
+      organizations: [],
+      status: "allowed",
+      systemRole: "systemAdmin",
+      userId: systemAdminUserId,
+    });
+
+    const created = await t
+      .withIdentity({ subject: `${systemAdminUserId}|test-session` })
+      .mutation(api.organizationAccounts.createOrganizationAccount, {
+        name: "Cedar Hall School",
+        organizationKind: "school",
+      });
+
+    expect(created).toMatchObject({
+      canonicalKey: "cedar-hall-school",
+      href: "/organizations/cedar-hall-school",
+      name: "Cedar Hall School",
+      organizationKind: "school",
+    });
+
+    const storedOrganization = await t.run(async (ctx) => {
+      const referent = await ctx.db
+        .query("referents")
+        .withIndex("by_knowledgeType_and_canonicalKey", (q) =>
+          q.eq("knowledgeType", "organization").eq(
+            "canonicalKey",
+            "cedar-hall-school",
+          ),
+        )
+        .unique();
+      if (!referent) {
+        throw new Error("Missing created organization referent.");
+      }
+
+      const entries = await ctx.db
+        .query("knowledgeEntries")
+        .withIndex("by_representedReferentId", (q) =>
+          q.eq("representedReferentId", referent._id),
+        )
+        .take(10);
+      const entry =
+        entries.find((candidate) => candidate.knowledgeType === "organization") ??
+        null;
+      if (!entry) {
+        throw new Error("Missing created organization entry.");
+      }
+
+      const organizationEntry = await ctx.db
+        .query("organizationEntries")
+        .withIndex("by_entryId", (q) => q.eq("entryId", entry._id))
+        .unique();
+      const representedTag = await ctx.db
+        .query("entryTags")
+        .withIndex("by_entryId_and_tagPurpose", (q) =>
+          q.eq("entryId", entry._id).eq("tagPurpose", "represented"),
+        )
+        .unique();
+
+      return {
+        entryTitle: entry.title,
+        isActive: organizationEntry?.isActive,
+        kind: organizationEntry?.organizationKind,
+        representedTagId: representedTag?.tagId,
+      };
+    });
+
+    expect(storedOrganization).toEqual({
+      entryTitle: "Cedar Hall School",
+      isActive: true,
+      kind: "school",
+      representedTagId: expect.any(String),
+    });
+  });
+
+  test("rejects organization account creation from non-system admins", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(async (ctx) => {
+      return await ctx.db.insert("users", {
+        email: "member@example.com",
+        isActive: true,
+        name: "Member",
+      });
+    });
+
+    await expect(
+      t
+        .withIdentity({ subject: `${userId}|test-session` })
+        .mutation(api.organizationAccounts.createOrganizationAccount, {
+          name: "Unauthorized School",
+          organizationKind: "school",
+        }),
+    ).rejects.toThrow("Unauthorized");
+  });
+
   test("blocks inactive users and memberships to inactive organizations", async () => {
     const t = convexTest({ schema, modules });
     const seed = (await t.action(
       internal.seedOrganizationsAction.seedDefaultOrganizations,
       {},
     )) as SeedActionTestResult;
-    const gelbaugh = getSeededUser(seed.users, "gelbaughcm@gmail.com");
+    const corey = getSeededUser(seed.users, "corey@rulerofkingschurch.com");
 
     await t.run(async (ctx) => {
-      await ctx.db.patch(gelbaugh.userId, { isActive: false });
+      await ctx.db.patch(corey.userId, { isActive: false });
     });
 
     const inactiveUserAccess = (await t
-      .withIdentity({ subject: `${gelbaugh.userId}|test-session` })
+      .withIdentity({ subject: `${corey.userId}|test-session` })
       .query(api.appAccess.getCurrentUserAccess, {})) as AppAccessTestState;
     expect(inactiveUserAccess.status).toBe("inactiveUser");
 
     await t.run(async (ctx) => {
-      await ctx.db.patch(gelbaugh.userId, { isActive: true });
+      await ctx.db.patch(corey.userId, { isActive: true });
       const organizationEntries = await ctx.db
         .query("organizationEntries")
         .take(10);
@@ -283,7 +519,7 @@ describe("App organization access", () => {
     });
 
     const inactiveOrganizationAccess = (await t
-      .withIdentity({ subject: `${gelbaugh.userId}|test-session` })
+      .withIdentity({ subject: `${corey.userId}|test-session` })
       .query(api.appAccess.getCurrentUserAccess, {})) as AppAccessTestState;
     expect(inactiveOrganizationAccess.status).toBe("needsOrganization");
   });

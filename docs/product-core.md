@@ -72,9 +72,11 @@ Default Pinned Knowledge Pages for Organizations should use the specific Organiz
 
 Default Pinned Knowledge Page seeding should be capped so initial navigation stays calm. When a User has multiple Organizations of the same kind, the app should seed at most the most relevant one per kind and make the others available through pin management or recommendations rather than pinning every affiliation automatically.
 
-The Active Role display in the header should also be the Role switcher. Switching Active Role should change acting capacity, permissions, prompts, and defaults without navigating the User away from the current Knowledge Page or User View.
+The Active Role display in the header should also be the Role switcher. The default global state should have no Active Role selected; switching Active Role should change acting capacity, permissions, prompts, and defaults without navigating the User away from the current Knowledge Page or User View.
 
-Navigating to an Organization Knowledge Page should not silently change the User's Active Role. The app may suggest a more relevant Role or show a mismatch hint, but Role switching should remain user-controlled.
+Navigating to an Organization Knowledge Page or unambiguous organization-scoped context should default the Active Role to the Role the User assumes within that Organization. If a User has more than one Role in that Organization, the app should require or preserve an explicit choice rather than guessing.
+
+Organization-scoped visibility may default from the current Organization Page even when Active Role is unset or ambiguous. Role-specific authority, prompts, and permissions should require an explicit Active Role when multiple Roles match the same Organization.
 
 Notifications should remain a visible bottom User View icon rather than being hidden inside the avatar menu, because notification count and unread status need a persistent badge.
 
@@ -102,6 +104,16 @@ Contribute should support both direct Knowledge Entry creation and Smart Storage
 Explore and Contribute should happen in the same place. Wherever users see Answers, they should also be able to add the missing future Answer that belongs in that Knowledge Context.
 
 The product should treat search boxes, ask boxes, and contribution editors as related Knowledge Composer surfaces. A composer may support a transient Knowledge Request, a durable Contribution, or both, but the user action should remain clear at the moment of submission.
+
+A Contribution Submission should become durable only when the user intent needs preserved raw material, multiple Sources, deferred review, retry, Smart Storage, import, upload, or Reprocessing. A simple direct post should not create durable Contribution Submission workflow state by default; it should create the Gold Layer Knowledge Entry and any needed Entry Representations directly.
+
+Each Contribution Submission should have one Primary Intended Entry: the Knowledge Entry the user is principally trying to create or update. Smart Storage may propose additional derived Knowledge Entries from the same submitted Sources, but those derived proposals should remain reviewable separately from the Primary Intended Entry.
+
+When Smart Storage identifies multiple entries from one Contribution Submission, the user should accept one Smart Storage Proposal at a time. Even when the Primary Intended Entry is a future Course or MVP Series and the Sources contain many Lessons or other child entries, Gold Layer creation should remain explicit per proposed Knowledge Entry rather than bulk-accepted by default.
+
+Sources belong first to the durable Contribution Submission that preserved the user's raw material. Smart Storage Proposals should identify which submitted Sources, excerpts, file ranges, or external URLs support each proposed create or update, and accepted Gold Layer Knowledge Entries should be linked back to the Sources that produced or informed them.
+
+When the Sources for a Primary Intended Entry cause Smart Storage to propose creating or updating another Knowledge Entry, the app should not create a vague generic relationship such as `relatedTo` by default. Shared Source provenance preserves the evidence that the entries have overlapping information, while Gold Layer relationships should be expressed through Tags, existing typed relationships, Knowledge Type attributes, or later Type Behavior that can name the relationship precisely.
 
 The user-facing place for this loop depends on how many Tags are active in the Knowledge Navigator. The Dashboard is used when no Tags are active and the user is located in the Global Knowledge Context. A Referent Page is used when exactly one Tag is active and the user is focused on the Referent that Tag points to. A Context Page is used when two or more Tags are active and the user is exploring their combined Knowledge Context.
 
@@ -209,7 +221,7 @@ User confirmation can make the confirming user responsible for the whole Knowled
 
 Factual Provenance should default to an external URL when the source is only needed as evidence for a proposed fact. Smart Storage should create or propose a Knowledge Entry for the provenance target only when that target is itself a meaningful Referent users may navigate, tag, search, reuse, or cite repeatedly.
 
-One Source can produce many Knowledge Entries. For example, an uploaded essay or transcript can produce one parent entry and many Quote entries, each with its own Knowledge Context. The parent entry's Knowledge Context may be a superset of the union of its quotes' Knowledge Contexts.
+One Source can produce many Knowledge Entries. For example, an uploaded essay or transcript can produce one Primary Intended Entry and many Quote entries, each with its own Knowledge Context. The Primary Intended Entry's Knowledge Context may be a superset of the union of its quotes' Knowledge Contexts.
 
 The user review unit for Smart Storage should be a durable Smart Storage Proposal linked to the saved Source, and each Smart Storage Proposal should correspond to one proposed Knowledge Entry. A single Source may therefore produce many Smart Storage Proposals, letting the user accept, reject, or edit each proposed Knowledge Entry independently.
 
@@ -227,7 +239,9 @@ Smart Storage Proposal status should stay small. A drafted proposal is generated
 
 Accepting a Smart Storage Proposal should be atomic for one complete proposed Knowledge Entry. Users should edit the proposal, split it into multiple proposals, or reject unwanted proposals before acceptance rather than partially accepting individual fields into Gold Layer knowledge.
 
-Proposal generation may suggest existing Tags, Referents, and Knowledge Entries, but acceptance is the authoritative identity check. At acceptance time, the application should re-check current canonical Tags and Referents, reuse existing matches, and refuse or redirect when another same-typed Knowledge Entry already represents the proposed Referent.
+Proposal generation may suggest existing Tags, Referents, and Knowledge Entries, but acceptance is the authoritative identity check. At acceptance time, the application should re-check current canonical Tags and Referents, reuse existing matches, and refuse, redirect, or propose an authorized update when another same-typed Knowledge Entry already represents the proposed Referent.
+
+When Smart Storage identifies an existing Knowledge Entry that should receive new information from the submitted Sources, the review flow should make that update explicit. If the reviewing User has permission to edit the existing entry, acceptance may add the confirmed information to that entry; otherwise the proposal should not silently modify Gold Layer knowledge.
 
 Smart Storage should create one primary Smart Storage Proposal for the user's intended Knowledge Entry and include referenced Tags or Referents inside that proposal. If a referenced Referent already exists, the proposal should explicitly show that the resulting Knowledge Entry will reference that existing Referent through its Tag. If the referenced Referent does not yet exist, the proposal should explicitly show that acceptance will create the new Referent and Tag and then include that Tag in the Knowledge Entry's Knowledge Context. Smart Storage should create a separate Knowledge Entry proposal for a referenced Referent only when the Source contains separate entry content for that Referent.
 
@@ -291,7 +305,23 @@ Template is not an MVP Knowledge Type. Templates are reusable authoring structur
 
 Visibility Scope belongs to Knowledge Entries. A Knowledge Entry may be visible to one user, an organization, a group, a network of organizations, or everyone.
 
+Contribution defaults should favor organization visibility rather than public visibility. When a Contribution happens from an Organization Page or another unambiguous organization-scoped context, the default Visibility Scope should be that organization. When the User is on the Dashboard or outside any organization-scoped context, the default should be all Organizations the User belongs to if no Active Role is selected, or the Organization corresponding to the selected Active Role when one is selected. The composer should always allow the User to explicitly choose the Visibility Scope for the entry.
+
+Visibility defaults and role authority are separate. The current Organization Page may supply an organization Visibility Scope even when the User has not chosen among multiple Roles in that Organization, but any role-specific edit, send, review, or administrative action should require an explicit Active Role.
+
+Visibility Scope and Delivery Target are separate. Visibility Scope controls who may access a Knowledge Entry after it exists; Delivery Target controls who should be notified, assigned, messaged, or otherwise sent a contribution or action. Sending an entry to a group does not by itself define every user who may access the entry, and making an entry visible to an organization does not require notifying every member of that organization.
+
+"Send to page" should not be used as product or domain language. If a User intends an entry to appear in relation to a Knowledge Page, the entry should reference the relevant Tag through its Knowledge Context. Delivery is reserved for notifying, assigning, or messaging actual recipient targets.
+
 Tags and Referents become visible indirectly through visible Knowledge Entries that represent or reference them. The Global Knowledge Context is not the same thing as global visibility: an entry can be visible to everyone without belonging to the Global Knowledge Context.
+
+Tags do not grant access. A Knowledge Entry may reference an Organization, Group, Person, Place, Topic, Bible Passage, or other Referent through its Knowledge Context without becoming visible to users associated with that Referent. Visibility Scope remains the access boundary.
+
+Composer tag entry may feel freeform, but stored Tags must resolve to canonical Referents. Before submission or acceptance, a typed tag should either match an existing Tag/Referent or be confirmed as a proposed new Referent with a Knowledge Type; unresolved local labels should not be stored as Tags.
+
+Composer tag suggestions should distinguish current-context Tags, deterministic recommendations, and Smart Storage recommendations. Current-context Tags come from the active Knowledge Navigator or current Knowledge Page; deterministic recommendations come from user or organization Recognized Context, recent use, pinned pages, memberships, selected Knowledge Type, and visible submission metadata; Smart Storage recommendations come from AI-assisted analysis of Sources or enrichment and should remain reviewable before they affect Gold Layer knowledge.
+
+Current-context Tags should be selected by default for ordinary Contributions, but the User may remove them before submission when the entry does not actually belong in that Knowledge Context. Knowledge Slot fulfillment is different: Slot Tags are the frozen Knowledge Context for the requested entry and should remain locked unless a future workflow explicitly allows changing the Slot's context.
 
 ## MVP Direction
 
@@ -481,6 +511,8 @@ Resource is not an MVP Knowledge Type. It is too broad and overlaps with Source,
 
 Link and URL are not MVP Knowledge Types. They are attributes or external representations of Knowledge Entries, since many Knowledge Entry contents may exist at external URLs.
 
+Link Preview is not a Knowledge Type, Knowledge Entry, Factual Provenance, or Human Weight Evidence. It is fetched metadata that helps a user recognize an external URL in the composer, Source review, or Entry Representation UI. When Smart Storage uses information from a linked page or preview to propose facts, the external URL remains the provenance anchor.
+
 Work is not an MVP Knowledge Type. The MVP should use concrete Knowledge Types such as Book, Song, Poem, Essay, Short Story, Sermon, Lesson, and Quote rather than introducing an abstract Work type.
 
 Citation and Reference are not MVP Knowledge Types. Quote is the Knowledge Type for cited excerpts; citation and reference details should be metadata or relationships to the Source, parent entry, Book, Bible Passage, or other relevant Referent.
@@ -562,6 +594,12 @@ These invariants are implied by the MVP domain model and `convex/schema.ts`. Con
 - `prosemirrorDocumentId` remains an arbitrary string compatible with the collaborative editor.
 - File, audio, video, URL, and plain text representations should use the fields matching their `representationKind`.
 - A Source is Bronze Layer raw material, not a Knowledge Type and not a Knowledge Entry.
+- A Contribution Submission may group multiple Sources under one user intent, such as typed substantive text, uploaded files, external URLs, audio, or video submitted together for one Lesson, Sermon, or other intended Knowledge Entry.
+- A durable Contribution Submission is required for multi-Source, Smart Storage, import, upload, deferred review, retry, or Reprocessing workflows, but not for simple direct posts that create Gold Layer Knowledge Entries immediately.
+- Each Contribution Submission should have one Primary Intended Entry, while Smart Storage may propose additional derived Knowledge Entries from the same Sources.
+- Multiple Smart Storage Proposals from one Contribution Submission should be accepted one proposed Knowledge Entry at a time.
+- Sources are submission-level raw material; Smart Storage Proposals should cite the specific Sources, excerpts, ranges, or URLs that support them.
+- Shared Source provenance may indicate that entries are related, but the app should not create a generic `relatedTo` Gold Layer relationship; explicit relationships should be typed, Tag-based, or introduced through later Knowledge Type behavior.
 - A Source created for later Smart Storage or Reprocessing of a directly created Knowledge Entry is a snapshot of that entry's current representation at the time of reprocessing, not the original raw direct-post submission.
 - A Source may produce many Knowledge Entries through `sourceOutputs`.
 - A `sourceOutputs` row must point to an existing Source and an existing produced or derived Knowledge Entry.
@@ -582,6 +620,7 @@ These invariants are implied by the MVP domain model and `convex/schema.ts`. Con
 - Smart Storage Proposal records should preserve the original generated proposal separately from the current reviewed proposal.
 - Accepting a Smart Storage Proposal should atomically create or connect the complete proposed Knowledge Entry shape; partial acceptance should be represented by editing, splitting, or rejecting proposals before acceptance.
 - Smart Storage Proposal acceptance must perform the authoritative current identity check for Tags, Referents, and same-typed represented Knowledge Entries, regardless of matches proposed earlier.
+- When an accepted proposal targets an existing Knowledge Entry, the backend must verify the User has permission to edit that entry before adding confirmed information to it.
 - Smart Storage Proposal review should explicitly distinguish existing referenced Referents and Tags from new Referents and Tags that acceptance will create.
 - Reprocessing proposals should explicitly distinguish edits to an existing Gold Layer Knowledge Entry from creation of additional Gold Layer Knowledge Entries.
 - Smart Storage Contract or Type Behavior version changes may trigger dataset-wide Reprocessing to create suggested edits, Smart Storage Proposals, or Upgrade Candidates, but should not silently rewrite existing Gold Layer Knowledge Entries.
