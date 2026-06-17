@@ -6,6 +6,7 @@ import {
   type ChangeEvent,
   type ElementType,
   type FocusEvent,
+  type FormEvent,
   type KeyboardEvent,
   type MouseEvent,
   type ReactNode,
@@ -38,6 +39,7 @@ import {
   Tag,
   TrendingUp,
   UserCircle,
+  UserPlus,
   Users,
   UploadCloud,
   X,
@@ -47,7 +49,6 @@ import type { Id } from "../convex/_generated/dataModel";
 import { parseBiblePassageReference } from "../convex/lib/scriptureReferences";
 import { AuthPanel, SignOutButton } from "./auth/AuthPanel";
 import { OrganizationAccessRequestScreen } from "./auth/OrganizationAccessRequest";
-import archePressIconUrl from "./assets/arche-press_icon-full.svg";
 import profilePlaceholderUrl from "./assets/profile-placeholder.png";
 import { AnswerFeed as AnswerFeedSurface } from "./AnswerFeed";
 import { ContributionEditor as ContributionEditorSurface } from "./ContributionEditor";
@@ -61,6 +62,7 @@ import {
 import { KnowledgeSlotCard } from "./components/KnowledgeCards";
 import { KnowledgeTypeBadge, KnowledgeTypeIcon } from "./components/KnowledgeTypeIcon";
 import { KnowledgeTypeOverview } from "./components/KnowledgeTypeOverview";
+import { LogeionBrand } from "./components/LogeionBrand";
 import { SmartStoragePlayground } from "./SmartStoragePlayground";
 import {
   ANSWER_FEED_FIXTURE,
@@ -115,6 +117,8 @@ type ViewTransitionDocument = Document & {
 
 type ThemePreference = "light" | "dark";
 type OrganizationKind = "school" | "church" | "family" | "community";
+type OrganizationMembershipRole = "admin" | "member";
+type SystemRole = "systemAdmin";
 
 type PageId =
   | "dashboard"
@@ -127,6 +131,7 @@ type PageId =
   | "analytics"
   | "profile"
   | "settings"
+  | "system-admin"
   | "notifications"
   | "calendar";
 
@@ -164,6 +169,7 @@ type AllowedAppAccess = {
     role: string;
   }>;
   status: "allowed";
+  systemRole?: SystemRole;
   userId: Id<"users">;
 };
 
@@ -346,6 +352,31 @@ type ActiveRoleOption = {
   label: string;
 };
 
+type OrganizationAccountSetupResult = {
+  canonicalKey: string;
+  href: string;
+  name: string;
+  organizationEntryId: Id<"organizationEntries">;
+  organizationKind: OrganizationKind;
+  organizationReferentId: Id<"referents">;
+};
+
+type OrganizationMember = {
+  email?: string;
+  membershipId: Id<"memberships">;
+  name: string;
+  role: OrganizationMembershipRole;
+  userId: Id<"users">;
+};
+
+type OrganizationMembershipSettings = {
+  members: OrganizationMember[];
+  name: string;
+  organizationEntryId: Id<"organizationEntries">;
+  organizationKind: OrganizationKind;
+  organizationReferentId: Id<"referents">;
+};
+
 const ROUTES: RouteDefinition[] = [
   {
     id: "dashboard",
@@ -473,6 +504,15 @@ const ROUTES: RouteDefinition[] = [
     relatedRouteIds: ["profile", "notifications"],
   },
   {
+    id: "system-admin",
+    label: "System Admin",
+    href: "/system-admin",
+    pattern: "/system-admin",
+    icon: Landmark,
+    components: [],
+    relatedRouteIds: ["settings", "profile"],
+  },
+  {
     id: "notifications",
     label: "Notifications",
     href: "/notifications",
@@ -495,6 +535,7 @@ const ROUTES: RouteDefinition[] = [
 const ROUTE_BY_ID = new Map(ROUTES.map((route) => [route.id, route]));
 const PRIMARY_ROUTE_IDS: PageId[] = ["dashboard"];
 const USER_ROUTE_IDS: PageId[] = ["calendar", "notifications"];
+const SYSTEM_ADMIN_ROUTE_IDS: PageId[] = ["system-admin"];
 const SIDEBAR_VISIBLE_PIN_LIMIT = 3;
 
 const CALENDAR_MONTH_LABEL = "June 2026";
@@ -701,6 +742,24 @@ const NOTIFICATION_KIND_LABELS: Record<NotificationKind, string> = {
   knowledgeSlot: "Request",
   subscription: "Subscription",
 };
+
+const ORGANIZATION_KIND_OPTIONS: Array<{
+  id: OrganizationKind;
+  label: string;
+}> = [
+  { id: "school", label: "School" },
+  { id: "church", label: "Church" },
+  { id: "family", label: "Family" },
+  { id: "community", label: "Community" },
+];
+
+const ORGANIZATION_MEMBERSHIP_ROLE_OPTIONS: Array<{
+  id: OrganizationMembershipRole;
+  label: string;
+}> = [
+  { id: "member", label: "Member" },
+  { id: "admin", label: "Admin" },
+];
 
 const NOTIFICATION_TIME_FORMATTER = new Intl.DateTimeFormat("en", {
   day: "numeric",
@@ -1443,8 +1502,8 @@ function KnowledgebaseShell({
   const [isTopbarHidden, setIsTopbarHidden] = useState(false);
   const lastScrollTopRef = useRef(0);
   const activeRoleOptions = useMemo(
-    () => getActiveRoleOptions(appAccess.organizations),
-    [appAccess.organizations],
+    () => getActiveRoleOptions(appAccess),
+    [appAccess],
   );
   const [activeRoleOptionId, setActiveRoleOptionId] = useState(
     () => activeRoleOptions[0]?.id ?? "personal",
@@ -1467,6 +1526,7 @@ function KnowledgebaseShell({
   }, [routeState.pathname, routeState.search]);
 
   function handleContentScroll(event: UIEvent<HTMLDivElement>) {
+    const scrollHost = event.currentTarget;
     const nextScrollTop = Math.max(0, event.currentTarget.scrollTop);
 
     if (nextScrollTop <= TOPBAR_SCROLL_TOLERANCE) {
@@ -1481,6 +1541,14 @@ function KnowledgebaseShell({
     }
 
     lastScrollTopRef.current = nextScrollTop;
+    if (
+      !isTopbarHidden &&
+      scrollDelta > 0 &&
+      wouldHidingTopbarClampScroll(scrollHost, nextScrollTop)
+    ) {
+      return;
+    }
+
     setIsTopbarHidden(scrollDelta > 0);
   }
 
@@ -1493,6 +1561,7 @@ function KnowledgebaseShell({
         onToggleTheme={onToggleTheme}
         pinnedKnowledgePages={pinnedKnowledgePages}
         routeState={routeState}
+        showSystemAdminRoute={appAccess.systemRole === "systemAdmin"}
         theme={theme}
       />
       <div
@@ -1516,6 +1585,40 @@ function KnowledgebaseShell({
   );
 }
 
+function wouldHidingTopbarClampScroll(scrollHost: HTMLElement, scrollTop: number) {
+  const topbarHeight = getTopbarHeight(scrollHost);
+  if (topbarHeight <= 0) {
+    return false;
+  }
+
+  const maxScrollTopWithTopbar = Math.max(
+    0,
+    scrollHost.scrollHeight - scrollHost.clientHeight,
+  );
+  const maxScrollTopWithoutTopbar = Math.max(
+    0,
+    maxScrollTopWithTopbar - topbarHeight,
+  );
+
+  return scrollTop > maxScrollTopWithoutTopbar - TOPBAR_SCROLL_TOLERANCE;
+}
+
+function getTopbarHeight(scrollHost: HTMLElement) {
+  const hostColumn = scrollHost.parentElement;
+  if (!hostColumn) {
+    return 0;
+  }
+
+  const configuredHeight = Number.parseFloat(
+    window.getComputedStyle(hostColumn).getPropertyValue("--kb-topbar-height"),
+  );
+  if (Number.isFinite(configuredHeight) && configuredHeight > 0) {
+    return configuredHeight;
+  }
+
+  return hostColumn.querySelector<HTMLElement>(".kb-topbar")?.offsetHeight ?? 0;
+}
+
 function Sidebar({
   activePageId,
   notificationUnreadCount,
@@ -1523,6 +1626,7 @@ function Sidebar({
   onToggleTheme,
   pinnedKnowledgePages,
   routeState,
+  showSystemAdminRoute,
   theme,
 }: {
   activePageId: PageId;
@@ -1531,6 +1635,7 @@ function Sidebar({
   onToggleTheme: () => void;
   pinnedKnowledgePages: SidebarPinnedKnowledgePage[];
   routeState: RouteState;
+  showSystemAdminRoute: boolean;
   theme: ThemePreference;
 }) {
   const visiblePinnedKnowledgePages = pinnedKnowledgePages.slice(
@@ -1546,9 +1651,9 @@ function Sidebar({
       <a
         className="kb-logo-button"
         href="/"
-        aria-label="Dashboard"
+        aria-label="Logeion dashboard"
         onClick={(event) => onNavigate(event, "/")}
-        title="Dashboard"
+        title="Logeion dashboard"
       >
         <BrandMark />
       </a>
@@ -1620,6 +1725,22 @@ function Sidebar({
             />
           );
         })}
+        {showSystemAdminRoute
+          ? SYSTEM_ADMIN_ROUTE_IDS.map((pageId) => {
+              const route = getRoute(pageId);
+
+              return (
+                <SidebarNavLink
+                  active={pageId === activePageId}
+                  href={route.href}
+                  icon={route.icon}
+                  key={pageId}
+                  label={route.label}
+                  onNavigate={onNavigate}
+                />
+              );
+            })
+          : null}
         <span className="kb-nav-divider" aria-hidden="true" />
         <AvatarAccountMenu
           active={activePageId === "profile" || activePageId === "settings"}
@@ -1860,6 +1981,15 @@ function TopBar({
 
   return (
     <header className="kb-topbar">
+      <a
+        aria-label="Logeion by Arche Press dashboard"
+        className="kb-brand"
+        href="/"
+        onClick={(event) => onNavigate(event, "/")}
+        title="Logeion by Arche Press"
+      >
+        <LogeionBrand />
+      </a>
       <div className="kb-topbar-actions">
         <label className="kb-active-role-switcher">
           <span>Active Role</span>
@@ -1980,6 +2110,16 @@ function PageScaffold({
         onToggleTheme={onToggleTheme}
         routeState={routeState}
         theme={theme}
+      />
+    );
+  }
+
+  if (route.id === "system-admin") {
+    return (
+      <SystemAdminPage
+        appAccess={appAccess}
+        onNavigate={onNavigate}
+        routeState={routeState}
       />
     );
   }
@@ -2919,10 +3059,25 @@ function isPinnedKnowledgePageActive(
   );
 }
 
-function getActiveRoleOptions(
-  organizations: AllowedAppAccess["organizations"],
-): ActiveRoleOption[] {
-  if (organizations.length === 0) {
+function getActiveRoleOptions(appAccess: AllowedAppAccess): ActiveRoleOption[] {
+  const systemRoleOption =
+    appAccess.systemRole === "systemAdmin"
+      ? [
+          {
+            detail: "Application administration",
+            id: "system:systemAdmin",
+            label: "System Admin",
+          },
+        ]
+      : [];
+  const organizationOptions = appAccess.organizations.map((organization) => ({
+    detail: organization.name,
+    id: `${organization.organizationReferentId}:${organization.role}`,
+    label: formatMembershipRole(organization.role),
+  }));
+  const options = [...systemRoleOption, ...organizationOptions];
+
+  if (options.length === 0) {
     return [
       {
         detail: "Personal",
@@ -2932,11 +3087,7 @@ function getActiveRoleOptions(
     ];
   }
 
-  return organizations.map((organization) => ({
-    detail: organization.name,
-    id: `${organization.organizationReferentId}:${organization.role}`,
-    label: formatMembershipRole(organization.role),
-  }));
+  return options;
 }
 
 function OrganizationSubrouteLinks({
@@ -3405,7 +3556,7 @@ function ProfilePage({
   const email = appAccess.email ?? "No email on file";
   const displayName = getProfileDisplayName(appAccess.email);
   const organizationCount = appAccess.organizations.length;
-  const membershipRoles = getUniqueMembershipRoles(appAccess.organizations);
+  const roleLabels = getAppRoleLabels(appAccess);
   const primaryOrganization = appAccess.organizations[0];
   const bookmarkedKnowledgePages = useQuery(
     api.bookmarkedKnowledgePages.listForProfile,
@@ -3462,7 +3613,7 @@ function ProfilePage({
         <div>
           <Users aria-hidden="true" />
           <span>Primary role</span>
-          <strong>{membershipRoles[0] ?? "Member"}</strong>
+          <strong>{roleLabels[0] ?? "Member"}</strong>
         </div>
       </section>
 
@@ -3493,7 +3644,7 @@ function ProfilePage({
             </div>
             <div>
               <dt>Roles</dt>
-              <dd>{membershipRoles.join(", ") || "Member"}</dd>
+              <dd>{roleLabels.join(", ") || "Member"}</dd>
             </div>
           </dl>
         </section>
@@ -3513,7 +3664,11 @@ function ProfilePage({
             </div>
             <div>
               <dt>Access</dt>
-              <dd>Organization member</dd>
+              <dd>
+                {appAccess.systemRole === "systemAdmin"
+                  ? "System Admin"
+                  : "Organization member"}
+              </dd>
             </div>
           </dl>
           <SignOutButton />
@@ -3799,12 +3954,208 @@ function SettingsPage({
   );
 }
 
+function SystemAdminPage({
+  appAccess,
+  onNavigate,
+  routeState,
+}: {
+  appAccess: AllowedAppAccess;
+  onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+  routeState: RouteState;
+}) {
+  const route = getRoute("system-admin");
+  const isSystemAdmin = appAccess.systemRole === "systemAdmin";
+
+  return (
+    <main
+      className="kb-main kb-settings-main kb-system-admin-main"
+      aria-labelledby="kb-system-admin-page-heading"
+    >
+      <header className="kb-route-header">
+        <div>
+          <p className="kb-eyebrow">System Admin</p>
+          <h1 id="kb-system-admin-page-heading">System Admin</h1>
+        </div>
+        <RouteMeta routeState={routeState} />
+      </header>
+
+      {isSystemAdmin ? (
+        <OrganizationAccountSetupPanel onNavigate={onNavigate} />
+      ) : (
+        <section
+          className="kb-settings-panel kb-system-admin-panel"
+          aria-labelledby="kb-system-admin-unavailable-heading"
+        >
+          <header>
+            <Landmark aria-hidden="true" />
+            <div>
+              <p className="kb-eyebrow">System Admin</p>
+              <h2 id="kb-system-admin-unavailable-heading">Unavailable</h2>
+            </div>
+          </header>
+          <p className="kb-settings-empty">System Admin access required.</p>
+        </section>
+      )}
+
+      {route.relatedRouteIds ? (
+        <RelatedRoutes
+          onNavigate={onNavigate}
+          relatedRouteIds={route.relatedRouteIds}
+        />
+      ) : null}
+    </main>
+  );
+}
+
+function OrganizationAccountSetupPanel({
+  onNavigate,
+}: {
+  onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+}) {
+  const createOrganizationAccount = useMutation(
+    api.organizationAccounts.createOrganizationAccount,
+  );
+  const [organizationSetupResult, setOrganizationSetupResult] =
+    useState<OrganizationAccountSetupResult | null>(null);
+  const [organizationSetupError, setOrganizationSetupError] = useState<
+    string | null
+  >(null);
+  const [isCreatingOrganization, setIsCreatingOrganization] = useState(false);
+
+  async function handleCreateOrganizationAccount(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const name = String(formData.get("organizationName") ?? "");
+    const organizationKindValue = String(formData.get("organizationKind") ?? "");
+    if (!isOrganizationKind(organizationKindValue)) {
+      setOrganizationSetupResult(null);
+      setOrganizationSetupError("Choose an organization type.");
+      return;
+    }
+
+    setOrganizationSetupResult(null);
+    setOrganizationSetupError(null);
+    setIsCreatingOrganization(true);
+
+    try {
+      const result = await createOrganizationAccount({
+        name,
+        organizationKind: organizationKindValue,
+      });
+      setOrganizationSetupResult(result);
+      form.reset();
+    } catch (caughtError) {
+      setOrganizationSetupError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Organization account setup failed.",
+      );
+    } finally {
+      setIsCreatingOrganization(false);
+    }
+  }
+
+  return (
+    <section
+      className="kb-settings-panel kb-system-admin-panel"
+      aria-labelledby="kb-system-admin-heading"
+    >
+      <header>
+        <Landmark aria-hidden="true" />
+        <div>
+          <p className="kb-eyebrow">System Admin</p>
+          <h2 id="kb-system-admin-heading">Organization Accounts</h2>
+        </div>
+      </header>
+
+      <form
+        className="kb-system-admin-form"
+        onSubmit={(event) => void handleCreateOrganizationAccount(event)}
+      >
+        <label className="kb-system-admin-field">
+          <span>Organization name</span>
+          <input
+            disabled={isCreatingOrganization}
+            maxLength={240}
+            name="organizationName"
+            required
+            type="text"
+          />
+        </label>
+        <label className="kb-system-admin-field">
+          <span>Organization type</span>
+          <select
+            defaultValue="school"
+            disabled={isCreatingOrganization}
+            name="organizationKind"
+          >
+            {ORGANIZATION_KIND_OPTIONS.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          className="kb-system-admin-submit"
+          disabled={isCreatingOrganization}
+          type="submit"
+        >
+          {isCreatingOrganization ? (
+            <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
+          ) : (
+            <Landmark aria-hidden="true" />
+          )}
+          <span>{isCreatingOrganization ? "Setting up" : "Set up account"}</span>
+        </button>
+      </form>
+
+      {organizationSetupResult ? (
+        <p className="kb-system-admin-success" role="status">
+          <Check aria-hidden="true" />
+          <span>
+            Created{" "}
+            <a
+              href={organizationSetupResult.href}
+              onClick={(event) =>
+                onNavigate(event, organizationSetupResult.href)
+              }
+            >
+              {organizationSetupResult.name}
+            </a>
+          </span>
+        </p>
+      ) : null}
+      {organizationSetupError ? (
+        <p className="kb-system-admin-error" role="alert">
+          {organizationSetupError}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 function formatOrganizationKind(kind: string) {
   return kind
     .split(/[-_\s]+/)
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function isOrganizationKind(value: string): value is OrganizationKind {
+  return ORGANIZATION_KIND_OPTIONS.some((option) => option.id === value);
+}
+
+function isOrganizationMembershipRole(
+  value: string,
+): value is OrganizationMembershipRole {
+  return ORGANIZATION_MEMBERSHIP_ROLE_OPTIONS.some(
+    (option) => option.id === value,
+  );
 }
 
 function formatMembershipRole(role: string) {
@@ -3835,6 +4186,15 @@ function getUniqueMembershipRoles(
   return Array.from(
     new Set(organizations.map((organization) => formatMembershipRole(organization.role))),
   );
+}
+
+function getAppRoleLabels(appAccess: AllowedAppAccess) {
+  const roleLabels = getUniqueMembershipRoles(appAccess.organizations);
+  if (appAccess.systemRole !== "systemAdmin") {
+    return roleLabels;
+  }
+
+  return ["System Admin", ...roleLabels];
 }
 
 function formatProfileNamePart(part: string) {
@@ -4192,12 +4552,79 @@ function OrganizationSettingsPage({
   onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
   routeState: RouteState;
 }) {
-  const profile = getOrganizationPageProfile(
+  const routeProfile = getOrganizationPageProfile(
     routeState.pathname,
     appAccess.organizations,
   );
   const organizationId = getOrganizationId(routeState.pathname);
   const organizationHomeHref = getOrganizationHomeHref(routeState.pathname);
+  const canManageOrganization =
+    appAccess.systemRole === "systemAdmin" || routeProfile.role === "admin";
+  const organizationSettings = useQuery(
+    api.organizationAccounts.getOrganizationMembershipSettings,
+    canManageOrganization ? { organizationId } : "skip",
+  ) as OrganizationMembershipSettings | null | undefined;
+  const addOrganizationMember = useMutation(
+    api.organizationAccounts.addOrganizationMember,
+  );
+  const [memberSetupError, setMemberSetupError] = useState<string | null>(null);
+  const [memberSetupSuccess, setMemberSetupSuccess] = useState<string | null>(
+    null,
+  );
+  const [isAddingMember, setIsAddingMember] = useState(false);
+  const profile = organizationSettings
+    ? {
+        ...routeProfile,
+        name: organizationSettings.name,
+        organizationKind: organizationSettings.organizationKind,
+        organizationReferentId: organizationSettings.organizationReferentId,
+      }
+    : routeProfile;
+  const isLoadingMembers =
+    canManageOrganization && organizationSettings === undefined;
+  const didMissOrganization =
+    canManageOrganization && organizationSettings === null;
+  const members = organizationSettings?.members ?? [];
+
+  async function handleAddOrganizationMember(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const email = String(formData.get("memberEmail") ?? "");
+    const roleValue = String(formData.get("memberRole") ?? "member");
+
+    if (!isOrganizationMembershipRole(roleValue)) {
+      setMemberSetupSuccess(null);
+      setMemberSetupError("Choose a member role.");
+      return;
+    }
+
+    setMemberSetupError(null);
+    setMemberSetupSuccess(null);
+    setIsAddingMember(true);
+
+    try {
+      const result = await addOrganizationMember({
+        email,
+        organizationId,
+        role: roleValue,
+      });
+      setMemberSetupSuccess(
+        `Saved ${result.name} as ${formatMembershipRole(result.role)}.`,
+      );
+      form.reset();
+    } catch (caughtError) {
+      setMemberSetupError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Member setup failed.",
+      );
+    } finally {
+      setIsAddingMember(false);
+    }
+  }
 
   return (
     <main
@@ -4213,37 +4640,141 @@ function OrganizationSettingsPage({
       </header>
 
       <section className="kb-org-settings-layout" aria-label="Organization settings">
-        <section
-          className="kb-org-settings-panel"
-          aria-labelledby="kb-org-settings-profile-heading"
-        >
-          <header>
-            <div>
-              <p className="kb-eyebrow">Profile</p>
-              <h2 id="kb-org-settings-profile-heading">{profile.name}</h2>
-            </div>
-            <Settings aria-hidden="true" />
-          </header>
+        <div className="kb-org-settings-stack">
+          <section
+            className="kb-org-settings-panel"
+            aria-labelledby="kb-org-settings-profile-heading"
+          >
+            <header>
+              <div>
+                <p className="kb-eyebrow">Profile</p>
+                <h2 id="kb-org-settings-profile-heading">{profile.name}</h2>
+              </div>
+              <Settings aria-hidden="true" />
+            </header>
 
-          <dl className="kb-org-settings-list">
-            <div>
-              <dt>Organization ID</dt>
-              <dd>{organizationId}</dd>
-            </div>
-            <div>
-              <dt>Organization Type</dt>
-              <dd>{formatOrganizationKind(profile.organizationKind)}</dd>
-            </div>
-            <div>
-              <dt>Access Policy</dt>
-              <dd>Members only</dd>
-            </div>
-            <div>
-              <dt>Your Role</dt>
-              <dd>{formatMembershipRole(profile.role)}</dd>
-            </div>
-          </dl>
-        </section>
+            <dl className="kb-org-settings-list">
+              <div>
+                <dt>Organization ID</dt>
+                <dd>{organizationId}</dd>
+              </div>
+              <div>
+                <dt>Organization Type</dt>
+                <dd>{formatOrganizationKind(profile.organizationKind)}</dd>
+              </div>
+              <div>
+                <dt>Access Policy</dt>
+                <dd>Members only</dd>
+              </div>
+              <div>
+                <dt>Your Role</dt>
+                <dd>
+                  {appAccess.systemRole === "systemAdmin" &&
+                  routeProfile.role === "preview"
+                    ? "System Admin"
+                    : formatMembershipRole(profile.role)}
+                </dd>
+              </div>
+            </dl>
+          </section>
+
+          <section
+            className="kb-org-settings-panel kb-org-member-panel"
+            aria-labelledby="kb-org-members-heading"
+          >
+            <header>
+              <div>
+                <p className="kb-eyebrow">Access</p>
+                <h2 id="kb-org-members-heading">Members</h2>
+              </div>
+              <Users aria-hidden="true" />
+            </header>
+
+            {canManageOrganization ? (
+              <>
+                <form
+                  className="kb-org-member-form"
+                  onSubmit={(event) => void handleAddOrganizationMember(event)}
+                >
+                  <label className="kb-org-member-field">
+                    <span>User email</span>
+                    <input
+                      autoComplete="email"
+                      disabled={isAddingMember || didMissOrganization}
+                      name="memberEmail"
+                      required
+                      type="email"
+                    />
+                  </label>
+                  <label className="kb-org-member-field">
+                    <span>Role</span>
+                    <select
+                      defaultValue="member"
+                      disabled={isAddingMember || didMissOrganization}
+                      name="memberRole"
+                    >
+                      {ORGANIZATION_MEMBERSHIP_ROLE_OPTIONS.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    className="kb-org-member-submit"
+                    disabled={isAddingMember || didMissOrganization}
+                    type="submit"
+                  >
+                    {isAddingMember ? (
+                      <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
+                    ) : (
+                      <UserPlus aria-hidden="true" />
+                    )}
+                    <span>{isAddingMember ? "Saving" : "Add member"}</span>
+                  </button>
+                </form>
+
+                {memberSetupSuccess ? (
+                  <p className="kb-system-admin-success" role="status">
+                    <Check aria-hidden="true" />
+                    <span>{memberSetupSuccess}</span>
+                  </p>
+                ) : null}
+                {memberSetupError ? (
+                  <p className="kb-system-admin-error" role="alert">
+                    {memberSetupError}
+                  </p>
+                ) : null}
+
+                {isLoadingMembers ? (
+                  <p className="kb-settings-empty" role="status">
+                    Loading members.
+                  </p>
+                ) : didMissOrganization ? (
+                  <p className="kb-settings-empty" role="alert">
+                    Organization account not found.
+                  </p>
+                ) : members.length > 0 ? (
+                  <ul className="kb-org-member-list">
+                    {members.map((member) => (
+                      <li key={member.membershipId}>
+                        <div>
+                          <strong>{member.name}</strong>
+                          <span>{member.email ?? "No email on account"}</span>
+                        </div>
+                        <small>{formatMembershipRole(member.role)}</small>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="kb-settings-empty">No active members.</p>
+                )}
+              </>
+            ) : (
+              <p className="kb-settings-empty">Admin role required.</p>
+            )}
+          </section>
+        </div>
 
         <aside
           className="kb-org-settings-panel kb-org-settings-rail"
@@ -4862,7 +5393,5 @@ function PlaceholderBlock({
 }
 
 function BrandMark() {
-  return (
-    <img className="kb-brand-logo" src={archePressIconUrl} alt="" aria-hidden="true" />
-  );
+  return <LogeionBrand density="compact" />;
 }

@@ -2655,3 +2655,369 @@ Found 2 errors in the same file, starting at: convex/answerFeed.ts[90m:274[0m
 6/16/2026, 10:59:47 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: createVerificationCode'
 6/16/2026, 11:00:04 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifyCodeAndSignIn'
 6/16/2026, 11:00:05 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 11:24:16 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 11:59:56 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 12:24:07 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 12:59:47 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 1:23:58 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 1:59:39 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 2:23:50 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 2:59:30 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 3:23:43 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[32m√[39m 15:24:18 Convex functions ready! (8.61s)
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m88[0m:[93m15[0m - [91merror[0m[90m TS2339: [0mProperty 'systemRole' does not exist on type '{ readonly email: "gelbaughcm@gmail.com"; readonly memberships: readonly [{ readonly organizationKey: "arche-classical-academy"; readonly role: "admin"; }, { readonly organizationKey: "ruler-of-kings-church"; readonly role: "admin"; }, { ...; }, { ...; }]; readonly name: "gelbaughcm@gmail.com"; readonly systemRole: ...'.
+  Property 'systemRole' does not exist on type '{ readonly email: "corey@rulerofkingschurch.com"; readonly memberships: readonly [{ readonly organizationKey: "ruler-of-kings-church"; readonly role: "admin"; }, { readonly organizationKey: "arche-classical-academy"; readonly role: "member"; }, { ...; }, { ...; }]; readonly name: "corey@rulerofkingschurch.com"; read...'.
+
+[7m88[0m             ?.systemRole,
+[7m  [0m [91m              ~~~~~~~~~~[0m
+
+Found 1 error in convex/seedOrganizationsAction.ts[90m:88[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m88[0m:[93m15[0m - [91merror[0m[90m TS2339: [0mProperty 'systemRole' does not exist on type '{ readonly email: "gelbaughcm@gmail.com"; readonly memberships: readonly [{ readonly organizationKey: "arche-classical-academy"; readonly role: "admin"; }, { readonly organizationKey: "ruler-of-kings-church"; readonly role: "admin"; }, { ...; }, { ...; }]; readonly name: "gelbaughcm@gmail.com"; readonly systemRole: ...'.
+  Property 'systemRole' does not exist on type '{ readonly email: "corey@rulerofkingschurch.com"; readonly memberships: readonly [{ readonly organizationKey: "ruler-of-kings-church"; readonly role: "admin"; }, { readonly organizationKey: "arche-classical-academy"; readonly role: "member"; }, { ...; }, { ...; }]; readonly name: "corey@rulerofkingschurch.com"; read...'.
+
+[7m88[0m             ?.systemRole,
+[7m  [0m [91m              ~~~~~~~~~~[0m
+
+Found 1 error in convex/seedOrganizationsAction.ts[90m:88[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m88[0m:[93m15[0m - [91merror[0m[90m TS2339: [0mProperty 'systemRole' does not exist on type '{ readonly email: "gelbaughcm@gmail.com"; readonly memberships: readonly [{ readonly organizationKey: "arche-classical-academy"; readonly role: "admin"; }, { readonly organizationKey: "ruler-of-kings-church"; readonly role: "admin"; }, { ...; }, { ...; }]; readonly name: "gelbaughcm@gmail.com"; readonly systemRole: ...'.
+  Property 'systemRole' does not exist on type '{ readonly email: "corey@rulerofkingschurch.com"; readonly memberships: readonly [{ readonly organizationKey: "ruler-of-kings-church"; readonly role: "admin"; }, { readonly organizationKey: "arche-classical-academy"; readonly role: "member"; }, { ...; }, { ...; }]; readonly name: "corey@rulerofkingschurch.com"; read...'.
+
+[7m88[0m             ?.systemRole,
+[7m  [0m [91m              ~~~~~~~~~~[0m
+
+Found 1 error in convex/seedOrganizationsAction.ts[90m:88[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/seedOrganizationsAction.ts[0m:[93m88[0m:[93m15[0m - [91merror[0m[90m TS2339: [0mProperty 'systemRole' does not exist on type '{ readonly email: "gelbaughcm@gmail.com"; readonly memberships: readonly [{ readonly organizationKey: "arche-classical-academy"; readonly role: "admin"; }, { readonly organizationKey: "ruler-of-kings-church"; readonly role: "admin"; }, { ...; }, { ...; }]; readonly name: "gelbaughcm@gmail.com"; readonly systemRole: ...'.
+  Property 'systemRole' does not exist on type '{ readonly email: "corey@rulerofkingschurch.com"; readonly memberships: readonly [{ readonly organizationKey: "ruler-of-kings-church"; readonly role: "admin"; }, { readonly organizationKey: "arche-classical-academy"; readonly role: "member"; }, { ...; }, { ...; }]; readonly name: "corey@rulerofkingschurch.com"; read...'.
+
+[7m88[0m             ?.systemRole,
+[7m  [0m [91m              ~~~~~~~~~~[0m
+
+Found 1 error in convex/seedOrganizationsAction.ts[90m:88[0m
+- Preparing Convex functions...
+
+[32m√[39m 15:29:58 Convex functions ready! (6.92s)
+6/16/2026, 3:26:10 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 3:26:10 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 3:27:18 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[32m√[39m 15:31:30 Convex functions ready! (8s)
+6/16/2026, 4:26:01 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 4:27:09 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 5:25:53 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 5:27:00 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 6:25:44 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 6:26:51 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 7:25:36 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 7:26:42 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+Retrying request (attempt 3/6)...
+6/16/2026, 8:25:28 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 8:26:33 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 9:25:19 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 9:26:24 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 10:25:11 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 10:26:15 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 11:25:02 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/16/2026, 11:26:07 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 12:24:52 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 12:25:58 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 1:24:44 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 1:25:49 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 2:24:35 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 2:25:40 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 3:24:26 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 3:25:31 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 4:24:17 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 4:25:22 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 5:24:09 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 5:25:13 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 6:24:01 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 6:25:05 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 7:23:52 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 7:24:55 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 8:23:43 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 8:24:47 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 9:23:35 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 9:24:37 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 10:23:26 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 10:24:29 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/systemAdminMaintenance.ts[0m:[93m15[0m:[93m3[0m - [91merror[0m[90m TS2719: [0mType '(ctx: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/server/registration").GenericMutationCtx<{ users: { document: { _id: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/values/value").Id<"users">; _creationTime: number; name?: string | undefined; ... ...' is not assignable to type '(ctx: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/server/registration").GenericMutationCtx<{ users: { document: { _id: import("C:/Users/gelba/Project/knowledgebase/node_modules/convex/dist/esm-types/values/value").Id<"users">; _creationTime: number; name?: string | undefined; ... ...'. Two different types with this name exist, but they are unrelated.
+  Type 'Promise<{ email: string; isActive: boolean | undefined; systemRole: string; updated: boolean; userId: Id<"users">; }>' is not assignable to type 'ValidatorTypeToReturnType<{ isActive?: boolean | undefined; systemRole?: "systemAdmin" | undefined; email: string; userId: Id<"users">; updated: boolean; }>'.
+    Type 'Promise<{ email: string; isActive: boolean | undefined; systemRole: string; updated: boolean; userId: Id<"users">; }>' is not assignable to type 'Promise<{ isActive?: boolean | undefined; systemRole?: "systemAdmin" | undefined; email: string; userId: Id<"users">; updated: boolean; }>'.
+      Type '{ email: string; isActive: boolean | undefined; systemRole: string; updated: boolean; userId: Id<"users">; }' is not assignable to type '{ isActive?: boolean | undefined; systemRole?: "systemAdmin" | undefined; email: string; userId: Id<"users">; updated: boolean; }'.
+        Types of property 'systemRole' are incompatible.
+          Type 'string' is not assignable to type '"systemAdmin"'.
+
+[7m15[0m   handler: async (ctx, args) => {
+[7m  [0m [91m  ~~~~~~~[0m
+
+Found 1 error in convex/systemAdminMaintenance.ts[90m:15[0m
+- Preparing Convex functions...
+
+[32m√[39m 10:45:07 Convex functions ready! (6.78s)
+- Preparing Convex functions...
+
+[32m√[39m 10:50:58 Convex functions ready! (6.42s)
+6/17/2026, 11:06:24 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signOut'
+6/17/2026, 11:06:24 AM [CONVEX Q(userNotifications:getUnreadSummary)] Uncaught Error: Unauthorized
+    at async handler (../convex/userNotifications.ts:102:17)
+
+6/17/2026, 11:06:24 AM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Uncaught Error: Unauthorized
+    at async handler (../convex/pinnedKnowledgePages.ts:64:29)
+
+6/17/2026, 11:06:43 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: retrieveAccountWithCredentials'
+6/17/2026, 11:06:44 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signIn'
+6/17/2026, 11:06:44 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 11:23:18 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[32m√[39m 11:36:22 Convex functions ready! (7.35s)
+- Preparing Convex functions...
+
+[32m√[39m 11:37:02 Convex functions ready! (6.67s)
+- Preparing Convex functions...
+
+[32m√[39m 11:37:35 Convex functions ready! (6.72s)
+- Preparing Convex functions...
+
+[32m√[39m 11:49:47 Convex functions ready! (8.34s)
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/pinnedKnowledgePages.test.ts[0m:[93m288[0m:[93m5[0m - [91merror[0m[90m TS2322: [0mType 'string' is not assignable to type '"admin" | "member" | undefined'.
+
+[7m288[0m     memberRole: input.role,
+[7m   [0m [91m    ~~~~~~~~~~[0m
+
+  [96mnode_modules/convex/dist/esm-types/type_utils.d.ts[0m:[93m11[0m:[93m97[0m
+    [7m11[0m export type Expand<ObjectType extends Record<any, any>> = ObjectType extends Record<any, any> ? {
+    [7m  [0m [96m                                                                                                ~[0m
+    [7m12[0m     [Key in keyof ObjectType]: ObjectType[Key];
+    [7m  [0m [96m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    [7m13[0m } : never;
+    [7m  [0m [96m~[0m
+    The expected type comes from property 'memberRole' which is declared here on type '{ organizationReferentId?: Id<"referents"> | undefined; memberUserId?: Id<"users"> | undefined; groupReferentId?: Id<"referents"> | undefined; memberRole?: "admin" | "member" | undefined; ... 4 more ...; membershipStatus: "active" | ... 1 more ... | "inactive"; }'
+[96mconvex/seedOrganizations.ts[0m:[93m409[0m:[93m7[0m - [91merror[0m[90m TS2322: [0mType 'string' is not assignable to type '"admin" | "member" | undefined'.
+
+[7m409[0m       memberRole: membership.role,
+[7m   [0m [91m      ~~~~~~~~~~[0m
+
+  [96mnode_modules/convex/dist/esm-types/type_utils.d.ts[0m:[93m11[0m:[93m97[0m
+    [7m11[0m export type Expand<ObjectType extends Record<any, any>> = ObjectType extends Record<any, any> ? {
+    [7m  [0m [96m                                                                                                ~[0m
+    [7m12[0m     [Key in keyof ObjectType]: ObjectType[Key];
+    [7m  [0m [96m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    [7m13[0m } : never;
+    [7m  [0m [96m~[0m
+    The expected type comes from property 'memberRole' which is declared here on type '{ organizationReferentId?: Id<"referents"> | undefined; memberUserId?: Id<"users"> | undefined; groupReferentId?: Id<"referents"> | undefined; memberRole?: "admin" | "member" | undefined; ... 4 more ...; membershipStatus: "active" | ... 1 more ... | "inactive"; }'
+
+[96mconvex/seedOrganizations.ts[0m:[93m422[0m:[93m5[0m - [91merror[0m[90m TS2322: [0mType 'string' is not assignable to type '"admin" | "member" | undefined'.
+
+[7m422[0m     patch.memberRole = membership.role;
+[7m   [0m [91m    ~~~~~~~~~~~~~~~~[0m
+
+
+Found 3 errors in 2 files.
+
+Errors  Files
+     1  convex/pinnedKnowledgePages.test.ts[90m:288[0m
+     2  convex/seedOrganizations.ts[90m:409[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/pinnedKnowledgePages.test.ts[0m:[93m288[0m:[93m5[0m - [91merror[0m[90m TS2322: [0mType 'string' is not assignable to type '"admin" | "member" | undefined'.
+
+[7m288[0m     memberRole: input.role,
+[7m   [0m [91m    ~~~~~~~~~~[0m
+
+  [96mnode_modules/convex/dist/esm-types/type_utils.d.ts[0m:[93m11[0m:[93m97[0m
+    [7m11[0m export type Expand<ObjectType extends Record<any, any>> = ObjectType extends Record<any, any> ? {
+    [7m  [0m [96m                                                                                                ~[0m
+    [7m12[0m     [Key in keyof ObjectType]: ObjectType[Key];
+    [7m  [0m [96m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    [7m13[0m } : never;
+    [7m  [0m [96m~[0m
+    The expected type comes from property 'memberRole' which is declared here on type '{ organizationReferentId?: Id<"referents"> | undefined; memberUserId?: Id<"users"> | undefined; groupReferentId?: Id<"referents"> | undefined; memberRole?: "admin" | "member" | undefined; ... 4 more ...; membershipStatus: "active" | ... 1 more ... | "inactive"; }'
+[96mconvex/seedOrganizations.ts[0m:[93m409[0m:[93m7[0m - [91merror[0m[90m TS2322: [0mType 'string' is not assignable to type '"admin" | "member" | undefined'.
+
+[7m409[0m       memberRole: membership.role,
+[7m   [0m [91m      ~~~~~~~~~~[0m
+
+  [96mnode_modules/convex/dist/esm-types/type_utils.d.ts[0m:[93m11[0m:[93m97[0m
+    [7m11[0m export type Expand<ObjectType extends Record<any, any>> = ObjectType extends Record<any, any> ? {
+    [7m  [0m [96m                                                                                                ~[0m
+    [7m12[0m     [Key in keyof ObjectType]: ObjectType[Key];
+    [7m  [0m [96m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    [7m13[0m } : never;
+    [7m  [0m [96m~[0m
+    The expected type comes from property 'memberRole' which is declared here on type '{ organizationReferentId?: Id<"referents"> | undefined; memberUserId?: Id<"users"> | undefined; groupReferentId?: Id<"referents"> | undefined; memberRole?: "admin" | "member" | undefined; ... 4 more ...; membershipStatus: "active" | ... 1 more ... | "inactive"; }'
+
+[96mconvex/seedOrganizations.ts[0m:[93m422[0m:[93m5[0m - [91merror[0m[90m TS2322: [0mType 'string' is not assignable to type '"admin" | "member" | undefined'.
+
+[7m422[0m     patch.memberRole = membership.role;
+[7m   [0m [91m    ~~~~~~~~~~~~~~~~[0m
+
+Found 3 errors in 2 files.
+
+Errors  Files
+     1  convex/pinnedKnowledgePages.test.ts[90m:288[0m
+     2  convex/seedOrganizations.ts[90m:409[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/pinnedKnowledgePages.test.ts[0m:[93m288[0m:[93m5[0m - [91merror[0m[90m TS2322: [0mType 'string' is not assignable to type '"admin" | "member" | undefined'.
+
+[7m288[0m     memberRole: input.role,
+[7m   [0m [91m    ~~~~~~~~~~[0m
+
+  [96mnode_modules/convex/dist/esm-types/type_utils.d.ts[0m:[93m11[0m:[93m97[0m
+    [7m11[0m export type Expand<ObjectType extends Record<any, any>> = ObjectType extends Record<any, any> ? {
+    [7m  [0m [96m                                                                                                ~[0m
+    [7m12[0m     [Key in keyof ObjectType]: ObjectType[Key];
+    [7m  [0m [96m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    [7m13[0m } : never;
+    [7m  [0m [96m~[0m
+    The expected type comes from property 'memberRole' which is declared here on type '{ organizationReferentId?: Id<"referents"> | undefined; memberUserId?: Id<"users"> | undefined; groupReferentId?: Id<"referents"> | undefined; memberRole?: "admin" | "member" | undefined; ... 4 more ...; membershipStatus: "active" | ... 1 more ... | "inactive"; }'
+
+Found 1 error in convex/pinnedKnowledgePages.test.ts[90m:288[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/pinnedKnowledgePages.test.ts[0m:[93m288[0m:[93m5[0m - [91merror[0m[90m TS2322: [0mType 'string' is not assignable to type '"admin" | "member" | undefined'.
+
+[7m288[0m     memberRole: input.role,
+[7m   [0m [91m    ~~~~~~~~~~[0m
+
+  [96mnode_modules/convex/dist/esm-types/type_utils.d.ts[0m:[93m11[0m:[93m97[0m
+    [7m11[0m export type Expand<ObjectType extends Record<any, any>> = ObjectType extends Record<any, any> ? {
+    [7m  [0m [96m                                                                                                ~[0m
+    [7m12[0m     [Key in keyof ObjectType]: ObjectType[Key];
+    [7m  [0m [96m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    [7m13[0m } : never;
+    [7m  [0m [96m~[0m
+    The expected type comes from property 'memberRole' which is declared here on type '{ organizationReferentId?: Id<"referents"> | undefined; memberUserId?: Id<"users"> | undefined; groupReferentId?: Id<"referents"> | undefined; memberRole?: "admin" | "member" | undefined; ... 4 more ...; membershipStatus: "active" | ... 1 more ... | "inactive"; }'
+
+Found 1 error in convex/pinnedKnowledgePages.test.ts[90m:288[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/pinnedKnowledgePages.test.ts[0m:[93m288[0m:[93m5[0m - [91merror[0m[90m TS2322: [0mType 'string' is not assignable to type '"admin" | "member" | undefined'.
+
+[7m288[0m     memberRole: input.role,
+[7m   [0m [91m    ~~~~~~~~~~[0m
+
+  [96mnode_modules/convex/dist/esm-types/type_utils.d.ts[0m:[93m11[0m:[93m97[0m
+    [7m11[0m export type Expand<ObjectType extends Record<any, any>> = ObjectType extends Record<any, any> ? {
+    [7m  [0m [96m                                                                                                ~[0m
+    [7m12[0m     [Key in keyof ObjectType]: ObjectType[Key];
+    [7m  [0m [96m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    [7m13[0m } : never;
+    [7m  [0m [96m~[0m
+    The expected type comes from property 'memberRole' which is declared here on type '{ organizationReferentId?: Id<"referents"> | undefined; memberUserId?: Id<"users"> | undefined; groupReferentId?: Id<"referents"> | undefined; memberRole?: "admin" | "member" | undefined; ... 4 more ...; membershipStatus: "active" | ... 1 more ... | "inactive"; }'
+
+Found 1 error in convex/pinnedKnowledgePages.test.ts[90m:288[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/pinnedKnowledgePages.test.ts[0m:[93m288[0m:[93m5[0m - [91merror[0m[90m TS2322: [0mType 'string' is not assignable to type '"admin" | "member" | undefined'.
+
+[7m288[0m     memberRole: input.role,
+[7m   [0m [91m    ~~~~~~~~~~[0m
+
+  [96mnode_modules/convex/dist/esm-types/type_utils.d.ts[0m:[93m11[0m:[93m97[0m
+    [7m11[0m export type Expand<ObjectType extends Record<any, any>> = ObjectType extends Record<any, any> ? {
+    [7m  [0m [96m                                                                                                ~[0m
+    [7m12[0m     [Key in keyof ObjectType]: ObjectType[Key];
+    [7m  [0m [96m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    [7m13[0m } : never;
+    [7m  [0m [96m~[0m
+    The expected type comes from property 'memberRole' which is declared here on type '{ organizationReferentId?: Id<"referents"> | undefined; memberUserId?: Id<"users"> | undefined; groupReferentId?: Id<"referents"> | undefined; memberRole?: "admin" | "member" | undefined; ... 4 more ...; membershipStatus: "active" | ... 1 more ... | "inactive"; }'
+
+Found 1 error in convex/pinnedKnowledgePages.test.ts[90m:288[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/pinnedKnowledgePages.test.ts[0m:[93m97[0m:[93m9[0m - [91merror[0m[90m TS2322: [0mType '"teacher"' is not assignable to type '"admin" | "member"'.
+
+[7m97[0m         role: "teacher",
+[7m  [0m [91m        ~~~~[0m
+
+  [96mconvex/pinnedKnowledgePages.test.ts[0m:[93m273[0m:[93m5[0m
+    [7m273[0m     role: OrganizationMembershipRole;
+    [7m   [0m [96m    ~~~~[0m
+    The expected type comes from property 'role' which is declared here on type '{ canonicalKey: string; kind: "school" | "church" | "family" | "community"; name: string; role: "admin" | "member"; userId: Id<"users">; }'
+
+Found 1 error in convex/pinnedKnowledgePages.test.ts[90m:97[0m
+- Preparing Convex functions...
+
+[32m√[39m 11:57:34 Convex functions ready! (8.27s)
+6/17/2026, 11:54:49 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signOut'
+6/17/2026, 11:54:50 AM [CONVEX Q(pinnedKnowledgePages:listForSidebar)] Uncaught Error: Unauthorized
+    at async handler (../convex/pinnedKnowledgePages.ts:64:29)
+
+6/17/2026, 11:54:50 AM [CONVEX Q(userNotifications:getUnreadSummary)] Uncaught Error: Unauthorized
+    at async handler (../convex/userNotifications.ts:102:17)
+
+- Preparing Convex functions...
+
+[32m√[39m 11:58:07 Convex functions ready! (8.67s)
+6/17/2026, 11:59:11 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 12:02:07 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 12:02:13 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[32m√[39m 12:02:49 Convex functions ready! (8.44s)
+6/17/2026, 12:08:10 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'

@@ -16,8 +16,8 @@ export function OrganizationAccessRequestScreen({
 }: OrganizationAccessRequestScreenProps) {
   const message =
     reason === "inactiveUser"
-      ? "This account is not active yet. Request access to create or join an organization."
-      : "This account needs an active organization membership before continuing.";
+      ? "This Logeion account is not active yet. Request access to create or join an organization."
+      : "This Logeion account needs an active organization membership before continuing.";
 
   return (
     <section className={`editor-panel kb-org-request kb-org-request-${surface}`}>
@@ -52,8 +52,8 @@ export function OrganizationAccessRequestScreen({
 function getRequestHref(kind: "create" | "join", email?: string) {
   const subject =
     kind === "create"
-      ? "Knowledgebase organization creation request"
-      : "Knowledgebase organization join request";
+      ? "Logeion organization creation request"
+      : "Logeion organization join request";
   const action =
     kind === "create"
       ? "I would like to create a new organization."

@@ -424,6 +424,28 @@ vi.mock("convex/react", () => ({
       }
     }
     if (
+      functionName === "organizationAccounts:createOrganizationAccount" &&
+      args &&
+      typeof args === "object" &&
+      "name" in args &&
+      "organizationKind" in args
+    ) {
+      const name = String(args.name);
+      const canonicalKey = name
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+      return {
+        canonicalKey,
+        href: `/organizations/${canonicalKey}`,
+        name,
+        organizationEntryId: `${canonicalKey}Entry`,
+        organizationKind: args.organizationKind,
+        organizationReferentId: `${canonicalKey}Referent`,
+      };
+    }
+    if (
       functionName === "userNotifications:markRead" &&
       args &&
       typeof args === "object" &&
@@ -622,6 +644,54 @@ vi.mock("convex/react", () => ({
             subscription.subscriptionKey === args.subscriptionKey,
         ) ?? null
       );
+    }
+
+    if (
+      functionName === "organizationAccounts:getOrganizationMembershipSettings" &&
+      args &&
+      typeof args === "object" &&
+      "organizationId" in args
+    ) {
+      const organizationId = String(args.organizationId);
+      const organization = (
+        mockState.appAccess as {
+          email?: string;
+          organizations?: Array<{
+            name: string;
+            organizationEntryId: string;
+            organizationKind: string;
+            organizationReferentId: string;
+            role: string;
+          }>;
+          userId?: string;
+        }
+      ).organizations?.find(
+        (candidate) =>
+          candidate.organizationReferentId === organizationId ||
+          candidate.name
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "") === organizationId,
+      );
+      if (!organization) {
+        return null;
+      }
+
+      return {
+        members: [
+          {
+            email: (mockState.appAccess as { email?: string }).email,
+            membershipId: `membership:${organization.organizationReferentId}`,
+            name: "Caleb Gelbaugh",
+            role: organization.role,
+            userId: (mockState.appAccess as { userId?: string }).userId ?? "user",
+          },
+        ],
+        name: organization.name,
+        organizationEntryId: organization.organizationEntryId,
+        organizationKind: organization.organizationKind,
+        organizationReferentId: organization.organizationReferentId,
+      };
     }
 
     if (functionName === "authAvailability:get") {
@@ -1462,6 +1532,7 @@ describe("MVP Explore/Contribute loop", () => {
     expect(container.textContent).toContain("Arche Classical Academy");
     expect(container.textContent).toContain("School");
     expect(container.textContent).toContain("Admin");
+    expect(container.textContent).not.toContain("Organization Accounts");
 
     const themeSwitch = getButton("Use dark theme");
     expect(themeSwitch.getAttribute("role")).toBe("switch");
@@ -1472,6 +1543,69 @@ describe("MVP Explore/Contribute loop", () => {
     expect(document.documentElement.dataset.theme).toBe("dark");
     expect(window.localStorage.getItem("knowledgebase-theme")).toBe("dark");
     expect(getButton("Use light theme").getAttribute("aria-checked")).toBe("true");
+  });
+
+  test("lets system admins create organization accounts from the sidebar route", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/");
+    mockState.appAccess = {
+      ...(mockState.appAccess as Record<string, unknown>),
+      systemRole: "systemAdmin",
+    };
+
+    await renderApp();
+
+    expect(getSelect("Active Role").value).toBe("system:systemAdmin");
+    expect(getLabelledLinkIn(getLabelledElement("User Views"), "System Admin")).toBeTruthy();
+
+    await click(getLabelledLinkIn(getLabelledElement("User Views"), "System Admin"));
+
+    expect(window.location.pathname).toBe("/system-admin");
+    expect(container.textContent).toContain("Organization Accounts");
+
+    const nameInput = container.querySelector('input[name="organizationName"]');
+    const kindSelect = container.querySelector('select[name="organizationKind"]');
+    if (!(nameInput instanceof HTMLInputElement)) {
+      throw new Error("Missing organization name input.");
+    }
+    if (!(kindSelect instanceof HTMLSelectElement)) {
+      throw new Error("Missing organization type select.");
+    }
+
+    await setFieldValue(nameInput, "Cedar Hall School");
+    await setSelectValue(kindSelect, "school");
+    await click(getButton("Set up account"));
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        functionName: "organizationAccounts:createOrganizationAccount",
+        name: "Cedar Hall School",
+        organizationKind: "school",
+      }),
+    );
+    expect(container.textContent).toContain("Created Cedar Hall School");
+    expect(getLinkIn(container, "Cedar Hall School").getAttribute("href")).toBe(
+      "/organizations/cedar-hall-school",
+    );
+  });
+
+  test("lets system admins sign in without organization memberships", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/");
+    mockState.appAccess = {
+      email: "sysadmin@example.com",
+      organizations: [],
+      status: "allowed",
+      systemRole: "systemAdmin",
+      userId: "systemAdminUser",
+    };
+    mockState.pinnedKnowledgePages = [];
+
+    await renderApp();
+
+    expect(container.textContent).toContain("Teaching and Ministry Queue");
+    expect(container.textContent).not.toContain(
+      "This account needs an active organization membership before continuing.",
+    );
+    expect(getLabelledLinkIn(getLabelledElement("User Views"), "System Admin")).toBeTruthy();
   });
 
   test("opens the user profile page from the avatar route", async () => {
@@ -1893,6 +2027,11 @@ describe("MVP Explore/Contribute loop", () => {
     if (!(hostColumn instanceof HTMLElement) || !(hostContent instanceof HTMLElement)) {
       throw new Error("Missing authenticated app shell");
     }
+    setTopbarScrollMetrics(hostColumn, hostContent, {
+      clientHeight: 500,
+      scrollHeight: 1200,
+      topbarHeight: 84,
+    });
 
     expect(hostColumn.getAttribute("data-topbar-hidden")).toBeNull();
 
@@ -1901,6 +2040,27 @@ describe("MVP Explore/Contribute loop", () => {
     expect(hostColumn.getAttribute("data-topbar-hidden")).toBe("true");
 
     await scrollHostContent(hostContent, 72);
+
+    expect(hostColumn.getAttribute("data-topbar-hidden")).toBeNull();
+  });
+
+  test("keeps the topbar visible when hiding it would clamp the scroll position", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/");
+
+    await renderApp();
+
+    const hostColumn = container.querySelector(".kb-host-column");
+    const hostContent = container.querySelector(".kb-host-content");
+    if (!(hostColumn instanceof HTMLElement) || !(hostContent instanceof HTMLElement)) {
+      throw new Error("Missing authenticated app shell");
+    }
+    setTopbarScrollMetrics(hostColumn, hostContent, {
+      clientHeight: 500,
+      scrollHeight: 620,
+      topbarHeight: 84,
+    });
+
+    await scrollHostContent(hostContent, 120);
 
     expect(hostColumn.getAttribute("data-topbar-hidden")).toBeNull();
   });
@@ -2263,6 +2423,30 @@ describe("MVP Explore/Contribute loop", () => {
       element.scrollTop = scrollTop;
       element.dispatchEvent(new Event("scroll", { bubbles: true }));
       await Promise.resolve();
+    });
+  }
+
+  function setTopbarScrollMetrics(
+    hostColumn: HTMLElement,
+    hostContent: HTMLElement,
+    {
+      clientHeight,
+      scrollHeight,
+      topbarHeight,
+    }: {
+      clientHeight: number;
+      scrollHeight: number;
+      topbarHeight: number;
+    },
+  ) {
+    hostColumn.style.setProperty("--kb-topbar-height", `${topbarHeight}px`);
+    Object.defineProperty(hostContent, "clientHeight", {
+      configurable: true,
+      value: clientHeight,
+    });
+    Object.defineProperty(hostContent, "scrollHeight", {
+      configurable: true,
+      value: scrollHeight,
     });
   }
 

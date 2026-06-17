@@ -235,6 +235,9 @@ summary,
 .kb-contribution-field input,
 .kb-contribution-field select,
 .kb-contribution-field textarea,
+.kb-org-member-field input,
+.kb-org-member-field select,
+.kb-org-member-submit,
 .editor-sign-out,
 .editor-auth-form button,
 .tool-button {
@@ -354,7 +357,64 @@ summary,
   box-shadow: var(--kb-shadow-xs);
 }
 
-.kb-logo-button .kb-brand-logo {
+.kb-logo-button .logeion-brand-mark {
+  width: 29px;
+  height: 39px;
+}
+
+.logeion-brand {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 12px;
+  color: var(--kb-text);
+  line-height: 1;
+}
+
+.logeion-brand-mark {
+  display: block;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 56px;
+  object-fit: contain;
+}
+
+.logeion-brand-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.logeion-brand-name,
+.logeion-brand-publisher {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.logeion-brand-name {
+  color: var(--kb-text);
+  font-size: 29px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.logeion-brand-publisher {
+  color: var(--kb-primary-dark);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.logeion-brand-compact {
+  display: grid;
+  place-items: center;
+}
+
+.logeion-brand-compact .logeion-brand-mark {
   width: 29px;
   height: 39px;
 }
@@ -700,7 +760,7 @@ summary,
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 18px;
   min-width: 0;
   height: var(--kb-topbar-height);
@@ -744,15 +804,16 @@ summary,
 
 .kb-brand {
   display: inline-flex;
-  flex: 0 0 clamp(160px, 16vw, 192px);
+  flex: 0 0 clamp(220px, 22vw, 286px);
   align-items: center;
-  justify-content: center;
-  width: clamp(160px, 16vw, 192px);
+  justify-content: flex-start;
+  width: clamp(220px, 22vw, 286px);
   height: calc(100% - 8px);
   max-height: 76px;
   min-height: 60px;
-  padding: 3px 5px;
+  padding: 3px 5px 3px 0;
   overflow: hidden;
+  color: var(--kb-text);
   background: transparent;
 }
 
@@ -762,21 +823,9 @@ summary,
   outline: none;
 }
 
-.kb-brand:hover .kb-brand-logo-horizontal,
-.kb-brand:focus-visible .kb-brand-logo-horizontal {
+.kb-brand:hover .logeion-brand,
+.kb-brand:focus-visible .logeion-brand {
   opacity: 0.86;
-}
-
-.kb-brand-logo {
-  display: block;
-  width: 38px;
-  height: 42px;
-  object-fit: contain;
-}
-
-.kb-brand .kb-brand-logo-horizontal {
-  width: 100%;
-  height: 100%;
 }
 
 .kb-topbar-actions {
@@ -819,6 +868,16 @@ summary,
   border-color: var(--kb-primary);
   box-shadow: 0 0 0 3px rgb(190 135 53 / 16%);
   outline: none;
+}
+
+.kb-active-role-switcher select option {
+  color: var(--kb-text);
+  background: var(--kb-page);
+}
+
+.kb-active-role-switcher select option:checked {
+  color: #17110b;
+  background: var(--kb-primary);
 }
 
 .kb-icon-button {
@@ -1857,6 +1916,12 @@ summary,
   min-width: 0;
 }
 
+.kb-org-settings-stack {
+  display: grid;
+  min-width: 0;
+  gap: 18px;
+}
+
 .kb-org-settings-panel {
   display: grid;
   min-width: 0;
@@ -1927,6 +1992,60 @@ summary,
   color: var(--kb-text);
   font-weight: 700;
   overflow-wrap: anywhere;
+}
+
+.kb-org-member-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.kb-org-member-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--kb-line);
+  border-radius: 8px;
+  background: var(--kb-gradient-control);
+}
+
+.kb-org-member-list li > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.kb-org-member-list strong,
+.kb-org-member-list span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.kb-org-member-list strong {
+  color: var(--kb-text);
+  font-size: 14px;
+}
+
+.kb-org-member-list span {
+  color: var(--kb-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.kb-org-member-list small {
+  min-width: max-content;
+  padding: 5px 9px;
+  border: 1px solid rgb(190 135 53 / 24%);
+  border-radius: 999px;
+  color: var(--kb-primary-dark);
+  background: rgb(190 135 53 / 10%);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .kb-org-settings-rail {
@@ -3553,6 +3672,117 @@ summary,
   color: var(--kb-primary-dark);
 }
 
+.kb-system-admin-form,
+.kb-org-member-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(150px, 220px) auto;
+  align-items: end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.kb-system-admin-field,
+.kb-org-member-field {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  color: var(--kb-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.kb-system-admin-field input,
+.kb-system-admin-field select,
+.kb-org-member-field input,
+.kb-org-member-field select {
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  padding: 0 11px;
+  border: 1px solid var(--kb-line);
+  border-radius: 8px;
+  color: var(--kb-text);
+  background: var(--kb-gradient-input);
+  outline: none;
+  text-transform: none;
+}
+
+.kb-system-admin-field input:focus,
+.kb-system-admin-field select:focus,
+.kb-org-member-field input:focus,
+.kb-org-member-field select:focus {
+  border-color: var(--kb-primary);
+  box-shadow: 0 0 0 3px rgb(190 135 53 / 16%);
+}
+
+.kb-system-admin-submit,
+.kb-org-member-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  gap: 8px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--kb-on-primary);
+  background: var(--kb-gradient-button);
+  font-weight: 700;
+}
+
+.kb-system-admin-submit:hover:not(:disabled),
+.kb-system-admin-submit:focus-visible:not(:disabled),
+.kb-org-member-submit:hover:not(:disabled),
+.kb-org-member-submit:focus-visible:not(:disabled) {
+  background: var(--kb-gradient-button-hover);
+  outline: none;
+}
+
+.kb-system-admin-submit:disabled,
+.kb-org-member-submit:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.kb-system-admin-submit svg,
+.kb-org-member-submit svg,
+.kb-system-admin-success svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+}
+
+.kb-system-admin-success,
+.kb-system-admin-error {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.kb-system-admin-success {
+  border: 1px solid rgb(60 122 87 / 34%);
+  color: #2f6648;
+  background: rgb(60 122 87 / 8%);
+}
+
+.kb-system-admin-success a {
+  color: inherit;
+}
+
+.kb-system-admin-error {
+  border: 1px solid rgb(190 135 53 / 34%);
+  color: var(--kb-primary-dark);
+  background: rgb(190 135 53 / 10%);
+}
+
 .kb-settings-organizations {
   align-content: start;
 }
@@ -3756,10 +3986,20 @@ summary,
   outline: none;
 }
 
+.kb-shell[data-theme="dark"] .kb-dashboard-bible-contexts a {
+  border-color: rgb(217 167 95 / 22%);
+  background: linear-gradient(135deg, rgb(17 25 34 / 96%), rgb(24 33 43 / 96%));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 6%);
+}
+
 .kb-dashboard-bible-contexts svg {
   width: 17px;
   height: 17px;
   color: var(--kb-primary-dark);
+}
+
+.kb-shell[data-theme="dark"] .kb-dashboard-bible-contexts svg {
+  color: var(--kb-primary);
 }
 
 .kb-dashboard-bible-contexts a > span {
@@ -3785,6 +4025,10 @@ summary,
   font-weight: 800;
 }
 
+.kb-shell[data-theme="dark"] .kb-dashboard-bible-contexts small {
+  color: #d7cabb;
+}
+
 .kb-dashboard-bible-contexts em {
   display: grid;
   min-width: 28px;
@@ -3796,6 +4040,11 @@ summary,
   font-size: 12px;
   font-style: normal;
   font-weight: 900;
+}
+
+.kb-shell[data-theme="dark"] .kb-dashboard-bible-contexts em {
+  color: #d9eff8;
+  background: rgb(143 184 204 / 18%);
 }
 
 .kb-today-agenda-list {
@@ -6365,6 +6614,23 @@ summary,
   background: rgb(255 255 255 / 54%);
 }
 
+.kb-shell[data-theme="dark"] .kb-rail-focus-workspace .kb-contribution-preview {
+  border-color: rgb(217 167 95 / 18%);
+  background: linear-gradient(180deg, rgb(12 18 25 / 94%), rgb(17 25 34 / 92%));
+}
+
+.kb-shell[data-theme="dark"] .kb-rail-focus-workspace .kb-contribution-preview > header {
+  color: var(--kb-primary);
+}
+
+.kb-shell[data-theme="dark"] .kb-rail-focus-workspace .kb-contribution-preview dt {
+  color: #d7cabb;
+}
+
+.kb-shell[data-theme="dark"] .kb-rail-focus-workspace .kb-contribution-preview dd {
+  color: #fff7ed;
+}
+
 .kb-rail-focus-workspace .kb-contribution-preview dl {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -6864,28 +7130,26 @@ summary,
 .editor-auth-brand-main {
   display: grid;
   align-content: start;
-  gap: 26px;
+  gap: 24px;
   min-width: 0;
 }
 
-.editor-auth-logo {
-  display: block;
-  width: min(100%, 214px);
-  height: auto;
+.editor-auth-brand .logeion-brand {
+  align-items: flex-start;
+  max-width: 100%;
 }
 
-.editor-auth-logo-dark {
-  display: none;
+.editor-auth-brand .logeion-brand-mark {
+  width: 54px;
+  height: 72px;
 }
 
-:root[data-theme="dark"] .editor-auth-logo-light,
-.kb-shell[data-theme="dark"] .editor-auth-logo-light {
-  display: none;
+.editor-auth-brand .logeion-brand-name {
+  font-size: clamp(2rem, 1.65rem + 1.3vw, 2.7rem);
 }
 
-:root[data-theme="dark"] .editor-auth-logo-dark,
-.kb-shell[data-theme="dark"] .editor-auth-logo-dark {
-  display: block;
+.editor-auth-brand .logeion-brand-publisher {
+  font-size: 12px;
 }
 
 .editor-auth-brand h2 {
@@ -7604,10 +7868,19 @@ h1 {
   }
 
   .kb-brand {
-    flex-basis: clamp(142px, 15vw, 168px);
-    width: clamp(142px, 15vw, 168px);
+    flex-basis: clamp(190px, 24vw, 236px);
+    width: clamp(190px, 24vw, 236px);
     max-height: 64px;
     min-height: 56px;
+  }
+
+  .kb-brand .logeion-brand-mark {
+    width: 34px;
+    height: 46px;
+  }
+
+  .kb-brand .logeion-brand-name {
+    font-size: 24px;
   }
 
   .kb-search {
@@ -7802,10 +8075,27 @@ h1 {
   }
 
   .kb-brand {
-    flex-basis: min(148px, 42vw);
-    width: min(148px, 42vw);
+    flex-basis: min(190px, 58vw);
+    width: min(190px, 58vw);
     height: 56px;
     min-height: 0;
+  }
+
+  .kb-brand .logeion-brand {
+    gap: 9px;
+  }
+
+  .kb-brand .logeion-brand-mark {
+    width: 30px;
+    height: 40px;
+  }
+
+  .kb-brand .logeion-brand-name {
+    font-size: 21px;
+  }
+
+  .kb-brand .logeion-brand-publisher {
+    font-size: 9px;
   }
 
   .kb-topbar-actions {
@@ -7980,6 +8270,11 @@ h1 {
 
   .kb-settings-switch strong {
     grid-column: 2;
+  }
+
+  .kb-system-admin-form,
+  .kb-org-member-form {
+    grid-template-columns: 1fr;
   }
 
   .kb-settings-org-list li {
@@ -8238,8 +8533,9 @@ h1 {
     gap: 16px;
   }
 
-  .editor-auth-logo {
-    width: min(186px, 72vw);
+  .editor-auth-brand .logeion-brand-mark {
+    width: 46px;
+    height: 62px;
   }
 
   .editor-auth-brand h2 {

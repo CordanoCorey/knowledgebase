@@ -12,8 +12,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { api } from "../../convex/_generated/api";
-import archePressHorizontalLogoDarkUrl from "../assets/arche-press_logo-horizontal-full-dark.svg";
-import archePressHorizontalLogoUrl from "../assets/arche-press_logo-horizontal-full.svg";
+import { LogeionBrand } from "../components/LogeionBrand";
 
 type PasswordFlow = "signIn" | "signUp" | "reset" | "reset-verification";
 type AuthMethod = "password" | "resend";
@@ -189,7 +188,7 @@ export function AuthPanel({
         ? UserPlus
         : Mail
     : Mail;
-  const authContextLabel = surface === "app" ? "Secure workspace" : "Secure editor";
+  const authContextLabel = surface === "app" ? "Logeion workspace" : "Logeion editor";
   const sessionLabel = surface === "app" ? "Account required" : "Session required";
   const headerEyebrow =
     isPasswordReset || isPasswordResetVerification
@@ -208,21 +207,12 @@ export function AuthPanel({
   return (
     <section className={`editor-panel editor-auth-panel editor-auth-panel-${surface}`}>
       <div className="editor-auth-layout">
-        <aside className="editor-auth-brand" aria-label="Knowledgebase">
+        <aside className="editor-auth-brand" aria-label="Logeion by Arche Press">
           <div className="editor-auth-brand-main">
-            <img
-              className="editor-auth-logo editor-auth-logo-light"
-              src={archePressHorizontalLogoUrl}
-              alt="Arche Press"
-            />
-            <img
-              className="editor-auth-logo editor-auth-logo-dark"
-              src={archePressHorizontalLogoDarkUrl}
-              alt="Arche Press"
-            />
+            <LogeionBrand />
             <div>
               <p className="eyebrow">{authContextLabel}</p>
-              <h2>Knowledgebase</h2>
+              <h2>A place for words</h2>
             </div>
           </div>
           <div className="editor-auth-brand-footer">

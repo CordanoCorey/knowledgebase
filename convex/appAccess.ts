@@ -19,6 +19,7 @@ const userIdentity = {
   email: v.optional(v.string()),
   userId: v.id("users"),
 };
+const systemRole = v.literal("systemAdmin");
 
 const appAccessState = v.union(
   v.object({
@@ -36,6 +37,7 @@ const appAccessState = v.union(
     ...userIdentity,
     organizations: v.array(allowedOrganization),
     status: v.literal("allowed"),
+    systemRole: v.optional(systemRole),
   }),
 );
 

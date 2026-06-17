@@ -9,7 +9,7 @@ export function hasPasswordAuth() {
 }
 
 export function hasGoogleAuth() {
-  return Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
+  return true;
 }
 
 export function hasResendAuth() {
@@ -30,11 +30,8 @@ export function configuredAuthProviders(): AuthProviderConfig[] {
       profile: passwordProfile,
       ...(hasPasswordResetAuth() ? { reset: resendProvider() } : {}),
     }),
+    Google,
   ];
-
-  if (hasGoogleAuth()) {
-    providers.push(Google);
-  }
 
   if (hasResendAuth()) {
     providers.push(resendProvider());

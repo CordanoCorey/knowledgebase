@@ -69,6 +69,14 @@ describe("AuthPanel", () => {
     });
   });
 
+  test("keeps Google sign-in available on the password signup view", async () => {
+    await renderAuthPanel();
+
+    await click(getButton("Create"));
+
+    expect(getButton("Continue with Google")).toBeTruthy();
+  });
+
   test("sends a magic link through Resend", async () => {
     await renderAuthPanel({ redirectTo: "/settings" });
 

@@ -40,6 +40,10 @@ _Avoid_: Source, Knowledge Type, file type
 The audience allowed to access a Knowledge Entry, such as one user, an organization, a group, a network of organizations, or everyone.
 _Avoid_: Public/private, global context, sharing folder
 
+**Delivery Target**:
+The User, Person, Group, Organization, or other recipient target a contribution or action is sent to or notifies. Delivery Target is distinct from Visibility Scope and Knowledge Context; receiving a notification does not define who may access the Knowledge Entry or which Tags it references.
+_Avoid_: Visibility Scope, audience, permission, send to page
+
 **Type Behavior**:
 The versioned domain behavior the application applies to a Knowledge Type, including how entries of that type are recognized, enriched, related, displayed, stored, reviewed, scored, or scoped.
 _Avoid_: Implementation, schema behavior
@@ -213,7 +217,7 @@ The relation of a Person to a Knowledge Type or Knowledge Entry, such as author,
 _Avoid_: Knowledge Type, user type
 
 **Active Role**:
-The single Role a User is currently acting in while using the application, such as teacher, student, parent, church member, or administrator. A User may have many available Roles, but only one Active Role at a time. Active Role belongs in the header and is distinct from the User's current Knowledge Page or Active Knowledge Context.
+The Role a User is currently acting in while using the application, such as teacher, student, parent, church member, or administrator. Active Role may be unset in global contexts; when set, there is only one Active Role at a time, and it remains distinct from the User's current Knowledge Page or Active Knowledge Context.
 _Avoid_: Knowledge Page, Active Knowledge Context, account
 
 **User**:
@@ -280,6 +284,26 @@ _Avoid_: Search, chat, browse
 To add a future Answer to the knowledgebase, either by submitting a Source, creating a Knowledge Entry directly, or responding to an existing Knowledge Entry.
 _Avoid_: Upload, post, store, work
 
+**Contribution Submission**:
+A single user intent to Contribute, collecting the material and choices submitted from a composer before it is posted directly or processed through Smart Storage. A Contribution Submission may include multiple Sources and contribution guidance, but it is not itself a Knowledge Entry.
+_Avoid_: Source, Knowledge Entry, upload bundle
+
+**Primary Intended Entry**:
+The one Knowledge Entry a Contribution Submission is primarily meant to create or update. Smart Storage may propose additional derived Knowledge Entries from the same Contribution Submission without changing the Primary Intended Entry.
+_Avoid_: Parent entry, main Source, bundle entry
+
+**Authored Text Source**:
+User-authored or user-pasted text submitted as substantive raw material in a Contribution Submission. Authored Text Source is a kind of Source, distinct from the Words Knowledge Type.
+_Avoid_: Words, body text, editor text
+
+**Contribution Note**:
+Non-substantive guidance a User provides to explain or steer a Contribution Submission without itself becoming represented knowledge by default.
+_Avoid_: Source, Words, entry body
+
+**Link Preview**:
+Fetched metadata that helps a User recognize an external URL in a Contribution Submission or Entry Representation. A Link Preview is not a Knowledge Entry, Factual Provenance, or Human Weight Evidence by itself.
+_Avoid_: Knowledge Entry, evidence, Source
+
 **Knowledge Slot**:
 A predefined request for one Knowledge Entry of a specified Knowledge Type within a specified Knowledge Context. A Knowledge Slot directs a user, group, organization, network, or open audience to Contribute a missing future Answer.
 _Avoid_: Todo, assignment, prompt, bounty, call to action
@@ -321,7 +345,7 @@ A coarse Smart Storage review signal for how well a Smart Storage Proposal or en
 _Avoid_: Human Weight, truth score, AI quality score
 
 **Smart Storage Proposal**:
-A durable Silver Layer candidate for one Knowledge Entry produced by Smart Storage from a Source before user confirmation, expressed in Smart Storage Contract terms rather than persistence-specific write operations. A Smart Storage Proposal may be accepted, rejected, or edited before it becomes Gold Layer knowledge.
+A durable Silver Layer candidate for creating or updating one Knowledge Entry from Smart Storage before user confirmation, expressed in Smart Storage Contract terms rather than persistence-specific write operations. A Smart Storage Proposal may be accepted, rejected, or edited before it affects Gold Layer knowledge.
 _Avoid_: Draft entry, AI answer, unconfirmed Knowledge Entry
 
 **Smart Storage Run**:
