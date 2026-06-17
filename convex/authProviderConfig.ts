@@ -9,7 +9,8 @@ export function hasPasswordAuth() {
 }
 
 export function hasGoogleAuth() {
-  return true;
+  return isConfiguredGoogleClientId(process.env.AUTH_GOOGLE_ID) &&
+    isConfiguredSecret(process.env.AUTH_GOOGLE_SECRET);
 }
 
 export function hasResendAuth() {
@@ -30,14 +31,34 @@ export function configuredAuthProviders(): AuthProviderConfig[] {
       profile: passwordProfile,
       ...(hasPasswordResetAuth() ? { reset: resendProvider() } : {}),
     }),
-    Google,
   ];
+
+  if (hasGoogleAuth()) {
+    providers.push(Google);
+  }
 
   if (hasResendAuth()) {
     providers.push(resendProvider());
   }
 
   return providers;
+}
+
+function isConfiguredGoogleClientId(value: string | undefined) {
+  return Boolean(
+    value &&
+      value.endsWith(".apps.googleusercontent.com") &&
+      !value.endsWith(".apps.googleusercontent.com.apps.googleusercontent.com") &&
+      !isPlaceholderValue(value),
+  );
+}
+
+function isConfiguredSecret(value: string | undefined) {
+  return Boolean(value && !isPlaceholderValue(value));
+}
+
+function isPlaceholderValue(value: string) {
+  return /placeholder|todo|changeme|your-google-client/i.test(value);
 }
 
 function passwordProfile(params: Record<string, Value | undefined>) {

@@ -7130,7 +7130,7 @@ summary,
 .editor-auth-brand-main {
   display: grid;
   align-content: start;
-  gap: 24px;
+  gap: 0;
   min-width: 0;
 }
 
@@ -7152,11 +7152,14 @@ summary,
   font-size: 12px;
 }
 
-.editor-auth-brand h2 {
-  margin: 0;
-  color: var(--kb-text);
-  font-size: clamp(1.9rem, 1.48rem + 1.6vw, 3rem);
-  line-height: 1;
+.editor-auth-tagline {
+  margin: -8px 0 0 66px;
+  color: var(--kb-muted);
+  font-family: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(1rem, 0.92rem + 0.35vw, 1.2rem);
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1.25;
 }
 
 .editor-auth-brand-footer {
@@ -8530,7 +8533,7 @@ h1 {
   }
 
   .editor-auth-brand-main {
-    gap: 16px;
+    gap: 0;
   }
 
   .editor-auth-brand .logeion-brand-mark {
@@ -8538,8 +8541,10 @@ h1 {
     height: 62px;
   }
 
-  .editor-auth-brand h2 {
-    font-size: 2rem;
+  .editor-auth-tagline {
+    margin-top: -8px;
+    margin-left: 58px;
+    font-size: 1rem;
   }
 
   .editor-auth-content {

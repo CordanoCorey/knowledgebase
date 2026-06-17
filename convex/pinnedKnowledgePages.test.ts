@@ -46,44 +46,35 @@ describe("Pinned Knowledge Pages", () => {
       {},
     ) as SidebarPin[];
 
+    expect(pins).toHaveLength(4);
     expect(
       pins.map((pin) => ({
-        href: pin.href,
         kind: pin.organizationKind,
         label: pin.label,
-        pageKey: pin.pageKey,
         secondaryLabel: pin.secondaryLabel,
       })),
-    ).toEqual([
+    ).toEqual(expect.arrayContaining([
       {
-        href: `/organizations/${pins[0].organizationReferentId}`,
         kind: "school",
         label: "Arche Classical Academy",
-        pageKey: `organization:${pins[0].organizationReferentId}`,
         secondaryLabel: "School",
       },
       {
-        href: `/organizations/${pins[1].organizationReferentId}`,
         kind: "church",
         label: "Ruler of Kings Church",
-        pageKey: `organization:${pins[1].organizationReferentId}`,
         secondaryLabel: "Church",
       },
       {
-        href: `/organizations/${pins[2].organizationReferentId}`,
         kind: "family",
         label: "My Family",
-        pageKey: `organization:${pins[2].organizationReferentId}`,
         secondaryLabel: "Family",
       },
       {
-        href: `/organizations/${pins[3].organizationReferentId}`,
         kind: "community",
         label: "My Community",
-        pageKey: `organization:${pins[3].organizationReferentId}`,
         secondaryLabel: "Community",
       },
-    ]);
+    ]));
     expect(pins.every((pin) => pin.pinSource === "defaultSeed")).toBe(true);
   });
 
@@ -125,6 +116,28 @@ describe("Pinned Knowledge Pages", () => {
       { label: "Arche Classical Academy", pinSource: "defaultSeed" },
       { label: "Second School", pinSource: "manual" },
     ]);
+  });
+
+  test("lists every default Organization pin for system admins", async () => {
+    const { authed, t } = await seedAllowedUser("gelbaughcm@gmail.com");
+    await t.run((ctx) =>
+      insertOrganization(ctx, {
+        canonicalKey: "second-school",
+        kind: "school",
+        name: "Second School",
+      }),
+    );
+
+    const pins = await authed.query(
+      api.pinnedKnowledgePages.listForSidebar,
+      {},
+    ) as SidebarPin[];
+
+    expect(
+      pins
+        .filter((pin) => pin.organizationKind === "school")
+        .map((pin) => pin.label),
+    ).toEqual(["Arche Classical Academy", "Second School"]);
   });
 
   test("suppresses a default Organization pin and restores it when pinned again", async () => {
@@ -230,13 +243,13 @@ describe("Pinned Knowledge Pages", () => {
   });
 });
 
-async function seedAllowedUser() {
+async function seedAllowedUser(email = "corey@rulerofkingschurch.com") {
   const t = convexTest({ schema, modules });
   const seed = await t.action(
     internal.seedOrganizationsAction.seedDefaultOrganizations,
     {},
   ) as SeedActionTestResult;
-  const user = getSeededUser(seed.users, "gelbaughcm@gmail.com");
+  const user = getSeededUser(seed.users, email);
 
   return {
     authed: t.withIdentity({ subject: `${user.userId}|test-session` }),

@@ -732,3 +732,7 @@ Visit https://react.dev/link/error-boundaries to learn more about error boundari
 Consider adding an error boundary to your tree to customize error handling behavior.
 Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
 
+[2m1:12:58 PM[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[CONVEX M(organizationAccounts:addOrganizationMember)] [Request ID: f8b8381e612e5908] Server Error
+Uncaught Error: No user account found for that email.
+    at handler (../convex/organizationAccounts.ts:186:16)
+

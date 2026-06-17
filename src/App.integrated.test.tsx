@@ -1441,6 +1441,72 @@ describe("MVP Explore/Contribute loop", () => {
     ).toBe("page");
   });
 
+  test("lets system admins open and manage settings for any visible organization", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "http://localhost:3000/organizations/cedar-hall-school/settings",
+    );
+    mockState.appAccess = {
+      email: "sysadmin@example.com",
+      organizations: [
+        {
+          name: "Cedar Hall School",
+          organizationEntryId: "cedarHallEntry",
+          organizationKind: "school",
+          organizationReferentId: "cedar-hall-school",
+          role: "admin",
+        },
+      ],
+      status: "allowed",
+      systemRole: "systemAdmin",
+      userId: "systemAdminUser",
+    };
+    mockState.pinnedKnowledgePages = [
+      {
+        href: "/organizations/cedar-hall-school",
+        id: "cedar-hall-school",
+        label: "Cedar Hall School",
+        organizationKind: "school",
+        organizationName: "Cedar Hall School",
+        organizationReferentId: "cedar-hall-school",
+        pageKey: "organization:cedar-hall-school",
+        pinSource: "defaultSeed",
+        secondaryLabel: "School",
+        sortOrder: 0,
+      },
+    ];
+
+    await renderApp();
+
+    expect(container.textContent).toContain("Organization Settings");
+    expect(container.textContent).toContain("Cedar Hall School");
+    expect(container.textContent).toContain("Members");
+    expect(getButton("Add member")).toBeTruthy();
+
+    const emailInput = container.querySelector('input[name="memberEmail"]');
+    const roleSelect = container.querySelector('select[name="memberRole"]');
+    if (!(emailInput instanceof HTMLInputElement)) {
+      throw new Error("Missing member email input.");
+    }
+    if (!(roleSelect instanceof HTMLSelectElement)) {
+      throw new Error("Missing member role select.");
+    }
+
+    await setFieldValue(emailInput, "teacher@example.com");
+    await setSelectValue(roleSelect, "admin");
+    await click(getButton("Add member"));
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        email: "teacher@example.com",
+        functionName: "organizationAccounts:addOrganizationMember",
+        organizationId: "cedar-hall-school",
+        role: "admin",
+      }),
+    );
+  });
+
   test("creates a Group from an organization Create Group action", async () => {
     window.history.replaceState(
       {},
