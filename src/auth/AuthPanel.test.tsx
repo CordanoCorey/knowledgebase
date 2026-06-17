@@ -77,6 +77,18 @@ describe("AuthPanel", () => {
     expect(getButton("Continue with Google")).toBeTruthy();
   });
 
+  test("hides Google sign-in when Google auth is not configured", async () => {
+    mocks.authAvailability = {
+      google: false,
+      password: true,
+      passwordReset: true,
+      resend: true,
+    };
+    await renderAuthPanel();
+
+    expect(queryButton("Continue with Google")).toBeNull();
+  });
+
   test("sends a magic link through Resend", async () => {
     await renderAuthPanel({ redirectTo: "/settings" });
 
@@ -146,14 +158,20 @@ describe("AuthPanel", () => {
   }
 
   function getButton(label: string) {
-    const button = Array.from(container.querySelectorAll("button")).find(
-      (candidate) => normalizeText(candidate) === label,
-    );
+    const button = queryButton(label);
     if (!button) {
       throw new Error(`Missing button: ${label}`);
     }
 
     return button;
+  }
+
+  function queryButton(label: string) {
+    return (
+      Array.from(container.querySelectorAll("button")).find(
+        (candidate) => normalizeText(candidate) === label,
+      ) ?? null
+    );
   }
 
   function getInput(name: string) {

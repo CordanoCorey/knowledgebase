@@ -40,6 +40,10 @@ _Avoid_: Source, Knowledge Type, file type
 The audience allowed to access a Knowledge Entry, such as one user, an organization, a group, a network of organizations, or everyone.
 _Avoid_: Public/private, global context, sharing folder
 
+**Review Scope**:
+The audience allowed to view or manage Bronze Sources, Smart Storage Runs, Smart Storage Proposals, or other pending review material before it becomes Gold Layer knowledge. Review Scope may differ from the intended Visibility Scope of the resulting Knowledge Entry.
+_Avoid_: Visibility Scope, Delivery Target, approver list
+
 **Delivery Target**:
 The User, Person, Group, Organization, or other recipient target a contribution or action is sent to or notifies. Delivery Target is distinct from Visibility Scope and Knowledge Context; receiving a notification does not define who may access the Knowledge Entry or which Tags it references.
 _Avoid_: Visibility Scope, audience, permission, send to page
@@ -52,9 +56,17 @@ _Avoid_: Implementation, schema behavior
 A Knowledge Entry considered as something that can help satisfy future Knowledge Requests in whole or in part.
 _Avoid_: AI response, chat reply
 
+**Answer Feed**:
+The mixed Knowledge Page surface that presents relevant Knowledge Entries and Knowledge Slots for the current Knowledge Context.
+_Avoid_: Entries list, search results, slot list
+
 **Human Weight**:
 A rating of how strongly a Knowledge Entry reflects human substance that artificial intelligence cannot cheaply counterfeit: agency, excellence, judgment, lived use, or divine inspiration, scored from Slop at 0 to Soul at 100. Whether and how Human Weight applies depends on the Knowledge Entry's Knowledge Type.
 _Avoid_: AI score, quality score, robot score
+
+**Human Weight Expectation**:
+The Type Behavior or workflow-specific standard that determines whether low Human Weight is acceptable, merely informative, or a concern for a Knowledge Entry.
+_Avoid_: AI detector, quality requirement, grade
 
 **Human Weight Evidence**:
 The supporting signals used to assign or revise Human Weight for a Knowledge Entry, such as credited attribution, provenance, human review, lived use, ratings, or recognition by users and organizations.
@@ -80,6 +92,14 @@ _Avoid_: Human Weight, popularity, Role, permission
 The bounded contribution signals used to assign or revise Context Expertise, such as authoring, sharing, confirming, curating, fulfilling, or giving feedback on an Answer within a Knowledge Context.
 _Avoid_: Human Weight Evidence, view count, repeated reference, raw engagement
 
+**Context Expertise Maturity**:
+A measure of how settled a User's or Person's Context Expertise is based on the amount, reliability, and outcomes of their Context Expertise Evidence.
+_Avoid_: Raw contribution count, certainty, popularity
+
+**Context Expertise Inheritance**:
+The way Context Expertise earned in one Knowledge Context can inform rankings in related broader or narrower Knowledge Contexts without treating every Tag overlap as equal.
+_Avoid_: Global reputation, universal authority, tag popularity
+
 **Context Expert**:
 A User or Person surfaced because their Context Expertise is high within a Knowledge Context.
 _Avoid_: Top contributor, admin, official authority, title
@@ -96,6 +116,10 @@ _Avoid_: Zero-weight type, low-quality type
 A usually transient user request for knowledge, help, or work that is answered from the application's Knowledge Entries within an applicable Knowledge Context. A Knowledge Request is not itself a Knowledge Entry unless intentionally Contributed as a Question or another Knowledge Type.
 _Avoid_: Prompt, query, chat message
 
+**Knowledge Composer**:
+A user-facing input surface for asking, searching, contributing, or shaping the Active Knowledge Context from one place, with the user's submission determining whether it creates a Knowledge Request, a Contribution, or context changes.
+_Avoid_: Chat box, search box, Add Tags control
+
 **Question**:
 A Knowledge Type for a durable question mapped to a Knowledge Context, preserving useful information about what parts of that Knowledge Context need to be connected or answered. A Question may be selected as a Tag to define a narrower Knowledge Context for future Knowledge Requests and Answers.
 _Avoid_: Prompt, query
@@ -107,6 +131,18 @@ _Avoid_: Search space, prompt space, chat history
 **Knowledge Page**:
 A user-facing location in the application where a User works within or navigates to a Knowledge Context, Referent, Knowledge Entry, Organization, user relationship, or knowledge-oriented view. A Knowledge Page is distinct from the User's active Role; the same User may visit the same Knowledge Page while acting in different Roles.
 _Avoid_: Place, route, screen
+
+**Knowledge Page Shell**:
+The consistent user-facing frame shared by Knowledge Pages, providing page identity, Knowledge Context controls, Explore, Contribute, and work or feed regions while allowing each page type to supply page-specific content.
+_Avoid_: Knowledge Context, bespoke page layout, route template
+
+**Page-Specific Module**:
+A bounded part of a Knowledge Page that presents content or workflow unique to the current page type without replacing the shared Knowledge Page Shell.
+_Avoid_: Bespoke page layout, custom page shell, hero
+
+**Page-Specific Subroute**:
+A subordinate route reached from a Knowledge Page for page-specific workflow or settings that should not occupy the shared Knowledge Page Shell.
+_Avoid_: Nested Knowledge Page, custom page, feature page
 
 **User View**:
 A user-scoped view whose contents are assembled around the current User's activity, responsibilities, preferences, or account state rather than around a shared Knowledge Context or Referent.
@@ -232,6 +268,18 @@ _Avoid_: Account, workspace, tenant
 A Knowledge Type for a collection of People, whether or not each Person is linked to a User account.
 _Avoid_: User group, organization, audience
 
+**Membership**:
+The relationship between a Person and an Organization or Group, whether or not that Person is linked to a User account.
+_Avoid_: Invitation, account membership, user group
+
+**Pending Membership**:
+A Membership for a Person who has not yet been linked to a User account with proven identity.
+_Avoid_: Invitation, invite, placeholder user
+
+**Membership Claim**:
+The act of connecting an existing Membership for a Person to the User who has proven they are that Person.
+_Avoid_: Sign-up, invitation acceptance, account creation
+
 **School**:
 An Organization associated with formal teaching and learning. A User may sign up through association with a School.
 _Avoid_: Class, campus
@@ -263,6 +311,10 @@ _Avoid_: Entity, item, entry
 **Represented Referent**:
 The same-typed Referent a Knowledge Entry uniquely expresses or records. A Referent may have at most one Knowledge Entry that represents it.
 _Avoid_: Primary Referent, subject, entity
+
+**Referent Identity Scope**:
+The scope within which a Referent's identity should be matched as the same thing, such as globally public, organization-scoped, group-scoped, or user-scoped. Referent Identity Scope is distinct from Visibility Scope because identity matching and access control answer different questions.
+_Avoid_: Visibility Scope, public/private, audience
 
 **Represents**:
 The relationship between a Knowledge Entry and its Represented Referent.

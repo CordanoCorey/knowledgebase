@@ -1326,6 +1326,7 @@ export default function App() {
   const pinnedKnowledgePages = getSidebarPinnedKnowledgePages(
     durablePinnedKnowledgePages,
     appAccess.organizations,
+    appAccess.systemRole === "systemAdmin",
   );
 
   return (
@@ -2997,9 +2998,13 @@ function slugifyOrganizationId(value: string) {
 function getSidebarPinnedKnowledgePages(
   durablePins: DurableSidebarPinnedKnowledgePage[] | undefined,
   organizations: AllowedAppAccess["organizations"],
+  includeEveryDefaultOrganization: boolean,
 ): SidebarPinnedKnowledgePage[] {
   if (durablePins === undefined) {
-    return getSeededPinnedKnowledgePages(organizations);
+    return getSeededPinnedKnowledgePages(
+      organizations,
+      includeEveryDefaultOrganization,
+    );
   }
 
   return durablePins.map((pin) => ({
@@ -3010,12 +3015,16 @@ function getSidebarPinnedKnowledgePages(
 
 function getSeededPinnedKnowledgePages(
   organizations: AllowedAppAccess["organizations"],
+  includeEveryOrganization = false,
 ): SidebarPinnedKnowledgePage[] {
   const seenKinds = new Set<OrganizationKind>();
   const pinnedPages: SidebarPinnedKnowledgePage[] = [];
 
   for (const organization of organizations) {
-    if (seenKinds.has(organization.organizationKind)) {
+    if (
+      !includeEveryOrganization &&
+      seenKinds.has(organization.organizationKind)
+    ) {
       continue;
     }
 

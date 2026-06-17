@@ -4,6 +4,8 @@ import type { MutationCtx, QueryCtx } from "../_generated/server";
 
 const MAX_ACTIVE_MEMBERSHIPS_TO_CHECK = 50;
 const MAX_ORGANIZATION_ENTRIES_PER_REFERENT = 10;
+const MAX_SYSTEM_ADMIN_ORGANIZATIONS_PER_KIND = 100;
+const ORGANIZATION_KINDS = ["school", "church", "family", "community"] as const;
 
 type AppAccessCtx = QueryCtx | MutationCtx;
 
@@ -72,6 +74,23 @@ export async function getCurrentAppAccess(
       ...organization,
       role: membership.memberRole ?? "member",
     });
+  }
+
+  if (hasSystemAdminAccess) {
+    const systemAdminOrganizations = await listActiveOrganizations(ctx);
+    const organizationIds = new Set(
+      organizations.map((organization) => organization.organizationReferentId),
+    );
+    for (const organization of systemAdminOrganizations) {
+      if (organizationIds.has(organization.organizationReferentId)) {
+        continue;
+      }
+
+      organizations.push({
+        ...organization,
+        role: "admin",
+      });
+    }
   }
 
   if (organizations.length === 0 && !hasSystemAdminAccess) {
@@ -157,6 +176,41 @@ async function getActiveOrganization(
   }
 
   return null;
+}
+
+async function listActiveOrganizations(
+  ctx: AppAccessCtx,
+): Promise<Array<Omit<AllowedOrganization, "role">>> {
+  const organizations: Array<Omit<AllowedOrganization, "role">> = [];
+
+  for (const organizationKind of ORGANIZATION_KINDS) {
+    const organizationEntries = await ctx.db
+      .query("organizationEntries")
+      .withIndex("by_organizationKind", (q) =>
+        q.eq("organizationKind", organizationKind),
+      )
+      .take(MAX_SYSTEM_ADMIN_ORGANIZATIONS_PER_KIND);
+
+    for (const organizationEntry of organizationEntries) {
+      if (organizationEntry.isActive === false) {
+        continue;
+      }
+
+      const entry = await ctx.db.get(organizationEntry.entryId);
+      if (!entry || entry.knowledgeType !== "organization") {
+        continue;
+      }
+
+      organizations.push({
+        organizationEntryId: organizationEntry._id,
+        organizationKind: organizationEntry.organizationKind,
+        organizationReferentId: entry.representedReferentId,
+        name: entry.title,
+      });
+    }
+  }
+
+  return organizations;
 }
 
 function getUserIdentityFields(userId: Id<"users">, email?: string) {

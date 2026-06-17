@@ -3021,3 +3021,116 @@ Found 1 error in convex/pinnedKnowledgePages.test.ts[90m:97[0m
 
 [32m√[39m 12:02:49 Convex functions ready! (8.44s)
 6/17/2026, 12:08:10 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[32m√[39m 12:24:19 Convex functions ready! (8.18s)
+6/17/2026, 12:24:14 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 12:25:17 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 12:45:31 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifier'
+6/17/2026, 12:45:31 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifierSignature'
+- Preparing Convex functions...
+
+[32m√[39m 12:48:45 Convex functions ready! (7.69s)
+6/17/2026, 12:54:15 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: retrieveAccountWithCredentials'
+6/17/2026, 12:54:15 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signIn'
+6/17/2026, 12:54:16 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 12:55:00 PM [CONVEX M(analytics:recordPageVisit)] Your request couldn't be completed. Try again later.
+
+6/17/2026, 12:55:00 PM [CONVEX Q(analytics:listDashboardBibleContextSuggestions)] Your request couldn't be completed. Try again later.
+
+6/17/2026, 12:55:06 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 12:55:24 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 12:55:39 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 12:55:45 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[32m√[39m 12:58:59 Convex functions ready! (7.85s)
+- Preparing Convex functions...
+
+[32m√[39m 12:59:27 Convex functions ready! (6.74s)
+- Preparing Convex functions...
+
+[32m√[39m 12:59:46 Convex functions ready! (7.46s)
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/pinnedKnowledgePages.ts[0m:[93m66[0m:[93m7[0m - [91merror[0m[90m TS2554: [0mExpected 1 arguments, but got 2.
+
+[7m66[0m       includeEveryDefaultOrganization,
+[7m  [0m [91m      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/pinnedKnowledgePages.ts[0m:[93m153[0m:[93m13[0m - [91merror[0m[90m TS2554: [0mExpected 4 arguments, but got 3.
+
+[7m153[0m       await getNextManualSortOrder(ctx, access.userId, access.organizations);
+[7m   [0m [91m            ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+  [96mconvex/pinnedKnowledgePages.ts[0m:[93m339[0m:[93m3[0m
+    [7m339[0m   includeEveryDefaultOrganization: boolean,
+    [7m   [0m [96m  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    An argument for 'includeEveryDefaultOrganization' was not provided.
+
+[96mconvex/pinnedKnowledgePages.ts[0m:[93m201[0m:[93m7[0m - [91merror[0m[90m TS2554: [0mExpected 1 arguments, but got 2.
+
+[7m201[0m       access.systemRole === "systemAdmin",
+[7m   [0m [91m      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/pinnedKnowledgePages.ts[0m:[93m344[0m:[93m7[0m - [91merror[0m[90m TS2554: [0mExpected 1 arguments, but got 2.
+
+[7m344[0m       includeEveryDefaultOrganization,
+[7m   [0m [91m      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 4 errors in the same file, starting at: convex/pinnedKnowledgePages.ts[90m:66[0m
+- Preparing Convex functions...
+
+[32m√[39m 13:04:23 Convex functions ready! (6.75s)
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/pinnedKnowledgePages.test.ts[0m:[93m131[0m:[93m49[0m - [91merror[0m[90m TS2554: [0mExpected 0 arguments, but got 1.
+
+[7m131[0m     const { authed, t } = await seedAllowedUser("gelbaughcm@gmail.com");
+[7m   [0m [91m                                                ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 1 error in convex/pinnedKnowledgePages.test.ts[90m:131[0m
+- Preparing Convex functions...
+
+[32m√[39m 13:06:55 Convex functions ready! (7.3s)
+- Preparing Convex functions...
+
+[32m√[39m 13:07:29 Convex functions ready! (8.16s)
+6/17/2026, 1:12:59 PM [CONVEX M(organizationAccounts:addOrganizationMember)] Uncaught Error: No user account found for that email.
+    at handler (../convex/organizationAccounts.ts:186:16)
+
+6/17/2026, 1:25:09 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 1:55:36 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 2:25:00 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 2:55:27 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 3:04:57 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signOut'
+6/17/2026, 3:04:59 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifier'
+6/17/2026, 3:04:59 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifierSignature'
+6/17/2026, 3:05:17 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifier'
+6/17/2026, 3:05:17 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifierSignature'
+6/17/2026, 3:07:27 PM [CONVEX H(GET /api/auth/signin/google)] [ERROR] 'Missing sign-in verifier\n'
+6/17/2026, 3:07:42 PM [CONVEX H(GET /api/auth/signin/google)] [ERROR] 'Missing sign-in verifier\n'
+6/17/2026, 3:12:09 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifier'
+6/17/2026, 3:12:10 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifierSignature'
+- Preparing Convex functions...
+
+[32m√[39m 15:13:59 Convex functions ready! (7.43s)
+6/17/2026, 3:14:52 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifier'
+6/17/2026, 3:14:52 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifierSignature'
+6/17/2026, 3:24:51 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 3:42:48 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifier'
+6/17/2026, 3:42:48 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifierSignature'
+6/17/2026, 3:43:22 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: userOAuth'
+6/17/2026, 3:43:23 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifyCodeAndSignIn'
+6/17/2026, 3:43:23 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 3:45:36 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signOut'
+6/17/2026, 3:45:47 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: retrieveAccountWithCredentials'
+6/17/2026, 3:45:48 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signIn'
+6/17/2026, 3:45:48 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'

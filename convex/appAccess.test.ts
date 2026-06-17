@@ -251,6 +251,56 @@ describe("App organization access", () => {
     ]);
   });
 
+  test("shows every active organization to system admins without memberships", async () => {
+    const t = convexTest({ schema, modules });
+    await t.action(internal.seedOrganizationsAction.seedDefaultOrganizations, {});
+    const systemAdminUserId = await t.run(async (ctx) => {
+      return await ctx.db.insert("users", {
+        email: "global.admin@example.com",
+        isActive: true,
+        name: "Global Admin",
+        systemRole: "systemAdmin",
+      });
+    });
+
+    const access = (await t
+      .withIdentity({ subject: `${systemAdminUserId}|test-session` })
+      .query(api.appAccess.getCurrentUserAccess, {})) as AppAccessTestState;
+
+    expect(access.status).toBe("allowed");
+    if (access.status !== "allowed") {
+      throw new Error("Expected system admin to have app access.");
+    }
+    expect(
+      access.organizations.map((organization) => ({
+        kind: organization.organizationKind,
+        name: organization.name,
+        role: organization.role,
+      })),
+    ).toEqual([
+      {
+        kind: "school",
+        name: "Arche Classical Academy",
+        role: "admin",
+      },
+      {
+        kind: "church",
+        name: "Ruler of Kings Church",
+        role: "admin",
+      },
+      {
+        kind: "family",
+        name: "My Family",
+        role: "admin",
+      },
+      {
+        kind: "community",
+        name: "My Community",
+        role: "admin",
+      },
+    ]);
+  });
+
   test("allows organization admins to add existing users with predefined roles", async () => {
     const t = convexTest({ schema, modules });
     const seed = (await t.action(
@@ -468,6 +518,21 @@ describe("App organization access", () => {
       isActive: true,
       kind: "school",
       representedTagId: expect.any(String),
+    });
+
+    const refreshedAccess = (await t
+      .withIdentity({ subject: `${systemAdminUserId}|test-session` })
+      .query(api.appAccess.getCurrentUserAccess, {})) as AppAccessTestState;
+    expect(refreshedAccess.status).toBe("allowed");
+    if (refreshedAccess.status !== "allowed") {
+      throw new Error("Expected system admin to keep app access.");
+    }
+    expect(refreshedAccess.organizations).toContainEqual({
+      name: "Cedar Hall School",
+      organizationEntryId: expect.any(String),
+      organizationKind: "school",
+      organizationReferentId: expect.any(String),
+      role: "admin",
     });
   });
 
