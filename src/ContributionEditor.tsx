@@ -69,6 +69,8 @@ type ContributionFieldConfig = {
   titlePreviewLabel?: string;
 };
 
+type ContributionPrimaryField = "body" | "title";
+
 export function ContributionEditor({
   context,
   defaultMode,
@@ -124,6 +126,11 @@ export function ContributionEditor({
     activeKnowledgeType,
     activeGuidedContributionType,
   );
+  const primaryField = getContributionPrimaryField(
+    fieldConfig,
+    activeKnowledgeType,
+    activeGuidedContributionType,
+  );
 
   function handleKnowledgeTypeChange(event: ChangeEvent<HTMLSelectElement>) {
     const nextType = event.currentTarget.value;
@@ -159,6 +166,57 @@ export function ContributionEditor({
     setTitle("");
   }
 
+  const typeField = (
+    <label className="kb-contribution-field kb-contribution-type-field">
+      <span>Knowledge Type</span>
+      <select
+        disabled={isSlotTypeFixed}
+        onChange={handleKnowledgeTypeChange}
+        value={activeKnowledgeType}
+      >
+        {knowledgeTypeOptions.map((knowledgeType) => (
+          <option key={knowledgeType} value={knowledgeType}>
+            {formatKnowledgeTypeLabel(knowledgeType)}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+  const titleField = fieldConfig.showsTitleField ? (
+    <label
+      className={getContributionFieldClassName(
+        "title",
+        primaryField === "title",
+      )}
+    >
+      <span>{fieldConfig.titleLabel}</span>
+      <input
+        onChange={(event) => setTitle(event.currentTarget.value)}
+        placeholder={fieldConfig.titlePlaceholder}
+        required
+        type="text"
+        value={title}
+      />
+    </label>
+  ) : null;
+  const bodyField = fieldConfig.showsBodyField ? (
+    <label
+      className={getContributionFieldClassName(
+        "body",
+        primaryField === "body",
+      )}
+    >
+      <span>{fieldConfig.bodyLabel}</span>
+      <textarea
+        onChange={(event) => setBody(event.currentTarget.value)}
+        placeholder={fieldConfig.bodyPlaceholder}
+        required={fieldConfig.bodyRequired}
+        rows={5}
+        value={body}
+      />
+    </label>
+  ) : null;
+
   return (
     <section
       className="kb-contribution-editor"
@@ -186,49 +244,19 @@ export function ContributionEditor({
         onNavigateToHref={onNavigateToHref}
       />
 
-      <ContributionPreviewPanel preview={contributionPreview} />
-
       <form className="kb-contribution-form" onSubmit={handleSubmit}>
-        <label className="kb-contribution-field">
-          <span>Knowledge Type</span>
-          <select
-            disabled={isSlotTypeFixed}
-            onChange={handleKnowledgeTypeChange}
-            value={activeKnowledgeType}
-          >
-            {knowledgeTypeOptions.map((knowledgeType) => (
-              <option key={knowledgeType} value={knowledgeType}>
-                {formatKnowledgeTypeLabel(knowledgeType)}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {fieldConfig.showsTitleField ? (
-          <label className="kb-contribution-field">
-            <span>{fieldConfig.titleLabel}</span>
-            <input
-              onChange={(event) => setTitle(event.currentTarget.value)}
-              placeholder={fieldConfig.titlePlaceholder}
-              required
-              type="text"
-              value={title}
-            />
-          </label>
-        ) : null}
-
-        {fieldConfig.showsBodyField ? (
-          <label className="kb-contribution-field">
-            <span>{fieldConfig.bodyLabel}</span>
-            <textarea
-              onChange={(event) => setBody(event.currentTarget.value)}
-              placeholder={fieldConfig.bodyPlaceholder}
-              required={fieldConfig.bodyRequired}
-              rows={5}
-              value={body}
-            />
-          </label>
-        ) : null}
+        {primaryField === "title" ? (
+          <>
+            {titleField}
+            {bodyField}
+          </>
+        ) : (
+          <>
+            {bodyField}
+            {titleField}
+          </>
+        )}
+        {typeField}
 
         <button
           className="kb-contribution-submit"
@@ -262,6 +290,8 @@ export function ContributionEditor({
         ) : null}
       </form>
 
+      <ContributionPreviewPanel preview={contributionPreview} />
+
       <Presence present={submissionState.kind === "submitted"}>
         {(presenceState) => (
           <p
@@ -279,6 +309,38 @@ export function ContributionEditor({
       </Presence>
     </section>
   );
+}
+
+function getContributionPrimaryField(
+  fieldConfig: ContributionFieldConfig,
+  knowledgeType: AuthorableKnowledgeType,
+  guidedContributionType: GuidedContributionType | null,
+): ContributionPrimaryField {
+  if (
+    fieldConfig.showsTitleField &&
+    (knowledgeType === "question" || guidedContributionType === "group")
+  ) {
+    return "title";
+  }
+
+  if (fieldConfig.showsBodyField) {
+    return "body";
+  }
+
+  return "title";
+}
+
+function getContributionFieldClassName(
+  field: ContributionPrimaryField,
+  isPrimary: boolean,
+) {
+  return [
+    "kb-contribution-field",
+    `kb-contribution-${field}-field`,
+    isPrimary ? "kb-contribution-primary-field" : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 export function resolveContributionKnowledgeType({

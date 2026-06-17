@@ -1,5 +1,9 @@
+// @vitest-environment happy-dom
+
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { KnowledgeEntryCard, KnowledgeSlotCard } from "./KnowledgeCards";
 import type {
   KnowledgeEntrySummary,
@@ -35,6 +39,18 @@ const slotFixture: KnowledgeSlotSummary = {
   href: "/slots/slot-romans-8-lesson",
 };
 
+let container: HTMLDivElement | null = null;
+let root: Root | null = null;
+
+afterEach(() => {
+  act(() => {
+    root?.unmount();
+  });
+  container?.remove();
+  container = null;
+  root = null;
+});
+
 describe("KnowledgeEntryCard", () => {
   it("renders the entry summary contract from fixture props", () => {
     const markup = renderToStaticMarkup(<KnowledgeEntryCard entry={entryFixture} />);
@@ -65,17 +81,19 @@ describe("KnowledgeSlotCard", () => {
 
     expect(markup).toContain("Requested Entry");
     expect(markup).toContain("Lesson for Romans 8:18-30");
-    expect(markup).toContain("Entry needed");
+    expect(markup).toContain('class="kb-slot-missing-content"');
+    expect(markup).toContain('class="kb-knowledge-type-badge kb-card-type"');
     expect(markup).toContain("Lesson needed");
+    expect(markup).toContain("Missing Lesson");
     expect(markup).toContain(slotFixture.promptText);
     expect(markup).toContain("Open request");
     expect(markup).toContain("Youth teachers");
     expect(markup).toContain("Feb 1, 2026");
     expect(markup).toContain("Romans 8");
     expect(markup).toContain("Suffering and hope");
-    expect(markup).toContain("Add content to complete this entry.");
     expect(markup).toContain("Add missing Lesson");
     expect(markup).not.toContain("Knowledge Slot");
+    expect(markup).not.toContain("Add content to complete this entry.");
     expect(markup).toContain('href="/slots/slot-romans-8-lesson"');
     expect(markup).toContain('href="/scripture/romans-8"');
     expect(markup).toContain('href="/goto/suffering-and-hope"');
@@ -96,4 +114,41 @@ describe("KnowledgeSlotCard", () => {
     expect(markup).toContain("No due date");
     expect(markup).toContain("No context Tags");
   });
+
+  it("uses the contribution handler for the missing-content CTA", () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const onContribute = vi.fn();
+
+    act(() => {
+      root?.render(
+        <KnowledgeSlotCard onContribute={onContribute} slot={slotFixture} />,
+      );
+    });
+
+    const cta = getLinkByText(container, "Add missing Lesson");
+    let clickResult = true;
+    act(() => {
+      clickResult = cta.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true }),
+      );
+    });
+
+    expect(clickResult).toBe(false);
+    expect(onContribute).toHaveBeenCalledTimes(1);
+    expect(onContribute).toHaveBeenCalledWith(slotFixture);
+  });
 });
+
+function getLinkByText(element: HTMLElement, text: string) {
+  const link = Array.from(element.querySelectorAll("a")).find(
+    (candidate) => candidate.textContent === text,
+  );
+
+  if (!link) {
+    throw new Error(`Missing link with text "${text}"`);
+  }
+
+  return link;
+}

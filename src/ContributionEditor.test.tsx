@@ -161,6 +161,29 @@ describe("Contribution Editor type resolution", () => {
     expect(markup).toContain("Global Knowledge Context");
   });
 
+  test("renders the primary input before contribution preview metadata", () => {
+    const markup = renderToStaticMarkup(
+      <ContributionEditor
+        context={[]}
+        onSubmitSource={() => ({ status: "submitted" })}
+      />,
+    );
+
+    const formIndex = markup.indexOf('class="kb-contribution-form"');
+    const primaryInputIndex = markup.indexOf(
+      'class="kb-contribution-field kb-contribution-body-field kb-contribution-primary-field"',
+    );
+    const previewIndex = markup.indexOf('class="kb-contribution-preview"');
+
+    expect(formIndex).toBeGreaterThan(-1);
+    expect(primaryInputIndex).toBeGreaterThan(formIndex);
+    expect(primaryInputIndex).toBeLessThan(markup.indexOf(">Knowledge Type<"));
+    expect(previewIndex).toBeGreaterThan(primaryInputIndex);
+    expect(markup.indexOf("<textarea")).toBeLessThan(
+      markup.indexOf("Contribution Preview"),
+    );
+  });
+
   test("comment editor is titleless and keeps body as visible substance", () => {
     const markup = renderToStaticMarkup(
       <ContributionEditor

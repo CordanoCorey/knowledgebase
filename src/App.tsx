@@ -2168,6 +2168,8 @@ function PageScaffold({
 
   const hasNavigator = route.components.includes("knowledge-navigator");
   const hasWorkingLayout = route.components.length > 0;
+  const usesStandardKnowledgePageShell =
+    isStandardKnowledgePageShellRoute(route.id);
 
   return (
     <main
@@ -2213,6 +2215,11 @@ function PageScaffold({
           routeId={route.id}
           onNavigateToHref={onNavigateToHref}
           routeState={routeState}
+          showFeedHeading={!usesStandardKnowledgePageShell}
+          showHeading={!usesStandardKnowledgePageShell}
+          showIdentityBand={usesStandardKnowledgePageShell}
+          showNavigatorHeader={!usesStandardKnowledgePageShell}
+          showSlotRail={!usesStandardKnowledgePageShell}
         />
       ) : (
         <PagePlaceholder route={route} />
@@ -2225,6 +2232,14 @@ function PageScaffold({
         />
       ) : null}
     </main>
+  );
+}
+
+function isStandardKnowledgePageShellRoute(pageId: PageId) {
+  return (
+    pageId === "dashboard" ||
+    pageId === "tag" ||
+    pageId === "explore-context"
   );
 }
 
@@ -2669,6 +2684,11 @@ function OrganizationPage({
         <RouteMeta routeState={routeState} />
       </header>
 
+      <OrganizationSubrouteLinks
+        onNavigate={onNavigate}
+        routeState={routeState}
+      />
+
       <section
         className="kb-organization-hero"
         data-org-kind={profile.organizationKind}
@@ -2843,19 +2863,6 @@ function OrganizationPage({
               <dt>Route</dt>
               <dd>{getOrganizationHomeHref(routeState.pathname)}</dd>
             </div>
-            <div>
-              <dt>Settings</dt>
-              <dd>
-                <a
-                  href={getOrganizationSettingsHref(routeState.pathname)}
-                  onClick={(event) =>
-                    onNavigate(event, getOrganizationSettingsHref(routeState.pathname))
-                  }
-                >
-                  Open settings
-                </a>
-              </dd>
-            </div>
           </dl>
         </aside>
       </section>
@@ -2868,11 +2875,6 @@ function OrganizationPage({
         routeId="organization-home"
         routeState={routeState}
         showHeading={false}
-      />
-
-      <OrganizationSubrouteLinks
-        onNavigate={onNavigate}
-        routeState={routeState}
       />
     </main>
   );
@@ -3109,7 +3111,7 @@ function OrganizationSubrouteLinks({
   const settingsHref = getOrganizationSettingsHref(routeState.pathname);
 
   return (
-    <section className="kb-related-routes" aria-label="Organization subroutes">
+    <section className="kb-page-subroutes" aria-label="Organization subroutes">
       <p className="kb-eyebrow">Organization routes</p>
       <div>
         <a
@@ -3131,7 +3133,11 @@ function ComponentScaffold({
   onNavigateToHref,
   routeId,
   routeState,
+  showFeedHeading = true,
   showHeading = true,
+  showIdentityBand = false,
+  showNavigatorHeader = true,
+  showSlotRail = true,
 }: {
   activeTags: ActiveTag[];
   components: CoreComponentId[];
@@ -3139,7 +3145,11 @@ function ComponentScaffold({
   onNavigateToHref: (href: string) => void;
   routeId: PageId;
   routeState: RouteState;
+  showFeedHeading?: boolean;
   showHeading?: boolean;
+  showIdentityBand?: boolean;
+  showNavigatorHeader?: boolean;
+  showSlotRail?: boolean;
 }) {
   const [selectedContributionKnowledgeType, setSelectedContributionKnowledgeType] =
     useState<AuthorableKnowledgeType | null>(null);
@@ -3149,6 +3159,7 @@ function ComponentScaffold({
     useState<KnowledgeEntrySummary | null>(null);
   const [smartStorageProposalReview, setSmartStorageProposalReview] =
     useState<SmartStorageProposalReviewSummary | null>(null);
+  const [contextSearchQuery, setContextSearchQuery] = useState("");
   const recordNavigatorUsage = useMutation(api.analytics.recordNavigatorUsage);
   const postDirectContribution = useMutation(
     api.directContributions.postDirectContribution,
@@ -3185,7 +3196,7 @@ function ComponentScaffold({
     [activeTags],
   );
   const feedItems = durableFeedItems ?? fixtureFeedItems;
-  const primarySlotItem = feedItems.find(isAnswerFeedSlot);
+  const primarySlotItem = showSlotRail ? feedItems.find(isAnswerFeedSlot) : undefined;
   const selectedSlotItem = selectedContributionSlotId
     ? feedItems.find(
         (item): item is AnswerFeedItem & { kind: "slot" } =>
@@ -3203,6 +3214,7 @@ function ComponentScaffold({
     setSelectedContributionKnowledgeType(null);
     setFocusedCreatedEntry(null);
     setSmartStorageProposalReview(null);
+    setContextSearchQuery("");
   }, [activeContextKey]);
 
   async function handleSubmitContribution(
@@ -3261,8 +3273,13 @@ function ComponentScaffold({
   }
 
   function handleApplyMappedTags(mappedTags: ActiveTag[]) {
+    setContextSearchQuery("");
     recordNavigatorUsageEvent("explore", mappedTags);
     onNavigateToHref(getCanonicalKnowledgeContextHref(mappedTags));
+  }
+
+  function handleSearchContext(query: string) {
+    setContextSearchQuery(query.trim());
   }
 
   function handleContributeToSlot(slot: KnowledgeSlotSummary) {
@@ -3287,17 +3304,18 @@ function ComponentScaffold({
             activeTagsOverride={activeTags}
             onNavigateToHref={onNavigateToHref}
             routeState={routeState}
+            showHeader={showNavigatorHeader}
           >
             {components.includes("knowledge-request-composer") ? (
               <KnowledgeRequestComposer
                 activeTags={activeTags}
                 onApplyMappedTags={handleApplyMappedTags}
-                onNavigateToHref={onNavigateToHref}
+                onSearchContext={handleSearchContext}
               />
             ) : null}
           </KnowledgeNavigator>
         ) : null}
-        {components.includes("knowledge-slot-card") ? (
+        {showSlotRail && components.includes("knowledge-slot-card") ? (
           <KnowledgeSlotRail
             onContributeToSlot={handleContributeToSlot}
             onNavigateToHref={onNavigateToHref}
@@ -3317,13 +3335,20 @@ function ComponentScaffold({
             <KnowledgeRequestComposer
               activeTags={activeTags}
               onApplyMappedTags={handleApplyMappedTags}
-              onNavigateToHref={onNavigateToHref}
+              onSearchContext={handleSearchContext}
             />
           </section>
         ) : null}
       </aside>
 
       <section className="kb-rail-focus-workspace" aria-label="Contribute and read Answers">
+        {showIdentityBand ? (
+          <KnowledgePageIdentityBand
+            activeTags={activeTags}
+            label={label}
+            routeId={routeId}
+          />
+        ) : null}
         {showHeading ? (
           <header className="kb-rail-focus-heading">
             <p className="kb-eyebrow">
@@ -3362,15 +3387,91 @@ function ComponentScaffold({
             activeTags={activeTags}
             contextTrend={getVisibleContextTrend(contextTrend)}
             filterByActiveTags={false}
+            headingMode={showFeedHeading ? "visible" : "sr-only"}
             items={feedItems}
             layout="masonry"
             onContributeToSlot={handleContributeToSlot}
+            onClearSearchQuery={() => setContextSearchQuery("")}
             onNavigateToHref={onNavigateToHref}
+            searchQuery={contextSearchQuery}
           />
         ) : null}
       </section>
     </section>
   );
+}
+
+function KnowledgePageIdentityBand({
+  activeTags,
+  label,
+  routeId,
+}: {
+  activeTags: ActiveTag[];
+  label: string;
+  routeId: PageId;
+}) {
+  const identity = getKnowledgePageIdentity(routeId, label, activeTags);
+
+  return (
+    <header
+      aria-labelledby="kb-route-heading"
+      className="kb-knowledge-page-identity"
+    >
+      <div className="kb-knowledge-page-title">
+        <p className="kb-eyebrow">{identity.eyebrow}</p>
+        <h1 id="kb-route-heading">{identity.title}</h1>
+      </div>
+      <div
+        aria-label="Active Knowledge Context summary"
+        className="kb-knowledge-page-context"
+      >
+        <span>{identity.contextSummary}</span>
+        <small>{identity.contextDetail}</small>
+      </div>
+    </header>
+  );
+}
+
+function getKnowledgePageIdentity(
+  routeId: PageId,
+  label: string,
+  activeTags: ActiveTag[],
+) {
+  if (routeId === "dashboard") {
+    return {
+      contextDetail: "Active Knowledge Context",
+      contextSummary: "Global Knowledge Context",
+      eyebrow: "Dashboard",
+      title: "Dashboard",
+    };
+  }
+
+  if (activeTags.length === 1) {
+    const activeTag = activeTags[0];
+
+    return {
+      contextDetail: formatKnowledgeTypeLabel(activeTag.knowledgeType),
+      contextSummary: activeTag.label,
+      eyebrow: routeId === "tag" ? "Referent Page" : "Knowledge Page",
+      title: activeTag.label,
+    };
+  }
+
+  if (activeTags.length > 1) {
+    return {
+      contextDetail: "Active Knowledge Context",
+      contextSummary: formatCount(activeTags.length, "Tag"),
+      eyebrow: "Context Page",
+      title: activeTags.map((tag) => tag.label).join(", "),
+    };
+  }
+
+  return {
+    contextDetail: "Active Knowledge Context",
+    contextSummary: "Global Knowledge Context",
+    eyebrow: label,
+    title: label,
+  };
 }
 
 function getSlotContributionContext(
@@ -5103,7 +5204,6 @@ function BiblePassagePage({
           onNavigateToHref={onNavigateToHref}
           routeState={routeState}
         />
-        {activeTags[0] ? <KnowledgeTypeOverview referent={activeTags[0]} /> : null}
         <section className="kb-scripture-empty" role="status">
           {passage.message}
         </section>
@@ -5124,8 +5224,6 @@ function BiblePassagePage({
         </div>
         <RouteMeta routeState={routeState} />
       </header>
-
-      {activeTags[0] ? <KnowledgeTypeOverview referent={activeTags[0]} /> : null}
 
       <section className="kb-scripture-panel" aria-label={`${passage.label} passage text`}>
         <header>
@@ -5237,11 +5335,13 @@ function KnowledgeNavigator({
   children,
   onNavigateToHref,
   routeState,
+  showHeader = true,
 }: {
   activeTagsOverride?: ActiveTag[];
   children?: ReactNode;
   onNavigateToHref: (href: string) => void;
   routeState: RouteState;
+  showHeader?: boolean;
 }) {
   const routeActiveTags = useMemo(
     () => getActiveTagsFromRoute(routeState),
@@ -5282,13 +5382,19 @@ function KnowledgeNavigator({
   }
 
   return (
-    <section className="kb-knowledge-navigator" aria-labelledby="kb-knowledge-navigator-heading">
-      <header>
-        <div>
-          <p className="kb-eyebrow">Knowledge Navigator</p>
-          <h2 id="kb-knowledge-navigator-heading">Active Knowledge Context</h2>
-        </div>
-      </header>
+    <section
+      aria-label={showHeader ? undefined : "Knowledge Navigator"}
+      aria-labelledby={showHeader ? "kb-knowledge-navigator-heading" : undefined}
+      className="kb-knowledge-navigator"
+    >
+      {showHeader ? (
+        <header>
+          <div>
+            <p className="kb-eyebrow">Knowledge Navigator</p>
+            <h2 id="kb-knowledge-navigator-heading">Active Knowledge Context</h2>
+          </div>
+        </header>
+      ) : null}
       <div className="kb-navigator-panel">
         <div className="kb-active-tag-list" aria-label="Active Tags">
           {activeTags.length > 0 ? (

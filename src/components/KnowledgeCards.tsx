@@ -164,21 +164,42 @@ export function KnowledgeSlotCard({
             <a href={slot.href}>{slot.title}</a>
           </h3>
         </div>
+        <KnowledgeTypeBadge
+          className="kb-card-type"
+          knowledgeType={slot.requestedKnowledgeType}
+        />
         <span className="kb-slot-status">{statusLabel}</span>
       </header>
 
-      <div className="kb-slot-request">
-        <KnowledgeTypeIcon
-          className="kb-slot-request-type-icon"
-          knowledgeType={slot.requestedKnowledgeType}
-        />
-        <div>
-          <span>Entry needed</span>
-          <strong>{requestedTypeLabel} needed</strong>
+      <section
+        aria-labelledby={`knowledge-slot-${slot.id}-missing-title`}
+        className="kb-slot-missing-content"
+      >
+        <div className="kb-slot-missing-header">
+          <span className="kb-slot-missing-icon">
+            <KnowledgeTypeIcon knowledgeType={slot.requestedKnowledgeType} />
+          </span>
+          <div className="kb-slot-missing-title">
+            <span>{requestedTypeLabel} needed</span>
+            <strong id={`knowledge-slot-${slot.id}-missing-title`}>
+              Missing {requestedTypeLabel}
+            </strong>
+          </div>
         </div>
-      </div>
 
-      <p className="kb-card-preview">{promptText}</p>
+        <p className="kb-slot-missing-copy">{promptText}</p>
+
+        <footer className="kb-card-footer kb-slot-card-footer">
+          <a
+            className="kb-card-action kb-card-action-primary"
+            href={slot.href}
+            onClick={handleContributeClick}
+          >
+            <FolderPlus aria-hidden="true" />
+            Add missing {requestedTypeLabel}
+          </a>
+        </footer>
+      </section>
 
       <dl className="kb-card-meta">
         <div>
@@ -203,20 +224,6 @@ export function KnowledgeSlotCard({
         onNavigateToHref={onNavigateToHref}
         title={`${slot.title} context Tags`}
       />
-
-      <footer className="kb-card-footer kb-slot-card-footer">
-        <p className="kb-slot-contribution-note">
-          Add content to complete this entry.
-        </p>
-        <a
-          className="kb-card-action kb-card-action-primary"
-          href={slot.href}
-          onClick={handleContributeClick}
-        >
-          <FolderPlus aria-hidden="true" />
-          Add missing {requestedTypeLabel}
-        </a>
-      </footer>
     </article>
   );
 }

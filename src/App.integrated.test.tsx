@@ -1291,6 +1291,16 @@ describe("MVP Explore/Contribute loop", () => {
       expect(answerItem.textContent).toContain("First Crusade");
     }
 
+    const rail = getLabelledElement("Knowledge context and request");
+    expect(rail.querySelector(".kb-knowledge-navigator")).toBeTruthy();
+    expect(rail.querySelector(".kb-request-composer")).toBeTruthy();
+    expect(rail.querySelector(".kb-slot-card")).toBeNull();
+    expect(rail.querySelector(".kb-placeholder-block")).toBeNull();
+    expect(rail.textContent).not.toContain("Answer Micah's Crusades question");
+    expect(rail.textContent).not.toContain(
+      "No requested entries in this Knowledge Context",
+    );
+
     const slotItem = getFeedItems("slot").find((item) =>
       item.textContent?.includes("Answer Micah's Crusades question"),
     );
@@ -1424,6 +1434,18 @@ describe("MVP Explore/Contribute loop", () => {
     expect(container.textContent).toContain("Ministry Queue");
 
     const organizationRoutes = getLabelledElement("Organization subroutes");
+    expect(organizationRoutes.classList.contains("kb-page-subroutes")).toBe(true);
+    expect(organizationRoutes.classList.contains("kb-related-routes")).toBe(false);
+    const organizationMain = container.querySelector(".kb-organization-main");
+    const organizationHero = container.querySelector(".kb-organization-hero");
+    if (!organizationMain || !organizationHero) {
+      throw new Error("Missing organization page structure");
+    }
+    const organizationChildren = Array.from(organizationMain.children);
+    expect(organizationChildren.indexOf(organizationRoutes)).toBeGreaterThan(-1);
+    expect(organizationChildren.indexOf(organizationRoutes)).toBeLessThan(
+      organizationChildren.indexOf(organizationHero),
+    );
     await click(getLinkIn(organizationRoutes, "Settings"));
 
     expect(window.location.pathname).toBe(
@@ -2075,8 +2097,29 @@ describe("MVP Explore/Contribute loop", () => {
 
     await renderApp();
 
+    const identityBand = container.querySelector(".kb-knowledge-page-identity");
+    expect(identityBand).toBeTruthy();
+    expect(identityBand?.textContent).toContain("Dashboard");
+    expect(identityBand?.textContent).toContain("Global Knowledge Context");
+    expect(container.querySelector(".kb-rail-focus-heading")).toBeNull();
+    expect(container.querySelector(".kb-knowledge-navigator > header")).toBeNull();
+    expect(
+      container.querySelector(".kb-answer-feed-header h2")?.closest(".kb-sr-only"),
+    ).toBeTruthy();
+    const rail = getLabelledElement("Knowledge context and request");
+    expect(rail.querySelector(".kb-knowledge-navigator")).toBeTruthy();
+    expect(rail.querySelector(".kb-request-composer")).toBeTruthy();
+    expect(rail.textContent).toContain("Knowledge Composer");
+    expect(rail.querySelector("textarea")?.getAttribute("placeholder")).toBe(
+      "Ask a Question or Add Context...",
+    );
+    expect(rail.querySelector(".kb-slot-card")).toBeNull();
+    expect(rail.querySelector(".kb-placeholder-block")).toBeNull();
+    expect(rail.textContent).not.toContain(
+      "No requested entries in this Knowledge Context",
+    );
     expect(container.querySelector(".kb-today-agenda")).toBeTruthy();
-    expect(container.textContent).toContain("Today at Arche Classical Academy");
+    expect(container.textContent).not.toContain("Today at Arche Classical Academy");
     expect(container.textContent).toContain("Friday, June 12, 2026");
     expect(container.textContent).toContain("Answer Micah's Crusades question");
     expect(container.textContent).toContain("Teach Boethius on providence");
@@ -2151,6 +2194,22 @@ describe("MVP Explore/Contribute loop", () => {
 
     await renderApp();
 
+    const identityBand = container.querySelector(".kb-knowledge-page-identity");
+    expect(identityBand).toBeTruthy();
+    expect(identityBand?.textContent).toContain("Referent Page");
+    expect(identityBand?.textContent).toContain("First Crusade");
+    expect(identityBand?.textContent).toContain("Topic");
+    expect(container.querySelector(".kb-rail-focus-heading")).toBeNull();
+    const rail = getLabelledElement("Knowledge context and request");
+    expect(rail.querySelector(".kb-knowledge-navigator")).toBeTruthy();
+    expect(rail.querySelector(".kb-request-composer")).toBeTruthy();
+    expect(rail.textContent).toContain("First Crusade");
+    expect(rail.querySelector(".kb-slot-card")).toBeNull();
+    expect(rail.querySelector(".kb-placeholder-block")).toBeNull();
+    expect(rail.textContent).not.toContain(
+      "No requested entries in this Knowledge Context",
+    );
+
     const overview = container.querySelector(".kb-knowledge-overview");
     expect(overview).toBeTruthy();
     expect(overview?.getAttribute("data-knowledge-type")).toBe("topic");
@@ -2158,6 +2217,57 @@ describe("MVP Explore/Contribute loop", () => {
     expect(overview?.textContent).toContain("Base Words Layer");
     expect(overview?.textContent).toContain("First Crusade");
     expect(overview?.textContent).toContain("Doctrine, theme, or subject.");
+  });
+
+  test("keeps Scripture Text without the generic Bible Passage overview", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "http://localhost:3000/scripture/matthew-5-9",
+    );
+
+    await renderApp();
+
+    const scripturePanel = container.querySelector(".kb-scripture-panel");
+    expect(scripturePanel).toBeTruthy();
+    expect(scripturePanel?.textContent).toContain("Scripture Text");
+    expect(scripturePanel?.textContent).toContain("King James Version");
+    expect(container.querySelector(".kb-knowledge-overview")).toBeNull();
+    expect(container.textContent).not.toContain("Bible Passage Overview");
+    expect(container.textContent).not.toContain("Referent Overview");
+  });
+
+  test("renders compact identity for multi-Tag Context Pages", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "http://localhost:3000/explore?tagIds=first-crusade,matthew-5-9",
+    );
+
+    await renderApp();
+
+    const identityBand = container.querySelector(".kb-knowledge-page-identity");
+    expect(identityBand).toBeTruthy();
+    expect(identityBand?.textContent).toContain("Context Page");
+    expect(identityBand?.textContent).toContain("First Crusade");
+    expect(identityBand?.textContent).toContain("Matthew 5:9");
+    expect(identityBand?.textContent).toContain("2 Tags");
+    expect(container.querySelector(".kb-rail-focus-heading")).toBeNull();
+    const rail = getLabelledElement("Knowledge context and request");
+    expect(rail.querySelector(".kb-knowledge-navigator")).toBeTruthy();
+    expect(rail.querySelector(".kb-request-composer")).toBeTruthy();
+    expect(rail.textContent).toContain("First Crusade");
+    expect(rail.textContent).toContain("Matthew 5:9");
+    expect(rail.querySelector(".kb-slot-card")).toBeNull();
+    expect(rail.querySelector(".kb-placeholder-block")).toBeNull();
+    expect(rail.textContent).not.toContain(
+      "No requested entries in this Knowledge Context",
+    );
+    expect(
+      getFeedItems("slot").some((item) =>
+        item.textContent?.includes("Answer Micah's Crusades question"),
+      ),
+    ).toBe(true);
   });
 
   test("renders the analytics route with visit and navigator summaries", async () => {
