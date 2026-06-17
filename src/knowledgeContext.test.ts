@@ -7,7 +7,9 @@ import {
   getKnowledgeLocationKindFromRoute,
   getKnowledgeLoopStateFromRoute,
   getKnowledgeContextKey,
+  getReferentTagHref,
   removeActiveTag,
+  resolveTagLabel,
 } from "./knowledgeContext";
 
 const tagsById = new Map(NAVIGATOR_TAG_FIXTURES.map((tag) => [tag.id, tag]));
@@ -24,62 +26,62 @@ function fixtureTag(tagId: string) {
 describe("Knowledge Context routes", () => {
   test("generates canonical routes for zero, one, and multiple active Tags", () => {
     expect(getCanonicalKnowledgeContextHref([])).toBe("/");
-    expect(getCanonicalKnowledgeContextHref([fixtureTag("romans-8-28")])).toBe(
-      "/scripture/romans-8-28",
+    expect(getCanonicalKnowledgeContextHref([fixtureTag("matthew-5-9")])).toBe(
+      "/scripture/matthew-5-9",
     );
-    expect(getCanonicalKnowledgeContextHref([fixtureTag("holy-spirit")])).toBe(
-      "/goto/holy-spirit",
+    expect(getCanonicalKnowledgeContextHref([fixtureTag("first-crusade")])).toBe(
+      "/goto/first-crusade",
     );
     expect(
       getCanonicalKnowledgeContextHref([
-        fixtureTag("romans-8-28"),
-        fixtureTag("holy-spirit"),
-        fixtureTag("atonement"),
+        fixtureTag("matthew-5-9"),
+        fixtureTag("first-crusade"),
+        fixtureTag("boethius"),
       ]),
-    ).toBe("/explore?tagIds=atonement,holy-spirit,romans-8-28");
+    ).toBe("/explore?tagIds=boethius,first-crusade,matthew-5-9");
   });
 
   test("adds and removes active Tags through canonical route state", () => {
-    const scriptureTag = fixtureTag("romans-8-28");
-    const topicTag = fixtureTag("holy-spirit");
+    const scriptureTag = fixtureTag("matthew-5-9");
+    const topicTag = fixtureTag("first-crusade");
     const withScripture = addActiveTag([], scriptureTag);
     const withBothTags = addActiveTag(withScripture, topicTag);
 
     expect(getCanonicalKnowledgeContextHref(withScripture)).toBe(
-      "/scripture/romans-8-28",
+      "/scripture/matthew-5-9",
     );
     expect(getCanonicalKnowledgeContextHref(withBothTags)).toBe(
-      "/explore?tagIds=holy-spirit,romans-8-28",
+      "/explore?tagIds=first-crusade,matthew-5-9",
     );
     expect(
       getCanonicalKnowledgeContextHref(
-        removeActiveTag(withBothTags, "romans-8-28"),
+        removeActiveTag(withBothTags, "matthew-5-9"),
       ),
-    ).toBe("/goto/holy-spirit");
+    ).toBe("/goto/first-crusade");
     expect(
-      getCanonicalKnowledgeContextHref(removeActiveTag(withScripture, "romans-8-28")),
+      getCanonicalKnowledgeContextHref(removeActiveTag(withScripture, "matthew-5-9")),
     ).toBe("/");
   });
 
   test("parses current route state into active Tags", () => {
     expect(
       getActiveTagsFromRoute({
-        pathname: "/scripture/romans-8-28",
+        pathname: "/scripture/matthew-5-9",
         search: "",
       }),
-    ).toMatchObject([{ id: "romans-8-28", knowledgeType: "biblePassage" }]);
+    ).toMatchObject([{ id: "matthew-5-9", knowledgeType: "biblePassage" }]);
     expect(
       getActiveTagsFromRoute({
-        pathname: "/goto/holy-spirit",
+        pathname: "/goto/first-crusade",
         search: "",
       }),
-    ).toMatchObject([{ id: "holy-spirit", knowledgeType: "topic" }]);
+    ).toMatchObject([{ id: "first-crusade", knowledgeType: "topic" }]);
     expect(
       getActiveTagsFromRoute({
         pathname: "/explore",
-        search: "?tagIds=romans-8-28,holy-spirit",
+        search: "?tagIds=matthew-5-9,first-crusade",
       }).map((tag) => tag.id),
-    ).toEqual(["holy-spirit", "romans-8-28"]);
+    ).toEqual(["first-crusade", "matthew-5-9"]);
   });
 
   test("derives location kind and loop context from the current route", () => {
@@ -87,9 +89,9 @@ describe("Knowledge Context routes", () => {
       "dashboard",
     );
     expect(
-      getKnowledgeLocationKindFromRoute({ pathname: "/scripture/romans-8-28" }),
+      getKnowledgeLocationKindFromRoute({ pathname: "/scripture/matthew-5-9" }),
     ).toBe("biblePassageReferent");
-    expect(getKnowledgeLocationKindFromRoute({ pathname: "/goto/holy-spirit" })).toBe(
+    expect(getKnowledgeLocationKindFromRoute({ pathname: "/goto/first-crusade" })).toBe(
       "referent",
     );
     expect(getKnowledgeLocationKindFromRoute({ pathname: "/explore" })).toBe(
@@ -98,14 +100,14 @@ describe("Knowledge Context routes", () => {
 
     const loopState = getKnowledgeLoopStateFromRoute({
       pathname: "/explore",
-      search: "?tagIds=romans-8-28,holy-spirit",
+      search: "?tagIds=matthew-5-9,first-crusade",
     });
 
     expect(loopState.locationKind).toBe("context");
-    expect(loopState.contextKey).toBe("tags:holy-spirit,romans-8-28");
+    expect(loopState.contextKey).toBe("tags:first-crusade,matthew-5-9");
     expect(loopState.activeTags.map((tag) => tag.id)).toEqual([
-      "holy-spirit",
-      "romans-8-28",
+      "first-crusade",
+      "matthew-5-9",
     ]);
     expect(loopState.requestDraft).toEqual({
       text: "",
@@ -118,29 +120,29 @@ describe("Knowledge Context routes", () => {
     const activeTags = getActiveTagsFromRoute({
       pathname: "/explore",
       search:
-        "?tagIds=romans-8-28,holy-spirit&knowledgeRequest=What%20does%20this%20mean",
+        "?tagIds=matthew-5-9,first-crusade&knowledgeRequest=What%20does%20this%20mean",
     });
     const canonicalHref = getCanonicalKnowledgeContextHref(activeTags);
 
     expect(activeTags.map((tag) => tag.id)).toEqual([
-      "holy-spirit",
-      "romans-8-28",
+      "first-crusade",
+      "matthew-5-9",
     ]);
-    expect(canonicalHref).toBe("/explore?tagIds=holy-spirit,romans-8-28");
+    expect(canonicalHref).toBe("/explore?tagIds=first-crusade,matthew-5-9");
     expect(canonicalHref).not.toContain("knowledgeRequest");
     expect(canonicalHref).not.toContain("What");
   });
 
   test("selection order does not affect Knowledge Context identity", () => {
     const firstSelection = [
-      fixtureTag("romans-8-28"),
-      fixtureTag("holy-spirit"),
-      fixtureTag("atonement"),
+      fixtureTag("matthew-5-9"),
+      fixtureTag("first-crusade"),
+      fixtureTag("boethius"),
     ];
     const secondSelection = [
-      fixtureTag("atonement"),
-      fixtureTag("romans-8-28"),
-      fixtureTag("holy-spirit"),
+      fixtureTag("boethius"),
+      fixtureTag("matthew-5-9"),
+      fixtureTag("first-crusade"),
     ];
 
     expect(getKnowledgeContextKey(firstSelection)).toBe(
@@ -150,7 +152,19 @@ describe("Knowledge Context routes", () => {
       getCanonicalKnowledgeContextHref(secondSelection),
     );
     expect(getCanonicalKnowledgeContextHref(firstSelection)).toBe(
-      "/explore?tagIds=atonement,holy-spirit,romans-8-28",
+      "/explore?tagIds=boethius,first-crusade,matthew-5-9",
+    );
+  });
+
+  test("resolves rendered tag labels to referent page hrefs", () => {
+    expect(getReferentTagHref(resolveTagLabel("First Crusade"))).toBe(
+      "/goto/first-crusade",
+    );
+    expect(getReferentTagHref(resolveTagLabel("Romans 8"))).toBe(
+      "/scripture/romans-8",
+    );
+    expect(getReferentTagHref(resolveTagLabel("Suffering and hope"))).toBe(
+      "/goto/suffering-and-hope",
     );
   });
 });

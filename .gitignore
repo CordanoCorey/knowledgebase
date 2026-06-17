@@ -3,7 +3,10 @@ node_modules/
 .env.*.local
 dist/
 docs/*
+issues/
 !docs/product-core.md
+!docs/adr/
+!docs/adr/*.md
 !docs/agents/
 !docs/agents/*.md
 .vite/

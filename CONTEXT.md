@@ -8,9 +8,17 @@ This context describes the core domain language for a knowledgebase that helps C
 The set of Tags that locate a Knowledge Entry and shape which Knowledge Requests it can help answer.
 _Avoid_: Context, folder, AI context window
 
+**Active Knowledge Context**:
+The Knowledge Context in effect for a User's current Knowledge Page. Active Knowledge Context describes where the User currently is in the application; it is distinct from the User's historical Recognized Context.
+_Avoid_: Recognized Context, role, personal saved set
+
 **Global Knowledge Context**:
 The Knowledge Context available to every user and organization by default, containing the Referents all users and organizations must acknowledge as infallible Recognized Context. In this application, the Global Knowledge Context contains Scripture.
 _Avoid_: Global Scripture Context, public folder, Bible folder
+
+**Global Search**:
+Search across everything the current User can access, independent of the current Active Knowledge Context. Global Search is not limited to public or Global Knowledge Context material.
+_Avoid_: Context search, public search, Global Knowledge Context search
 
 **Tag**:
 A named, typed pointer to a Referent and the intended set of all knowledge about it, including content already stored in the application and relevant knowledge that has not yet been stored or tagged. A Tag is canonical to its Referent rather than scoped separately per user or organization.
@@ -32,8 +40,12 @@ _Avoid_: Source, Knowledge Type, file type
 The audience allowed to access a Knowledge Entry, such as one user, an organization, a group, a network of organizations, or everyone.
 _Avoid_: Public/private, global context, sharing folder
 
+**Delivery Target**:
+The User, Person, Group, Organization, or other recipient target a contribution or action is sent to or notifies. Delivery Target is distinct from Visibility Scope and Knowledge Context; receiving a notification does not define who may access the Knowledge Entry or which Tags it references.
+_Avoid_: Visibility Scope, audience, permission, send to page
+
 **Type Behavior**:
-The domain behavior the application applies to a Knowledge Type, including how entries of that type are recognized, related, displayed, or scoped.
+The versioned domain behavior the application applies to a Knowledge Type, including how entries of that type are recognized, enriched, related, displayed, stored, reviewed, scored, or scoped.
 _Avoid_: Implementation, schema behavior
 
 **Answer**:
@@ -41,20 +53,76 @@ A Knowledge Entry considered as something that can help satisfy future Knowledge
 _Avoid_: AI response, chat reply
 
 **Human Weight**:
-A rating of how strongly a Knowledge Entry reflects human authorship, judgment, use, or divine inspiration, scored from Slop at 0 to Soul at 100. Bible passages have full Soul because they are inspired by the Holy Spirit.
+A rating of how strongly a Knowledge Entry reflects human substance that artificial intelligence cannot cheaply counterfeit: agency, excellence, judgment, lived use, or divine inspiration, scored from Slop at 0 to Soul at 100. Whether and how Human Weight applies depends on the Knowledge Entry's Knowledge Type.
 _Avoid_: AI score, quality score, robot score
 
+**Human Weight Evidence**:
+The supporting signals used to assign or revise Human Weight for a Knowledge Entry, such as credited attribution, provenance, human review, lived use, ratings, or recognition by users and organizations.
+_Avoid_: Like count, popularity score, raw engagement
+
+**Human Weight Feedback**:
+User-provided feedback on a Knowledge Entry that becomes Human Weight Evidence without directly determining Human Weight.
+_Avoid_: Like, vote, popularity rating
+
+**Evidence Maturity**:
+A measure of how settled the Human Weight for a Knowledge Entry is based on the amount and reliability of its Human Weight Evidence.
+_Avoid_: AI confidence, popularity, certainty
+
+**Feed Priority**:
+The derived ordering value used by the Answer Feed to balance Human Weight, Evidence Maturity, freshness, feedback needs, Knowledge Context fit, and contribution opportunities.
+_Avoid_: Human Weight, popularity rank, recency sort
+
+**Context Expertise**:
+A derived estimate of a User's or Person's reliable ability to author, recognize, place, or contribute useful future Answers within a Knowledge Context.
+_Avoid_: Human Weight, popularity, Role, permission
+
+**Context Expertise Evidence**:
+The bounded contribution signals used to assign or revise Context Expertise, such as authoring, sharing, confirming, curating, fulfilling, or giving feedback on an Answer within a Knowledge Context.
+_Avoid_: Human Weight Evidence, view count, repeated reference, raw engagement
+
+**Context Expert**:
+A User or Person surfaced because their Context Expertise is high within a Knowledge Context.
+_Avoid_: Top contributor, admin, official authority, title
+
+**Weight-Bearing Knowledge Type**:
+A Knowledge Type whose entries can meaningfully carry Human Weight because they express human substance, ingenuity, craft, judgment, lived use, or divine inspiration.
+_Avoid_: Human-weight-enabled type, scoreable type
+
+**Non-Weight-Bearing Knowledge Type**:
+A Knowledge Type whose entries do not meaningfully express human ingenuity and therefore do not carry Human Weight.
+_Avoid_: Zero-weight type, low-quality type
+
 **Knowledge Request**:
-A user request for knowledge, help, or work that is answered from the application's Knowledge Entries within an applicable Knowledge Context.
+A usually transient user request for knowledge, help, or work that is answered from the application's Knowledge Entries within an applicable Knowledge Context. A Knowledge Request is not itself a Knowledge Entry unless intentionally Contributed as a Question or another Knowledge Type.
 _Avoid_: Prompt, query, chat message
 
 **Question**:
-A Knowledge Type for a question mapped to a Knowledge Context, preserving useful information about what parts of that Knowledge Context need to be connected or answered.
+A Knowledge Type for a durable question mapped to a Knowledge Context, preserving useful information about what parts of that Knowledge Context need to be connected or answered. A Question may be selected as a Tag to define a narrower Knowledge Context for future Knowledge Requests and Answers.
 _Avoid_: Prompt, query
 
 **Question Space**:
 The set of Knowledge Requests that could meaningfully be asked within a Knowledge Context.
 _Avoid_: Search space, prompt space, chat history
+
+**Knowledge Page**:
+A user-facing location in the application where a User works within or navigates to a Knowledge Context, Referent, Knowledge Entry, Organization, user relationship, or knowledge-oriented view. A Knowledge Page is distinct from the User's active Role; the same User may visit the same Knowledge Page while acting in different Roles.
+_Avoid_: Place, route, screen
+
+**User View**:
+A user-scoped view whose contents are assembled around the current User's activity, responsibilities, preferences, or account state rather than around a shared Knowledge Context or Referent.
+_Avoid_: Knowledge Page, personal Knowledge Context, private page
+
+**Bookmark**:
+A User relationship to a Knowledge Page that saves it in the User's personal saved set for later reference and may inform user-specific tagging or Knowledge Context recommendations. Bookmarking does not place the Knowledge Page in sidebar navigation or subscribe the User to notifications about it.
+_Avoid_: Pin, subscription, notification, favorite
+
+**Pinned Knowledge Page**:
+A User relationship to a Knowledge Page that keeps the Knowledge Page easy to return to, especially from sidebar navigation. Pinning a Knowledge Page does not itself subscribe the User to notifications about that Knowledge Page.
+_Avoid_: Subscription, notification, role, folder
+
+**Default Pinned Knowledge Page**:
+A Pinned Knowledge Page automatically seeded from a User's affiliation with a School, Church, Family, or Community. A User may unpin a Default Pinned Knowledge Page, and that suppression should persist unless the User manually pins it again.
+_Avoid_: Required page, role, permanent navigation
 
 **Dashboard**:
 The user-facing place for Explore and Contribute when the Knowledge Navigator has no active Tags and the user is located in the Global Knowledge Context.
@@ -148,6 +216,10 @@ _Avoid_: User, account, profile
 The relation of a Person to a Knowledge Type or Knowledge Entry, such as author, teacher, student, speaker, parent, or invitee.
 _Avoid_: Knowledge Type, user type
 
+**Active Role**:
+The Role a User is currently acting in while using the application, such as teacher, student, parent, church member, or administrator. Active Role may be unset in global contexts; when set, there is only one Active Role at a time, and it remains distinct from the User's current Knowledge Page or Active Knowledge Context.
+_Avoid_: Knowledge Page, Active Knowledge Context, account
+
 **User**:
 A person with access to the application through an account. Every User is linked to one Person Knowledge Entry so the User can be tagged through that Person, but not every Person is a User.
 _Avoid_: Person, author, participant
@@ -212,6 +284,26 @@ _Avoid_: Search, chat, browse
 To add a future Answer to the knowledgebase, either by submitting a Source, creating a Knowledge Entry directly, or responding to an existing Knowledge Entry.
 _Avoid_: Upload, post, store, work
 
+**Contribution Submission**:
+A single user intent to Contribute, collecting the material and choices submitted from a composer before it is posted directly or processed through Smart Storage. A Contribution Submission may include multiple Sources and contribution guidance, but it is not itself a Knowledge Entry.
+_Avoid_: Source, Knowledge Entry, upload bundle
+
+**Primary Intended Entry**:
+The one Knowledge Entry a Contribution Submission is primarily meant to create or update. Smart Storage may propose additional derived Knowledge Entries from the same Contribution Submission without changing the Primary Intended Entry.
+_Avoid_: Parent entry, main Source, bundle entry
+
+**Authored Text Source**:
+User-authored or user-pasted text submitted as substantive raw material in a Contribution Submission. Authored Text Source is a kind of Source, distinct from the Words Knowledge Type.
+_Avoid_: Words, body text, editor text
+
+**Contribution Note**:
+Non-substantive guidance a User provides to explain or steer a Contribution Submission without itself becoming represented knowledge by default.
+_Avoid_: Source, Words, entry body
+
+**Link Preview**:
+Fetched metadata that helps a User recognize an external URL in a Contribution Submission or Entry Representation. A Link Preview is not a Knowledge Entry, Factual Provenance, or Human Weight Evidence by itself.
+_Avoid_: Knowledge Entry, evidence, Source
+
 **Knowledge Slot**:
 A predefined request for one Knowledge Entry of a specified Knowledge Type within a specified Knowledge Context. A Knowledge Slot directs a user, group, organization, network, or open audience to Contribute a missing future Answer.
 _Avoid_: Todo, assignment, prompt, bounty, call to action
@@ -233,12 +325,36 @@ Raw user-provided material submitted to the application, such as an uploaded fil
 _Avoid_: File, upload, raw data
 
 **Bronze Layer**:
-The preserved raw record of submitted Sources, stored as close as possible to their original form.
+The preserved raw record of submitted Sources, stored as close as possible to their original form. In Smart Storage, Bronze Layer is to Source as Silver Layer is to Smart Storage Proposal and Gold Layer is to Knowledge Entry.
 _Avoid_: Bronze data, raw folder
 
 **Smart Storage**:
-The AI-assisted process of preserving a Source, identifying relevant Tags, and refining the Source toward one or more pieces of structured knowledge the application understands.
+The AI-assisted process of preserving a Source, identifying relevant Tags, and refining or enriching the Source toward one or more pieces of structured knowledge the application understands. Smart Storage can propose Gold Layer knowledge, but user confirmation is required before that knowledge becomes Gold.
 _Avoid_: Upload, import, ingestion
+
+**Factual Enrichment**:
+The Smart Storage act of using external factual information to refine a Source when the Source points to knowledge it does not itself contain. Factual Enrichment is not measured by Human Weight unless it becomes part of a user-confirmed Knowledge Entry.
+_Avoid_: AI authorship, generated answer, hallucination
+
+**Factual Provenance**:
+The evidence trail for an enriched fact in a Smart Storage Proposal or Knowledge Entry, identifying the external URL, Knowledge Entry, or model-only basis for the proposed fact. Factual Provenance may support the whole proposed entry or a specific factual field without changing who confirmed or owns the whole Knowledge Entry.
+_Avoid_: Source, ownership, proof
+
+**Proposal Confidence**:
+A coarse Smart Storage review signal for how well a Smart Storage Proposal or enriched factual field appears supported by its type match, candidates, and Factual Provenance. Proposal Confidence guides review but is not Human Weight, truth, or Gold Layer confirmation.
+_Avoid_: Human Weight, truth score, AI quality score
+
+**Smart Storage Proposal**:
+A durable Silver Layer candidate for creating or updating one Knowledge Entry from Smart Storage before user confirmation, expressed in Smart Storage Contract terms rather than persistence-specific write operations. A Smart Storage Proposal may be accepted, rejected, or edited before it affects Gold Layer knowledge.
+_Avoid_: Draft entry, AI answer, unconfirmed Knowledge Entry
+
+**Smart Storage Run**:
+A record of one Smart Storage attempt against a Source, preserving the contract versions, request-specific input snapshot, and raw model output that produced, failed to produce, or helped produce Smart Storage Proposals.
+_Avoid_: LLM call, job log, parser output
+
+**Smart Storage Contract**:
+The versioned stable domain contract Smart Storage gives to an LLM so it can match Sources to Knowledge Types and propose structured knowledge. A Smart Storage Contract includes the reusable domain shape needed for recognition and proposal generation without exposing the raw persistence schema or request-specific input as the model's contract.
+_Avoid_: Database schema prompt, raw schema, implementation prompt
 
 **Reprocessing**:
 The act of revisiting existing Sources or Knowledge Entries when the application gains new Knowledge Types or improved recognition, so previously untyped knowledge can be represented more specifically.
@@ -249,13 +365,13 @@ A Source or Knowledge Entry that may be refined further because a new or improve
 _Avoid_: Demoted entry, failed gold, invalid entry
 
 **Silver Layer**:
-An intermediate refinement layer where Source data is cleaned and structured beyond its raw form, before it becomes typed and formatted knowledge the application understands.
+A durable intermediate refinement layer where Source data is cleaned, structured, reviewed, or prepared beyond its raw form before it becomes typed and formatted knowledge the application understands. In Smart Storage, Silver Layer records are Smart Storage Proposals.
 _Avoid_: Final answer, typed knowledge, truth
 
 **Gold Layer**:
-Knowledge Entries that have been represented according to the most specific Knowledge Types the application currently understands.
+Knowledge Entries that have been represented according to the most specific Knowledge Types the application currently understands. In Smart Storage, Gold Layer records are confirmed Knowledge Entries.
 _Avoid_: Final truth, human-approved truth, business-ready data
 
 **Recognized Context**:
-The set of typed Tags a person or organization has interacted with, indicating Referents they recognize as meaningful within their domain.
+The union of Knowledge Contexts where a User or Organization has taken meaningful action across their activity history, represented by the typed Tags they have interacted with. Recognized Context indicates Referents the User or Organization recognizes as meaningful within their domain, but it is not the same as the User's Active Knowledge Context.
 _Avoid_: Truth model, personal truth, organization truth

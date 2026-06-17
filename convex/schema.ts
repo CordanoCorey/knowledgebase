@@ -1,6 +1,7 @@
 import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { organizationMembershipRole } from "./lib/organizationRoles";
 
 const referentKnowledgeType = v.union(
   v.literal("words"),
@@ -80,6 +81,67 @@ const sourceOutputKind = v.union(
   v.literal("derived"),
 );
 
+const smartStorageFeedbackRating = v.union(
+  v.literal("accurate"),
+  v.literal("close"),
+  v.literal("wrong"),
+);
+
+const smartStoragePredictedEntry = v.object({
+  knowledgeType: entryKnowledgeType,
+  title: v.string(),
+  confidence: v.number(),
+  reason: v.string(),
+  sourceExcerpt: v.string(),
+});
+
+const smartStorageSubmittedEntry = v.object({
+  knowledgeType: entryKnowledgeType,
+  title: v.string(),
+  bodyPreview: v.string(),
+});
+
+const smartStorageRunStatus = v.union(
+  v.literal("queued"),
+  v.literal("running"),
+  v.literal("succeeded"),
+  v.literal("noProposal"),
+  v.literal("failed"),
+  v.literal("superseded"),
+);
+
+const smartStorageContextTagSnapshot = v.object({
+  canonicalKey: v.string(),
+  href: v.string(),
+  id: v.string(),
+  knowledgeType: referentKnowledgeType,
+  label: v.string(),
+  passageString: v.optional(v.string()),
+});
+
+const smartStorageProposalStatus = v.union(
+  v.literal("drafted"),
+  v.literal("needsResolution"),
+  v.literal("accepted"),
+  v.literal("rejected"),
+  v.literal("stale"),
+);
+
+const proposalConfidence = v.union(
+  v.literal("low"),
+  v.literal("medium"),
+  v.literal("high"),
+);
+
+const smartStorageProposedEntry = v.object({
+  knowledgeType: entryKnowledgeType,
+  title: v.string(),
+  bodyPreview: v.string(),
+  contextTags: v.array(smartStorageContextTagSnapshot),
+  proposalConfidence,
+  rationale: v.string(),
+});
+
 const entryRepresentationKind = v.union(
   v.literal("prosemirror"),
   v.literal("plainText"),
@@ -94,6 +156,36 @@ const organizationKind = v.union(
   v.literal("church"),
   v.literal("family"),
   v.literal("community"),
+);
+
+const pinnedKnowledgePageKind = v.union(v.literal("organization"));
+const bookmarkedKnowledgePageKind = v.union(v.literal("organization"));
+const knowledgeSubscriptionTargetKind = v.union(v.literal("organization"));
+const userNotificationKind = v.union(
+  v.literal("answer"),
+  v.literal("event"),
+  v.literal("knowledgeSlot"),
+  v.literal("subscription"),
+);
+const userNotificationStatus = v.union(
+  v.literal("read"),
+  v.literal("unread"),
+);
+const userNotificationSourceKind = v.union(
+  v.literal("subscription"),
+  v.literal("knowledgeSlot"),
+  v.literal("event"),
+  v.literal("system"),
+);
+
+const pinState = v.union(
+  v.literal("pinned"),
+  v.literal("suppressed"),
+);
+
+const pinSource = v.union(
+  v.literal("defaultSeed"),
+  v.literal("manual"),
 );
 
 const membershipTargetKind = v.union(
@@ -155,6 +247,20 @@ const analyticsTargetKind = v.union(
 
 export default defineSchema({
   ...authTables,
+
+  users: defineTable({
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+    email: v.optional(v.string()),
+    emailVerificationTime: v.optional(v.number()),
+    phone: v.optional(v.string()),
+    phoneVerificationTime: v.optional(v.number()),
+    isAnonymous: v.optional(v.boolean()),
+    isActive: v.optional(v.boolean()),
+    systemRole: v.optional(v.literal("systemAdmin")),
+  })
+    .index("email", ["email"])
+    .index("phone", ["phone"]),
 
   referents: defineTable({
     knowledgeType: referentKnowledgeType,
@@ -238,6 +344,7 @@ export default defineSchema({
     .index("by_knowledgeType", ["knowledgeType"])
     .index("by_knowledgeType_and_createdAt", ["knowledgeType", "createdAt"])
     .index("by_knowledgeType_and_updatedAt", ["knowledgeType", "updatedAt"])
+    .index("by_humanWeight_and_updatedAt", ["humanWeight", "updatedAt"])
     .index("by_createdByUserId", ["createdByUserId"])
     .index("by_createdByUserId_and_createdAt", [
       "createdByUserId",
@@ -313,7 +420,7 @@ export default defineSchema({
     organizationReferentId: v.optional(v.id("referents")),
     groupReferentId: v.optional(v.id("referents")),
     membershipStatus,
-    memberRole: v.optional(v.string()),
+    memberRole: v.optional(organizationMembershipRole),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -325,6 +432,10 @@ export default defineSchema({
       "memberUserId",
       "membershipStatus",
     ])
+    .index("by_memberUserId_and_organizationReferentId", [
+      "memberUserId",
+      "organizationReferentId",
+    ])
     .index("by_organizationReferentId_and_membershipStatus", [
       "organizationReferentId",
       "membershipStatus",
@@ -332,6 +443,111 @@ export default defineSchema({
     .index("by_groupReferentId_and_membershipStatus", [
       "groupReferentId",
       "membershipStatus",
+    ]),
+
+  pinnedKnowledgePages: defineTable({
+    userId: v.id("users"),
+    pageKey: v.string(),
+    pageKind: pinnedKnowledgePageKind,
+    pinState,
+    pinSource,
+    sortOrder: v.number(),
+    organizationReferentId: v.optional(v.id("referents")),
+    organizationKind: v.optional(organizationKind),
+    labelSnapshot: v.string(),
+    hrefSnapshot: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId_and_pageKey", ["userId", "pageKey"])
+    .index("by_userId_and_pinState_and_sortOrder", [
+      "userId",
+      "pinState",
+      "sortOrder",
+    ])
+    .index("by_userId_and_pinSource", ["userId", "pinSource"]),
+
+  bookmarkedKnowledgePages: defineTable({
+    userId: v.id("users"),
+    pageKey: v.string(),
+    pageKind: bookmarkedKnowledgePageKind,
+    organizationReferentId: v.optional(v.id("referents")),
+    targetReferentId: v.optional(v.id("referents")),
+    targetTagId: v.optional(v.id("tags")),
+    labelSnapshot: v.string(),
+    hrefSnapshot: v.string(),
+    secondaryLabelSnapshot: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    lastReferencedAt: v.optional(v.number()),
+  })
+    .index("by_userId_and_pageKey", ["userId", "pageKey"])
+    .index("by_userId_and_createdAt", ["userId", "createdAt"])
+    .index("by_userId_and_updatedAt", ["userId", "updatedAt"])
+    .index("by_userId_and_pageKind_and_updatedAt", [
+      "userId",
+      "pageKind",
+      "updatedAt",
+    ]),
+
+  knowledgeSubscriptions: defineTable({
+    userId: v.id("users"),
+    subscriptionKey: v.string(),
+    targetKind: knowledgeSubscriptionTargetKind,
+    organizationReferentId: v.optional(v.id("referents")),
+    targetReferentId: v.optional(v.id("referents")),
+    targetTagId: v.optional(v.id("tags")),
+    labelSnapshot: v.string(),
+    hrefSnapshot: v.string(),
+    secondaryLabelSnapshot: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId_and_subscriptionKey", ["userId", "subscriptionKey"])
+    .index("by_userId_and_updatedAt", ["userId", "updatedAt"])
+    .index("by_userId_and_targetKind_and_updatedAt", [
+      "userId",
+      "targetKind",
+      "updatedAt",
+    ])
+    .index("by_targetKind_and_targetReferentId", [
+      "targetKind",
+      "targetReferentId",
+    ])
+    .index("by_targetTagId", ["targetTagId"]),
+
+  userNotifications: defineTable({
+    userId: v.id("users"),
+    notificationKind: userNotificationKind,
+    notificationStatus: userNotificationStatus,
+    title: v.string(),
+    body: v.string(),
+    contextLabel: v.string(),
+    contextHref: v.string(),
+    receivedAt: v.number(),
+    readAt: v.optional(v.number()),
+    sourceKind: v.optional(userNotificationSourceKind),
+    sourceSubscriptionKey: v.optional(v.string()),
+    sourceSubscriptionId: v.optional(v.id("knowledgeSubscriptions")),
+    targetReferentId: v.optional(v.id("referents")),
+    targetTagId: v.optional(v.id("tags")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId_and_receivedAt", ["userId", "receivedAt"])
+    .index("by_userId_and_notificationStatus_and_receivedAt", [
+      "userId",
+      "notificationStatus",
+      "receivedAt",
+    ])
+    .index("by_userId_and_notificationKind_and_receivedAt", [
+      "userId",
+      "notificationKind",
+      "receivedAt",
+    ])
+    .index("by_sourceSubscriptionKey_and_receivedAt", [
+      "sourceSubscriptionKey",
+      "receivedAt",
     ]),
 
   sources: defineTable({
@@ -359,6 +575,77 @@ export default defineSchema({
   })
     .index("by_sourceId_and_entryId", ["sourceId", "entryId"])
     .index("by_entryId_and_sourceId", ["entryId", "sourceId"]),
+
+  smartStorageRuns: defineTable({
+    sourceId: v.id("sources"),
+    status: smartStorageRunStatus,
+    requestedKnowledgeType: entryKnowledgeType,
+    contributionTitle: v.string(),
+    contributionBodyPreview: v.string(),
+    contextTags: v.array(smartStorageContextTagSnapshot),
+    slotId: v.optional(v.string()),
+    contractSnapshotVersion: v.optional(v.string()),
+    contractSnapshotText: v.optional(v.string()),
+    typeBehaviorSnapshotVersion: v.optional(v.string()),
+    typeBehaviorSnapshotText: v.optional(v.string()),
+    rawModelOutput: v.optional(v.string()),
+    errorMessage: v.optional(v.string()),
+    createdByUserId: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_sourceId_and_createdAt", ["sourceId", "createdAt"])
+    .index("by_createdByUserId_and_createdAt", [
+      "createdByUserId",
+      "createdAt",
+    ])
+    .index("by_status_and_createdAt", ["status", "createdAt"]),
+
+  smartStorageProposals: defineTable({
+    sourceId: v.id("sources"),
+    smartStorageRunId: v.id("smartStorageRuns"),
+    status: smartStorageProposalStatus,
+    originalProposal: smartStorageProposedEntry,
+    currentProposal: smartStorageProposedEntry,
+    contractSnapshotVersion: v.optional(v.string()),
+    contractSnapshotText: v.optional(v.string()),
+    typeBehaviorSnapshotVersion: v.optional(v.string()),
+    typeBehaviorSnapshotText: v.optional(v.string()),
+    createdByUserId: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_smartStorageRunId", ["smartStorageRunId"])
+    .index("by_sourceId_and_status", ["sourceId", "status"])
+    .index("by_createdByUserId_and_status_and_createdAt", [
+      "createdByUserId",
+      "status",
+      "createdAt",
+    ]),
+
+  smartStoragePlaygroundFeedback: defineTable({
+    userId: v.id("users"),
+    sourceKind,
+    sourceName: v.optional(v.string()),
+    sourceText: v.string(),
+    sourceSizeBytes: v.number(),
+    predictedEntries: v.array(smartStoragePredictedEntry),
+    submittedEntry: v.optional(smartStorageSubmittedEntry),
+    intendedKnowledgeType: entryKnowledgeType,
+    feedbackRating: smartStorageFeedbackRating,
+    feedbackNote: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_userId_and_createdAt", ["userId", "createdAt"])
+    .index("by_intendedKnowledgeType_and_createdAt", [
+      "intendedKnowledgeType",
+      "createdAt",
+    ])
+    .index("by_feedbackRating_and_createdAt", [
+      "feedbackRating",
+      "createdAt",
+    ]),
 
   entryRepresentations: defineTable({
     entryId: v.id("knowledgeEntries"),
@@ -493,6 +780,7 @@ export default defineSchema({
   organizationEntries: defineTable({
     entryId: v.id("knowledgeEntries"),
     organizationKind,
+    isActive: v.optional(v.boolean()),
   })
     .index("by_entryId", ["entryId"])
     .index("by_organizationKind", ["organizationKind"]),

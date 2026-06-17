@@ -7,6 +7,10 @@ import type {
 } from "../knowledgeContracts";
 
 const entryFixture: KnowledgeEntrySummary = {
+  contributor: {
+    id: "contributor-ada-teacher",
+    name: "Ada Teacher",
+  },
   id: "entry-romans-8-lesson",
   title: "Middle school discussion guide: Hope in the Spirit",
   knowledgeType: "lesson",
@@ -37,6 +41,8 @@ describe("KnowledgeEntryCard", () => {
 
     expect(markup).toContain("Knowledge Entry");
     expect(markup).toContain("Middle school discussion guide: Hope in the Spirit");
+    expect(markup).toContain("Contributed by");
+    expect(markup).toContain("Ada Teacher");
     expect(markup).toContain("Lesson");
     expect(markup).toContain(entryFixture.previewText);
     expect(markup).toContain("Primary Tag");
@@ -47,6 +53,9 @@ describe("KnowledgeEntryCard", () => {
     expect(markup).toContain("74/100");
     expect(markup).toContain("Jan 15, 2026");
     expect(markup).toContain('href="/entries/entry-romans-8-lesson"');
+    expect(markup).toContain('href="/scripture/romans-8"');
+    expect(markup).toContain('href="/goto/suffering-and-hope"');
+    expect(markup).toContain('href="/goto/youth-lesson"');
   });
 });
 
@@ -54,18 +63,22 @@ describe("KnowledgeSlotCard", () => {
   it("renders the slot request, status, target, due date, and contribution CTA", () => {
     const markup = renderToStaticMarkup(<KnowledgeSlotCard slot={slotFixture} />);
 
-    expect(markup).toContain("Knowledge Slot");
+    expect(markup).toContain("Requested Entry");
     expect(markup).toContain("Lesson for Romans 8:18-30");
-    expect(markup).toContain("Requested Type");
-    expect(markup).toContain("Lesson");
+    expect(markup).toContain("Entry needed");
+    expect(markup).toContain("Lesson needed");
     expect(markup).toContain(slotFixture.promptText);
-    expect(markup).toContain("Open");
+    expect(markup).toContain("Open request");
     expect(markup).toContain("Youth teachers");
     expect(markup).toContain("Feb 1, 2026");
     expect(markup).toContain("Romans 8");
     expect(markup).toContain("Suffering and hope");
-    expect(markup).toContain("Contribute Lesson");
+    expect(markup).toContain("Add content to complete this entry.");
+    expect(markup).toContain("Add missing Lesson");
+    expect(markup).not.toContain("Knowledge Slot");
     expect(markup).toContain('href="/slots/slot-romans-8-lesson"');
+    expect(markup).toContain('href="/scripture/romans-8"');
+    expect(markup).toContain('href="/goto/suffering-and-hope"');
   });
 
   it("covers missing optional prompt and due date values", () => {
@@ -79,7 +92,7 @@ describe("KnowledgeSlotCard", () => {
 
     const markup = renderToStaticMarkup(<KnowledgeSlotCard slot={minimalSlot} />);
 
-    expect(markup).toContain("Contribution requested for this Knowledge Context.");
+    expect(markup).toContain("Add the missing content for this Knowledge Context.");
     expect(markup).toContain("No due date");
     expect(markup).toContain("No context Tags");
   });

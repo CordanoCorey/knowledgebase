@@ -4,7 +4,10 @@ import {
   ConvexAuthProvider,
   useConvexAuth,
 } from "@convex-dev/auth/react";
+import { useQuery } from "convex/react";
+import { api } from "../convex/_generated/api";
 import { AuthPanel, SignOutButton } from "./auth/AuthPanel";
+import { OrganizationAccessRequestScreen } from "./auth/OrganizationAccessRequest";
 import { CollaborativeEditor } from "./CollaborativeEditor";
 import { createConvexClient } from "./convexClient";
 import "./index.css";
@@ -48,6 +51,10 @@ if (!customElements.get(elementName)) {
 
 function AuthenticatedEditor({ documentId }: { documentId: string }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
+  const appAccess = useQuery(
+    api.appAccess.getCurrentUserAccess,
+    isAuthenticated && !isLoading ? {} : "skip",
+  );
 
   if (isLoading) {
     return (
@@ -59,6 +66,24 @@ function AuthenticatedEditor({ documentId }: { documentId: string }) {
 
   if (!isAuthenticated) {
     return <AuthPanel />;
+  }
+
+  if (appAccess === undefined) {
+    return (
+      <section className="editor-panel editor-loading" aria-busy="true">
+        <span>Checking organization access</span>
+      </section>
+    );
+  }
+
+  if (appAccess.status !== "allowed") {
+    return (
+      <OrganizationAccessRequestScreen
+        email={"email" in appAccess ? appAccess.email : undefined}
+        reason={appAccess.status}
+        surface="editor"
+      />
+    );
   }
 
   return (

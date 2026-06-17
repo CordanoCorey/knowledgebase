@@ -8,15 +8,30 @@
  * @module
  */
 
+import type * as analytics from "../analytics.js";
+import type * as answerFeed from "../answerFeed.js";
+import type * as appAccess from "../appAccess.js";
 import type * as auth from "../auth.js";
 import type * as authAvailability from "../authAvailability.js";
 import type * as authProviderConfig from "../authProviderConfig.js";
+import type * as bookmarkedKnowledgePages from "../bookmarkedKnowledgePages.js";
+import type * as directContributions from "../directContributions.js";
 import type * as editor from "../editor.js";
 import type * as http from "../http.js";
+import type * as knowledgeSubscriptions from "../knowledgeSubscriptions.js";
+import type * as lib_appAccess from "../lib/appAccess.js";
+import type * as lib_organizationRoles from "../lib/organizationRoles.js";
 import type * as lib_scriptureReferences from "../lib/scriptureReferences.js";
+import type * as organizationAccounts from "../organizationAccounts.js";
+import type * as pinnedKnowledgePages from "../pinnedKnowledgePages.js";
 import type * as scripture from "../scripture.js";
+import type * as seedOrganizations from "../seedOrganizations.js";
+import type * as seedOrganizationsAction from "../seedOrganizationsAction.js";
 import type * as seedScripture from "../seedScripture.js";
 import type * as seedScriptureAction from "../seedScriptureAction.js";
+import type * as smartStorage from "../smartStorage.js";
+import type * as smartStoragePlayground from "../smartStoragePlayground.js";
+import type * as userNotifications from "../userNotifications.js";
 
 import type {
   ApiFromModules,
@@ -25,15 +40,30 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  analytics: typeof analytics;
+  answerFeed: typeof answerFeed;
+  appAccess: typeof appAccess;
   auth: typeof auth;
   authAvailability: typeof authAvailability;
   authProviderConfig: typeof authProviderConfig;
+  bookmarkedKnowledgePages: typeof bookmarkedKnowledgePages;
+  directContributions: typeof directContributions;
   editor: typeof editor;
   http: typeof http;
+  knowledgeSubscriptions: typeof knowledgeSubscriptions;
+  "lib/appAccess": typeof lib_appAccess;
+  "lib/organizationRoles": typeof lib_organizationRoles;
   "lib/scriptureReferences": typeof lib_scriptureReferences;
+  organizationAccounts: typeof organizationAccounts;
+  pinnedKnowledgePages: typeof pinnedKnowledgePages;
   scripture: typeof scripture;
+  seedOrganizations: typeof seedOrganizations;
+  seedOrganizationsAction: typeof seedOrganizationsAction;
   seedScripture: typeof seedScripture;
   seedScriptureAction: typeof seedScriptureAction;
+  smartStorage: typeof smartStorage;
+  smartStoragePlayground: typeof smartStoragePlayground;
+  userNotifications: typeof userNotifications;
 }>;
 
 /**

@@ -2,14 +2,12 @@ import { ProsemirrorSync } from "@convex-dev/prosemirror-sync";
 import { components } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
+import { requireAppAccess } from "./lib/appAccess";
 
 const prosemirrorSync = new ProsemirrorSync(components.prosemirrorSync);
 
-async function requireAuthenticated(ctx: QueryCtx | MutationCtx) {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) {
-    throw new Error("Not authenticated");
-  }
+async function requireAuthorizedAccess(ctx: QueryCtx | MutationCtx) {
+  await requireAppAccess(ctx);
 }
 
 export const {
@@ -19,6 +17,6 @@ export const {
   getSteps,
   submitSteps,
 } = prosemirrorSync.syncApi<DataModel>({
-  checkRead: requireAuthenticated,
-  checkWrite: requireAuthenticated,
+  checkRead: requireAuthorizedAccess,
+  checkWrite: requireAuthorizedAccess,
 });

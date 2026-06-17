@@ -38,6 +38,65 @@ Use the production Convex site URL for production and the dev Convex site URL
 for local development. The Resend sender domain used by `AUTH_EMAIL_FROM` must
 be verified in Resend before production email links will deliver reliably.
 
+## Production Deployment
+
+Production is deployed by Vercel from the GitHub `prod` branch. The Vercel build
+uses `vercel.json`, which runs:
+
+```bash
+npm run convex:deploy
+```
+
+That script deploys the Convex backend first, exposes the production Convex URL
+as `VITE_CONVEX_URL`, and then builds the static Vite app into `docs/`.
+
+Configure Vercel:
+
+1. Import or connect the GitHub repo to Vercel.
+2. In Vercel Project Settings -> Git, set the Production Branch to `prod`.
+3. In Vercel Project Settings -> Environment Variables, add
+   `CONVEX_DEPLOY_KEY` for the Production environment. Create the key from the
+   Convex production deployment's deploy key settings.
+4. In Vercel Domains, add `logeion.app` and `www.logeion.app`. Pick one
+   canonical domain and redirect the other to it. The expected canonical URL is
+   `https://logeion.app`.
+
+Configure the Convex production environment:
+
+```bash
+npx convex env set --prod SITE_URL https://logeion.app
+npx convex env set --prod AUTH_GOOGLE_ID your-google-client-id
+npx convex env set --prod AUTH_GOOGLE_SECRET your-google-client-secret
+npx convex env set --prod AUTH_RESEND_KEY your-resend-api-key
+npx convex env set --prod AUTH_EMAIL_FROM "Knowledgebase <signin@your-verified-sending-domain>"
+```
+
+In Google Cloud Console, add the production Convex callback URL:
+
+```text
+https://industrious-gull-775.convex.site/api/auth/callback/google
+```
+
+Configure Porkbun DNS after the domains are added in Vercel:
+
+1. Remove the Porkbun parking records that point `logeion.app` and
+   `*.logeion.app` at `pixie.porkbun.com`.
+2. Add the DNS records Vercel shows for the project. Usually these are:
+   - `A` record, host `@`, value `76.76.21.21`
+   - `CNAME` record, host `www`, value `cname.vercel-dns.com`
+3. Keep the email DNS records for the sending domain unless Vercel specifically
+   asks for a conflicting record.
+
+Create and push the production branch from a ready, committed state:
+
+```bash
+git switch -c prod
+git push -u origin prod
+```
+
+After the first push, merge or cherry-pick ready changes into `prod` and push
+that branch. Vercel will treat each push to `prod` as a production deployment.
+
 ## Static Hosting
 
 Build the static app and embeddable editor component:

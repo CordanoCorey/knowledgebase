@@ -1,17 +1,24 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
-import { hasGoogleAuth, hasPasswordAuth, hasResendAuth } from "./authProviderConfig";
+import {
+  hasGoogleAuth,
+  hasPasswordAuth,
+  hasPasswordResetAuth,
+  hasResendAuth,
+} from "./authProviderConfig";
 
 export const get = query({
   args: {},
   returns: v.object({
     google: v.boolean(),
     password: v.boolean(),
+    passwordReset: v.boolean(),
     resend: v.boolean(),
   }),
   handler: async () => ({
     google: hasGoogleAuth(),
     password: hasPasswordAuth(),
+    passwordReset: hasPasswordResetAuth(),
     resend: hasResendAuth(),
   }),
 });
