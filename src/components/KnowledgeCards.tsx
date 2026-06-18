@@ -8,6 +8,7 @@ import {
 import type { MouseEvent } from "react";
 import {
   formatKnowledgeTypeLabel,
+  getApplicableHumanWeight,
   type ContributorSummary,
   type KnowledgeEntrySummary,
   type KnowledgeSlotStatus,
@@ -48,6 +49,8 @@ export function KnowledgeEntryCard({
   entry,
   onNavigateToHref,
 }: KnowledgeEntryCardProps) {
+  const humanWeight = getApplicableHumanWeight(entry);
+
   return (
     <article
       aria-labelledby={`knowledge-entry-${entry.id}-title`}
@@ -64,7 +67,11 @@ export function KnowledgeEntryCard({
           className="kb-card-type"
           knowledgeType={entry.knowledgeType}
         />
-        <span className="kb-human-weight-badge">Human Weight {entry.humanWeight}</span>
+        {humanWeight === undefined ? null : (
+          <span className="kb-human-weight-badge">
+            Human Weight {humanWeight}
+          </span>
+        )}
       </header>
 
       <ContributorPanel contributor={entry.contributor} />
@@ -86,10 +93,12 @@ export function KnowledgeEntryCard({
           <dt>Updated</dt>
           <dd>{formatCardDate(entry.updatedAt)}</dd>
         </div>
-        <div className="kb-human-weight-metric">
-          <dt>Human Weight</dt>
-          <dd>{entry.humanWeight}/100</dd>
-        </div>
+        {humanWeight === undefined ? null : (
+          <div className="kb-human-weight-metric">
+            <dt>Human Weight</dt>
+            <dd>{humanWeight}/100</dd>
+          </div>
+        )}
       </dl>
 
       <TagList

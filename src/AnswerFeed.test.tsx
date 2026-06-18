@@ -85,6 +85,22 @@ const higherWeightAnswer: AnswerFeedFixtureItem = {
   },
 };
 
+const nonWeightBearingAnswer: AnswerFeedFixtureItem = {
+  kind: "answer",
+  contextTagIds: ["romans-8-28", "holy-spirit"],
+  entry: {
+    contributor: benContributor,
+    id: "entry-topic-without-human-weight",
+    title: "Newer Topic Without Human Weight",
+    knowledgeType: "topic",
+    previewText: "A navigable topic entry without human-weighted substance.",
+    primaryTagLabel: "Holy Spirit",
+    contextPreviewTagLabels: ["Romans 8:28", "Holy Spirit"],
+    href: "/entries/entry-topic-without-human-weight",
+    updatedAt: Date.UTC(2026, 1, 3, 12),
+  },
+};
+
 const matchingSlot: AnswerFeedFixtureItem = {
   kind: "slot",
   contextTagIds: ["romans-8-28", "holy-spirit"],
@@ -157,9 +173,37 @@ describe("Answer Feed helpers", () => {
     expect(feedItems.some((item) => item.kind === "answer" && item.entry.title === "Broader Answer")).toBe(false);
   });
 
+  test("orders unscored non-weight-bearing Answers after scored Answers", () => {
+    const feedItems = selectAnswerFeedItems(
+      [
+        nonWeightBearingAnswer,
+        lowerWeightAnswer,
+        matchingSlot,
+        higherWeightAnswer,
+      ],
+      [romansTag, holySpiritTag],
+    );
+
+    expect(
+      feedItems
+        .filter((item) => item.kind === "answer")
+        .map((item) => item.entry.title),
+    ).toEqual([
+      "Higher Weight Answer",
+      "Lower Weight Answer",
+      "Newer Topic Without Human Weight",
+    ]);
+  });
+
   test("ranks experts from matching Answer contributors", () => {
     const experts = selectKnowledgeContextExperts(
-      [lowerWeightAnswer, matchingSlot, higherWeightAnswer, broaderAnswer],
+      [
+        lowerWeightAnswer,
+        matchingSlot,
+        higherWeightAnswer,
+        broaderAnswer,
+        nonWeightBearingAnswer,
+      ],
       [romansTag, holySpiritTag],
       2,
     );

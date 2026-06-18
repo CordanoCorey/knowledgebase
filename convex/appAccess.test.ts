@@ -54,9 +54,11 @@ type SeedVerificationResult = {
 type OrganizationMembershipSettings = {
   members: Array<{
     email?: string;
+    membershipId: Id<"memberships">;
     name: string;
     role: "admin" | "member";
-    userId: Id<"users">;
+    status: "active" | "pending";
+    userId?: Id<"users">;
   }>;
   name: string;
 };
@@ -361,10 +363,12 @@ describe("App organization access", () => {
       settings.members.map((listedMember) => ({
         email: listedMember.email,
         role: listedMember.role,
+        status: listedMember.status,
       })),
     ).toContainEqual({
       email: "new.member@example.com",
       role: "admin",
+      status: "active",
     });
 
     const access = (await t
@@ -380,6 +384,100 @@ describe("App organization access", () => {
       organizationKind: "school",
       organizationReferentId: expect.any(String),
       role: "admin",
+    });
+  });
+
+  test("allows organization admins to add pending members before a user account exists", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = (await t.action(
+      internal.seedOrganizationsAction.seedDefaultOrganizations,
+      {},
+    )) as SeedActionTestResult;
+    const gelbaugh = getSeededUser(seed.users, "gelbaughcm@gmail.com");
+    const admin = t.withIdentity({
+      subject: `${gelbaugh.userId}|test-session`,
+    });
+
+    const member = await admin.mutation(
+      api.organizationAccounts.addOrganizationMember,
+      {
+        email: "Pending.Member@Example.com",
+        organizationId: "arche-classical-academy",
+        role: "member",
+      },
+    );
+
+    expect(member).toMatchObject({
+      email: "pending.member@example.com",
+      name: "pending.member@example.com",
+      role: "member",
+      status: "pending",
+    });
+    expect("userId" in member).toBe(false);
+
+    const promotedMember = await admin.mutation(
+      api.organizationAccounts.addOrganizationMember,
+      {
+        email: "pending.member@example.com",
+        organizationId: "arche-classical-academy",
+        role: "admin",
+      },
+    );
+    expect(promotedMember).toMatchObject({
+      email: "pending.member@example.com",
+      membershipId: member.membershipId,
+      role: "admin",
+      status: "pending",
+    });
+    expect("userId" in promotedMember).toBe(false);
+
+    const stored = await t.run(async (ctx) => {
+      const membership = await ctx.db.get(member.membershipId);
+      const users = await ctx.db
+        .query("users")
+        .withIndex("email", (q) => q.eq("email", "pending.member@example.com"))
+        .take(1);
+      const matchingPendingMemberships = membership
+        ? await ctx.db
+            .query("memberships")
+            .withIndex("by_personReferentId_and_membershipStatus", (q) =>
+              q
+                .eq("personReferentId", membership.personReferentId)
+                .eq("membershipStatus", "invited"),
+            )
+            .take(10)
+        : [];
+
+      return {
+        matchingPendingMemberships: matchingPendingMemberships.map(
+          (candidate) => candidate._id,
+        ),
+        membership,
+        userCount: users.length,
+      };
+    });
+
+    expect(stored.userCount).toBe(0);
+    expect(stored.matchingPendingMemberships).toEqual([member.membershipId]);
+    expect(stored.membership).toMatchObject({
+      memberRole: "admin",
+      membershipStatus: "invited",
+      targetKind: "organization",
+    });
+    expect(stored.membership?.memberUserId).toBeUndefined();
+
+    const settings = (await admin.query(
+      api.organizationAccounts.getOrganizationMembershipSettings,
+      {
+        organizationId: "arche-classical-academy",
+      },
+    )) as OrganizationMembershipSettings;
+    expect(settings.members).toContainEqual({
+      email: "pending.member@example.com",
+      membershipId: member.membershipId,
+      name: "pending.member@example.com",
+      role: "admin",
+      status: "pending",
     });
   });
 

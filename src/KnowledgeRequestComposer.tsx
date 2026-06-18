@@ -252,7 +252,7 @@ export function KnowledgeRequestComposer({
             onChange={handleRequestChange}
             onFocus={() => setIsComposerFocused(true)}
             onKeyDown={handleRequestKeyDown}
-            placeholder="Ask a Question or Add Context..."
+            placeholder="Ask a Question or Context..."
             rows={4}
             value={draft.text}
           />

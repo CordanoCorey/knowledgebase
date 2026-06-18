@@ -73,6 +73,26 @@ describe("KnowledgeEntryCard", () => {
     expect(markup).toContain('href="/goto/suffering-and-hope"');
     expect(markup).toContain('href="/goto/youth-lesson"');
   });
+
+  it("does not render Human Weight for non-weight-bearing entries", () => {
+    const nonWeightBearingEntry: KnowledgeEntrySummary = {
+      ...entryFixture,
+      id: "entry-school-topic",
+      title: "Arche Classical Academy",
+      knowledgeType: "topic",
+      humanWeight: undefined,
+      href: "/entries/entry-school-topic",
+    };
+
+    const markup = renderToStaticMarkup(
+      <KnowledgeEntryCard entry={nonWeightBearingEntry} />,
+    );
+
+    expect(markup).toContain("Arche Classical Academy");
+    expect(markup).not.toContain("Human Weight");
+    expect(markup).not.toContain("0/100");
+    expect(markup).not.toContain("Human Weight 0");
+  });
 });
 
 describe("KnowledgeSlotCard", () => {

@@ -1,3 +1,7 @@
+// @vitest-environment happy-dom
+
+import { act } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test } from "vitest";
 import {
@@ -161,6 +165,23 @@ describe("Contribution Editor type resolution", () => {
     expect(markup).toContain("Global Knowledge Context");
   });
 
+  test("generic editor renders Smart Storage Source controls", () => {
+    const markup = renderToStaticMarkup(
+      <ContributionEditor
+        context={[]}
+        initialBody="A scanned program and link should stay attached."
+        onSubmitSource={() => ({ status: "submitted" })}
+      />,
+    );
+
+    expect(markup).toContain("Contribution Note");
+    expect(markup).toContain("External URL");
+    expect(markup).toContain("Upload File");
+    expect(markup).toContain("Source Inventory");
+    expect(markup).toContain("Authored Text");
+    expect(markup).toContain("A scanned program and link should stay attached.");
+  });
+
   test("renders the primary input before contribution preview metadata", () => {
     const markup = renderToStaticMarkup(
       <ContributionEditor
@@ -182,6 +203,42 @@ describe("Contribution Editor type resolution", () => {
     expect(markup.indexOf("<textarea")).toBeLessThan(
       markup.indexOf("Contribution Preview"),
     );
+  });
+
+  test("supplemental Sources route tagged contributions through Smart Storage", () => {
+    expect(
+      resolveContributionMode({
+        context: [romansTag],
+        hasSupplementalSources: true,
+      }),
+    ).toBe("smartStorage");
+
+    const preview = createContributionPreview({
+      body: "A source with attachment context.",
+      context: [romansTag],
+      hasSupplementalSources: true,
+      knowledgeType: "words",
+      title: "Attached source",
+    });
+
+    expect(preview).toMatchObject({
+      mode: "smartStorage",
+      submitLabel: "Store Smartly",
+    });
+  });
+
+  test("guided Group creation does not render Smart Storage Source controls", () => {
+    const markup = renderToStaticMarkup(
+      <ContributionEditor
+        context={[romansTag]}
+        guidedContributionType="group"
+        onSubmitSource={() => ({ status: "submitted" })}
+        selectedKnowledgeType="group"
+      />,
+    );
+
+    expect(markup).not.toContain("Source Inventory");
+    expect(markup).not.toContain("Upload File");
   });
 
   test("comment editor is titleless and keeps body as visible substance", () => {
@@ -268,6 +325,72 @@ describe("Contribution Editor type resolution", () => {
     expect(markup.indexOf('value="event"')).toBeLessThan(
       markup.indexOf('value="person"'),
     );
+  });
+
+  test("focus expands the editor until the user collapses it", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    try {
+      await act(async () => {
+        root.render(
+          <ContributionEditor
+            context={[romansTag]}
+            onSubmitSource={() => ({ status: "submitted" })}
+          />,
+        );
+      });
+
+      const editor = container.querySelector(".kb-contribution-editor");
+      const textarea = container.querySelector("textarea");
+      if (!(editor instanceof HTMLElement)) {
+        throw new Error("Missing Contribution Editor");
+      }
+      if (!(textarea instanceof HTMLTextAreaElement)) {
+        throw new Error("Missing Contribution Editor textarea");
+      }
+
+      expect(editor.getAttribute("data-expanded")).toBe("false");
+
+      await act(async () => {
+        textarea.focus();
+        await Promise.resolve();
+      });
+
+      expect(editor.getAttribute("data-expanded")).toBe("true");
+
+      await act(async () => {
+        textarea.blur();
+        await Promise.resolve();
+      });
+
+      expect(editor.getAttribute("data-expanded")).toBe("true");
+
+      const collapseButton = container.querySelector(
+        'button[aria-label="Collapse contribution editor"]',
+      );
+      if (!(collapseButton instanceof HTMLButtonElement)) {
+        throw new Error("Missing contribution collapse button");
+      }
+
+      await act(async () => {
+        collapseButton.dispatchEvent(
+          new MouseEvent("click", { bubbles: true, cancelable: true }),
+        );
+        await Promise.resolve();
+      });
+
+      expect(editor.getAttribute("data-expanded")).toBe("false");
+      expect(
+        container.querySelector('button[aria-label="Collapse contribution editor"]'),
+      ).toBeNull();
+    } finally {
+      await act(async () => {
+        root.unmount();
+      });
+      container.remove();
+    }
   });
 
   test("guided Group creation asks only for the Group name in direct mode", () => {
@@ -382,5 +505,41 @@ describe("Contribution Editor payload", () => {
       title: "Basketball Club",
     });
     expect(input.contextTags).toEqual([romansTag, holySpiritTag]);
+  });
+
+  test("Smart Storage payload includes note, external URLs, and uploaded files", () => {
+    const externalUrls = [
+      {
+        title: "School handbook",
+        url: "https://example.com/handbook",
+      },
+    ];
+    const uploadedFiles = [
+      {
+        contentType: "application/pdf",
+        fileName: "chapel-program.pdf",
+        fileSizeBytes: 2048,
+        storageId: "storage-chapel-program",
+        temporaryUploadId: "temporary-upload-chapel-program",
+      },
+    ];
+    const input = createContributionInput({
+      body: "Chapel notes from Friday.",
+      contributionNote: "  Keep the program as supporting material.  ",
+      context: [],
+      externalUrls,
+      knowledgeType: "words",
+      title: "Friday chapel",
+      uploadedFiles,
+    });
+
+    expect(input).toMatchObject({
+      body: "Chapel notes from Friday.",
+      contributionNote: "Keep the program as supporting material.",
+      externalUrls,
+      knowledgeType: "words",
+      title: "Friday chapel",
+      uploadedFiles,
+    });
   });
 });

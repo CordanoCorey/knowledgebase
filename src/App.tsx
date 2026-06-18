@@ -13,7 +13,7 @@ import {
   type UIEvent,
 } from "react";
 import { useConvexAuth } from "@convex-dev/auth/react";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { flushSync } from "react-dom";
 import {
   BarChart3,
@@ -89,11 +89,15 @@ import type {
   KnowledgeContextTrendKind,
   KnowledgeContextTrendSummary,
   KnowledgeSlotSummary,
+  RepresentationRole,
+  SmartStorageRepresentationDecision,
+  SmartStorageUploadedFileInput,
   SmartStorageProposalReviewSummary,
 } from "./knowledgeContracts";
 import {
   formatKnowledgeTypeLabel,
   isAuthorableKnowledgeType,
+  REPRESENTATION_ROLE_OPTIONS,
 } from "./knowledgeContracts";
 import { LayoutPrototype } from "./prototypes/LayoutPrototype";
 
@@ -119,6 +123,15 @@ type ThemePreference = "light" | "dark";
 type OrganizationKind = "school" | "church" | "family" | "community";
 type OrganizationMembershipRole = "admin" | "member";
 type SystemRole = "systemAdmin";
+
+type SmartStorageRunReviewSummary = {
+  contributionSubmissionId?: string;
+  errorMessage?: string;
+  smartStorageRunId: string;
+  sourceId?: string;
+  sourceIds: string[];
+  status: "failed" | "noProposal";
+};
 
 type PageId =
   | "dashboard"
@@ -366,7 +379,8 @@ type OrganizationMember = {
   membershipId: Id<"memberships">;
   name: string;
   role: OrganizationMembershipRole;
-  userId: Id<"users">;
+  status: "active" | "pending";
+  userId?: Id<"users">;
 };
 
 type OrganizationMembershipSettings = {
@@ -3159,15 +3173,27 @@ function ComponentScaffold({
     useState<KnowledgeEntrySummary | null>(null);
   const [smartStorageProposalReview, setSmartStorageProposalReview] =
     useState<SmartStorageProposalReviewSummary | null>(null);
+  const [smartStorageRunReview, setSmartStorageRunReview] =
+    useState<SmartStorageRunReviewSummary | null>(null);
   const [contextSearchQuery, setContextSearchQuery] = useState("");
   const recordNavigatorUsage = useMutation(api.analytics.recordNavigatorUsage);
   const postDirectContribution = useMutation(
     api.directContributions.postDirectContribution,
   );
   const startSmartStorage = useMutation(api.smartStorage.startFromContribution);
+  const generateSmartStorageUploadUrl = useMutation(
+    api.smartStorage.generateUploadUrl,
+  );
+  const createSmartStorageTemporaryUploadRecord = useMutation(
+    api.smartStorage.createTemporaryUploadRecord,
+  );
   const generateSmartStorageProposal = useMutation(
     api.smartStorage.generateDraftProposalForRun,
   );
+  const acceptSmartStorageProposal = useMutation(
+    api.smartStorage.acceptScaffoldProposal,
+  );
+  const executeSmartStorageModelRun = useAction(api.smartStorage.executeModelRun);
   const activeContextKey = getKnowledgeContextKey(activeTags);
   const routeContributionKnowledgeType =
     getRouteContributionKnowledgeType(routeState.search);
@@ -3214,6 +3240,7 @@ function ComponentScaffold({
     setSelectedContributionKnowledgeType(null);
     setFocusedCreatedEntry(null);
     setSmartStorageProposalReview(null);
+    setSmartStorageRunReview(null);
     setContextSearchQuery("");
   }, [activeContextKey]);
 
@@ -3230,6 +3257,7 @@ function ComponentScaffold({
     });
 
     setSmartStorageProposalReview(null);
+    setSmartStorageRunReview(null);
     setFocusedCreatedEntry(result.entry);
     setSelectedContributionSlotId(null);
     setSelectedContributionKnowledgeType(null);
@@ -3246,29 +3274,195 @@ function ComponentScaffold({
     recordNavigatorUsageEvent("contribute", input.contextTags);
     const result = await startSmartStorage({
       body: input.body,
+      ...(input.contributionNote === undefined
+        ? {}
+        : { contributionNote: input.contributionNote }),
       contextTags: input.contextTags,
+      ...(input.externalUrls === undefined
+        ? {}
+        : { externalUrls: input.externalUrls }),
       knowledgeType: input.knowledgeType,
       ...(input.slotId === undefined ? {} : { slotId: input.slotId }),
       title: input.title,
+      ...(input.uploadedFiles === undefined
+        ? {}
+        : { uploadedFiles: toConvexUploadedFiles(input.uploadedFiles) }),
     });
-    const proposalResult = await generateSmartStorageProposal({
+    const modelResult = await executeSmartStorageModelRun({
       smartStorageRunId: result.smartStorageRunId,
     });
 
+    if (
+      modelResult.executionStatus === "proposalCreated" ||
+      modelResult.executionStatus === "existingProposal"
+    ) {
+      const proposalResult = await generateSmartStorageProposal({
+        smartStorageRunId: result.smartStorageRunId,
+      });
+
+      showSmartStorageProposalReview(proposalResult);
+
+      return {
+        contributionSubmissionId: result.contributionSubmissionId,
+        smartStorageProposalId: proposalResult.smartStorageProposalId,
+        smartStorageRunId: result.smartStorageRunId,
+        sourceId: result.sourceId,
+        sourceIds: result.sourceIds,
+        status: "submitted",
+      };
+    }
+
     setFocusedCreatedEntry(null);
-    setSmartStorageProposalReview({
-      currentProposal: proposalResult.currentProposal,
-      id: proposalResult.smartStorageProposalId,
-      smartStorageRunId: proposalResult.smartStorageRunId,
-      sourceId: proposalResult.sourceId,
-      status: proposalResult.status,
+    setSmartStorageProposalReview(null);
+    setSmartStorageRunReview({
+      ...(result.contributionSubmissionId === undefined
+        ? {}
+        : { contributionSubmissionId: result.contributionSubmissionId }),
+      ...(modelResult.errorMessage === undefined
+        ? {}
+        : { errorMessage: modelResult.errorMessage }),
+      smartStorageRunId: result.smartStorageRunId,
+      sourceId: result.sourceId,
+      sourceIds: result.sourceIds,
+      status:
+        modelResult.executionStatus === "noProposal" ? "noProposal" : "failed",
     });
 
     return {
-      smartStorageProposalId: proposalResult.smartStorageProposalId,
+      contributionSubmissionId: result.contributionSubmissionId,
       smartStorageRunId: result.smartStorageRunId,
       sourceId: result.sourceId,
+      sourceIds: result.sourceIds,
       status: "submitted",
+    };
+  }
+
+  async function handleAcceptSmartStorageProposal(
+    proposal: SmartStorageProposalReviewSummary,
+    representationDecisions?: SmartStorageRepresentationDecision[],
+    targetExistingEntryId?: string,
+  ) {
+    const result = await acceptSmartStorageProposal({
+      smartStorageProposalId: proposal.id as Id<"smartStorageProposals">,
+      ...(representationDecisions && representationDecisions.length > 0
+        ? {
+            representationDecisions: representationDecisions.map(
+              (decision) => ({
+                includeAsRepresentation: decision.includeAsRepresentation,
+                isPrimary: decision.isPrimary,
+                representationRole: decision.representationRole,
+                sourceId: decision.sourceId as Id<"sources">,
+              }),
+            ),
+          }
+        : {}),
+      ...(targetExistingEntryId === undefined
+        ? {}
+        : {
+            targetExistingEntryId:
+              targetExistingEntryId as Id<"knowledgeEntries">,
+          }),
+    });
+
+    if (result.acceptanceStatus === "accepted" && result.entry) {
+      setSmartStorageProposalReview(null);
+      setSmartStorageRunReview(null);
+      setFocusedCreatedEntry(result.entry);
+      setSelectedContributionSlotId(null);
+      setSelectedContributionKnowledgeType(null);
+      return;
+    }
+
+    setFocusedCreatedEntry(null);
+    setSmartStorageRunReview(null);
+    setSmartStorageProposalReview({
+      ...proposal,
+      status: "needsResolution",
+      ...(result.existingEntryId === undefined
+        ? {}
+        : { targetExistingEntryId: result.existingEntryId }),
+    });
+  }
+
+  function showSmartStorageProposalReview(
+    proposalResult: Awaited<ReturnType<typeof generateSmartStorageProposal>>,
+  ) {
+    setFocusedCreatedEntry(null);
+    setSmartStorageRunReview(null);
+    setSmartStorageProposalReview({
+      ...(proposalResult.contributionSubmissionId === undefined
+        ? {}
+        : { contributionSubmissionId: proposalResult.contributionSubmissionId }),
+      currentProposal: proposalResult.currentProposal,
+      id: proposalResult.smartStorageProposalId,
+      smartStorageRunId: proposalResult.smartStorageRunId,
+      sourceCitations: proposalResult.sourceCitations,
+      sourceId: proposalResult.sourceId,
+      sourceIds: proposalResult.sourceIds,
+      status: proposalResult.status,
+    });
+  }
+
+  async function handleGenerateSmartStorageScaffold(
+    review: SmartStorageRunReviewSummary,
+  ) {
+    const proposalResult = await generateSmartStorageProposal({
+      smartStorageRunId: review.smartStorageRunId as Id<"smartStorageRuns">,
+    });
+
+    showSmartStorageProposalReview(proposalResult);
+  }
+
+  function toConvexUploadedFiles(
+    uploadedFiles: NonNullable<ContributionInput["uploadedFiles"]>,
+  ) {
+    return uploadedFiles.map((uploadedFile) => {
+      const { storageId, temporaryUploadId, ...rest } = uploadedFile;
+
+      return {
+        ...rest,
+        storageId: storageId as Id<"_storage">,
+        ...(temporaryUploadId === undefined
+          ? {}
+          : { temporaryUploadId: temporaryUploadId as Id<"temporaryUploads"> }),
+      };
+    });
+  }
+
+  async function handleUploadSmartStorageFile(
+    file: File,
+  ): Promise<SmartStorageUploadedFileInput> {
+    const { uploadUrl } = await generateSmartStorageUploadUrl({});
+    const response = await fetch(uploadUrl, {
+      body: file,
+      headers: {
+        "Content-Type": file.type || "application/octet-stream",
+      },
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      throw new Error("Smart Storage file upload failed.");
+    }
+
+    const uploadResult = (await response.json()) as { storageId?: string };
+    if (!uploadResult.storageId) {
+      throw new Error("Smart Storage file upload did not return a storage ID.");
+    }
+
+    const temporaryUpload = await createSmartStorageTemporaryUploadRecord({
+      ...(file.type ? { contentType: file.type } : {}),
+      fileName: file.name,
+      fileSizeBytes: file.size,
+      storageId: uploadResult.storageId as Id<"_storage">,
+    });
+
+    return {
+      ...(file.type ? { contentType: file.type } : {}),
+      fileName: file.name,
+      fileSizeBytes: file.size,
+      storageId: uploadResult.storageId,
+      temporaryUploadId: temporaryUpload.temporaryUploadId,
     };
   }
 
@@ -3369,14 +3563,22 @@ function ComponentScaffold({
             onNavigateToHref={onNavigateToHref}
             onPostDirect={handleSubmitContribution}
             onStoreSmartly={handleStoreSmartlyContribution}
+            onUploadFile={handleUploadSmartStorageFile}
             selectedKnowledgeType={activeSelectedContributionKnowledgeType}
             slot={selectedSlot}
           />
         ) : null}
         {smartStorageProposalReview ? (
           <SmartStorageProposalReviewPanel
+            onAccept={handleAcceptSmartStorageProposal}
             onNavigateToHref={onNavigateToHref}
             proposal={smartStorageProposalReview}
+          />
+        ) : null}
+        {smartStorageRunReview ? (
+          <SmartStorageRunReviewPanel
+            onGenerateScaffold={handleGenerateSmartStorageScaffold}
+            review={smartStorageRunReview}
           />
         ) : null}
         {focusedCreatedEntry ? (
@@ -3494,18 +3696,164 @@ function hasFixtureContextTagIds(
   );
 }
 
+function SmartStorageRunReviewPanel({
+  onGenerateScaffold,
+  review,
+}: {
+  onGenerateScaffold: (review: SmartStorageRunReviewSummary) => Promise<void>;
+  review: SmartStorageRunReviewSummary;
+}) {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const isFailed = review.status === "failed";
+
+  async function handleGenerateScaffold() {
+    setIsGenerating(true);
+    try {
+      await onGenerateScaffold(review);
+    } finally {
+      setIsGenerating(false);
+    }
+  }
+
+  return (
+    <section
+      aria-label="Smart Storage Run status"
+      className="kb-smart-run-review"
+      role="status"
+    >
+      <header>
+        <div>
+          <p className="kb-eyebrow">Smart Storage Run</p>
+          <h2>
+            {isFailed ? "Model Proposal Failed" : "No Structured Proposal Found"}
+          </h2>
+        </div>
+      </header>
+
+      <p className="kb-smart-run-body">
+        {isFailed
+          ? "The model proposal generation failed."
+          : "No structured proposal was returned."}{" "}
+        Source preserved as Bronze Layer material.
+      </p>
+
+      {review.errorMessage ? (
+        <p className="kb-smart-run-error">{review.errorMessage}</p>
+      ) : null}
+
+      <footer className="kb-smart-proposal-actions">
+        <button
+          className="kb-card-action kb-card-action-primary"
+          disabled={isGenerating}
+          onClick={() => void handleGenerateScaffold()}
+          type="button"
+        >
+          {isGenerating ? (
+            <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
+          ) : (
+            <Sparkles aria-hidden="true" />
+          )}
+          <span>Generate Scaffold Proposal</span>
+        </button>
+      </footer>
+    </section>
+  );
+}
+
 function SmartStorageProposalReviewPanel({
+  onAccept,
   onNavigateToHref,
   proposal,
 }: {
+  onAccept: (
+    proposal: SmartStorageProposalReviewSummary,
+    representationDecisions?: SmartStorageRepresentationDecision[],
+    targetExistingEntryId?: string,
+  ) => Promise<void>;
   onNavigateToHref: (href: string) => void;
   proposal: SmartStorageProposalReviewSummary;
 }) {
   const currentProposal = proposal.currentProposal;
+  const [isAccepting, setIsAccepting] = useState(false);
+  const [representationDecisions, setRepresentationDecisions] = useState<
+    SmartStorageRepresentationDecision[]
+  >(() =>
+    getInitialRepresentationDecisions(proposal),
+  );
+  const citationSourceIdsKey = proposal.sourceCitations
+    .map(
+      (citation) =>
+        `${citation.sourceId}:${citation.citationKind}:${citation.locator ?? ""}:${citation.externalUrl ?? ""}`,
+    )
+    .join("|");
+  const representationDecisionBySourceId = new Map(
+    representationDecisions.map((decision) => [decision.sourceId, decision]),
+  );
+  const includedRepresentationDecisions = representationDecisions.filter(
+    (decision) => decision.includeAsRepresentation,
+  );
+  const hasSelectableCitations = proposal.sourceCitations.length > 0;
+  const isTargetExisting =
+    proposal.status === "needsResolution" &&
+    proposal.targetExistingEntryId !== undefined;
+  const hasPrimaryRepresentation = includedRepresentationDecisions.some(
+    (decision) => decision.isPrimary,
+  );
+  const disablesAccept =
+    isAccepting ||
+    proposal.status === "accepted" ||
+    (hasSelectableCitations &&
+      (includedRepresentationDecisions.length === 0 || !hasPrimaryRepresentation));
+
+  useEffect(() => {
+    setRepresentationDecisions(getInitialRepresentationDecisions(proposal));
+  }, [proposal.id, citationSourceIdsKey]);
 
   function handleTagClick(event: MouseEvent<HTMLAnchorElement>, href: string) {
     event.preventDefault();
     onNavigateToHref(href);
+  }
+
+  async function handleAcceptProposal() {
+    setIsAccepting(true);
+    try {
+      await onAccept(
+        proposal,
+        hasSelectableCitations ? representationDecisions : undefined,
+        isTargetExisting ? proposal.targetExistingEntryId : undefined,
+      );
+    } finally {
+      setIsAccepting(false);
+    }
+  }
+
+  function handleSourceSelectionChange(sourceId: string, selected: boolean) {
+    setRepresentationDecisions((current) =>
+      setRepresentationDecisionInclusion(current, sourceId, selected),
+    );
+  }
+
+  function handleRepresentationRoleChange(
+    sourceId: string,
+    representationRole: string,
+  ) {
+    if (!isRepresentationRole(representationRole)) {
+      return;
+    }
+
+    setRepresentationDecisions((current) =>
+      current.map((decision) =>
+        decision.sourceId === sourceId
+          ? { ...decision, representationRole }
+          : decision,
+      ),
+    );
+  }
+
+  function handlePrimaryRepresentationChange(sourceId: string) {
+    setRepresentationDecisions((current) =>
+      setPrimaryRepresentationDecision(current, sourceId),
+    );
   }
 
   return (
@@ -3536,7 +3884,7 @@ function SmartStorageProposalReviewPanel({
         </div>
         <div>
           <dt>Status</dt>
-          <dd>Draft Proposal</dd>
+          <dd>{formatSmartStorageProposalStatus(proposal)}</dd>
         </div>
       </dl>
 
@@ -3558,8 +3906,285 @@ function SmartStorageProposalReviewPanel({
           ))}
         </ul>
       ) : null}
+
+      {proposal.sourceCitations.length > 0 ? (
+        <ul
+          aria-label="Smart Storage Proposal Source citations"
+          className="kb-smart-proposal-citations"
+        >
+          {proposal.sourceCitations.map((citation, index) => {
+            const decision = representationDecisionBySourceId.get(citation.sourceId) ?? {
+              includeAsRepresentation: false,
+              isPrimary: false,
+              representationRole: getDefaultRepresentationRole(citation),
+              sourceId: citation.sourceId,
+            };
+            const sourceLabel = `${formatSourceCitationKind(citation.citationKind)} ${
+              index + 1
+            }`;
+
+            return (
+            <li key={citation.id}>
+              <label className="kb-smart-proposal-citation-toggle">
+                <input
+                  checked={decision.includeAsRepresentation}
+                  onChange={(event) =>
+                    handleSourceSelectionChange(
+                      citation.sourceId,
+                      event.currentTarget.checked,
+                    )
+                  }
+                  type="checkbox"
+                />
+                <span className="kb-smart-proposal-citation-copy">
+                  <strong>{formatSourceCitationKind(citation.citationKind)}</strong>
+                  <small>
+                    {citation.excerptText ??
+                      citation.locator ??
+                      citation.externalUrl ??
+                      citation.rationale ??
+                      "Submitted Source"}
+                  </small>
+                </span>
+              </label>
+              <div className="kb-smart-proposal-citation-controls">
+                <label className="kb-smart-proposal-role-field">
+                  <span>Representation Role</span>
+                  <select
+                    aria-label={`Representation Role for ${sourceLabel}`}
+                    disabled={!decision.includeAsRepresentation}
+                    onChange={(event) =>
+                      handleRepresentationRoleChange(
+                        citation.sourceId,
+                        event.currentTarget.value,
+                      )
+                    }
+                    value={decision.representationRole}
+                  >
+                    {REPRESENTATION_ROLE_OPTIONS.map((role) => (
+                      <option key={role} value={role}>
+                        {formatRepresentationRole(role)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="kb-smart-proposal-primary-field">
+                  <input
+                    checked={decision.isPrimary}
+                    disabled={!decision.includeAsRepresentation}
+                    name={`primary-representation-${proposal.id}`}
+                    onChange={() =>
+                      handlePrimaryRepresentationChange(citation.sourceId)
+                    }
+                    type="radio"
+                  />
+                  <span>Primary Representation</span>
+                </label>
+              </div>
+            </li>
+            );
+          })}
+        </ul>
+      ) : null}
+
+      <footer className="kb-smart-proposal-actions">
+        <button
+          className="kb-card-action kb-card-action-primary"
+          disabled={disablesAccept}
+          onClick={() => void handleAcceptProposal()}
+          type="button"
+        >
+          {isAccepting ? (
+            <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
+          ) : (
+            <Check aria-hidden="true" />
+          )}
+          <span>{isTargetExisting ? "Add to Existing Entry" : "Accept Proposal"}</span>
+        </button>
+      </footer>
     </section>
   );
+}
+
+function formatSmartStorageProposalStatus(
+  proposal: SmartStorageProposalReviewSummary,
+) {
+  if (proposal.status === "needsResolution" && proposal.targetExistingEntryId) {
+    return "Target Exists";
+  }
+
+  if (proposal.status === "accepted") {
+    return "Accepted";
+  }
+
+  return "Draft Proposal";
+}
+
+function getInitialRepresentationDecisions(
+  proposal: SmartStorageProposalReviewSummary,
+): SmartStorageRepresentationDecision[] {
+  const decisions: SmartStorageRepresentationDecision[] = [];
+  const seenSourceIds = new Set<string>();
+
+  for (const citation of proposal.sourceCitations) {
+    if (seenSourceIds.has(citation.sourceId)) {
+      continue;
+    }
+
+    seenSourceIds.add(citation.sourceId);
+    decisions.push({
+      includeAsRepresentation: true,
+      isPrimary: decisions.length === 0,
+      representationRole: getDefaultRepresentationRole(citation),
+      sourceId: citation.sourceId,
+    });
+  }
+
+  return decisions;
+}
+
+function setRepresentationDecisionInclusion(
+  decisions: SmartStorageRepresentationDecision[],
+  sourceId: string,
+  includeAsRepresentation: boolean,
+) {
+  const updated = decisions.map((decision) =>
+    decision.sourceId === sourceId
+      ? {
+          ...decision,
+          includeAsRepresentation,
+          isPrimary: includeAsRepresentation ? decision.isPrimary : false,
+        }
+      : decision,
+  );
+
+  if (
+    includeAsRepresentation &&
+    !updated.some((decision) => decision.includeAsRepresentation && decision.isPrimary)
+  ) {
+    return updated.map((decision) =>
+      decision.sourceId === sourceId ? { ...decision, isPrimary: true } : decision,
+    );
+  }
+
+  if (
+    !includeAsRepresentation &&
+    !updated.some((decision) => decision.includeAsRepresentation && decision.isPrimary)
+  ) {
+    const fallbackPrimary = updated.find(
+      (decision) => decision.includeAsRepresentation,
+    );
+
+    if (fallbackPrimary) {
+      return updated.map((decision) =>
+        decision.sourceId === fallbackPrimary.sourceId
+          ? { ...decision, isPrimary: true }
+          : decision,
+      );
+    }
+  }
+
+  return updated;
+}
+
+function setPrimaryRepresentationDecision(
+  decisions: SmartStorageRepresentationDecision[],
+  sourceId: string,
+) {
+  return decisions.map((decision) =>
+    decision.sourceId === sourceId
+      ? { ...decision, includeAsRepresentation: true, isPrimary: true }
+      : { ...decision, isPrimary: false },
+  );
+}
+
+function getDefaultRepresentationRole(
+  citation: SmartStorageProposalReviewSummary["sourceCitations"][number],
+): RepresentationRole {
+  if (citation.citationKind === "externalUrl") {
+    return "supportingMaterial";
+  }
+
+  if (citation.citationKind === "fileLocator") {
+    return inferFileRepresentationRoleFromLocator(citation.locator);
+  }
+
+  return "primaryContent";
+}
+
+function inferFileRepresentationRoleFromLocator(locator?: string): RepresentationRole {
+  const value = locator?.toLowerCase() ?? "";
+
+  if (
+    value.endsWith(".mp3") ||
+    value.endsWith(".mp4") ||
+    value.endsWith(".mov") ||
+    value.endsWith(".m4a") ||
+    value.endsWith(".wav") ||
+    value.endsWith(".webm")
+  ) {
+    return "recording";
+  }
+
+  if (
+    value.endsWith(".ppt") ||
+    value.endsWith(".pptx") ||
+    value.endsWith(".key")
+  ) {
+    return "slides";
+  }
+
+  if (
+    value.endsWith(".jpg") ||
+    value.endsWith(".jpeg") ||
+    value.endsWith(".png") ||
+    value.endsWith(".gif") ||
+    value.endsWith(".webp")
+  ) {
+    return "thumbnail";
+  }
+
+  if (value.includes("transcript")) {
+    return "transcript";
+  }
+
+  if (value.includes("manuscript")) {
+    return "manuscript";
+  }
+
+  return "supportingMaterial";
+}
+
+function isRepresentationRole(value: string): value is RepresentationRole {
+  return (REPRESENTATION_ROLE_OPTIONS as readonly string[]).includes(value);
+}
+
+function formatRepresentationRole(role: RepresentationRole) {
+  const labels = {
+    manuscript: "Manuscript",
+    primaryContent: "Primary Content",
+    recording: "Recording",
+    slides: "Slides",
+    supportingMaterial: "Supporting Material",
+    thumbnail: "Thumbnail",
+    transcript: "Transcript",
+    unspecified: "Unspecified",
+  } satisfies Record<RepresentationRole, string>;
+
+  return labels[role];
+}
+
+function formatSourceCitationKind(
+  citationKind: SmartStorageProposalReviewSummary["sourceCitations"][number]["citationKind"],
+) {
+  const labels = {
+    externalUrl: "External URL",
+    fileLocator: "File",
+    textExcerpt: "Text Excerpt",
+    wholeSource: "Whole Source",
+  } satisfies Record<typeof citationKind, string>;
+
+  return labels[citationKind];
 }
 
 function formatProposalConfidence(
@@ -4722,7 +5347,9 @@ function OrganizationSettingsPage({
         role: roleValue,
       });
       setMemberSetupSuccess(
-        `Saved ${result.name} as ${formatMembershipRole(result.role)}.`,
+        result.status === "pending"
+          ? `Saved ${result.name} as pending ${formatMembershipRole(result.role).toLowerCase()}.`
+          : `Saved ${result.name} as ${formatMembershipRole(result.role)}.`,
       );
       form.reset();
     } catch (caughtError) {
@@ -4807,7 +5434,7 @@ function OrganizationSettingsPage({
                   onSubmit={(event) => void handleAddOrganizationMember(event)}
                 >
                   <label className="kb-org-member-field">
-                    <span>User email</span>
+                    <span>Member email</span>
                     <input
                       autoComplete="email"
                       disabled={isAddingMember || didMissOrganization}
@@ -4872,12 +5499,16 @@ function OrganizationSettingsPage({
                           <strong>{member.name}</strong>
                           <span>{member.email ?? "No email on account"}</span>
                         </div>
-                        <small>{formatMembershipRole(member.role)}</small>
+                        <small>
+                          {member.status === "pending"
+                            ? `Pending ${formatMembershipRole(member.role)}`
+                            : formatMembershipRole(member.role)}
+                        </small>
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="kb-settings-empty">No active members.</p>
+                  <p className="kb-settings-empty">No members.</p>
                 )}
               </>
             ) : (

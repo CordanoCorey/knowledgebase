@@ -1,0 +1,3 @@
+# Use Contribution Submissions as Smart Storage Parents
+
+Multi-source Smart Storage contributions will be persisted under durable Contribution Submission parent records rather than grouped only by standalone Sources or transient composer state. This adds a parent workflow table before advanced extraction exists, but it preserves the user's single contribution intent, Primary Intended Entry, Review Scope, intended Visibility Scope, Contribution Note, Source inventory, runs, proposals, and later one-at-a-time acceptance in one reviewable spine. Simple direct posts can still create Gold Layer Knowledge Entries without durable Contribution Submission workflow state.

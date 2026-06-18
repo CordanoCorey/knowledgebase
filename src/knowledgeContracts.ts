@@ -47,6 +47,59 @@ export const AUTHORABLE_KNOWLEDGE_TYPES = [
   "place",
 ] as const satisfies readonly AuthorableKnowledgeType[];
 
+export const WEIGHT_BEARING_KNOWLEDGE_TYPES = [
+  "words",
+  "question",
+  "quote",
+  "sermon",
+  "essay",
+  "poem",
+  "song",
+  "book",
+  "shortStory",
+  "lesson",
+  "comment",
+  "prayerRequest",
+  "series",
+  "event",
+] as const satisfies readonly AuthorableKnowledgeType[];
+
+export type WeightBearingKnowledgeType =
+  (typeof WEIGHT_BEARING_KNOWLEDGE_TYPES)[number];
+
+export const NON_WEIGHT_BEARING_KNOWLEDGE_TYPES = [
+  "rsvp",
+  "person",
+  "organization",
+  "group",
+  "place",
+  "topic",
+] as const satisfies readonly AuthorableKnowledgeType[];
+
+export type NonWeightBearingKnowledgeType =
+  (typeof NON_WEIGHT_BEARING_KNOWLEDGE_TYPES)[number];
+
+export const HUMAN_WEIGHT_EXPECTATION_LEVELS = [
+  "none",
+  "informative",
+  "expected",
+  "required",
+] as const;
+
+export type HumanWeightExpectation =
+  (typeof HUMAN_WEIGHT_EXPECTATION_LEVELS)[number];
+
+export const HUMAN_WEIGHT_BANDS = [
+  { id: "slop", label: "Slop", min: 0, max: 19 },
+  { id: "assisted", label: "Assisted", min: 20, max: 39 },
+  { id: "shaped", label: "Shaped", min: 40, max: 59 },
+  { id: "substantial", label: "Substantial", min: 60, max: 79 },
+  { id: "weighty", label: "Weighty", min: 80, max: 94 },
+  { id: "soul", label: "Soul", min: 95, max: 100 },
+] as const;
+
+export type HumanWeightBand = (typeof HUMAN_WEIGHT_BANDS)[number];
+
 export type GenericContributionKnowledgeType = Exclude<
   AuthorableKnowledgeType,
   "rsvp"
@@ -87,7 +140,7 @@ export type KnowledgeEntrySummary = {
   previewText: string;
   primaryTagLabel: string;
   contextPreviewTagLabels: string[];
-  humanWeight: number;
+  humanWeight?: number;
   href: string;
   updatedAt: number;
 };
@@ -138,13 +191,35 @@ export type KnowledgeSlotSummary = {
 
 export type ContributionInput = {
   body: string;
+  contributionNote?: string;
   contextTags: ActiveTag[];
+  externalUrls?: SmartStorageExternalUrlInput[];
   knowledgeType: AuthorableKnowledgeType;
   slotId?: string;
   title: string;
+  uploadedFiles?: SmartStorageUploadedFileInput[];
 };
 
 export type ProposalConfidence = "low" | "medium" | "high";
+
+export type SmartStorageUploadedFileInput = {
+  contentType?: string;
+  fileName: string;
+  fileSizeBytes?: number;
+  languageCode?: string;
+  storageId: string;
+  temporaryUploadId?: string;
+  title?: string;
+};
+
+export type SmartStorageExternalUrlInput = {
+  linkPreviewDescription?: string;
+  linkPreviewImageUrl?: string;
+  linkPreviewSiteName?: string;
+  linkPreviewTitle?: string;
+  title?: string;
+  url: string;
+};
 
 export type SmartStorageProposedEntrySummary = {
   bodyPreview: string;
@@ -155,19 +230,55 @@ export type SmartStorageProposedEntrySummary = {
   title: string;
 };
 
+export type SmartStorageProposalSourceCitationSummary = {
+  citationKind: "wholeSource" | "textExcerpt" | "fileLocator" | "externalUrl";
+  excerptText?: string;
+  externalUrl?: string;
+  id: string;
+  locator?: string;
+  rationale?: string;
+  sourceId: string;
+};
+
+export const REPRESENTATION_ROLE_OPTIONS = [
+  "unspecified",
+  "primaryContent",
+  "manuscript",
+  "slides",
+  "transcript",
+  "recording",
+  "thumbnail",
+  "supportingMaterial",
+] as const;
+
+export type RepresentationRole = (typeof REPRESENTATION_ROLE_OPTIONS)[number];
+
+export type SmartStorageRepresentationDecision = {
+  includeAsRepresentation: boolean;
+  isPrimary: boolean;
+  representationRole: RepresentationRole;
+  sourceId: string;
+};
+
 export type SmartStorageProposalReviewSummary = {
+  contributionSubmissionId?: string;
   currentProposal: SmartStorageProposedEntrySummary;
   id: string;
   smartStorageRunId: string;
+  sourceCitations: SmartStorageProposalSourceCitationSummary[];
   sourceId: string;
-  status: "drafted";
+  sourceIds: string[];
+  status: "drafted" | "needsResolution" | "accepted";
+  targetExistingEntryId?: string;
 };
 
 export type ContributionResult = {
+  contributionSubmissionId?: string;
   entryId?: string;
   smartStorageProposalId?: string;
   smartStorageRunId?: string;
   sourceId?: string;
+  sourceIds?: string[];
   status: "submitted";
 };
 
@@ -229,6 +340,14 @@ const AUTHORABLE_KNOWLEDGE_TYPE_SET = new Set<KnowledgeType>(
   AUTHORABLE_KNOWLEDGE_TYPES,
 );
 
+const WEIGHT_BEARING_KNOWLEDGE_TYPE_SET = new Set<KnowledgeType>(
+  WEIGHT_BEARING_KNOWLEDGE_TYPES,
+);
+
+const NON_WEIGHT_BEARING_KNOWLEDGE_TYPE_SET = new Set<KnowledgeType>(
+  NON_WEIGHT_BEARING_KNOWLEDGE_TYPES,
+);
+
 export function isAuthorableKnowledgeType(
   knowledgeType: KnowledgeType | string | null | undefined,
 ): knowledgeType is AuthorableKnowledgeType {
@@ -236,4 +355,43 @@ export function isAuthorableKnowledgeType(
     typeof knowledgeType === "string" &&
     AUTHORABLE_KNOWLEDGE_TYPE_SET.has(knowledgeType as KnowledgeType)
   );
+}
+
+export function isWeightBearingKnowledgeType(
+  knowledgeType: KnowledgeType,
+): knowledgeType is WeightBearingKnowledgeType {
+  return WEIGHT_BEARING_KNOWLEDGE_TYPE_SET.has(knowledgeType);
+}
+
+export function isNonWeightBearingKnowledgeType(
+  knowledgeType: KnowledgeType,
+): knowledgeType is NonWeightBearingKnowledgeType {
+  return NON_WEIGHT_BEARING_KNOWLEDGE_TYPE_SET.has(knowledgeType);
+}
+
+export function getDefaultHumanWeightExpectation(
+  knowledgeType: KnowledgeType,
+): HumanWeightExpectation {
+  return isWeightBearingKnowledgeType(knowledgeType) ? "informative" : "none";
+}
+
+export function getHumanWeightBand(
+  humanWeight: number | undefined,
+): HumanWeightBand | undefined {
+  if (humanWeight === undefined) {
+    return undefined;
+  }
+
+  return HUMAN_WEIGHT_BANDS.find(
+    (band) => humanWeight >= band.min && humanWeight <= band.max,
+  );
+}
+
+export function getApplicableHumanWeight(entry: {
+  humanWeight?: number;
+  knowledgeType: KnowledgeType;
+}) {
+  return isWeightBearingKnowledgeType(entry.knowledgeType)
+    ? entry.humanWeight
+    : undefined;
 }

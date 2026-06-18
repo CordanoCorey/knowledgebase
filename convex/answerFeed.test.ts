@@ -10,6 +10,7 @@ import schema from "./schema";
 const modules = {
   ...import.meta.glob("./_generated/*.*s"),
   "./answerFeed.ts": () => import("./answerFeed"),
+  "./lib/typeBehavior.ts": () => import("./lib/typeBehavior"),
 };
 
 const BASE_TIME = Date.UTC(2026, 5, 1, 12);
@@ -33,6 +34,7 @@ describe("Answer Feed backend adapter", () => {
       "High Weight Matching Lesson",
       "Extra Tag Matching Answer",
       "Lower Weight Matching Answer",
+      "Non Weight Matching Topic",
     ]);
     expect(answerTitles).not.toContain("Missing Holy Spirit Answer");
   });
@@ -85,6 +87,17 @@ describe("Answer Feed backend adapter", () => {
           item.kind === "slot" && item.slot.title === "Missing Holy Spirit Slot",
       ),
     ).toBe(false);
+
+    const nonWeightBearingItem = feedItems.find(
+      (item) =>
+        item.kind === "answer" && item.entry.title === "Non Weight Matching Topic",
+    );
+    expect(nonWeightBearingItem?.kind).toBe("answer");
+    if (nonWeightBearingItem?.kind !== "answer") {
+      throw new Error("Expected non-weight-bearing topic Answer in feed.");
+    }
+    expect(nonWeightBearingItem.entry.knowledgeType).toBe("topic");
+    expect(nonWeightBearingItem.entry).not.toHaveProperty("humanWeight");
   });
 
   test("ranks context experts from reliable matching contributors", async () => {
@@ -197,6 +210,16 @@ async function seedAnswerFeedRows(ctx: MutationCtx) {
     title: "High Weight Matching Lesson",
     updatedAt: BASE_TIME + 3,
   });
+  const nonWeightBearingTopic = await insertEntry(ctx, {
+    contextTagIds: [romans.tagId, holySpirit.tagId],
+    contextPreviewTagLabels: ["Romans 8:28", "Holy Spirit"],
+    createdByUserId: benUserId,
+    humanWeight: 100,
+    knowledgeType: "topic",
+    previewText: "A non-weight-bearing topic preview.",
+    title: "Non Weight Matching Topic",
+    updatedAt: BASE_TIME + 5,
+  });
   const missingHolySpirit = await insertEntry(ctx, {
     contextTagIds: [romans.tagId],
     contextPreviewTagLabels: ["Romans 8:28"],
@@ -226,6 +249,7 @@ async function seedAnswerFeedRows(ctx: MutationCtx) {
       highWeight,
       lowerWeight,
       missingHolySpirit,
+      nonWeightBearingTopic,
     },
     slots: {
       matching: matchingSlot,
