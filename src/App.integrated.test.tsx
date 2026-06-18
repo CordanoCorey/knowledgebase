@@ -46,7 +46,18 @@ const mockState = vi.hoisted(() => ({
     isAuthenticated: true,
     isLoading: false,
   },
+  organizationMembershipMembers: [] as unknown[],
   mutationCalls: [] as unknown[],
+  actionCalls: [] as unknown[],
+  smartStorageModelRunResult: {
+    executionStatus: "proposalCreated",
+    smartStorageProposalId: "smart-storage-proposal-raw-chapel-notes",
+    smartStorageRunId: "smart-storage-run-raw-chapel-notes",
+    status: "drafted",
+  } as Record<string, unknown>,
+  smartStorageAcceptReturnsTargetExists: false,
+  smartStorageSourceIds: ["source-raw-chapel-notes"] as string[],
+  smartStorageStartInput: null as Record<string, unknown> | null,
   pinnedKnowledgePages: [
     {
       href: "/organizations/organizationReferent",
@@ -215,6 +226,23 @@ vi.mock("@convex-dev/auth/react", () => ({
 }));
 
 vi.mock("convex/react", () => ({
+  useAction: (action: unknown) => async (args: unknown) => {
+    const functionName = getFunctionName(action);
+    mockState.actionCalls.push(
+      args && typeof args === "object"
+        ? { ...args, functionName }
+        : { args, functionName },
+    );
+
+    if (functionName === "smartStorage:executeModelRun") {
+      return {
+        ...mockState.smartStorageModelRunResult,
+        smartStorageRunId: "smart-storage-run-raw-chapel-notes",
+      };
+    }
+
+    return {};
+  },
   useMutation: (mutation: unknown) => async (args: unknown) => {
     const functionName = getFunctionName(mutation);
     mockState.mutationCalls.push(
@@ -446,6 +474,22 @@ vi.mock("convex/react", () => ({
       };
     }
     if (
+      functionName === "organizationAccounts:addOrganizationMember" &&
+      args &&
+      typeof args === "object" &&
+      "email" in args &&
+      "role" in args
+    ) {
+      const email = String(args.email).trim().toLowerCase();
+      return {
+        email,
+        membershipId: `membership:${email}`,
+        name: email,
+        role: args.role,
+        status: "pending",
+      };
+    }
+    if (
       functionName === "userNotifications:markRead" &&
       args &&
       typeof args === "object" &&
@@ -526,27 +570,145 @@ vi.mock("convex/react", () => ({
       return result;
     }
     if (functionName === "smartStorage:startFromContribution") {
+      const startInput =
+        args && typeof args === "object"
+          ? (args as Record<string, unknown>)
+          : {};
+      const sourceIds = ["source-raw-chapel-notes"];
+      if (
+        Array.isArray(startInput.externalUrls) &&
+        startInput.externalUrls.length > 0
+      ) {
+        sourceIds.push("source-external-url-1");
+      }
+      if (
+        Array.isArray(startInput.uploadedFiles) &&
+        startInput.uploadedFiles.length > 0
+      ) {
+        sourceIds.push("source-uploaded-file-1");
+      }
+      mockState.smartStorageStartInput = startInput;
+      mockState.smartStorageSourceIds = sourceIds;
+
       return {
+        contributionSubmissionId:
+          "contribution-submission-raw-chapel-notes",
         smartStorageRunId: "smart-storage-run-raw-chapel-notes",
-        sourceId: "source-raw-chapel-notes",
+        sourceId: sourceIds[0],
+        sourceIds,
         status: "queued",
       };
     }
-    if (functionName === "smartStorage:generateDraftProposalForRun") {
+    if (functionName === "smartStorage:generateUploadUrl") {
       return {
+        uploadUrl: "https://upload.example/convex-storage",
+      };
+    }
+    if (functionName === "smartStorage:createTemporaryUploadRecord") {
+      return {
+        temporaryUploadId: "temporary-upload-chapel-program",
+        uploadStatus: "uploaded",
+      };
+    }
+    if (functionName === "smartStorage:generateDraftProposalForRun") {
+      const startInput = mockState.smartStorageStartInput ?? {};
+      const body = String(
+        startInput.body ?? "A source that should be preserved before enrichment.",
+      );
+      const title = String(startInput.title ?? "Raw chapel notes");
+      const externalUrls = Array.isArray(startInput.externalUrls)
+        ? (startInput.externalUrls as Array<{ url?: unknown }>)
+        : [];
+      const uploadedFiles = Array.isArray(startInput.uploadedFiles)
+        ? (startInput.uploadedFiles as Array<{ fileName?: unknown }>)
+        : [];
+
+      return {
+        contributionSubmissionId:
+          "contribution-submission-raw-chapel-notes",
         currentProposal: {
-          bodyPreview: "A source that should be preserved before enrichment.",
+          bodyPreview: body,
           contextTags: [],
           knowledgeType: "words",
           proposalConfidence: "medium",
           rationale:
             "Deterministic MVP proposal generated from the submitted Source and requested Knowledge Type.",
-          title: "Raw chapel notes",
+          title,
         },
         smartStorageProposalId: "smart-storage-proposal-raw-chapel-notes",
         smartStorageRunId: "smart-storage-run-raw-chapel-notes",
+        sourceCitations: [
+          {
+            citationKind: "textExcerpt",
+            excerptText: body,
+            id: "proposal-source-citation-raw-chapel-notes",
+            rationale: "Authored Text Source preserved with the submission.",
+            sourceId: "source-raw-chapel-notes",
+          },
+          ...externalUrls.map((externalUrl, index) => ({
+            citationKind: "externalUrl" as const,
+            externalUrl: String(externalUrl.url ?? ""),
+            id: `proposal-source-citation-external-url-${index + 1}`,
+            rationale: "External URL Source preserved with the submission.",
+            sourceId: `source-external-url-${index + 1}`,
+          })),
+          ...uploadedFiles.map((uploadedFile, index) => ({
+            citationKind: "fileLocator" as const,
+            id: `proposal-source-citation-uploaded-file-${index + 1}`,
+            locator: String(uploadedFile.fileName ?? "Uploaded file"),
+            rationale: "Uploaded file Source preserved with the submission.",
+            sourceId: `source-uploaded-file-${index + 1}`,
+          })),
+        ],
         sourceId: "source-raw-chapel-notes",
+        sourceIds: mockState.smartStorageSourceIds,
         status: "drafted",
+      };
+    }
+    if (functionName === "smartStorage:acceptScaffoldProposal") {
+      const acceptInput =
+        args && typeof args === "object" ? (args as Record<string, unknown>) : {};
+      if (
+        mockState.smartStorageAcceptReturnsTargetExists &&
+        acceptInput.targetExistingEntryId === undefined
+      ) {
+        return {
+          acceptanceStatus: "targetExists",
+          existingEntryId: "entry-existing-raw-chapel-notes",
+          smartStorageProposalId: "smart-storage-proposal-raw-chapel-notes",
+          status: "needsResolution",
+        };
+      }
+
+      const entry = {
+        contributor: {
+          id: "user",
+          name: "Caleb Gelbaugh",
+        },
+        contextPreviewTagLabels: [],
+        href: "/entries/entry-raw-chapel-notes",
+        humanWeight: 60,
+        id: "entry-raw-chapel-notes",
+        knowledgeType: "words",
+        previewText: "A source that should be preserved before enrichment.",
+        primaryTagLabel: "Raw chapel notes",
+        title: "Raw chapel notes",
+        updatedAt: Date.UTC(2026, 5, 12, 15),
+      };
+      mockState.answerFeedItems = [
+        {
+          kind: "answer",
+          contextTagIds: [],
+          entry,
+        },
+        ...mockState.answerFeedItems,
+      ];
+      return {
+        acceptanceStatus: "accepted",
+        entry,
+        entryId: entry.id,
+        smartStorageProposalId: "smart-storage-proposal-raw-chapel-notes",
+        status: "accepted",
       };
     }
     return {};
@@ -684,8 +846,10 @@ vi.mock("convex/react", () => ({
             membershipId: `membership:${organization.organizationReferentId}`,
             name: "Caleb Gelbaugh",
             role: organization.role,
+            status: "active",
             userId: (mockState.appAccess as { userId?: string }).userId ?? "user",
           },
+          ...mockState.organizationMembershipMembers,
         ],
         name: organization.name,
         organizationEntryId: organization.organizationEntryId,
@@ -943,15 +1107,33 @@ function compareMockAnswerFeedItems(left: unknown, right: unknown) {
 
   if (leftKind === "answer") {
     return (
-      getMockEntryNumber(right, "humanWeight") -
-        getMockEntryNumber(left, "humanWeight") ||
-      getMockEntryNumber(right, "updatedAt") -
-        getMockEntryNumber(left, "updatedAt") ||
+      compareMockEntryHumanWeight(left, right) ||
+      (getMockEntryNumber(right, "updatedAt") ?? 0) -
+        (getMockEntryNumber(left, "updatedAt") ?? 0) ||
       getMockEntryTitle(left).localeCompare(getMockEntryTitle(right))
     );
   }
 
   return getMockSlotTitle(left).localeCompare(getMockSlotTitle(right));
+}
+
+function compareMockEntryHumanWeight(left: unknown, right: unknown) {
+  const leftHumanWeight = getMockEntryNumber(left, "humanWeight");
+  const rightHumanWeight = getMockEntryNumber(right, "humanWeight");
+
+  if (leftHumanWeight !== undefined && rightHumanWeight !== undefined) {
+    return rightHumanWeight - leftHumanWeight;
+  }
+
+  if (leftHumanWeight !== undefined) {
+    return -1;
+  }
+
+  if (rightHumanWeight !== undefined) {
+    return 1;
+  }
+
+  return 0;
 }
 
 function getMockFeedKind(item: unknown) {
@@ -960,7 +1142,10 @@ function getMockFeedKind(item: unknown) {
     : "";
 }
 
-function getMockEntryNumber(item: unknown, field: "humanWeight" | "updatedAt") {
+function getMockEntryNumber(
+  item: unknown,
+  field: "humanWeight" | "updatedAt",
+): number | undefined {
   if (
     item &&
     typeof item === "object" &&
@@ -972,7 +1157,7 @@ function getMockEntryNumber(item: unknown, field: "humanWeight" | "updatedAt") {
     return Number((item.entry as Record<string, unknown>)[field]);
   }
 
-  return 0;
+  return field === "updatedAt" ? 0 : undefined;
 }
 
 function getMockEntryTitle(item: unknown) {
@@ -1199,7 +1384,17 @@ describe("MVP Explore/Contribute loop", () => {
     ];
     mockState.bookmarkedKnowledgePages = [];
     mockState.knowledgeSubscriptions = [];
+    mockState.organizationMembershipMembers = [];
     mockState.answerFeedItems = getMockInitialAnswerFeedItems();
+    mockState.smartStorageSourceIds = ["source-raw-chapel-notes"];
+    mockState.smartStorageStartInput = null;
+    mockState.smartStorageModelRunResult = {
+      executionStatus: "proposalCreated",
+      smartStorageProposalId: "smart-storage-proposal-raw-chapel-notes",
+      smartStorageRunId: "smart-storage-run-raw-chapel-notes",
+      status: "drafted",
+    };
+    mockState.smartStorageAcceptReturnsTargetExists = false;
     mockState.userNotifications = [
       {
         id: "notice-slot-student-crusades-question",
@@ -1246,6 +1441,7 @@ describe("MVP Explore/Contribute loop", () => {
         status: "read",
       },
     ];
+    mockState.actionCalls = [];
     mockState.mutationCalls = [];
     document.body.innerHTML = "";
     container = document.createElement("div");
@@ -1259,6 +1455,7 @@ describe("MVP Explore/Contribute loop", () => {
         root?.unmount();
       });
     }
+    vi.unstubAllGlobals();
   });
 
   test("navigates from Scripture Explore to Slot Contribute and returns the contribution as an Answer", async () => {
@@ -1290,6 +1487,16 @@ describe("MVP Explore/Contribute loop", () => {
       expect(answerItem.textContent).toContain("Matthew 5:9");
       expect(answerItem.textContent).toContain("First Crusade");
     }
+
+    const rail = getLabelledElement("Knowledge context and request");
+    expect(rail.querySelector(".kb-knowledge-navigator")).toBeTruthy();
+    expect(rail.querySelector(".kb-request-composer")).toBeTruthy();
+    expect(rail.querySelector(".kb-slot-card")).toBeNull();
+    expect(rail.querySelector(".kb-placeholder-block")).toBeNull();
+    expect(rail.textContent).not.toContain("Answer Micah's Crusades question");
+    expect(rail.textContent).not.toContain(
+      "No requested entries in this Knowledge Context",
+    );
 
     const slotItem = getFeedItems("slot").find((item) =>
       item.textContent?.includes("Answer Micah's Crusades question"),
@@ -1358,6 +1565,14 @@ describe("MVP Explore/Contribute loop", () => {
 
   test("stores dashboard Smart Storage contributions without direct posting", async () => {
     window.history.replaceState({}, "", "http://localhost:3000/");
+    const uploadedFile = new File(["Friday chapel program"], "chapel-program.pdf", {
+      type: "application/pdf",
+    });
+    const fetchMock = vi.fn(async () => ({
+      json: async () => ({ storageId: "storage-chapel-program" }),
+      ok: true,
+    }));
+    vi.stubGlobal("fetch", fetchMock);
 
     await renderApp();
 
@@ -1369,15 +1584,64 @@ describe("MVP Explore/Contribute loop", () => {
       getTextareaIn(editor),
       "A source that should be preserved before enrichment.",
     );
+    const contributionNote = getTextareasIn(editor)[1];
+    await setFieldValue(
+      contributionNote,
+      "Use the URL and program as supporting material.",
+    );
+    const urlInput = getUrlInputIn(editor);
+    await setFieldValue(urlInput, "https://example.com/chapel-program");
+    await click(getButtonIn(editor, "Add external URL Source"));
+    await setFileInputFiles(getFileInputIn(editor), [uploadedFile]);
+
+    expect(editor.textContent).toContain("Source Inventory");
+    expect(editor.textContent).toContain("https://example.com/chapel-program");
+    expect(editor.textContent).toContain("chapel-program.pdf");
+
     await click(getButtonIn(editor, "Store Smartly"));
 
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://upload.example/convex-storage",
+      expect.objectContaining({
+        body: uploadedFile,
+        headers: {
+          "Content-Type": "application/pdf",
+        },
+        method: "POST",
+      }),
+    );
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        fileName: "chapel-program.pdf",
+        fileSizeBytes: uploadedFile.size,
+        functionName: "smartStorage:createTemporaryUploadRecord",
+        storageId: "storage-chapel-program",
+      }),
+    );
     expect(mockState.mutationCalls).toContainEqual(
       expect.objectContaining({
         body: "A source that should be preserved before enrichment.",
+        contributionNote: "Use the URL and program as supporting material.",
         contextTags: [],
+        externalUrls: [{ url: "https://example.com/chapel-program" }],
         functionName: "smartStorage:startFromContribution",
         knowledgeType: "words",
         title: "Raw chapel notes",
+        uploadedFiles: [
+          expect.objectContaining({
+            contentType: "application/pdf",
+            fileName: "chapel-program.pdf",
+            fileSizeBytes: uploadedFile.size,
+            storageId: "storage-chapel-program",
+            temporaryUploadId: "temporary-upload-chapel-program",
+          }),
+        ],
+      }),
+    );
+    expect(mockState.actionCalls).toContainEqual(
+      expect.objectContaining({
+        functionName: "smartStorage:executeModelRun",
+        smartStorageRunId: "smart-storage-run-raw-chapel-notes",
       }),
     );
     expect(mockState.mutationCalls).toContainEqual(
@@ -1405,11 +1669,209 @@ describe("MVP Explore/Contribute loop", () => {
     expect(proposalReview.textContent).toContain("Proposal Confidence");
     expect(proposalReview.textContent).toContain("Medium");
     expect(proposalReview.textContent).toContain("Draft Proposal");
-    expect(Array.from(proposalReview.querySelectorAll("button"))).toHaveLength(0);
+    expect(proposalReview.textContent).toContain("Text Excerpt");
+    expect(proposalReview.textContent).toContain("External URL");
+    expect(proposalReview.textContent).toContain("File");
     expect(getFeedItems("answer").map(getCardTitle)).not.toContain(
       "Raw chapel notes",
     );
+    const citationCheckboxes = getCheckboxesIn(proposalReview);
+    expect(citationCheckboxes).toHaveLength(3);
+    expect(citationCheckboxes.every((checkbox) => checkbox.checked)).toBe(true);
+    const roleSelects = Array.from(proposalReview.querySelectorAll("select")).map(
+      (select) => {
+        if (!(select instanceof HTMLSelectElement)) {
+          throw new Error("Unexpected representation role select.");
+        }
+
+        return select;
+      },
+    );
+    expect(roleSelects.map((select) => select.value)).toEqual([
+      "primaryContent",
+      "supportingMaterial",
+      "supportingMaterial",
+    ]);
+    const primaryRadios = Array.from(
+      proposalReview.querySelectorAll('input[type="radio"]'),
+    ).map((radio) => {
+      if (!(radio instanceof HTMLInputElement)) {
+        throw new Error("Unexpected primary representation radio.");
+      }
+
+      return radio;
+    });
+    expect(primaryRadios).toHaveLength(3);
+    expect(primaryRadios[0].checked).toBe(true);
+    await toggleCheckbox(citationCheckboxes[1]);
+    expect(roleSelects[1].disabled).toBe(true);
+    await setSelectValue(roleSelects[2], "slides");
+    await toggleCheckbox(primaryRadios[2]);
+
+    await click(getButtonIn(proposalReview, "Accept Proposal"));
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        functionName: "smartStorage:acceptScaffoldProposal",
+        representationDecisions: [
+          {
+            includeAsRepresentation: true,
+            isPrimary: false,
+            representationRole: "primaryContent",
+            sourceId: "source-raw-chapel-notes",
+          },
+          {
+            includeAsRepresentation: false,
+            isPrimary: false,
+            representationRole: "supportingMaterial",
+            sourceId: "source-external-url-1",
+          },
+          {
+            includeAsRepresentation: true,
+            isPrimary: true,
+            representationRole: "slides",
+            sourceId: "source-uploaded-file-1",
+          },
+        ],
+        smartStorageProposalId: "smart-storage-proposal-raw-chapel-notes",
+      }),
+    );
+    expect(getLabelledElement("Created Knowledge Entry").textContent).toContain(
+      "Raw chapel notes",
+    );
+    expect(getFeedItems("answer").map(getCardTitle)).toContain(
+      "Raw chapel notes",
+    );
   });
+
+  test("confirms Smart Storage updates into an existing Gold entry", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/");
+    mockState.smartStorageAcceptReturnsTargetExists = true;
+
+    await renderApp();
+
+    const editor = getContributionEditor();
+    await setFieldValue(getTextInputIn(editor), "Raw chapel notes");
+    await setFieldValue(
+      getTextareaIn(editor),
+      "A source that should update the existing Gold entry.",
+    );
+    await click(getButtonIn(editor, "Store Smartly"));
+
+    let proposalReview = getLabelledElement("Smart Storage Proposal");
+    await click(getButtonIn(proposalReview, "Accept Proposal"));
+
+    proposalReview = getLabelledElement("Smart Storage Proposal");
+    expect(proposalReview.textContent).toContain("Target Exists");
+    expect(getButtonIn(proposalReview, "Add to Existing Entry")).toBeTruthy();
+    expect(getFeedItems("answer").map(getCardTitle)).not.toContain(
+      "Raw chapel notes",
+    );
+
+    await click(getButtonIn(proposalReview, "Add to Existing Entry"));
+
+    const acceptCalls = mockState.mutationCalls.filter(
+      (call): call is Record<string, unknown> =>
+        call !== null &&
+        typeof call === "object" &&
+        "functionName" in call &&
+        call.functionName === "smartStorage:acceptScaffoldProposal",
+    );
+    expect(acceptCalls).toHaveLength(2);
+    expect(acceptCalls[0]).not.toHaveProperty("targetExistingEntryId");
+    expect(acceptCalls[1]).toMatchObject({
+      functionName: "smartStorage:acceptScaffoldProposal",
+      smartStorageProposalId: "smart-storage-proposal-raw-chapel-notes",
+      targetExistingEntryId: "entry-existing-raw-chapel-notes",
+    });
+    expect(acceptCalls[1]).toMatchObject({
+      representationDecisions: [
+        {
+          includeAsRepresentation: true,
+          isPrimary: true,
+          representationRole: "primaryContent",
+          sourceId: "source-raw-chapel-notes",
+        },
+      ],
+    });
+    expect(getLabelledElement("Created Knowledge Entry").textContent).toContain(
+      "Raw chapel notes",
+    );
+  });
+
+  test.each([
+    {
+      errorMessage: "OPENAI_API_KEY is not configured.",
+      executionStatus: "failed",
+      heading: "Model Proposal Failed",
+      message: "The model proposal generation failed.",
+      runStatus: "failed",
+    },
+    {
+      executionStatus: "noProposal",
+      heading: "No Structured Proposal Found",
+      message: "No structured proposal was returned.",
+      runStatus: "noProposal",
+    },
+  ])(
+    "shows explicit Smart Storage $runStatus outcome with deterministic fallback",
+    async ({ errorMessage, executionStatus, heading, message, runStatus }) => {
+      mockState.smartStorageModelRunResult = {
+        ...(errorMessage === undefined ? {} : { errorMessage }),
+        executionStatus,
+        smartStorageRunId: "smart-storage-run-raw-chapel-notes",
+        status: runStatus,
+      };
+
+      await renderApp();
+
+      const editor = getContributionEditor();
+      await setFieldValue(getTextInputIn(editor), "Raw chapel notes");
+      await setFieldValue(
+        getTextareaIn(editor),
+        "A source that should be preserved before enrichment.",
+      );
+      await click(getButtonIn(editor, "Store Smartly"));
+
+      expect(mockState.actionCalls).toContainEqual(
+        expect.objectContaining({
+          functionName: "smartStorage:executeModelRun",
+          smartStorageRunId: "smart-storage-run-raw-chapel-notes",
+        }),
+      );
+      expect(
+        mockState.mutationCalls.some(
+          (call) =>
+            call &&
+            typeof call === "object" &&
+            "functionName" in call &&
+            call.functionName === "smartStorage:generateDraftProposalForRun",
+        ),
+      ).toBe(false);
+
+      const runStatusPanel = getLabelledElement("Smart Storage Run status");
+      expect(runStatusPanel.textContent).toContain(heading);
+      expect(runStatusPanel.textContent).toContain(message);
+      expect(runStatusPanel.textContent).toContain(
+        "Source preserved as Bronze Layer material.",
+      );
+      if (errorMessage !== undefined) {
+        expect(runStatusPanel.textContent).toContain(errorMessage);
+      }
+
+      await click(getButtonIn(runStatusPanel, "Generate Scaffold Proposal"));
+
+      expect(mockState.mutationCalls).toContainEqual(
+        expect.objectContaining({
+          functionName: "smartStorage:generateDraftProposalForRun",
+          smartStorageRunId: "smart-storage-run-raw-chapel-notes",
+        }),
+      );
+      expect(getLabelledElement("Smart Storage Proposal").textContent).toContain(
+        "Raw chapel notes",
+      );
+    },
+  );
 
   test("opens organization settings as an organization subroute", async () => {
     window.history.replaceState(
@@ -1424,6 +1886,18 @@ describe("MVP Explore/Contribute loop", () => {
     expect(container.textContent).toContain("Ministry Queue");
 
     const organizationRoutes = getLabelledElement("Organization subroutes");
+    expect(organizationRoutes.classList.contains("kb-page-subroutes")).toBe(true);
+    expect(organizationRoutes.classList.contains("kb-related-routes")).toBe(false);
+    const organizationMain = container.querySelector(".kb-organization-main");
+    const organizationHero = container.querySelector(".kb-organization-hero");
+    if (!organizationMain || !organizationHero) {
+      throw new Error("Missing organization page structure");
+    }
+    const organizationChildren = Array.from(organizationMain.children);
+    expect(organizationChildren.indexOf(organizationRoutes)).toBeGreaterThan(-1);
+    expect(organizationChildren.indexOf(organizationRoutes)).toBeLessThan(
+      organizationChildren.indexOf(organizationHero),
+    );
     await click(getLinkIn(organizationRoutes, "Settings"));
 
     expect(window.location.pathname).toBe(
@@ -1439,6 +1913,85 @@ describe("MVP Explore/Contribute loop", () => {
         .querySelector('a[aria-label="Ruler of Kings Church"]')
         ?.getAttribute("aria-current"),
     ).toBe("page");
+  });
+
+  test("lets system admins open and manage settings for any visible organization", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "http://localhost:3000/organizations/cedar-hall-school/settings",
+    );
+    mockState.appAccess = {
+      email: "sysadmin@example.com",
+      organizations: [
+        {
+          name: "Cedar Hall School",
+          organizationEntryId: "cedarHallEntry",
+          organizationKind: "school",
+          organizationReferentId: "cedar-hall-school",
+          role: "admin",
+        },
+      ],
+      status: "allowed",
+      systemRole: "systemAdmin",
+      userId: "systemAdminUser",
+    };
+    mockState.pinnedKnowledgePages = [
+      {
+        href: "/organizations/cedar-hall-school",
+        id: "cedar-hall-school",
+        label: "Cedar Hall School",
+        organizationKind: "school",
+        organizationName: "Cedar Hall School",
+        organizationReferentId: "cedar-hall-school",
+        pageKey: "organization:cedar-hall-school",
+        pinSource: "defaultSeed",
+        secondaryLabel: "School",
+        sortOrder: 0,
+      },
+    ];
+    mockState.organizationMembershipMembers = [
+      {
+        email: "pending.teacher@example.com",
+        membershipId: "membership:pending-teacher",
+        name: "pending.teacher@example.com",
+        role: "member",
+        status: "pending",
+      },
+    ];
+
+    await renderApp();
+
+    expect(container.textContent).toContain("Organization Settings");
+    expect(container.textContent).toContain("Cedar Hall School");
+    expect(container.textContent).toContain("Members");
+    expect(container.textContent).toContain("Member email");
+    expect(container.textContent).toContain("pending.teacher@example.com");
+    expect(container.textContent).toContain("Pending Member");
+    expect(container.textContent).not.toContain("Invitation");
+    expect(getButton("Add member")).toBeTruthy();
+
+    const emailInput = container.querySelector('input[name="memberEmail"]');
+    const roleSelect = container.querySelector('select[name="memberRole"]');
+    if (!(emailInput instanceof HTMLInputElement)) {
+      throw new Error("Missing member email input.");
+    }
+    if (!(roleSelect instanceof HTMLSelectElement)) {
+      throw new Error("Missing member role select.");
+    }
+
+    await setFieldValue(emailInput, "teacher@example.com");
+    await setSelectValue(roleSelect, "admin");
+    await click(getButton("Add member"));
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        email: "teacher@example.com",
+        functionName: "organizationAccounts:addOrganizationMember",
+        organizationId: "cedar-hall-school",
+        role: "admin",
+      }),
+    );
   });
 
   test("creates a Group from an organization Create Group action", async () => {
@@ -2009,8 +2562,29 @@ describe("MVP Explore/Contribute loop", () => {
 
     await renderApp();
 
+    const identityBand = container.querySelector(".kb-knowledge-page-identity");
+    expect(identityBand).toBeTruthy();
+    expect(identityBand?.textContent).toContain("Dashboard");
+    expect(identityBand?.textContent).toContain("Global Knowledge Context");
+    expect(container.querySelector(".kb-rail-focus-heading")).toBeNull();
+    expect(container.querySelector(".kb-knowledge-navigator > header")).toBeNull();
+    expect(
+      container.querySelector(".kb-answer-feed-header h2")?.closest(".kb-sr-only"),
+    ).toBeTruthy();
+    const rail = getLabelledElement("Knowledge context and request");
+    expect(rail.querySelector(".kb-knowledge-navigator")).toBeTruthy();
+    expect(rail.querySelector(".kb-request-composer")).toBeTruthy();
+    expect(rail.textContent).toContain("Knowledge Composer");
+    expect(rail.querySelector("textarea")?.getAttribute("placeholder")).toBe(
+      "Ask a Question or Context...",
+    );
+    expect(rail.querySelector(".kb-slot-card")).toBeNull();
+    expect(rail.querySelector(".kb-placeholder-block")).toBeNull();
+    expect(rail.textContent).not.toContain(
+      "No requested entries in this Knowledge Context",
+    );
     expect(container.querySelector(".kb-today-agenda")).toBeTruthy();
-    expect(container.textContent).toContain("Today at Arche Classical Academy");
+    expect(container.textContent).not.toContain("Today at Arche Classical Academy");
     expect(container.textContent).toContain("Friday, June 12, 2026");
     expect(container.textContent).toContain("Answer Micah's Crusades question");
     expect(container.textContent).toContain("Teach Boethius on providence");
@@ -2085,6 +2659,22 @@ describe("MVP Explore/Contribute loop", () => {
 
     await renderApp();
 
+    const identityBand = container.querySelector(".kb-knowledge-page-identity");
+    expect(identityBand).toBeTruthy();
+    expect(identityBand?.textContent).toContain("Referent Page");
+    expect(identityBand?.textContent).toContain("First Crusade");
+    expect(identityBand?.textContent).toContain("Topic");
+    expect(container.querySelector(".kb-rail-focus-heading")).toBeNull();
+    const rail = getLabelledElement("Knowledge context and request");
+    expect(rail.querySelector(".kb-knowledge-navigator")).toBeTruthy();
+    expect(rail.querySelector(".kb-request-composer")).toBeTruthy();
+    expect(rail.textContent).toContain("First Crusade");
+    expect(rail.querySelector(".kb-slot-card")).toBeNull();
+    expect(rail.querySelector(".kb-placeholder-block")).toBeNull();
+    expect(rail.textContent).not.toContain(
+      "No requested entries in this Knowledge Context",
+    );
+
     const overview = container.querySelector(".kb-knowledge-overview");
     expect(overview).toBeTruthy();
     expect(overview?.getAttribute("data-knowledge-type")).toBe("topic");
@@ -2092,6 +2682,57 @@ describe("MVP Explore/Contribute loop", () => {
     expect(overview?.textContent).toContain("Base Words Layer");
     expect(overview?.textContent).toContain("First Crusade");
     expect(overview?.textContent).toContain("Doctrine, theme, or subject.");
+  });
+
+  test("keeps Scripture Text without the generic Bible Passage overview", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "http://localhost:3000/scripture/matthew-5-9",
+    );
+
+    await renderApp();
+
+    const scripturePanel = container.querySelector(".kb-scripture-panel");
+    expect(scripturePanel).toBeTruthy();
+    expect(scripturePanel?.textContent).toContain("Scripture Text");
+    expect(scripturePanel?.textContent).toContain("King James Version");
+    expect(container.querySelector(".kb-knowledge-overview")).toBeNull();
+    expect(container.textContent).not.toContain("Bible Passage Overview");
+    expect(container.textContent).not.toContain("Referent Overview");
+  });
+
+  test("renders compact identity for multi-Tag Context Pages", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "http://localhost:3000/explore?tagIds=first-crusade,matthew-5-9",
+    );
+
+    await renderApp();
+
+    const identityBand = container.querySelector(".kb-knowledge-page-identity");
+    expect(identityBand).toBeTruthy();
+    expect(identityBand?.textContent).toContain("Context Page");
+    expect(identityBand?.textContent).toContain("First Crusade");
+    expect(identityBand?.textContent).toContain("Matthew 5:9");
+    expect(identityBand?.textContent).toContain("2 Tags");
+    expect(container.querySelector(".kb-rail-focus-heading")).toBeNull();
+    const rail = getLabelledElement("Knowledge context and request");
+    expect(rail.querySelector(".kb-knowledge-navigator")).toBeTruthy();
+    expect(rail.querySelector(".kb-request-composer")).toBeTruthy();
+    expect(rail.textContent).toContain("First Crusade");
+    expect(rail.textContent).toContain("Matthew 5:9");
+    expect(rail.querySelector(".kb-slot-card")).toBeNull();
+    expect(rail.querySelector(".kb-placeholder-block")).toBeNull();
+    expect(rail.textContent).not.toContain(
+      "No requested entries in this Knowledge Context",
+    );
+    expect(
+      getFeedItems("slot").some((item) =>
+        item.textContent?.includes("Answer Micah's Crusades question"),
+      ),
+    ).toBe(true);
   });
 
   test("renders the analytics route with visit and navigator summaries", async () => {
@@ -2399,6 +3040,46 @@ describe("MVP Explore/Contribute loop", () => {
     return textarea;
   }
 
+  function getTextareasIn(element: Element) {
+    return Array.from(element.querySelectorAll("textarea")).map((textarea) => {
+      if (!(textarea instanceof HTMLTextAreaElement)) {
+        throw new Error("Unexpected textarea element");
+      }
+
+      return textarea;
+    });
+  }
+
+  function getUrlInputIn(element: Element) {
+    const input = element.querySelector('input[type="url"]');
+    if (!(input instanceof HTMLInputElement)) {
+      throw new Error("Missing URL input");
+    }
+
+    return input;
+  }
+
+  function getFileInputIn(element: Element) {
+    const input = element.querySelector('input[type="file"]');
+    if (!(input instanceof HTMLInputElement)) {
+      throw new Error("Missing file input");
+    }
+
+    return input;
+  }
+
+  function getCheckboxesIn(element: Element) {
+    return Array.from(element.querySelectorAll('input[type="checkbox"]')).map(
+      (checkbox) => {
+        if (!(checkbox instanceof HTMLInputElement)) {
+          throw new Error("Unexpected checkbox input");
+        }
+
+        return checkbox;
+      },
+    );
+  }
+
   function getSelect(label: string) {
     const select = container.querySelector(`select[aria-label="${label}"]`);
     if (!(select instanceof HTMLSelectElement)) {
@@ -2413,6 +3094,30 @@ describe("MVP Explore/Contribute loop", () => {
       element.dispatchEvent(
         new MouseEvent("click", { bubbles: true, cancelable: true }),
       );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  }
+
+  async function toggleCheckbox(element: HTMLInputElement) {
+    await act(async () => {
+      element.click();
+      await Promise.resolve();
+    });
+  }
+
+  async function setFileInputFiles(
+    element: HTMLInputElement,
+    files: File[],
+  ) {
+    await act(async () => {
+      Object.defineProperty(element, "files", {
+        configurable: true,
+        value: files,
+      });
+      element.dispatchEvent(new Event("change", { bubbles: true }));
+      await Promise.resolve();
+      await Promise.resolve();
       await Promise.resolve();
       await Promise.resolve();
     });

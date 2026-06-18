@@ -14,6 +14,12 @@ Weight-bearing Knowledge Entries are rated by Human Weight on a Slop to Soul sca
 
 The MVP weight-bearing Knowledge Types are Words, Question, Quote, Sermon, Essay, Poem, Song, Book, Short Story, Lesson, Comment, Prayer Request, Series, and Event. The MVP non-weight-bearing Knowledge Types are RSVP, Person, Organization, Group, Place, and Topic. Bible Passage is a special case: it has full Soul as Scripture, but it is not an authorable Knowledge Entry type in the MVP.
 
+Low Human Weight means low human substance, but whether that is bad depends on the Human Weight Expectation for the Knowledge Type and workflow. Type Behavior should provide the default Human Weight Expectation, while workflows such as Knowledge Slots may override that expectation when they request a specific kind of human work. For example, a low-Human Weight student Essay is a concern because the workflow expects the student's authored human substance and may indicate AI-written work, while a useful AI-assisted summary may be low Human Weight without being harmful.
+
+Human Weight Expectation has four levels: none, informative, expected, and required. None means Human Weight does not apply. Informative means Human Weight is useful context, but low weight is not a problem by itself. Expected means human substance is normally expected and low weight should be surfaced as a possible concern. Required means human substance is required by the workflow and low weight should trigger review or warning. For example, RSVP is none, a generic AI-assisted summary may be informative, an ordinary Essay may be expected, and a student-submitted Essay for a Knowledge Slot may be required.
+
+A Human Weight Concern is a review signal, not an automatic failure or accusation. For example, a low-Human Weight student Essay should indicate that responsible users need to review whether the work contains the expected student authorship, not that the student necessarily cheated.
+
 The initial Human Weight bands are Slop at 0-19, Assisted at 20-39, Shaped at 40-59, Substantial at 60-79, Weighty at 80-94, and Soul at 95-100. These bands are interpretive anchors for the product and implementation; they may be refined as the product learns how users recognize human substance.
 
 Human Weight is a recalculable current estimate, not immutable entry metadata. The product should preserve Human Weight Evidence and enough evaluation context to revise scores when the Human Weight definition improves. User feedback, ratings, recognition, or other gamified signals may contribute evidence, but they should support the rating rather than directly determine it or replace the Type Behavior's credited human role.
@@ -24,6 +30,18 @@ Human Weight Feedback should begin with a small set of evidence-oriented respons
 
 Answer Feed ranking should use Feed Priority: a derived ordering value that prioritizes Human Weight while also giving low-Evidence Maturity weight-bearing entries enough exposure to gather Human Weight Evidence from users. Human Weight calculation may happen asynchronously, such as through scheduled recalculation, when evidence changes or the scoring definition is refined.
 
+Context Expertise should be derived from durable Context Expertise Evidence rather than from a raw contribution count or live feed scan alone. The evidence records should preserve the meaningful contribution acts, while bounded aggregate rows should support fast ranking by User or Person, Knowledge Context, audience scope, score, maturity, counts, and top supporting visible entries.
+
+Negative feedback or correction should first revise the specific Context Expertise Evidence it concerns. A single bad placement, weak contribution, or wrong-context feedback item should reduce the value of that evidence before it broadly penalizes the contributor; repeated weak evidence in the same Knowledge Context may lower the contributor's Context Expertise and increase confidence that the lower estimate is reliable.
+
+Context Expertise should be explainable and correctable through its underlying evidence rather than through direct score disputes. Users should correct wrong context, attribution, feedback, or visibility on the relevant Knowledge Entry or evidence record, and the derived expertise estimate should update from those corrections.
+
+Context Expertise should not decay merely because time passes. Evergreen evidence remains valid unless corrected, rejected, or superseded, while recent contribution acts may act as a surfacing boost or tie-breaker. Type Behavior or workflow-specific rules may later define freshness expectations for knowledge that ages quickly.
+
+Audience-scoped Context Expertise rankings may use restricted evidence when the viewer's Expert Orbit makes the contributor eligible to be surfaced, but explanation surfaces must only reveal supporting entries the viewer can access. Global expert rankings should use public or globally visible evidence rather than private organization-only evidence.
+
+For multi-Source Contribution Submissions, Human Weight belongs to each accepted Gold Layer Knowledge Entry rather than to the Contribution Submission or Bronze Sources themselves. Sources, Entry Representations, provenance, authorship, review, and usage may supply Human Weight Evidence for the resulting entries.
+
 ## Core Model
 
 A Knowledge Entry is a typed, contextualized unit of knowledge. It represents one Referent of the same Knowledge Type and references other Referents through its Tags. Those Tags constitute the entry's Knowledge Context.
@@ -33,6 +51,20 @@ The canonical Tag for a Knowledge Entry's Represented Referent should be include
 A Tag is a named, typed pointer to a Referent and to the intended set of knowledge about that Referent. A Referent is identified by name plus Knowledge Type, so similarly named things remain distinct, such as `Charlotte's Web, book` and `Charlotte's Web, essay`.
 
 Referents, Tags, and Knowledge Entries should remain distinct. A Referent is the stable identity of the thing being pointed at, a Tag is the navigable handle that points to that Referent, and a Knowledge Entry is content or work that represents one same-typed Referent and references other Referents through Tags. A Referent may exist without any Knowledge Entry representing it, and a Referent may have at most one Knowledge Entry that represents it.
+
+Creating a Knowledge Entry should create or reuse the Represented Referent and its canonical Tag. If the user attempts to create a Knowledge Entry for a Referent that already has a representing Knowledge Entry, such as `Moby Dick, Book`, the app should not create a duplicate; it should show that the Referent already exists, offer a link to that Referent's Knowledge Page, and guide the user toward tagging, editing, or proposing an authorized update as appropriate.
+
+Most edits offered from a Referent's Knowledge Page should edit the represented Knowledge Entry, its Entry Representations, Tags, aliases, provenance, or type-specific fields rather than the bare Referent identity. Editing Referent identity should be a special permissioned operation for identity correction, aliasing, merge/split, or Type Reclassification because it affects every Tag and entry that points to that Referent.
+
+The identity fields that determine whether a Referent already exists are Knowledge Type-specific. Many types may use type plus title or name, while others may require additional identity fields such as author, preacher, date, location, or source. Composer and Smart Storage duplicate checks should use the relevant Type Behavior identity rules and tell the User when the intended Referent already exists.
+
+Referent Identity Scope should also be governed by Type Behavior. Some Knowledge Types or specific entries represent globally public things that should participate in global duplicate matching, while others represent organization-, group-, or user-scoped things whose identity should remain local unless intentionally published or shared more broadly. Context-dependent types such as Essay or Lesson should use source provenance, author, publication status, current organization context, Visibility Scope, and explicit user choice to decide whether the intended Referent is public or scoped.
+
+Widening a Knowledge Entry's Visibility Scope should not automatically widen its Referent Identity Scope. If a scoped Referent later appears to become a public Referent or match an existing public Referent, the app should route that through identity review, such as merge, alias, split, or Type Reclassification, rather than silently changing identity scope.
+
+Composer and Smart Storage should infer Referent Identity Scope from Type Behavior and context when the answer is clear, such as public Books or scoped Prayer Requests. The User should be asked only for context-dependent Knowledge Types or ambiguous evidence where identity scope changes duplicate matching, visibility expectations, or future reuse.
+
+Composer Smart Storage may flag possible duplicate Referents or identity ambiguity, but Referent merge and split should belong to a separate permissioned review workflow rather than being performed automatically from contribution acceptance.
 
 Tags should be canonical per Referent, not duplicated per user or organization. User and organization relationships to a Tag should be represented through Recognized Context, subscriptions, aliases, visibility, or other local relationships rather than by creating separate Tags for the same Referent.
 
@@ -47,6 +79,22 @@ Bookmarked Knowledge Pages should not appear directly in the primary sidebar by 
 Bookmarks should be available as a section or tab on the User's profile, with the sidebar avatar menu offering a shortcut to that profile section. Bookmarks do not need a separate User View unless the saved set becomes large or workflow-heavy enough to require one.
 
 Knowledge Pages and User Views should remain distinct in navigation. Knowledge Pages are grounded in a shared Knowledge Context, Referent, Knowledge Entry, Organization, or other world-facing knowledge object. User Views are assembled around the current User's activity, responsibilities, preferences, or account state, such as Calendar, Notifications, Settings, or editing the user's profile. A public profile is a Knowledge Page for a Person or User presentation; editing one's own profile is a User View.
+
+Knowledge Pages should share a Knowledge Page Shell with compact page-specific identity. The top of each Knowledge Page should identify the page and expose essential page actions without turning Organization, Profile, Referent, Event, or other page-specific details into a large bespoke hero. The compact identity band may include a tiny Active Knowledge Context summary such as `Global Knowledge Context`, a single Tag label, or a Tag count, but the full interactive Active Tag set should remain in the left rail. Page-Specific Module links or controls may appear in or directly below the compact identity band as low-profile actions. Page-Specific Modules such as an Event guest list or Organization overview should appear as contained expandable sections, dialogs, or Page-Specific Subroutes such as Organization settings.
+
+The shared Knowledge Page Shell should avoid redundant generic headings when the page structure already makes the region clear. The Knowledge Navigator does not need its own header in the standard shell, Dashboard does not need a repeated `School Day` or `Today at Arche Classical Academy` heading above the working layout, and the Answer Feed does not need a separate `Answers` heading when it is already the primary feed region. Suggested Entry or Requested Entry placeholder panels should not appear below the Knowledge Navigator by default when there are no real requested entries.
+
+The left rail of the standard Knowledge Page Shell should stay focused on active Tags and a compact Knowledge Composer for the current context. Active Tags should remain visible, while suggested or available Tags should stay compact, secondary, and capped so they support the Knowledge Navigator without becoming a large browse panel. The rail should not have a separate `Add Tags` control; the Knowledge Composer should support wording such as `Ask a Question or Context` and use typeahead suggestions for Tags and Questions that can be added to the Active Knowledge Context. Selecting a suggestion should add that Tag or Question to the context. Pressing Enter without selecting a suggestion should run a text search for matching Knowledge Entries within the current Knowledge Context rather than changing the Active Knowledge Context. Knowledge Slot or Requested Entry content belongs in the Answer Feed rather than in a separate rail panel because the Answer Feed is a mixed surface made of Knowledge Entries plus Knowledge Slots. Selecting a Knowledge Slot may put the Contribution Editor into a fulfillment state for that slot, but the slot itself should remain represented as a feed item.
+
+Knowledge Slot cards in the Answer Feed should use the same overall card grammar as Knowledge Entry cards so they feel peer-level in the feed. Their distinctive feature should be a very clear missing-content area that names what must be filled in, who or what it is for, and the action to contribute the missing Knowledge Entry.
+
+Knowledge Type filtering belongs with the Answer Feed controls rather than the Knowledge Navigator. Filtering the feed to Songs, Lessons, Sermons, Questions, Requests, or another Knowledge Type narrows which matching feed items are shown; it does not change the Active Knowledge Context. The Knowledge Navigator should remain responsible for active Tags and Questions that define context, while the Answer Feed may provide compact filters such as `All`, `Entries`, `Requests`, and Knowledge Type chips.
+
+The Answer Feed should default to a masonry-style card grid on desktop and collapse to a single stacked column on narrow screens. The feed should avoid a large standalone heading when it is already the primary work region, but it may show a compact control row for counts, Knowledge Type filters, feed kind filters, and sorting.
+
+The Contribution Editor should remain above the Answer Feed in the standard Knowledge Page Shell. It should be compact by default and expand on focus or when the User chooses a Knowledge Slot to fulfill. The collapsed editor should keep the current streamlined input-first design and should not show a bulky metadata strip such as Direct Post, Knowledge Type, or Knowledge Context before the User expands or reviews the contribution. When expanded, the main contribution input should remain first, with contribution metadata such as Knowledge Type, Visibility Scope, Knowledge Context, Direct Post versus Smart Storage, and slot fulfillment state shown afterward as compact editable chips, details, or a preview area.
+
+Bible Passage Referent Pages are the exception to the compact-only identity rule because Scripture text is the substance of the page. They should keep the Scripture Text section prominent, but should not show a generic Bible Passage Overview module by default.
 
 The primary sidebar should carry destination navigation: Dashboard as the first global Knowledge Page, Pinned Knowledge Pages in the middle, and User Views or account navigation at the bottom. The sidebar avatar should be the account-menu entry point for the User's profile, Bookmarks, Settings, and Sign out. The header should stay focused on the user's Active Role and Global Search. The current Knowledge Page or Active Knowledge Context should be presented below the header in the page content area rather than inside the header, so users do not mistake Global Search for context-scoped search. Account controls should live in one place, not duplicated in both sidebar and header.
 
@@ -113,7 +161,15 @@ When Smart Storage identifies multiple entries from one Contribution Submission,
 
 Sources belong first to the durable Contribution Submission that preserved the user's raw material. Smart Storage Proposals should identify which submitted Sources, excerpts, file ranges, or external URLs support each proposed create or update, and accepted Gold Layer Knowledge Entries should be linked back to the Sources that produced or informed them.
 
+A Contribution Submission title should default into the Primary Intended Entry's identity or display title, subject to Smart Storage proposing a more canonical title for user confirmation. A description should not have one universal meaning: the composer should distinguish description as entry display content, entry summary, Authored Text Source, or Contribution Note depending on the user's intent and the Knowledge Type behavior.
+
+A durable Contribution Submission should carry both an intended Visibility Scope for resulting Gold Layer knowledge and a Review Scope for Bronze Sources, Smart Storage Runs, Smart Storage Proposals, and pending review material. These scopes often match, but may differ when a smaller set of Users or Roles should review material before it becomes visible to the intended Gold audience.
+
+Review Scope should default to the submitting User plus authorized reviewers for the active Organization or relevant scope when such reviewers exist. It should not automatically include every User in the intended Visibility Scope when pending raw or proposed material needs review before becoming Gold Layer knowledge. In the first implementation, Smart Storage should default Review Scope to the submitting User unless the composer is explicitly acting in an Organization or Group review context.
+
 When the Sources for a Primary Intended Entry cause Smart Storage to propose creating or updating another Knowledge Entry, the app should not create a vague generic relationship such as `relatedTo` by default. Shared Source provenance preserves the evidence that the entries have overlapping information, while Gold Layer relationships should be expressed through Tags, existing typed relationships, Knowledge Type attributes, or later Type Behavior that can name the relationship precisely.
+
+Sources do not automatically become Entry Representations when a Smart Storage Proposal is accepted. Acceptance should explicitly determine which submitted Sources become confirmed representations of the Gold Layer Knowledge Entry, which remain only Bronze raw material, which serve as Factual Provenance, and which were only Contribution Notes or processing guidance.
 
 The user-facing place for this loop depends on how many Tags are active in the Knowledge Navigator. The Dashboard is used when no Tags are active and the user is located in the Global Knowledge Context. A Referent Page is used when exactly one Tag is active and the user is focused on the Referent that Tag points to. A Context Page is used when two or more Tags are active and the user is exploring their combined Knowledge Context.
 
@@ -183,6 +239,8 @@ Smart Storage Contracts and Type Behaviors must be versioned and tracked in the 
 
 Type Behavior should be versioned as a whole per Knowledge Type, with field-level rules inside the immutable snapshot. For example, a Book Type Behavior snapshot may define whether `title` and `author` are enrichable and whether enriched values require Factual Provenance, without creating separate version records for each field.
 
+Knowledge Type-specific navigation, identity, edit, and exception behavior should live behind a TypeScript Type Behavior class or interface now, rather than remaining scattered across composer, Smart Storage, routing, and entry-editing code. The first implementation should stay small, such as a Type Behavior interface plus registry, and should avoid a large inheritance hierarchy until repeated behavior proves it is needed. The first-slice Type Behavior interface should expose `knowledgeType`, `version`, `identity`, `referentIdentityScope`, `composerDefaults`, `smartStorageChallenge`, `representationRoles`, `primaryRepresentation`, `humanWeight`, and `provenance`, using plain config objects or small functions. Shared resolver services should perform the actual lookup against Tags, Referents, aliases, and represented Knowledge Entries so database and permission logic is not duplicated per Knowledge Type. For example, Comment may not use the default represented-Referent share-link or edit flow because it is born as a response to another Knowledge Entry.
+
 Smart Storage Contract versions should contain stable reusable rules and templates, not request-specific data. Request-specific input should be snapshotted separately with the enrichment run or Smart Storage Proposal, including the Source reference, the specific Source text or excerpts sent to the LLM, active Knowledge Context, candidate existing Tags or Referents, retrieved evidence, and other facts used for that specific proposal generation.
 
 Request-specific input snapshots should record what the LLM actually saw while linking back to the full Bronze Layer Source as the durable raw record. The full raw Source should not be duplicated into the input snapshot unless the full Source was actually sent to the LLM.
@@ -195,9 +253,15 @@ Smart Storage Run status should describe operational processing rather than user
 
 No-proposal outcomes should be surfaced quietly in the contribution or review area, such as "Saved as Source; no structured proposal found." They should not create Answer Feed items, Knowledge Slots, or failed Smart Storage Proposal cards.
 
+Bronze Sources and Silver Smart Storage Proposals should not appear in the normal Answer Feed, which should remain focused on accepted Gold Layer Knowledge Entries and Knowledge Slots. If Bronze or Silver material has been matched to a Referent without producing Gold Layer knowledge, the Referent Page may surface it as pending or reviewable material and let authorized Users continue the review process from there. Visibility for that pending material should follow the Contribution Submission or review scope, not the Referent Page alone.
+
 Smart Storage Proposal acceptance should validate against the Smart Storage Contract and Type Behavior versions that generated the proposal unless those versions have been marked incompatible or retired. Incompatible or retired versions should make affected proposals stale and require Reprocessing before acceptance.
 
+Accepting a Smart Storage Proposal requires all relevant permissions, not only access to view the proposal. The User must be authorized under the Review Scope, authorized to create or update the resulting Gold Layer Knowledge Entry under its intended Visibility Scope, authorized to edit any existing target entry, and authorized to create or reuse identity within the relevant Referent Identity Scope.
+
 Smart Storage may challenge a user-selected Knowledge Type when the Source appears to match a more specific or more appropriate Knowledge Type. A Knowledge Slot's requested Knowledge Type remains fixed during Slot fulfillment, so Smart Storage should not challenge it.
+
+In the composer and proposal review UI, Knowledge Type changes from Smart Storage should be presented as recommendations or blocking mismatches for the User to resolve, not silent changes to the submitted intent. Slot fulfillment keeps the Slot's requested Knowledge Type fixed.
 
 When a user creates or refines a Knowledge Entry, the creation flow should first search for existing Tags and Referents before creating new ones. The accepted behavior is to reuse the canonical Tag when the intended Referent already exists, and to create a new Tag only when the app cannot confidently match an existing Referent or the user confirms the proposed new Referent is distinct.
 
@@ -210,6 +274,8 @@ The bronze, silver, and gold progression describes the degree to which useful in
 For Smart Storage, Bronze Layer is to Source as Silver Layer is to Smart Storage Proposal and Gold Layer is to Knowledge Entry. Bronze preserves raw data, Silver holds reviewable proposed knowledge, and Gold stores confirmed Knowledge Entries.
 
 For Smart Storage, the Bronze Layer Source should be preserved immediately when the user submits, before any LLM call or Smart Storage proposal generation. If enrichment fails, times out, or produces no acceptable proposal, the preserved Source should remain available for retry or Reprocessing.
+
+Uploaded files should become preserved Bronze Layer Sources as soon as storage succeeds, even before extraction, parsing, transcription, preview generation, or Smart Storage analysis succeeds. Unsupported extraction or analysis failures should be represented in Smart Storage Run or processing state without deleting or invalidating the preserved Source.
 
 When a user later opts a directly created Knowledge Entry into Smart Storage or Reprocessing, the app should create a Bronze Layer Source snapshot of the entry's current representation at that moment and link it back to the existing Knowledge Entry. That Source preserves the reprocessing input; it should not be treated as the original raw direct-post submission.
 
@@ -243,9 +309,49 @@ Proposal generation may suggest existing Tags, Referents, and Knowledge Entries,
 
 When Smart Storage identifies an existing Knowledge Entry that should receive new information from the submitted Sources, the review flow should make that update explicit. If the reviewing User has permission to edit the existing entry, acceptance may add the confirmed information to that entry; otherwise the proposal should not silently modify Gold Layer knowledge.
 
+The first implementation of Smart Storage Proposal acceptance should create new Knowledge Entries only. If acceptance finds that the proposed represented Referent already has a Knowledge Entry, it should stop and return a reviewable target-exists state rather than patching the existing entry. Updating existing entries should be a later permissioned slice with explicit conflict and audit behavior.
+
 Smart Storage should create one primary Smart Storage Proposal for the user's intended Knowledge Entry and include referenced Tags or Referents inside that proposal. If a referenced Referent already exists, the proposal should explicitly show that the resulting Knowledge Entry will reference that existing Referent through its Tag. If the referenced Referent does not yet exist, the proposal should explicitly show that acceptance will create the new Referent and Tag and then include that Tag in the Knowledge Entry's Knowledge Context. Smart Storage should create a separate Knowledge Entry proposal for a referenced Referent only when the Source contains separate entry content for that Referent.
 
 When Factual Enrichment finds multiple plausible matches for a user's intent, ambiguity should remain inside Smart Storage Proposal review. The user must choose the exact candidate before the proposal becomes Gold Layer knowledge, and Smart Storage should create multiple Gold Layer Knowledge Entries from a fuzzy Source only when the user explicitly accepts multiple proposals.
+
+The first implementation slice, meaning the first independently buildable and reviewable increment of the upgraded Knowledge Composer, should establish the durable multi-Source Smart Storage spine before delivery channels or advanced extraction intelligence. That slice should create and persist a durable Contribution Submission with intended Visibility Scope, Review Scope, Primary Intended Entry metadata, and Contribution Note; persist multiple Bronze Sources per submission for Authored Text Source, uploaded file storage IDs, and external URLs; store Link Preview metadata for external URLs; queue a Smart Storage Run linked to the Contribution Submission and source IDs; create a conservative scaffold Smart Storage Proposal; show and review that proposal; and accept it into one new Gold Layer Knowledge Entry with selected Entry Representations and Source/output links. It should also include a small TypeScript Type Behavior interface or registry for MVP identity and composer defaults. Delivery channels, SMS, email, DM, full extractor pipelines, real LLM contract generation, update-existing-entry acceptance, complex Course child-entry generation, save drafts, and Referent merge/split review should come later.
+
+Uploaded files in the first slice should use direct browser-to-Convex storage before Contribution Submission persistence. The composer should obtain an upload URL, upload file bytes to Convex storage, then submit the resulting storage ID and file metadata as a Bronze Source; Contribution Submission mutations should not receive raw file bytes.
+
+Pre-submit uploaded files should be treated as temporary until attached to a durable Contribution Submission. The first implementation should track temporary uploads with uploader, storage ID, metadata, creation time, and expiration or cleanup status so abandoned composer sessions do not leave unmanaged storage objects.
+
+The first implementation should include a small `temporaryUploads` table for browser-to-Convex uploads that have not yet been attached to a durable Contribution Submission. The table should include `storageId`, `uploadedByUserId`, `fileName`, `contentType`, `fileSizeBytes`, `uploadStatus`, `expiresAt`, `attachedContributionSubmissionId`, `createdAt`, and `updatedAt`. The initial upload status enum should be `uploaded`, `attached`, `expired`, and `deleted`. Keeping the temporary upload row after attach lets cleanup and audit code distinguish attached uploads from abandoned uploads.
+
+When the User submits through the Smart Storage path, preserving the durable Contribution Submission should automatically queue the first Smart Storage Run. Direct post, upload-only, save-draft, or other non-Smart-Storage paths should not queue Smart Storage unless the User explicitly opts in later.
+
+The first implementation slice should not include a full save-draft workflow for multi-Source Contribution Submissions. Durable preservation should begin at explicit submission; pre-submit autosave, abandoned upload cleanup, and editable draft sessions should be designed separately when needed.
+
+In the first implementation slice, attachments and external URLs submitted through the composer should use the durable Contribution Submission and Bronze Source path rather than simple direct posting. Direct post may remain focused on text, type, and context until attachment-to-Entry-Representation and direct external-URL representation behavior is implemented.
+
+Text-only Contributions may still use direct post when the User chooses the direct path. User-entered text becomes an Authored Text Source only when submitted through Smart Storage, import, Reprocessing, or a multi-Source Contribution Submission that uses the Bronze path.
+
+The first-slice composer may keep separate direct post and Smart Storage actions for text-only Contributions. Once the User adds uploaded files or external URLs, the composer should route the submission through the durable Bronze path and hide, disable, or replace direct post with a clear Store Smartly or review-oriented action until direct attachment and direct external-URL representation behavior exists.
+
+Before advanced extraction exists, first-slice Smart Storage Proposals should be conservative scaffolds rather than pretending to understand files or media that have not been extracted. A scaffold proposal may preserve the selected Knowledge Type, title, selected Tags, intended Visibility Scope, Review Scope, Contribution Note, and source inventory with extraction or preview status, while deferring derived proposals until the app has actual extracted content or user-confirmed structure.
+
+Scaffold Smart Storage Proposals may be accepted into Gold Layer knowledge when Type Behavior says the proposed minimum entry is valid and the User explicitly confirms which Sources become Entry Representations. Acceptance should create the Gold Knowledge Entry, confirmed Entry Representations, and Source/output links together. When required fields, identity ambiguity, provenance, permissions, or representation decisions are unresolved, the proposal should remain needs-resolution rather than becoming Gold.
+
+One Source may eventually produce multiple Entry Representations, such as an uploaded sermon manuscript producing both a stored file representation and extracted plain text, or a video URL later producing an external URL representation and transcript text. In the first implementation slice, confirmed Sources should usually map one-to-one into Entry Representations unless a User action or extractor explicitly splits the Source into multiple representations.
+
+Type Behavior should provide the default Primary Representation rule for each Knowledge Type, and the User should be able to override that default during proposal review when more than one Entry Representation is valid. Primary Representation determines the default display, open, preview, or playback behavior; it does not make other representations less valid or less preserved.
+
+Entry Representations should carry Representation Roles in addition to representation kinds when the role is known or inferred. Users should not be required to manually label every representation up front; Type Behavior, deterministic metadata, and Smart Storage may infer roles from source kind, file name, content type, link metadata, extracted content, selected Knowledge Type, and Contribution Notes. Proposal review should show inferred roles and allow the User to correct them before acceptance.
+
+Representation Role does not replace explicit Primary Representation selection. Type Behavior may use roles to choose a default Primary Representation, but the accepted primary selection should remain explicit entry data so role and default display behavior can evolve independently.
+
+When Representation Role inference is low-confidence, the app should fall back to a generic role such as supporting material or unspecified and should not block acceptance unless the Knowledge Type's Type Behavior requires a specific role. If a required role is missing or ambiguous, proposal review should ask the User to identify which Source or representation fulfills that role.
+
+Gold Layer Entry Representations should store the accepted Representation Role as normal entry data. Inference confidence, rationale, and model or metadata basis should remain on the Smart Storage Proposal, run history, or audit trail rather than becoming hot Gold Layer display data after the role is accepted.
+
+Representation Role values should start as a small global enum, such as primary content, supporting material, manuscript, slides, transcript, recording, thumbnail, external reference, and unspecified. Type Behavior may later introduce controlled type-specific role extensions, but Gold Layer roles should not be arbitrary free-text labels.
+
+Accepting a scaffold proposal should not consume or retire the underlying Sources. Accepted entries should remain linked to the Sources and proposals that produced them so later extraction, enrichment, Type Behavior improvements, or Reprocessing can propose updates to the existing entry or additional derived entries.
 
 Reprocessing revisits existing Sources or Knowledge Entries when the application gains new Knowledge Types or improved recognition. A previously complete entry can become an Upgrade Candidate when a new type reveals knowledge it held only indirectly.
 
@@ -311,17 +417,29 @@ Visibility defaults and role authority are separate. The current Organization Pa
 
 Visibility Scope and Delivery Target are separate. Visibility Scope controls who may access a Knowledge Entry after it exists; Delivery Target controls who should be notified, assigned, messaged, or otherwise sent a contribution or action. Sending an entry to a group does not by itself define every user who may access the entry, and making an entry visible to an organization does not require notifying every member of that organization.
 
+The composer may capture intended Delivery Targets at submission time, but normal delivery should occur after Gold Layer acceptance. Sending pending raw or Silver material before acceptance should be an explicit review workflow action, not the default Delivery Target behavior. After Gold acceptance, authorized Users should also be able to send or re-send the Knowledge Entry to Users, Groups, Organizations, or other Delivery Targets.
+
+Delivery must validate access against the Knowledge Entry's Visibility Scope. Sending to a Delivery Target should not silently expand visibility; if recipients cannot access the entry, the app should require an explicit authorized Visibility Scope change or block delivery to those recipients.
+
+Review Scope and Visibility Scope are separate. Review Scope controls who may see or manage pending Bronze and Silver material before Gold Layer knowledge exists, while Visibility Scope controls who may access the accepted Knowledge Entry afterward.
+
+When a workflow has explicit reviewer Roles, Review Scope should default narrower than intended Visibility Scope. When no reviewer Role exists, Review Scope should still include the submitting User and any authorized organization or scope maintainers rather than broad-delivering pending material to the eventual audience by default.
+
 "Send to page" should not be used as product or domain language. If a User intends an entry to appear in relation to a Knowledge Page, the entry should reference the relevant Tag through its Knowledge Context. Delivery is reserved for notifying, assigning, or messaging actual recipient targets.
 
 Tags and Referents become visible indirectly through visible Knowledge Entries that represent or reference them. The Global Knowledge Context is not the same thing as global visibility: an entry can be visible to everyone without belonging to the Global Knowledge Context.
 
 Tags do not grant access. A Knowledge Entry may reference an Organization, Group, Person, Place, Topic, Bible Passage, or other Referent through its Knowledge Context without becoming visible to users associated with that Referent. Visibility Scope remains the access boundary.
 
+Canonical Referent matching may reveal that a same-typed Referent already exists, but it must not leak hidden Knowledge Entry details beyond safe identity and discoverability fields. A User may be told that a matching Referent exists and may be allowed to reference its canonical Tag, while the represented Knowledge Entry's protected content, representations, provenance, and edit actions remain governed by Visibility Scope and permissions.
+
 Composer tag entry may feel freeform, but stored Tags must resolve to canonical Referents. Before submission or acceptance, a typed tag should either match an existing Tag/Referent or be confirmed as a proposed new Referent with a Knowledge Type; unresolved local labels should not be stored as Tags.
 
 Composer tag suggestions should distinguish current-context Tags, deterministic recommendations, and Smart Storage recommendations. Current-context Tags come from the active Knowledge Navigator or current Knowledge Page; deterministic recommendations come from user or organization Recognized Context, recent use, pinned pages, memberships, selected Knowledge Type, and visible submission metadata; Smart Storage recommendations come from AI-assisted analysis of Sources or enrichment and should remain reviewable before they affect Gold Layer knowledge.
 
 Current-context Tags should be selected by default for ordinary Contributions, but the User may remove them before submission when the entry does not actually belong in that Knowledge Context. Knowledge Slot fulfillment is different: Slot Tags are the frozen Knowledge Context for the requested entry and should remain locked unless a future workflow explicitly allows changing the Slot's context.
+
+Entry-adjacent actions should remain workflow, user, or delivery state rather than core Knowledge Entry fields. Copy link should copy a link to the Knowledge Page for the Knowledge Entry's Represented Referent by default, not to an implementation-specific entry record URL; Knowledge Type behavior may define exceptions such as Comment. Mark as read should mark a Notification as no longer new. Done should mark a Knowledge Slot as fulfilled. Reply should create a Comment Knowledge Entry or fulfill a response Slot. Send as email, SMS, or DM should create delivery records against Delivery Targets and channel-specific delivery behavior.
 
 ## MVP Direction
 
@@ -513,6 +631,12 @@ Link and URL are not MVP Knowledge Types. They are attributes or external repres
 
 Link Preview is not a Knowledge Type, Knowledge Entry, Factual Provenance, or Human Weight Evidence. It is fetched metadata that helps a user recognize an external URL in the composer, Source review, or Entry Representation UI. When Smart Storage uses information from a linked page or preview to propose facts, the external URL remains the provenance anchor.
 
+External URL Sources should always preserve the submitted URL. Fetched Link Preview metadata may be stored to help the User recognize the URL, but fetched page text, transcripts, or excerpts should be snapshotted only when the app retrieves or uses them for Smart Storage, enrichment, or review. Full remote media copies should not be the default; for large media such as YouTube, preserve the URL, provider metadata, and any transcript or extracted text actually retrieved.
+
+Link Preview fetching should be backend-owned, such as through a Convex action, rather than performed in the browser. The client should submit the URL, and backend processing should fetch, normalize, timestamp, and store preview metadata and fetch status. Link Preview failure should not block preserving the external URL Source.
+
+In the first implementation, Link Preview metadata for an external URL Source should live on the `sources` row as latest snapshot fields: `linkPreviewStatus`, `linkPreviewTitle`, `linkPreviewDescription`, `linkPreviewImageUrl`, `linkPreviewSiteName`, `linkPreviewFetchedAt`, and `linkPreviewError`. A separate Link Preview history table should wait until multiple fetch attempts or preview history become product requirements.
+
 Work is not an MVP Knowledge Type. The MVP should use concrete Knowledge Types such as Book, Song, Poem, Essay, Short Story, Sermon, Lesson, and Quote rather than introducing an abstract Work type.
 
 Citation and Reference are not MVP Knowledge Types. Quote is the Knowledge Type for cited excerpts; citation and reference details should be metadata or relationships to the Source, parent entry, Book, Bible Passage, or other relevant Referent.
@@ -550,6 +674,12 @@ These invariants are implied by the MVP domain model and `convex/schema.ts`. Con
 - A Knowledge Entry represents exactly one Referent through `representedReferentId`.
 - A Referent may have at most one Knowledge Entry representing it.
 - A Knowledge Entry's `knowledgeType` must match its represented Referent's `knowledgeType`.
+- Knowledge Entry creation should create or reuse the Represented Referent and canonical Tag, but should not create a duplicate Knowledge Entry when that same-typed Referent is already represented.
+- When a same-typed represented entry already exists, the app should redirect the user toward the existing Referent's Knowledge Page, tagging that Referent, editing it, or proposing an authorized update.
+- Most Knowledge Page edits should affect the represented Knowledge Entry or related entry data; Referent identity edits should be special permissioned operations for identity correction, aliasing, merge/split, or Type Reclassification.
+- Duplicate Referent checks must use Knowledge Type-specific identity fields defined by Type Behavior, not a universal title-only match.
+- Duplicate Referent checks must respect Referent Identity Scope, so public works can be matched globally while organization-, group-, or user-scoped works remain local unless intentionally published or shared more broadly.
+- Smart Storage may flag possible duplicate Referents, but Referent merge or split must be handled by a separate permissioned review workflow.
 - `knowledgeEntries.knowledgeType` must never be `biblePassage` in the MVP.
 - `primaryTagId` must point to the canonical Tag for `representedReferentId`.
 - Each Knowledge Entry must have exactly one `entryTags` row with `tagPurpose: "represented"`.
@@ -591,15 +721,33 @@ These invariants are implied by the MVP domain model and `convex/schema.ts`. Con
 
 - An Entry Representation belongs to exactly one Knowledge Entry.
 - A Knowledge Entry should have at most one primary representation per representation need.
+- Type Behavior should define default Primary Representation selection, with user override during proposal review when multiple representations are valid.
+- Representation Role should not replace explicit Primary Representation selection.
+- Type Behavior should define allowed or default Representation Roles for each Knowledge Type, while Smart Storage may infer roles and the User may correct them during proposal review.
+- `entryRepresentations.representationRole` should be required, using `unspecified` when the role is not yet known. Type Behavior may require a more specific Representation Role for workflows where `unspecified` is not acceptable.
+- Representation Role should use a small closed shared enum in persistence, while Type Behavior defines which roles are allowed or default for each Knowledge Type.
+- The initial Representation Role enum should be `unspecified`, `primaryContent`, `manuscript`, `slides`, `transcript`, `recording`, `thumbnail`, and `supportingMaterial`.
 - `prosemirrorDocumentId` remains an arbitrary string compatible with the collaborative editor.
 - File, audio, video, URL, and plain text representations should use the fields matching their `representationKind`.
 - A Source is Bronze Layer raw material, not a Knowledge Type and not a Knowledge Entry.
 - A Contribution Submission may group multiple Sources under one user intent, such as typed substantive text, uploaded files, external URLs, audio, or video submitted together for one Lesson, Sermon, or other intended Knowledge Entry.
 - A durable Contribution Submission is required for multi-Source, Smart Storage, import, upload, deferred review, retry, or Reprocessing workflows, but not for simple direct posts that create Gold Layer Knowledge Entries immediately.
+- The first `contributionSubmissions` table should include `submittedByUserId`, `submissionStatus`, `primaryIntendedKnowledgeType`, `primaryIntendedTitle`, `primaryIntendedBodyPreview`, `contributionNote`, `intendedVisibilityKind`, `intendedVisibilityTargetKey`, `reviewScopeKind`, `reviewScopeTargetKey`, `createdAt`, and `updatedAt`. Draft sessions, delivery channels, and denormalized child lists should stay out of the first schema slice.
+- The initial Contribution Submission status enum should be `submitted`, `processing`, `reviewReady`, `partiallyAccepted`, `accepted`, `rejected`, and `cancelled`. Submission status describes the parent lifecycle and should not replace Smart Storage Run status or Smart Storage Proposal status.
+- Review Scope should use its own schema enum, initially `private`, `organization`, `group`, and `public`, rather than reusing the Visibility Scope validator. The matching initial values do not make Review Scope and Visibility Scope interchangeable.
+- `reviewScopeTargetKey` should use the same string-key storage style as `visibilityTargetKey` in the first implementation, with backend validation that the key format matches `reviewScopeKind`.
+- The first Smart Storage implementation should persist Contribution Submissions as parent rows and persist Sources as child rows linked to the Contribution Submission. Standalone Sources should not remain the main Smart Storage grouping model.
+- `sources.contributionSubmissionId` may be optional in the first schema change for migration compatibility, but new durable Contribution Submission and Smart Storage mutation paths must provide it.
+- Uploaded file Sources should reference Convex storage IDs and metadata after storage succeeds; contribution mutations should not carry file bytes.
+- Uploaded files should remain preserved Bronze Sources after successful storage even if extraction, preview, transcription, or Smart Storage analysis fails.
+- External URL Sources should always preserve the submitted URL, while fetched content or transcripts should be snapshotted when retrieved or used so Smart Storage review remains explainable after link drift.
 - Each Contribution Submission should have one Primary Intended Entry, while Smart Storage may propose additional derived Knowledge Entries from the same Sources.
 - Multiple Smart Storage Proposals from one Contribution Submission should be accepted one proposed Knowledge Entry at a time.
 - Sources are submission-level raw material; Smart Storage Proposals should cite the specific Sources, excerpts, ranges, or URLs that support them.
+- Source citations for Smart Storage Proposals should be stored as child rows, not as an unbounded array on the proposal document.
+- The first `proposalSourceCitations` table should include `proposalId`, `sourceId`, `citationKind`, `excerptText`, `locator`, `externalUrl`, `rationale`, and `createdAt`. The initial citation kind enum should be `wholeSource`, `textExcerpt`, `fileLocator`, and `externalUrl`; `excerptText` should be bounded and optional.
 - Shared Source provenance may indicate that entries are related, but the app should not create a generic `relatedTo` Gold Layer relationship; explicit relationships should be typed, Tag-based, or introduced through later Knowledge Type behavior.
+- Accepted proposals should explicitly decide which submitted Sources become Entry Representations; Bronze Sources should not automatically become Gold Layer representations.
 - A Source created for later Smart Storage or Reprocessing of a directly created Knowledge Entry is a snapshot of that entry's current representation at the time of reprocessing, not the original raw direct-post submission.
 - A Source may produce many Knowledge Entries through `sourceOutputs`.
 - A `sourceOutputs` row must point to an existing Source and an existing produced or derived Knowledge Entry.
@@ -612,11 +760,15 @@ These invariants are implied by the MVP domain model and `convex/schema.ts`. Con
 - Type Behavior should be versioned as a whole per Knowledge Type, with field-level enrichment and provenance rules inside the immutable snapshot.
 - Smart Storage Contract versions should contain stable reusable rules and templates; request-specific Source, context, candidate, and evidence input should be snapshotted separately with the enrichment run or proposal.
 - Request-specific input snapshots should record what the LLM actually saw and link to the full Bronze Layer Source rather than duplicating raw Source content by default.
+- Smart Storage Runs should link to the durable Contribution Submission and may also link to a primary Source when a run is centered on one submitted Source.
 - Smart Storage Runs should preserve raw model output separately from parsed Smart Storage Proposals.
 - Failed LLM calls, parse failures, and validation failures should be represented on Smart Storage Runs rather than by creating Smart Storage Proposals.
 - Smart Storage Run status should track operational processing with queued, running, succeeded, no-proposal, failed, and superseded states, separate from Smart Storage Proposal review status.
 - No-proposal Smart Storage Runs should be visible only as quiet Source/review state, not as Answers, Knowledge Slots, or proposal cards.
+- Bronze Sources and Silver Smart Storage Proposals should stay out of the normal Answer Feed, but matched pending material may be shown on the relevant Referent Page for authorized review under the Contribution Submission or review scope.
+- Smart Storage Proposals should link directly to their Contribution Submission as well as to their Smart Storage Run so review queries can load pending proposals by submission without hopping through runs. The backend must enforce that the Proposal and Run point to the same Contribution Submission.
 - Smart Storage Proposal acceptance should validate against the original recorded Smart Storage Contract and Type Behavior versions unless those versions are marked incompatible or retired.
+- Smart Storage Proposal acceptance must check Review Scope permission plus create, update, and Referent Identity Scope permissions for the Gold Layer result.
 - Smart Storage Proposal records should preserve the original generated proposal separately from the current reviewed proposal.
 - Accepting a Smart Storage Proposal should atomically create or connect the complete proposed Knowledge Entry shape; partial acceptance should be represented by editing, splitting, or rejecting proposals before acceptance.
 - Smart Storage Proposal acceptance must perform the authoritative current identity check for Tags, Referents, and same-typed represented Knowledge Entries, regardless of matches proposed earlier.
@@ -658,12 +810,28 @@ These invariants are implied by the MVP domain model and `convex/schema.ts`. Con
 - Profile-facing identity facts should belong to the linked Person Knowledge Entry or related world-model records, while account-only access settings should remain on User/auth/profile infrastructure.
 - A Person may be a member of Organizations and Groups through `memberships`.
 - `memberships.personReferentId` must point to a Person Referent.
+- Organization member management should present active and Pending Memberships together as members, with status making unclaimed access clear rather than separating them into an invitation list.
+- Adding a member by email may create the smallest valid Person placeholder and a Pending Membership; the email is Contact Identity evidence, not the Person's definitive identity.
+- An email address is valid Contact Identity for Membership when it belongs to one actual Person, even if the address names a role such as `headofschool@...`; shared or rotating inboxes should not be used to establish a Person Membership.
+- Adding the same Contact Identity to the same Organization more than once should update the existing Membership rather than creating duplicates; role, status, timestamps, and optional outreach state may change independently.
 - A membership target must identify exactly one target matching `targetKind`.
 - For `targetKind: "organization"`, `organizationReferentId` must be present and `groupReferentId` absent.
 - For `targetKind: "group"`, `groupReferentId` must be present and `organizationReferentId` absent.
 - Organization membership targets must point to Organization Referents.
 - Group membership targets must point to Group Referents.
 - When `memberUserId` is present, it should match the User linked to `personReferentId`.
+- A Membership created before its Person has a linked User should not grant account access until the User proves they are that Person through verified contact identity.
+- A User may claim Pending Memberships associated with multiple verified Contact Identities, such as separate personal, school, and church email addresses.
+- Users should be able to add and verify alternate Contact Identities after signup; verified alternate Contact Identities should surface matching Pending Memberships for claim.
+- Contact Identity has account and Person meanings that should remain distinct: on the User side it proves the signed-in account controls the contact value, while on the Person side it serves as identity/contact evidence for that human being.
+- Claiming a Pending Membership for a different Contact Identity should attach the Membership to the User's single Person when the evidence is clear; ambiguous Person consolidation should route through identity review rather than silently merging Person Referents.
+- A Membership Claim may automatically move a Pending Membership from a placeholder Person to the User's existing Person only when the placeholder has no meaningful identity beyond the verified Contact Identity and claimable Pending Memberships.
+- If the placeholder Person has richer profile facts, conflicting names, authored entries, or other relationships, the app should require Person Consolidation review instead of silently moving or merging identity.
+- A successful Membership Claim should make the Membership active immediately because the organization already created the Membership and the User has proven the matching Contact Identity.
+- Memberships and claim history should preserve the Contact Identity evidence that created or claimed a Pending Membership even after activation, so organization admins can understand why a User with a different primary email has that Membership.
+- Pending Memberships may be used for Person-targeted work such as Knowledge Slots or RSVP requests before the Person has a linked User, but User-only app behavior such as inbox notifications should wait until the Membership is claimed.
+- Adding a Pending Membership should not depend on sending email. The Membership is the durable organization relationship; invitation email, reminder email, or other outreach should be optional delivery state that can fail, be skipped, or be retried without changing whether the Pending Membership exists.
+- The first Pending Membership implementation slice should only unblock admin member creation and display: adding an email without a User creates or updates a Pending Membership, active User-backed member creation still works, and organization member settings show active and Pending Memberships together. Alternate Contact Identity verification, automatic claim, claim history, email outreach, and rich Person Consolidation review should be separate follow-up slices.
 - The onboarding rule that a User belongs to at least one Organization is required later, but not enforced by schema alone.
 - A Group can be validly created before its full membership is known. Group membership should be optional enrichment rather than a blocking requirement for accepting a Group Smart Storage Proposal.
 
@@ -672,6 +840,7 @@ These invariants are implied by the MVP domain model and `convex/schema.ts`. Con
 - A Knowledge Slot is a workflow request, not a Knowledge Type.
 - Each Knowledge Slot requests exactly one Knowledge Entry type through `requestedKnowledgeType`.
 - `requestedKnowledgeType` must be an authorable entry type, so it must never be `biblePassage`.
+- Person-targeted Knowledge Slots may target a Person who is not yet linked to a User; fulfillment becomes available once that Person is linked to a User through Membership Claim or another identity flow.
 - Slot Tags are the frozen Knowledge Context for the requested entry.
 - Slot fulfillment should point to at most one `fulfilledEntryId`.
 - A fulfilled entry's `knowledgeType` must match the slot's `requestedKnowledgeType`.

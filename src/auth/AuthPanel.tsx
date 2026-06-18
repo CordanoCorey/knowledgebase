@@ -188,7 +188,6 @@ export function AuthPanel({
         ? UserPlus
         : Mail
     : Mail;
-  const authContextLabel = surface === "app" ? "Logeion workspace" : "Logeion editor";
   const sessionLabel = surface === "app" ? "Account required" : "Session required";
   const headerEyebrow =
     isPasswordReset || isPasswordResetVerification
@@ -210,10 +209,7 @@ export function AuthPanel({
         <aside className="editor-auth-brand" aria-label="Logeion by Arche Press">
           <div className="editor-auth-brand-main">
             <LogeionBrand />
-            <div>
-              <p className="eyebrow">{authContextLabel}</p>
-              <h2>A place for words</h2>
-            </div>
+            <p className="editor-auth-tagline">A place for words</p>
           </div>
           <div className="editor-auth-brand-footer">
             <LockKeyhole aria-hidden="true" />

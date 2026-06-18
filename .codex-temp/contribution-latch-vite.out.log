@@ -1,0 +1,55 @@
+
+> logeion@0.1.0 dev
+> vite --host 0.0.0.0 --port 5190 --strictPort
+
+
+  [32m[1mVITE[22m v8.0.16[39m  [2mready in [0m[1m308[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5190[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://10.0.0.21:[1m5190[22m/[39m
+[2m9:43:53 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m9:45:39 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.codex-temp/contribution-editor-harness.html[22m
+[2m9:46:41 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/.codex-temp/contribution-editor-harness.tsx[22m
+[2m9:46:41 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/.codex-temp/contribution-editor-harness.tsx[22m Could not Fast Refresh ("true" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m9:46:41 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.codex-temp/contribution-editor-harness.tsx[22m
+[2m9:47:07 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2m.codex-temp/contribution-editor-harness.html[22m
+[2m9:47:07 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/.codex-temp/contribution-editor-harness.tsx[22m
+[2m9:58:36 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m10:00:52 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m10:08:04 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m10:08:32 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m10:08:41 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m10:08:57 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m10:09:22 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m10:14:13 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m10:18:13 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m10:25:29 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/AnswerFeed.tsx, /src/ContributionEditor.tsx, /src/SmartStoragePlayground.tsx, /src/components/KnowledgeTypeIcon.tsx, /src/components/KnowledgeTypeOverview.tsx, /src/prototypes/LayoutPrototype.tsx, /src/components/KnowledgeCards.tsx[22m
+[2m10:25:30 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/AnswerFeed.tsx[22m Could not Fast Refresh ("filterAnswerFeedItems" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m10:25:30 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m10:25:30 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/ContributionEditor.tsx[22m Could not Fast Refresh ("createContributionInput" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m10:25:30 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/SmartStoragePlayground.tsx[22m
+[2m10:25:30 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/components/KnowledgeTypeIcon.tsx[22m Could not Fast Refresh ("KNOWLEDGE_TYPE_ICON_SYMBOLS" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m10:25:30 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/ContributionEditor.tsx, /src/KnowledgeRequestComposer.tsx, /src/SmartStoragePlayground.tsx, /src/components/KnowledgeTypeOverview.tsx, /src/prototypes/LayoutPrototype.tsx, /src/components/KnowledgeCards.tsx, /src/components/ReferentTagLink.tsx[22m
+[2m10:26:25 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m10:27:01 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m10:33:13 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m1:49:19 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m1:59:30 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m2:00:23 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m2:02:12 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m2:02:21 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m2:10:15 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/AnswerFeed.tsx, /src/ContributionEditor.tsx, /src/SmartStoragePlayground.tsx, /src/components/KnowledgeTypeIcon.tsx, /src/components/KnowledgeTypeOverview.tsx, /src/prototypes/LayoutPrototype.tsx, /src/components/KnowledgeCards.tsx[22m
+[2m2:10:15 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/AnswerFeed.tsx[22m Could not Fast Refresh ("filterAnswerFeedItems" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m2:10:15 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m2:10:15 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/ContributionEditor.tsx[22m Could not Fast Refresh ("createContributionInput" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m2:10:15 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/SmartStoragePlayground.tsx[22m
+[2m2:10:15 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/components/KnowledgeTypeIcon.tsx[22m Could not Fast Refresh ("KNOWLEDGE_TYPE_ICON_SYMBOLS" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m2:10:15 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/ContributionEditor.tsx, /src/KnowledgeRequestComposer.tsx, /src/SmartStoragePlayground.tsx, /src/components/KnowledgeTypeOverview.tsx, /src/prototypes/LayoutPrototype.tsx, /src/components/KnowledgeCards.tsx, /src/components/ReferentTagLink.tsx[22m
+[2m2:10:32 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/KnowledgeCards.tsx[22m
+[2m2:10:46 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/AnswerFeed.tsx[22m
+[2m2:10:47 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/AnswerFeed.tsx[22m Could not Fast Refresh ("filterAnswerFeedItems" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m2:10:47 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m2:12:15 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m2:13:55 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m2:17:10 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m2:18:47 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m

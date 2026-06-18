@@ -60,7 +60,11 @@ export const listForSidebar = query({
   returns: v.array(sidebarPinnedKnowledgePage),
   handler: async (ctx): Promise<SidebarPinnedKnowledgePage[]> => {
     const access = await requireAppAccess(ctx);
-    const defaultCandidates = getDefaultOrganizationPins(access.organizations);
+    const includeEveryDefaultOrganization = access.systemRole === "systemAdmin";
+    const defaultCandidates = getDefaultOrganizationPins(
+      access.organizations,
+      includeEveryDefaultOrganization,
+    );
     const defaultPageKeys = new Set(
       defaultCandidates.map((candidate) => candidate.pageKey),
     );
@@ -146,7 +150,12 @@ export const pinOrganizationPage = mutation({
     const existing = await getPinByPageKey(ctx, access.userId, pageKey);
     const sortOrder =
       existing?.sortOrder ??
-      await getNextManualSortOrder(ctx, access.userId, access.organizations);
+      await getNextManualSortOrder(
+        ctx,
+        access.userId,
+        access.organizations,
+        access.systemRole === "systemAdmin",
+      );
     const pin = buildOrganizationPin(organization, "manual", sortOrder);
 
     if (existing) {
@@ -194,6 +203,7 @@ export const unpinKnowledgePage = mutation({
     const access = await requireAppAccess(ctx);
     const defaultCandidate = getDefaultOrganizationPins(
       access.organizations,
+      access.systemRole === "systemAdmin",
     ).find((candidate) => candidate.pageKey === args.pageKey);
     const existing = await getPinByPageKey(ctx, access.userId, args.pageKey);
 
@@ -242,12 +252,16 @@ export const unpinKnowledgePage = mutation({
 
 function getDefaultOrganizationPins(
   organizations: AllowedOrganization[],
+  includeEveryOrganization = false,
 ): SidebarPinnedKnowledgePage[] {
   const seenKinds = new Set<OrganizationKind>();
   const pins: SidebarPinnedKnowledgePage[] = [];
 
   for (const organization of organizations) {
-    if (seenKinds.has(organization.organizationKind)) {
+    if (
+      !includeEveryOrganization &&
+      seenKinds.has(organization.organizationKind)
+    ) {
       continue;
     }
 
@@ -331,8 +345,13 @@ async function getNextManualSortOrder(
   ctx: MutationCtx,
   userId: Id<"users">,
   organizations: AllowedOrganization[],
+  includeEveryDefaultOrganization: boolean,
 ) {
-  const defaultFloor = getDefaultOrganizationPins(organizations).length * SORT_ORDER_STEP;
+  const defaultFloor =
+    getDefaultOrganizationPins(
+      organizations,
+      includeEveryDefaultOrganization,
+    ).length * SORT_ORDER_STEP;
   const lastPinned = (
     await ctx.db
       .query("pinnedKnowledgePages")

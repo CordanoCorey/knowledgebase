@@ -1,0 +1,271 @@
+export const ENTRY_KNOWLEDGE_TYPES = [
+  "words",
+  "topic",
+  "series",
+  "question",
+  "quote",
+  "sermon",
+  "essay",
+  "poem",
+  "song",
+  "book",
+  "shortStory",
+  "lesson",
+  "comment",
+  "prayerRequest",
+  "event",
+  "rsvp",
+  "person",
+  "organization",
+  "group",
+  "place",
+] as const;
+
+export type EntryKnowledgeType = (typeof ENTRY_KNOWLEDGE_TYPES)[number];
+
+export const WEIGHT_BEARING_ENTRY_KNOWLEDGE_TYPES = [
+  "words",
+  "question",
+  "quote",
+  "sermon",
+  "essay",
+  "poem",
+  "song",
+  "book",
+  "shortStory",
+  "lesson",
+  "comment",
+  "prayerRequest",
+  "series",
+  "event",
+] as const satisfies readonly EntryKnowledgeType[];
+
+export type WeightBearingEntryKnowledgeType =
+  (typeof WEIGHT_BEARING_ENTRY_KNOWLEDGE_TYPES)[number];
+
+export const NON_WEIGHT_BEARING_ENTRY_KNOWLEDGE_TYPES = [
+  "rsvp",
+  "person",
+  "organization",
+  "group",
+  "place",
+  "topic",
+] as const satisfies readonly EntryKnowledgeType[];
+
+export type NonWeightBearingEntryKnowledgeType =
+  (typeof NON_WEIGHT_BEARING_ENTRY_KNOWLEDGE_TYPES)[number];
+
+export const HUMAN_WEIGHT_EXPECTATION_LEVELS = [
+  "none",
+  "informative",
+  "expected",
+  "required",
+] as const;
+
+export type HumanWeightExpectation =
+  (typeof HUMAN_WEIGHT_EXPECTATION_LEVELS)[number];
+
+export const HUMAN_WEIGHT_BANDS = [
+  { id: "slop", label: "Slop", min: 0, max: 19 },
+  { id: "assisted", label: "Assisted", min: 20, max: 39 },
+  { id: "shaped", label: "Shaped", min: 40, max: 59 },
+  { id: "substantial", label: "Substantial", min: 60, max: 79 },
+  { id: "weighty", label: "Weighty", min: 80, max: 94 },
+  { id: "soul", label: "Soul", min: 95, max: 100 },
+] as const;
+
+export type HumanWeightBand = (typeof HUMAN_WEIGHT_BANDS)[number];
+
+export const REPRESENTATION_ROLES = [
+  "unspecified",
+  "primaryContent",
+  "manuscript",
+  "slides",
+  "transcript",
+  "recording",
+  "thumbnail",
+  "supportingMaterial",
+] as const;
+
+export type RepresentationRole = (typeof REPRESENTATION_ROLES)[number];
+
+export type TypeBehavior = {
+  knowledgeType: EntryKnowledgeType;
+  version: string;
+  identity: {
+    strategy: "title" | "generated";
+  };
+  referentIdentityScope: {
+    defaultScope: "private" | "organization" | "group" | "public";
+  };
+  composerDefaults: {
+    titleRequired: boolean;
+  };
+  smartStorageChallenge: {
+    canChallengeSelectedType: boolean;
+  };
+  representationRoles: {
+    allowed: RepresentationRole[];
+    defaultRole: RepresentationRole;
+  };
+  primaryRepresentation: {
+    defaultRole: RepresentationRole;
+  };
+  humanWeight: {
+    defaultEstimate: number;
+    expectation: HumanWeightExpectation;
+  };
+  provenance: {
+    requiresSourceCitation: boolean;
+  };
+};
+
+const DEFAULT_TYPE_BEHAVIOR_VERSION = "mvp-type-behavior-v1";
+
+const DEFAULT_TYPE_BEHAVIOR: Omit<TypeBehavior, "knowledgeType"> = {
+  version: DEFAULT_TYPE_BEHAVIOR_VERSION,
+  identity: {
+    strategy: "title",
+  },
+  referentIdentityScope: {
+    defaultScope: "private",
+  },
+  composerDefaults: {
+    titleRequired: true,
+  },
+  smartStorageChallenge: {
+    canChallengeSelectedType: true,
+  },
+  representationRoles: {
+    allowed: [...REPRESENTATION_ROLES],
+    defaultRole: "primaryContent",
+  },
+  primaryRepresentation: {
+    defaultRole: "primaryContent",
+  },
+  humanWeight: {
+    defaultEstimate: 60,
+    expectation: "informative",
+  },
+  provenance: {
+    requiresSourceCitation: true,
+  },
+};
+
+const TYPE_BEHAVIOR_OVERRIDES: Partial<
+  Record<EntryKnowledgeType, Partial<Omit<TypeBehavior, "knowledgeType">>>
+> = {
+  rsvp: {
+    humanWeight: {
+      defaultEstimate: 0,
+      expectation: "none",
+    },
+  },
+  topic: {
+    humanWeight: {
+      defaultEstimate: 0,
+      expectation: "none",
+    },
+  },
+  person: {
+    humanWeight: {
+      defaultEstimate: 0,
+      expectation: "none",
+    },
+  },
+  organization: {
+    humanWeight: {
+      defaultEstimate: 0,
+      expectation: "none",
+    },
+  },
+  group: {
+    humanWeight: {
+      defaultEstimate: 0,
+      expectation: "none",
+    },
+  },
+  place: {
+    humanWeight: {
+      defaultEstimate: 0,
+      expectation: "none",
+    },
+  },
+};
+
+const WEIGHT_BEARING_ENTRY_KNOWLEDGE_TYPE_SET = new Set<EntryKnowledgeType>(
+  WEIGHT_BEARING_ENTRY_KNOWLEDGE_TYPES,
+);
+
+const NON_WEIGHT_BEARING_ENTRY_KNOWLEDGE_TYPE_SET = new Set<EntryKnowledgeType>(
+  NON_WEIGHT_BEARING_ENTRY_KNOWLEDGE_TYPES,
+);
+
+export function isWeightBearingEntryKnowledgeType(
+  knowledgeType: EntryKnowledgeType,
+): knowledgeType is WeightBearingEntryKnowledgeType {
+  return WEIGHT_BEARING_ENTRY_KNOWLEDGE_TYPE_SET.has(knowledgeType);
+}
+
+export function isNonWeightBearingEntryKnowledgeType(
+  knowledgeType: EntryKnowledgeType,
+): knowledgeType is NonWeightBearingEntryKnowledgeType {
+  return NON_WEIGHT_BEARING_ENTRY_KNOWLEDGE_TYPE_SET.has(knowledgeType);
+}
+
+export function getHumanWeightBand(
+  humanWeight: number | undefined,
+): HumanWeightBand | undefined {
+  if (humanWeight === undefined) {
+    return undefined;
+  }
+
+  return HUMAN_WEIGHT_BANDS.find(
+    (band) => humanWeight >= band.min && humanWeight <= band.max,
+  );
+}
+
+export function getApplicableHumanWeight(
+  knowledgeType: EntryKnowledgeType,
+  humanWeight: number | undefined,
+) {
+  return humanWeight !== undefined && isWeightBearingEntryKnowledgeType(knowledgeType)
+    ? humanWeight
+    : undefined;
+}
+
+export function getTypeBehavior(
+  knowledgeType: EntryKnowledgeType,
+): TypeBehavior {
+  const override = TYPE_BEHAVIOR_OVERRIDES[knowledgeType] ?? {};
+
+  return {
+    ...DEFAULT_TYPE_BEHAVIOR,
+    ...override,
+    humanWeight: {
+      ...DEFAULT_TYPE_BEHAVIOR.humanWeight,
+      ...override.humanWeight,
+    },
+    knowledgeType,
+    provenance: {
+      ...DEFAULT_TYPE_BEHAVIOR.provenance,
+      ...override.provenance,
+    },
+    representationRoles: {
+      ...DEFAULT_TYPE_BEHAVIOR.representationRoles,
+      ...override.representationRoles,
+    },
+  };
+}
+
+export function getTypeBehaviorSnapshot(
+  knowledgeType: EntryKnowledgeType,
+) {
+  const behavior = getTypeBehavior(knowledgeType);
+
+  return {
+    behavior,
+    behaviorSnapshotJson: JSON.stringify(behavior),
+    version: behavior.version,
+  };
+}

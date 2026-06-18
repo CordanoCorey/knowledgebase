@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
+import { getApplicableHumanWeight } from "./lib/typeBehavior";
 
 const DEFAULT_ANSWER_LIMIT = 20;
 const DEFAULT_EXPERT_LIMIT = 3;
@@ -90,7 +91,7 @@ const knowledgeEntrySummary = v.object({
   previewText: v.string(),
   primaryTagLabel: v.string(),
   contextPreviewTagLabels: v.array(v.string()),
-  humanWeight: v.number(),
+  humanWeight: v.optional(v.number()),
   href: v.string(),
   updatedAt: v.number(),
 });
@@ -151,7 +152,7 @@ type KnowledgeEntrySummary = {
   previewText: string;
   primaryTagLabel: string;
   contextPreviewTagLabels: string[];
-  humanWeight: number;
+  humanWeight?: number;
   href: string;
   updatedAt: number;
 };
@@ -553,6 +554,11 @@ async function summarizeEntry(
   entry: Doc<"knowledgeEntries">,
   contributorCache: Map<string, Promise<ContributorSummary>>,
 ): Promise<KnowledgeEntrySummary> {
+  const humanWeight = getApplicableHumanWeight(
+    entry.knowledgeType,
+    entry.humanWeight,
+  );
+
   return {
     contributor: await getContributorSummary(
       ctx,
@@ -565,7 +571,7 @@ async function summarizeEntry(
     previewText: entry.previewText,
     primaryTagLabel: entry.primaryTagLabel,
     contextPreviewTagLabels: entry.contextPreviewTagLabels,
-    humanWeight: entry.humanWeight,
+    ...(humanWeight === undefined ? {} : { humanWeight }),
     href: `/entries/${entry._id}`,
     updatedAt: entry.updatedAt,
   };
@@ -592,6 +598,14 @@ async function summarizeKnowledgeContextExperts(
       continue;
     }
 
+    const humanWeight = getApplicableHumanWeight(
+      entry.knowledgeType,
+      entry.humanWeight,
+    );
+    if (humanWeight === undefined) {
+      continue;
+    }
+
     const contributor = await getContributorSummary(
       ctx,
       entry.createdByUserId,
@@ -601,8 +615,8 @@ async function summarizeKnowledgeContextExperts(
     if (aggregate) {
       aggregate.contributionCount += 1;
       aggregate.latestUpdatedAt = Math.max(aggregate.latestUpdatedAt, entry.updatedAt);
-      aggregate.maxHumanWeight = Math.max(aggregate.maxHumanWeight, entry.humanWeight);
-      aggregate.totalHumanWeight += entry.humanWeight;
+      aggregate.maxHumanWeight = Math.max(aggregate.maxHumanWeight, humanWeight);
+      aggregate.totalHumanWeight += humanWeight;
       continue;
     }
 
@@ -610,8 +624,8 @@ async function summarizeKnowledgeContextExperts(
       ...contributor,
       contributionCount: 1,
       latestUpdatedAt: entry.updatedAt,
-      maxHumanWeight: entry.humanWeight,
-      totalHumanWeight: entry.humanWeight,
+      maxHumanWeight: humanWeight,
+      totalHumanWeight: humanWeight,
     });
   }
 
@@ -702,11 +716,39 @@ function compareEntries(
   second: Doc<"knowledgeEntries">,
 ) {
   return (
-    second.humanWeight - first.humanWeight ||
+    compareEntryHumanWeight(first, second) ||
     second.updatedAt - first.updatedAt ||
     compareStrings(first.title, second.title) ||
     compareStrings(first._id, second._id)
   );
+}
+
+function compareEntryHumanWeight(
+  first: Doc<"knowledgeEntries">,
+  second: Doc<"knowledgeEntries">,
+) {
+  const firstHumanWeight = getApplicableHumanWeight(
+    first.knowledgeType,
+    first.humanWeight,
+  );
+  const secondHumanWeight = getApplicableHumanWeight(
+    second.knowledgeType,
+    second.humanWeight,
+  );
+
+  if (firstHumanWeight !== undefined && secondHumanWeight !== undefined) {
+    return secondHumanWeight - firstHumanWeight;
+  }
+
+  if (firstHumanWeight !== undefined) {
+    return -1;
+  }
+
+  if (secondHumanWeight !== undefined) {
+    return 1;
+  }
+
+  return 0;
 }
 
 function compareKnowledgeContextExperts(
@@ -851,11 +893,39 @@ function compareAnswerItems(
   second: AnswerFeedItem & { kind: "answer" },
 ) {
   return (
-    second.entry.humanWeight - first.entry.humanWeight ||
+    compareAnswerHumanWeight(first, second) ||
     second.entry.updatedAt - first.entry.updatedAt ||
     compareStrings(first.entry.title, second.entry.title) ||
     compareStrings(first.entry.id, second.entry.id)
   );
+}
+
+function compareAnswerHumanWeight(
+  first: AnswerFeedItem & { kind: "answer" },
+  second: AnswerFeedItem & { kind: "answer" },
+) {
+  const firstHumanWeight = getApplicableHumanWeight(
+    first.entry.knowledgeType,
+    first.entry.humanWeight,
+  );
+  const secondHumanWeight = getApplicableHumanWeight(
+    second.entry.knowledgeType,
+    second.entry.humanWeight,
+  );
+
+  if (firstHumanWeight !== undefined && secondHumanWeight !== undefined) {
+    return secondHumanWeight - firstHumanWeight;
+  }
+
+  if (firstHumanWeight !== undefined) {
+    return -1;
+  }
+
+  if (secondHumanWeight !== undefined) {
+    return 1;
+  }
+
+  return 0;
 }
 
 function compareSlotItems(

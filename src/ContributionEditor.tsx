@@ -1,11 +1,18 @@
 import {
   CheckCircle2,
+  FileText,
+  Link,
   LoaderCircle,
   LockKeyhole,
+  Plus,
   Send,
   Sparkles,
+  Trash2,
+  UploadCloud,
+  X,
 } from "lucide-react";
 import {
+  useEffect,
   useState,
   type ChangeEvent,
   type FormEvent,
@@ -23,6 +30,8 @@ import {
   type GuidedContributionType,
   type KnowledgeSlotSummary,
   type KnowledgeType,
+  type SmartStorageExternalUrlInput,
+  type SmartStorageUploadedFileInput,
 } from "./knowledgeContracts";
 import { KnowledgeTypeIcon } from "./components/KnowledgeTypeIcon";
 import { ReferentTagLink } from "./components/ReferentTagLink";
@@ -37,6 +46,9 @@ export type ContributionKnowledgeTypeSources = {
 type ContributionSubmitHandler = (
   input: ContributionInput,
 ) => Promise<ContributionResult> | ContributionResult;
+type ContributionFileUploadHandler = (
+  file: File,
+) => Promise<SmartStorageUploadedFileInput>;
 
 export type ContributionEditorProps = ContributionKnowledgeTypeSources & {
   context: ActiveTag[];
@@ -46,6 +58,7 @@ export type ContributionEditorProps = ContributionKnowledgeTypeSources & {
   initialTitle?: string;
   onKnowledgeTypeChange?: (nextType: AuthorableKnowledgeType) => void;
   onNavigateToHref?: (href: string) => void;
+  onUploadFile?: ContributionFileUploadHandler;
   onPostDirect?: ContributionSubmitHandler;
   onStoreSmartly?: ContributionSubmitHandler;
   onSubmitSource?: ContributionSubmitHandler;
@@ -69,6 +82,12 @@ type ContributionFieldConfig = {
   titlePreviewLabel?: string;
 };
 
+type ContributionPrimaryField = "body" | "title";
+type UploadState =
+  | { kind: "idle" }
+  | { kind: "uploading" }
+  | { kind: "error"; message: string };
+
 export function ContributionEditor({
   context,
   defaultMode,
@@ -77,6 +96,7 @@ export function ContributionEditor({
   initialTitle = "",
   onKnowledgeTypeChange,
   onNavigateToHref,
+  onUploadFile,
   onPostDirect,
   onStoreSmartly,
   onSubmitSource,
@@ -84,8 +104,20 @@ export function ContributionEditor({
   selectedKnowledgeType,
   slot,
 }: ContributionEditorProps) {
+  const [isExpanded, setIsExpanded] = useState(Boolean(slot));
   const [title, setTitle] = useState(initialTitle);
   const [body, setBody] = useState(initialBody);
+  const [contributionNote, setContributionNote] = useState("");
+  const [externalUrlDraft, setExternalUrlDraft] = useState("");
+  const [externalUrls, setExternalUrls] = useState<SmartStorageExternalUrlInput[]>(
+    [],
+  );
+  const [uploadedFiles, setUploadedFiles] = useState<
+    SmartStorageUploadedFileInput[]
+  >([]);
+  const [uploadState, setUploadState] = useState<UploadState>({
+    kind: "idle",
+  });
   const [submissionState, setSubmissionState] = useState<SubmissionState>({
     kind: "idle",
   });
@@ -97,11 +129,18 @@ export function ContributionEditor({
     activeKnowledgeType,
     guidedContributionType,
   );
+  const supportsSmartStorageSources = activeGuidedContributionType === null;
+  const hasSupplementalSources =
+    supportsSmartStorageSources &&
+    (contributionNote.trim().length > 0 ||
+      externalUrls.length > 0 ||
+      uploadedFiles.length > 0);
   const contributionPreview = createContributionPreview({
     body,
     context,
     defaultMode,
     guidedContributionType: activeGuidedContributionType,
+    hasSupplementalSources,
     knowledgeType: activeKnowledgeType,
     parentEntryTitle,
     slot,
@@ -118,12 +157,32 @@ export function ContributionEditor({
     isSlotTypeFixed,
   );
   const secondaryMode = getAlternateContributionMode(contributionPreview.mode);
-  const showsSecondarySubmit = activeGuidedContributionType === null;
+  const showsSecondarySubmit =
+    activeGuidedContributionType === null && !hasSupplementalSources;
   const secondarySubmitLabel = getContributionSubmitLabel(
     secondaryMode,
     activeKnowledgeType,
     activeGuidedContributionType,
   );
+  const primaryField = getContributionPrimaryField(
+    fieldConfig,
+    activeKnowledgeType,
+    activeGuidedContributionType,
+  );
+
+  useEffect(() => {
+    if (slot) {
+      setIsExpanded(true);
+    }
+  }, [slot]);
+
+  function handleEditorFocus() {
+    setIsExpanded(true);
+  }
+
+  function handleCollapseEditor() {
+    setIsExpanded(false);
+  }
 
   function handleKnowledgeTypeChange(event: ChangeEvent<HTMLSelectElement>) {
     const nextType = event.currentTarget.value;
@@ -140,12 +199,15 @@ export function ContributionEditor({
   async function submitContribution(mode: ContributionMode) {
     const input = createContributionInput({
       body,
+      contributionNote,
       context,
+      externalUrls,
       guidedContributionType: activeGuidedContributionType,
       knowledgeType: activeKnowledgeType,
       parentEntryTitle,
       slot,
       title,
+      uploadedFiles,
     });
 
     setSubmissionState({ kind: "submitting" });
@@ -157,13 +219,133 @@ export function ContributionEditor({
     setSubmissionState({ kind: "submitted", entryId: result.entryId, mode });
     setBody("");
     setTitle("");
+    setContributionNote("");
+    setExternalUrls([]);
+    setUploadedFiles([]);
   }
+
+  function handleAddExternalUrl() {
+    const url = externalUrlDraft.trim();
+    if (!url) {
+      return;
+    }
+    setExternalUrls((current) => [...current, { url }]);
+    setExternalUrlDraft("");
+  }
+
+  function handleRemoveExternalUrl(index: number) {
+    setExternalUrls((current) => current.filter((_, itemIndex) => itemIndex !== index));
+  }
+
+  function handleRemoveUploadedFile(index: number) {
+    setUploadedFiles((current) => current.filter((_, itemIndex) => itemIndex !== index));
+  }
+
+  async function handleFileInputChange(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.currentTarget.files ?? []);
+    event.currentTarget.value = "";
+    if (files.length === 0) {
+      return;
+    }
+    if (!onUploadFile) {
+      setUploadState({
+        kind: "error",
+        message: "File upload is unavailable.",
+      });
+      return;
+    }
+
+    setUploadState({ kind: "uploading" });
+    try {
+      const uploaded: SmartStorageUploadedFileInput[] = [];
+      for (const file of files) {
+        uploaded.push(await onUploadFile(file));
+      }
+      setUploadedFiles((current) => [...current, ...uploaded]);
+      setUploadState({ kind: "idle" });
+    } catch {
+      setUploadState({
+        kind: "error",
+        message: "File upload failed.",
+      });
+    }
+  }
+
+  const typeField = (
+    <label className="kb-contribution-field kb-contribution-type-field">
+      <span>Knowledge Type</span>
+      <select
+        disabled={isSlotTypeFixed}
+        onChange={handleKnowledgeTypeChange}
+        value={activeKnowledgeType}
+      >
+        {knowledgeTypeOptions.map((knowledgeType) => (
+          <option key={knowledgeType} value={knowledgeType}>
+            {formatKnowledgeTypeLabel(knowledgeType)}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+  const titleField = fieldConfig.showsTitleField ? (
+    <label
+      className={getContributionFieldClassName(
+        "title",
+        primaryField === "title",
+      )}
+    >
+      <span>{fieldConfig.titleLabel}</span>
+      <input
+        onChange={(event) => setTitle(event.currentTarget.value)}
+        placeholder={fieldConfig.titlePlaceholder}
+        required
+        type="text"
+        value={title}
+      />
+    </label>
+  ) : null;
+  const bodyField = fieldConfig.showsBodyField ? (
+    <label
+      className={getContributionFieldClassName(
+        "body",
+        primaryField === "body",
+      )}
+    >
+      <span>{fieldConfig.bodyLabel}</span>
+      <textarea
+        onChange={(event) => setBody(event.currentTarget.value)}
+        placeholder={fieldConfig.bodyPlaceholder}
+        required={fieldConfig.bodyRequired}
+        rows={5}
+        value={body}
+      />
+    </label>
+  ) : null;
+  const sourceTools =
+    supportsSmartStorageSources ? (
+      <ContributionSourceTools
+        body={body}
+        contributionNote={contributionNote}
+        externalUrlDraft={externalUrlDraft}
+        externalUrls={externalUrls}
+        onAddExternalUrl={handleAddExternalUrl}
+        onContributionNoteChange={setContributionNote}
+        onExternalUrlDraftChange={setExternalUrlDraft}
+        onFileInputChange={(event) => void handleFileInputChange(event)}
+        onRemoveExternalUrl={handleRemoveExternalUrl}
+        onRemoveUploadedFile={handleRemoveUploadedFile}
+        uploadedFiles={uploadedFiles}
+        uploadState={uploadState}
+      />
+    ) : null;
 
   return (
     <section
       className="kb-contribution-editor"
       aria-labelledby="kb-contribution-heading"
+      data-expanded={isExpanded ? "true" : "false"}
       data-guided-type={activeGuidedContributionType ?? undefined}
+      onFocusCapture={handleEditorFocus}
     >
       <header className="kb-contribution-header">
         <div>
@@ -186,49 +368,20 @@ export function ContributionEditor({
         onNavigateToHref={onNavigateToHref}
       />
 
-      <ContributionPreviewPanel preview={contributionPreview} />
-
       <form className="kb-contribution-form" onSubmit={handleSubmit}>
-        <label className="kb-contribution-field">
-          <span>Knowledge Type</span>
-          <select
-            disabled={isSlotTypeFixed}
-            onChange={handleKnowledgeTypeChange}
-            value={activeKnowledgeType}
-          >
-            {knowledgeTypeOptions.map((knowledgeType) => (
-              <option key={knowledgeType} value={knowledgeType}>
-                {formatKnowledgeTypeLabel(knowledgeType)}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {fieldConfig.showsTitleField ? (
-          <label className="kb-contribution-field">
-            <span>{fieldConfig.titleLabel}</span>
-            <input
-              onChange={(event) => setTitle(event.currentTarget.value)}
-              placeholder={fieldConfig.titlePlaceholder}
-              required
-              type="text"
-              value={title}
-            />
-          </label>
-        ) : null}
-
-        {fieldConfig.showsBodyField ? (
-          <label className="kb-contribution-field">
-            <span>{fieldConfig.bodyLabel}</span>
-            <textarea
-              onChange={(event) => setBody(event.currentTarget.value)}
-              placeholder={fieldConfig.bodyPlaceholder}
-              required={fieldConfig.bodyRequired}
-              rows={5}
-              value={body}
-            />
-          </label>
-        ) : null}
+        {primaryField === "title" ? (
+          <>
+            {titleField}
+            {bodyField}
+          </>
+        ) : (
+          <>
+            {bodyField}
+            {titleField}
+          </>
+        )}
+        {typeField}
+        {sourceTools}
 
         <button
           className="kb-contribution-submit"
@@ -260,7 +413,21 @@ export function ContributionEditor({
             <span>{secondarySubmitLabel}</span>
           </button>
         ) : null}
+
+        {isExpanded ? (
+          <button
+            aria-label="Collapse contribution editor"
+            className="kb-contribution-collapse-button"
+            onClick={handleCollapseEditor}
+            title="Collapse contribution editor"
+            type="button"
+          >
+            <X aria-hidden="true" />
+          </button>
+        ) : null}
       </form>
+
+      <ContributionPreviewPanel preview={contributionPreview} />
 
       <Presence present={submissionState.kind === "submitted"}>
         {(presenceState) => (
@@ -279,6 +446,218 @@ export function ContributionEditor({
       </Presence>
     </section>
   );
+}
+
+function getContributionPrimaryField(
+  fieldConfig: ContributionFieldConfig,
+  knowledgeType: AuthorableKnowledgeType,
+  guidedContributionType: GuidedContributionType | null,
+): ContributionPrimaryField {
+  if (
+    fieldConfig.showsTitleField &&
+    (knowledgeType === "question" || guidedContributionType === "group")
+  ) {
+    return "title";
+  }
+
+  if (fieldConfig.showsBodyField) {
+    return "body";
+  }
+
+  return "title";
+}
+
+function getContributionFieldClassName(
+  field: ContributionPrimaryField,
+  isPrimary: boolean,
+) {
+  return [
+    "kb-contribution-field",
+    `kb-contribution-${field}-field`,
+    isPrimary ? "kb-contribution-primary-field" : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function ContributionSourceTools({
+  body,
+  contributionNote,
+  externalUrlDraft,
+  externalUrls,
+  onAddExternalUrl,
+  onContributionNoteChange,
+  onExternalUrlDraftChange,
+  onFileInputChange,
+  onRemoveExternalUrl,
+  onRemoveUploadedFile,
+  uploadedFiles,
+  uploadState,
+}: {
+  body: string;
+  contributionNote: string;
+  externalUrlDraft: string;
+  externalUrls: SmartStorageExternalUrlInput[];
+  onAddExternalUrl: () => void;
+  onContributionNoteChange: (nextNote: string) => void;
+  onExternalUrlDraftChange: (nextUrl: string) => void;
+  onFileInputChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onRemoveExternalUrl: (index: number) => void;
+  onRemoveUploadedFile: (index: number) => void;
+  uploadedFiles: SmartStorageUploadedFileInput[];
+  uploadState: UploadState;
+}) {
+  const authoredTextPreview = body.trim();
+  const hasInventory =
+    authoredTextPreview.length > 0 ||
+    externalUrls.length > 0 ||
+    uploadedFiles.length > 0;
+
+  return (
+    <section
+      aria-label="Smart Storage Source inventory"
+      className="kb-contribution-source-tools"
+    >
+      <label className="kb-contribution-field kb-contribution-note-field">
+        <span>Contribution Note</span>
+        <textarea
+          onChange={(event) =>
+            onContributionNoteChange(event.currentTarget.value)
+          }
+          placeholder="Guidance for Smart Storage..."
+          rows={3}
+          value={contributionNote}
+        />
+      </label>
+
+      <div className="kb-contribution-source-add-row">
+        <label className="kb-contribution-field kb-contribution-url-field">
+          <span>External URL</span>
+          <input
+            onChange={(event) =>
+              onExternalUrlDraftChange(event.currentTarget.value)
+            }
+            placeholder="https://example.com/source"
+            type="url"
+            value={externalUrlDraft}
+          />
+        </label>
+        <button
+          aria-label="Add external URL Source"
+          className="kb-contribution-source-icon-button"
+          disabled={externalUrlDraft.trim().length === 0}
+          onClick={onAddExternalUrl}
+          title="Add external URL Source"
+          type="button"
+        >
+          <Plus aria-hidden="true" />
+        </button>
+      </div>
+
+      <label className="kb-contribution-file-picker">
+        <UploadCloud aria-hidden="true" />
+        <span>
+          {uploadState.kind === "uploading" ? "Uploading..." : "Upload File"}
+        </span>
+        <input
+          aria-label="Upload file Source"
+          disabled={uploadState.kind === "uploading"}
+          multiple
+          onChange={onFileInputChange}
+          type="file"
+        />
+      </label>
+
+      {uploadState.kind === "error" ? (
+        <p className="kb-contribution-source-error" role="alert">
+          {uploadState.message}
+        </p>
+      ) : null}
+
+      <div className="kb-contribution-source-inventory">
+        <header>
+          <FileText aria-hidden="true" />
+          <span>Source Inventory</span>
+        </header>
+        {hasInventory ? (
+          <ul>
+            {authoredTextPreview ? (
+              <li>
+                <FileText aria-hidden="true" />
+                <span>
+                  <strong>Authored Text</strong>
+                  <small>
+                    {limitContributionPreviewText(authoredTextPreview)}
+                  </small>
+                </span>
+              </li>
+            ) : null}
+            {externalUrls.map((externalUrl, index) => (
+              <li key={`${externalUrl.url}-${index}`}>
+                <Link aria-hidden="true" />
+                <span>
+                  <strong>{externalUrl.title ?? "External URL"}</strong>
+                  <small>{externalUrl.url}</small>
+                </span>
+                <button
+                  aria-label={`Remove external URL Source ${index + 1}`}
+                  className="kb-contribution-source-remove"
+                  onClick={() => onRemoveExternalUrl(index)}
+                  title="Remove external URL Source"
+                  type="button"
+                >
+                  <Trash2 aria-hidden="true" />
+                </button>
+              </li>
+            ))}
+            {uploadedFiles.map((uploadedFile, index) => (
+              <li key={`${uploadedFile.storageId}-${index}`}>
+                <UploadCloud aria-hidden="true" />
+                <span>
+                  <strong>{uploadedFile.title ?? uploadedFile.fileName}</strong>
+                  <small>{formatUploadedFileMeta(uploadedFile)}</small>
+                </span>
+                <button
+                  aria-label={`Remove uploaded file Source ${index + 1}`}
+                  className="kb-contribution-source-remove"
+                  onClick={() => onRemoveUploadedFile(index)}
+                  title="Remove uploaded file Source"
+                  type="button"
+                >
+                  <Trash2 aria-hidden="true" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No Sources staged.</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function formatUploadedFileMeta(uploadedFile: SmartStorageUploadedFileInput) {
+  const parts = [
+    uploadedFile.contentType,
+    uploadedFile.fileSizeBytes === undefined
+      ? undefined
+      : formatFileSize(uploadedFile.fileSizeBytes),
+  ].filter(Boolean);
+
+  return parts.join(" / ") || "Uploaded file";
+}
+
+function formatFileSize(sizeBytes: number) {
+  if (sizeBytes < 1024) {
+    return `${sizeBytes} B`;
+  }
+
+  if (sizeBytes < 1024 * 1024) {
+    return `${Math.round(sizeBytes / 1024)} KB`;
+  }
+
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export function resolveContributionKnowledgeType({
@@ -300,15 +679,21 @@ export function resolveContributionMode({
   context,
   defaultMode,
   guidedContributionType,
+  hasSupplementalSources = false,
   slot,
 }: {
   context: ActiveTag[];
   defaultMode?: ContributionMode;
   guidedContributionType?: GuidedContributionType | null;
+  hasSupplementalSources?: boolean;
   slot?: KnowledgeSlotSummary;
 }): ContributionMode {
   if (guidedContributionType) {
     return "direct";
+  }
+
+  if (hasSupplementalSources) {
+    return "smartStorage";
   }
 
   if (defaultMode) {
@@ -327,6 +712,7 @@ export function createContributionPreview({
   context,
   defaultMode,
   guidedContributionType,
+  hasSupplementalSources = false,
   knowledgeType,
   parentEntryTitle: _parentEntryTitle,
   slot,
@@ -336,6 +722,7 @@ export function createContributionPreview({
   context: ActiveTag[];
   defaultMode?: ContributionMode;
   guidedContributionType?: GuidedContributionType | null;
+  hasSupplementalSources?: boolean;
   knowledgeType: AuthorableKnowledgeType;
   parentEntryTitle?: string;
   slot?: KnowledgeSlotSummary;
@@ -349,6 +736,7 @@ export function createContributionPreview({
     context,
     defaultMode,
     guidedContributionType: activeGuidedContributionType,
+    hasSupplementalSources,
     slot,
   });
   const fieldConfig = getContributionFieldConfig(
@@ -397,20 +785,26 @@ export function createContributionPreview({
 
 export function createContributionInput({
   body,
+  contributionNote,
   context,
+  externalUrls = [],
   guidedContributionType,
   knowledgeType,
   parentEntryTitle,
   slot,
   title = "",
+  uploadedFiles = [],
 }: {
   body: string;
+  contributionNote?: string;
   context: ActiveTag[];
+  externalUrls?: SmartStorageExternalUrlInput[];
   guidedContributionType?: GuidedContributionType | null;
   knowledgeType: AuthorableKnowledgeType;
   parentEntryTitle?: string;
   slot?: KnowledgeSlotSummary;
   title?: string;
+  uploadedFiles?: SmartStorageUploadedFileInput[];
 }): ContributionInput {
   const activeGuidedContributionType = resolveGuidedContributionType(
     knowledgeType,
@@ -421,9 +815,15 @@ export function createContributionInput({
     activeGuidedContributionType,
   );
 
+  const trimmedContributionNote = contributionNote?.trim();
+
   return {
     body: fieldConfig.showsBodyField ? body : "",
+    ...(trimmedContributionNote
+      ? { contributionNote: trimmedContributionNote }
+      : {}),
     contextTags: context,
+    ...(externalUrls.length > 0 ? { externalUrls } : {}),
     knowledgeType,
     slotId: slot?.id,
     title: createContributionInputTitle({
@@ -431,6 +831,7 @@ export function createContributionInput({
       parentEntryTitle,
       title,
     }),
+    ...(uploadedFiles.length > 0 ? { uploadedFiles } : {}),
   };
 }
 

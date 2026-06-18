@@ -3021,3 +3021,1748 @@ Found 1 error in convex/pinnedKnowledgePages.test.ts[90m:97[0m
 
 [32m√[39m 12:02:49 Convex functions ready! (8.44s)
 6/17/2026, 12:08:10 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[32m√[39m 12:24:19 Convex functions ready! (8.18s)
+6/17/2026, 12:24:14 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 12:25:17 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 12:45:31 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifier'
+6/17/2026, 12:45:31 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifierSignature'
+- Preparing Convex functions...
+
+[32m√[39m 12:48:45 Convex functions ready! (7.69s)
+6/17/2026, 12:54:15 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: retrieveAccountWithCredentials'
+6/17/2026, 12:54:15 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signIn'
+6/17/2026, 12:54:16 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 12:55:00 PM [CONVEX M(analytics:recordPageVisit)] Your request couldn't be completed. Try again later.
+
+6/17/2026, 12:55:00 PM [CONVEX Q(analytics:listDashboardBibleContextSuggestions)] Your request couldn't be completed. Try again later.
+
+6/17/2026, 12:55:06 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 12:55:24 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 12:55:39 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 12:55:45 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[32m√[39m 12:58:59 Convex functions ready! (7.85s)
+- Preparing Convex functions...
+
+[32m√[39m 12:59:27 Convex functions ready! (6.74s)
+- Preparing Convex functions...
+
+[32m√[39m 12:59:46 Convex functions ready! (7.46s)
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/pinnedKnowledgePages.ts[0m:[93m66[0m:[93m7[0m - [91merror[0m[90m TS2554: [0mExpected 1 arguments, but got 2.
+
+[7m66[0m       includeEveryDefaultOrganization,
+[7m  [0m [91m      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/pinnedKnowledgePages.ts[0m:[93m153[0m:[93m13[0m - [91merror[0m[90m TS2554: [0mExpected 4 arguments, but got 3.
+
+[7m153[0m       await getNextManualSortOrder(ctx, access.userId, access.organizations);
+[7m   [0m [91m            ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+  [96mconvex/pinnedKnowledgePages.ts[0m:[93m339[0m:[93m3[0m
+    [7m339[0m   includeEveryDefaultOrganization: boolean,
+    [7m   [0m [96m  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    An argument for 'includeEveryDefaultOrganization' was not provided.
+
+[96mconvex/pinnedKnowledgePages.ts[0m:[93m201[0m:[93m7[0m - [91merror[0m[90m TS2554: [0mExpected 1 arguments, but got 2.
+
+[7m201[0m       access.systemRole === "systemAdmin",
+[7m   [0m [91m      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/pinnedKnowledgePages.ts[0m:[93m344[0m:[93m7[0m - [91merror[0m[90m TS2554: [0mExpected 1 arguments, but got 2.
+
+[7m344[0m       includeEveryDefaultOrganization,
+[7m   [0m [91m      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 4 errors in the same file, starting at: convex/pinnedKnowledgePages.ts[90m:66[0m
+- Preparing Convex functions...
+
+[32m√[39m 13:04:23 Convex functions ready! (6.75s)
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/pinnedKnowledgePages.test.ts[0m:[93m131[0m:[93m49[0m - [91merror[0m[90m TS2554: [0mExpected 0 arguments, but got 1.
+
+[7m131[0m     const { authed, t } = await seedAllowedUser("gelbaughcm@gmail.com");
+[7m   [0m [91m                                                ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 1 error in convex/pinnedKnowledgePages.test.ts[90m:131[0m
+- Preparing Convex functions...
+
+[32m√[39m 13:06:55 Convex functions ready! (7.3s)
+- Preparing Convex functions...
+
+[32m√[39m 13:07:29 Convex functions ready! (8.16s)
+6/17/2026, 1:12:59 PM [CONVEX M(organizationAccounts:addOrganizationMember)] Uncaught Error: No user account found for that email.
+    at handler (../convex/organizationAccounts.ts:186:16)
+
+6/17/2026, 1:25:09 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 1:55:36 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 2:25:00 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 2:55:27 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 3:04:57 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signOut'
+6/17/2026, 3:04:59 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifier'
+6/17/2026, 3:04:59 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifierSignature'
+6/17/2026, 3:05:17 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifier'
+6/17/2026, 3:05:17 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifierSignature'
+6/17/2026, 3:07:27 PM [CONVEX H(GET /api/auth/signin/google)] [ERROR] 'Missing sign-in verifier\n'
+6/17/2026, 3:07:42 PM [CONVEX H(GET /api/auth/signin/google)] [ERROR] 'Missing sign-in verifier\n'
+6/17/2026, 3:12:09 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifier'
+6/17/2026, 3:12:10 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifierSignature'
+- Preparing Convex functions...
+
+[32m√[39m 15:13:59 Convex functions ready! (7.43s)
+6/17/2026, 3:14:52 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifier'
+6/17/2026, 3:14:52 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifierSignature'
+6/17/2026, 3:24:51 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 3:42:48 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifier'
+6/17/2026, 3:42:48 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifierSignature'
+6/17/2026, 3:43:22 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: userOAuth'
+6/17/2026, 3:43:23 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: verifyCodeAndSignIn'
+6/17/2026, 3:43:23 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 3:45:36 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signOut'
+6/17/2026, 3:45:47 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: retrieveAccountWithCredentials'
+6/17/2026, 3:45:48 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: signIn'
+6/17/2026, 3:45:48 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 4:24:42 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 4:45:38 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 5:24:33 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 5:45:30 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 6:24:24 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 6:45:22 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 7:45:13 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 8:45:04 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 9:44:54 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 10:44:45 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/17/2026, 11:44:36 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/18/2026, 12:44:27 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/18/2026, 12:49:55 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/18/2026, 1:44:19 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[32m√[39m 02:22:49 Convex functions ready! (7.93s)
+- Preparing Convex functions...
+
+[32m√[39m Added table indexes:
+  [+] contributionSubmissions.by_reviewScopeKind_and_reviewScopeTargetKey_and_createdAt   reviewScopeKind, reviewScopeTargetKey, createdAt, _creationTime
+  [+] contributionSubmissions.by_submissionStatus_and_createdAt   submissionStatus, createdAt, _creationTime
+  [+] contributionSubmissions.by_submittedByUserId_and_createdAt   submittedByUserId, createdAt, _creationTime
+  [+] proposalSourceCitations.by_proposalId   proposalId, _creationTime
+  [+] proposalSourceCitations.by_sourceId   sourceId, _creationTime
+  [+] smartStorageProposals.by_contributionSubmissionId_and_status_and_createdAt   contributionSubmissionId, status, createdAt, _creationTime
+  [+] smartStorageRuns.by_contributionSubmissionId_and_createdAt   contributionSubmissionId, createdAt, _creationTime
+  [+] sources.by_contributionSubmissionId_and_submittedAt   contributionSubmissionId, submittedAt, _creationTime
+  [+] temporaryUploads.by_storageId   storageId, _creationTime
+  [+] temporaryUploads.by_uploadStatus_and_expiresAt   uploadStatus, expiresAt, _creationTime
+  [+] temporaryUploads.by_uploadedByUserId_and_createdAt   uploadedByUserId, createdAt, _creationTime
+✔ 02:23:19 Convex functions ready! (7.01s)
+- Preparing Convex functions...
+
+[32m√[39m 02:23:47 Convex functions ready! (8.19s)
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.test.ts[0m:[93m11[0m:[93m37[0m - [91merror[0m[90m TS2307: [0mCannot find module './smartStorage' or its corresponding type declarations.
+
+[7m11[0m   "./smartStorage.ts": () => import("./smartStorage"),
+[7m  [0m [91m                                    ~~~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.test.ts[0m:[93m20[0m:[93m46[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorage' does not exist on type '{ pinnedKnowledgePages: { listForSidebar: FunctionReference<"query", "public", {}, SidebarPinnedKnowledgePage[], string | undefined>; pinOrganizationPage: FunctionReference<...>; unpinKnowledgePage: FunctionReference<...>; }; ... 12 more ...; smartStoragePlayground: { ...; }; }'.
+
+[7m20[0m     const result = await authed.mutation(api.smartStorage.startFromContribution, {
+[7m  [0m [91m                                             ~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m98[0m:[93m27[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorage' does not exist on type '{ pinnedKnowledgePages: { listForSidebar: FunctionReference<"query", "public", {}, SidebarPinnedKnowledgePage[], string | undefined>; pinOrganizationPage: FunctionReference<...>; unpinKnowledgePage: FunctionReference<...>; }; ... 12 more ...; smartStoragePlayground: { ...; }; }'.
+
+[7m98[0m       authed.mutation(api.smartStorage.startFromContribution, {
+[7m  [0m [91m                          ~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m121[0m:[93m11[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorage' does not exist on type '{ pinnedKnowledgePages: { listForSidebar: FunctionReference<"query", "public", {}, SidebarPinnedKnowledgePage[], string | undefined>; pinOrganizationPage: FunctionReference<...>; unpinKnowledgePage: FunctionReference<...>; }; ... 12 more ...; smartStoragePlayground: { ...; }; }'.
+
+[7m121[0m       api.smartStorage.startFromContribution,
+[7m   [0m [91m          ~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m126[0m:[93m11[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorage' does not exist on type '{ pinnedKnowledgePages: { listForSidebar: FunctionReference<"query", "public", {}, SidebarPinnedKnowledgePage[], string | undefined>; pinOrganizationPage: FunctionReference<...>; unpinKnowledgePage: FunctionReference<...>; }; ... 12 more ...; smartStoragePlayground: { ...; }; }'.
+
+[7m126[0m       api.smartStorage.generateDraftProposalForRun,
+[7m   [0m [91m          ~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m158[0m:[93m22[0m - [91merror[0m[90m TS2339: [0mProperty 'originalProposal' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 56 more...'.
+  Property 'originalProposal' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m158[0m     expect(proposal?.originalProposal).toEqual({
+[7m   [0m [91m                     ~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m183[0m:[93m22[0m - [91merror[0m[90m TS2339: [0mProperty 'currentProposal' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 56 more...'.
+  Property 'currentProposal' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m183[0m     expect(proposal?.currentProposal).toEqual(proposal?.originalProposal);
+[7m   [0m [91m                     ~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m183[0m:[93m57[0m - [91merror[0m[90m TS2339: [0mProperty 'originalProposal' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 56 more...'.
+  Property 'originalProposal' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m183[0m     expect(proposal?.currentProposal).toEqual(proposal?.originalProposal);
+[7m   [0m [91m                                                        ~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m195[0m:[93m39[0m - [91merror[0m[90m TS2339: [0mProperty 'rawModelOutput' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 56 more...'.
+  Property 'rawModelOutput' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m195[0m     const rawOutput = JSON.parse(run?.rawModelOutput ?? "{}");
+[7m   [0m [91m                                      ~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.test.ts[0m:[93m211[0m:[93m11[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorage' does not exist on type '{ pinnedKnowledgePages: { listForSidebar: FunctionReference<"query", "public", {}, SidebarPinnedKnowledgePage[], string | undefined>; pinOrganizationPage: FunctionReference<...>; unpinKnowledgePage: FunctionReference<...>; }; ... 12 more ...; smartStoragePlayground: { ...; }; }'.
+
+[7m211[0m       api.smartStorage.startFromContribution,
+[7m   [0m [91m          ~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m216[0m:[93m11[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorage' does not exist on type '{ pinnedKnowledgePages: { listForSidebar: FunctionReference<"query", "public", {}, SidebarPinnedKnowledgePage[], string | undefined>; pinOrganizationPage: FunctionReference<...>; unpinKnowledgePage: FunctionReference<...>; }; ... 12 more ...; smartStoragePlayground: { ...; }; }'.
+
+[7m216[0m       api.smartStorage.generateDraftProposalForRun,
+[7m   [0m [91m          ~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m222[0m:[93m11[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorage' does not exist on type '{ pinnedKnowledgePages: { listForSidebar: FunctionReference<"query", "public", {}, SidebarPinnedKnowledgePage[], string | undefined>; pinOrganizationPage: FunctionReference<...>; unpinKnowledgePage: FunctionReference<...>; }; ... 12 more ...; smartStoragePlayground: { ...; }; }'.
+
+[7m222[0m       api.smartStorage.generateDraftProposalForRun,
+[7m   [0m [91m          ~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m247[0m:[93m11[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorage' does not exist on type '{ pinnedKnowledgePages: { listForSidebar: FunctionReference<"query", "public", {}, SidebarPinnedKnowledgePage[], string | undefined>; pinOrganizationPage: FunctionReference<...>; unpinKnowledgePage: FunctionReference<...>; }; ... 12 more ...; smartStoragePlayground: { ...; }; }'.
+
+[7m247[0m       api.smartStorage.startFromContribution,
+[7m   [0m [91m          ~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m252[0m:[93m26[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorage' does not exist on type '{ pinnedKnowledgePages: { listForSidebar: FunctionReference<"query", "public", {}, SidebarPinnedKnowledgePage[], string | undefined>; pinOrganizationPage: FunctionReference<...>; unpinKnowledgePage: FunctionReference<...>; }; ... 12 more ...; smartStoragePlayground: { ...; }; }'.
+
+[7m252[0m       other.mutation(api.smartStorage.generateDraftProposalForRun, {
+[7m   [0m [91m                         ~~~~~~~~~~~~[0m
+
+Found 14 errors in the same file, starting at: convex/smartStorage.test.ts[90m:11[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m725[0m:[93m7[0m - [91merror[0m[90m TS2719: [0mType '{ knowledgeType: "words" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | "lesson" | "comment" | "prayerRequest" | "event" | ... 4 more ... | "place"; ... 4 more ...; rationale: string; }' is not assignable to type '{ knowledgeType: "words" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | "lesson" | "comment" | "prayerRequest" | "event" | ... 4 more ... | "place"; ... 4 more ...; rationale: string; }'. Two different types with this name exist, but they are unrelated.
+  Types of property 'proposalConfidence' are incompatible.
+    Type '"low" | "medium" | "high"' is not assignable to type '"medium"'.
+      Type '"low"' is not assignable to type '"medium"'.
+
+[7m725[0m       proposedEntry,
+[7m   [0m [91m      ~~~~~~~~~~~~~[0m
+
+  [96mconvex/smartStorage.ts[0m:[93m1263[0m:[93m5[0m
+    [7m1263[0m     proposedEntry: ReturnType<typeof buildDraftProposal>;
+    [7m    [0m [96m    ~~~~~~~~~~~~~[0m
+    The expected type comes from property 'proposedEntry' which is declared here on type '{ entryId: Id<"knowledgeEntries">; now: number; proposedEntry: { knowledgeType: "words" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | ... 9 more ... | "place"; ... 4 more ...; rationale: string; }; sources: { ...; }[]; typeBehaviorDefaultRole: "unspecified" | ... 6 mor...'
+
+Found 1 error in convex/smartStorage.ts[90m:725[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m734[0m:[93m7[0m - [91merror[0m[90m TS2719: [0mType '{ knowledgeType: "words" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | "lesson" | "comment" | "prayerRequest" | "event" | ... 4 more ... | "place"; ... 4 more ...; rationale: string; }' is not assignable to type '{ knowledgeType: "words" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | "lesson" | "comment" | "prayerRequest" | "event" | ... 4 more ... | "place"; ... 4 more ...; rationale: string; }'. Two different types with this name exist, but they are unrelated.
+  Types of property 'proposalConfidence' are incompatible.
+    Type '"low" | "medium" | "high"' is not assignable to type '"medium"'.
+      Type '"low"' is not assignable to type '"medium"'.
+
+[7m734[0m       proposedEntry,
+[7m   [0m [91m      ~~~~~~~~~~~~~[0m
+
+  [96mconvex/smartStorage.ts[0m:[93m1272[0m:[93m5[0m
+    [7m1272[0m     proposedEntry: ReturnType<typeof buildDraftProposal>;
+    [7m    [0m [96m    ~~~~~~~~~~~~~[0m
+    The expected type comes from property 'proposedEntry' which is declared here on type '{ entryId: Id<"knowledgeEntries">; now: number; proposedEntry: { knowledgeType: "words" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | ... 9 more ... | "place"; ... 4 more ...; rationale: string; }; sources: { ...; }[]; typeBehaviorDefaultRole: "unspecified" | ... 6 mor...'
+
+Found 1 error in convex/smartStorage.ts[90m:734[0m
+- Preparing Convex functions...
+
+[32m√[39m 02:30:48 Convex functions ready! (7.4s)
+- Preparing Convex functions...
+
+[32m√[39m 02:31:46 Convex functions ready! (7.42s)
+- Preparing Convex functions...
+
+[32m√[39m 02:33:31 Convex functions ready! (7.75s)
+- Preparing Convex functions...
+
+[32m√[39m 02:34:33 Convex functions ready! (7.13s)
+6/18/2026, 2:44:11 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+Retrying request (attempt 3/6)...
+Retrying request (attempt 4/6)...
+Retrying request (attempt 5/6)...
+Retrying request (attempt 6/6)...
+Retrying request (attempt 3/6)...
+Retrying request (attempt 4/6)...
+Retrying request (attempt 5/6)...
+Retrying request (attempt 6/6)...
+Retrying request (attempt 3/6)...
+Retrying request (attempt 4/6)...
+Retrying request (attempt 5/6)...
+Retrying request (attempt 6/6)...
+Retrying request (attempt 3/6)...
+- Preparing Convex functions...
+
+[32m√[39m 03:08:34 Convex functions ready! (7.85s)
+6/18/2026, 3:10:01 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/18/2026, 3:13:44 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[32m√[39m 03:20:37 Convex functions ready! (8.04s)
+6/18/2026, 4:13:35 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/18/2026, 5:13:27 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/18/2026, 6:13:18 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/18/2026, 7:13:09 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/18/2026, 8:13:00 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m269[0m:[93m21[0m - [91merror[0m[90m TS2304: [0mCannot find name 'getSafeLinkPreviewUrl'.
+
+[7m269[0m     const safeUrl = getSafeLinkPreviewUrl(args.url);
+[7m   [0m [91m                    ~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.ts[0m:[93m284[0m:[93m30[0m - [91merror[0m[90m TS2304: [0mCannot find name 'fetchLinkPreviewMetadata'.
+
+[7m284[0m       const metadata = await fetchLinkPreviewMetadata(safeUrl.url);
+[7m   [0m [91m                             ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m299[0m:[93m18[0m - [91merror[0m[90m TS2304: [0mCannot find name 'getPreviewErrorMessage'.
+
+[7m299[0m           error: getPreviewErrorMessage(error),
+[7m   [0m [91m                 ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m406[0m:[93m18[0m - [91merror[0m[90m TS2552: [0mCannot find name 'cleanupTemporaryUploadRow'. Did you mean 'cleanupTemporaryUpload'?
+
+[7m406[0m     return await cleanupTemporaryUploadRow(ctx, temporaryUpload, Date.now());
+[7m   [0m [91m                 ~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.ts[0m:[93m421[0m:[93m23[0m - [91merror[0m[90m TS2304: [0mCannot find name 'clampBatchSize'.
+
+[7m421[0m     const batchSize = clampBatchSize(args.batchSize);
+[7m   [0m [91m                      ~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m431[0m:[93m28[0m - [91merror[0m[90m TS2552: [0mCannot find name 'cleanupTemporaryUploadRow'. Did you mean 'cleanupTemporaryUpload'?
+
+[7m431[0m       const result = await cleanupTemporaryUploadRow(
+[7m   [0m [91m                           ~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 6 errors in the same file, starting at: convex/smartStorage.ts[90m:269[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m269[0m:[93m21[0m - [91merror[0m[90m TS2304: [0mCannot find name 'getSafeLinkPreviewUrl'.
+
+[7m269[0m     const safeUrl = getSafeLinkPreviewUrl(args.url);
+[7m   [0m [91m                    ~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.ts[0m:[93m284[0m:[93m30[0m - [91merror[0m[90m TS2304: [0mCannot find name 'fetchLinkPreviewMetadata'.
+
+[7m284[0m       const metadata = await fetchLinkPreviewMetadata(safeUrl.url);
+[7m   [0m [91m                             ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m299[0m:[93m18[0m - [91merror[0m[90m TS2304: [0mCannot find name 'getPreviewErrorMessage'.
+
+[7m299[0m           error: getPreviewErrorMessage(error),
+[7m   [0m [91m                 ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m406[0m:[93m18[0m - [91merror[0m[90m TS2552: [0mCannot find name 'cleanupTemporaryUploadRow'. Did you mean 'cleanupTemporaryUpload'?
+
+[7m406[0m     return await cleanupTemporaryUploadRow(ctx, temporaryUpload, Date.now());
+[7m   [0m [91m                 ~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.ts[0m:[93m421[0m:[93m23[0m - [91merror[0m[90m TS2304: [0mCannot find name 'clampBatchSize'.
+
+[7m421[0m     const batchSize = clampBatchSize(args.batchSize);
+[7m   [0m [91m                      ~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m431[0m:[93m28[0m - [91merror[0m[90m TS2552: [0mCannot find name 'cleanupTemporaryUploadRow'. Did you mean 'cleanupTemporaryUpload'?
+
+[7m431[0m       const result = await cleanupTemporaryUploadRow(
+[7m   [0m [91m                           ~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 6 errors in the same file, starting at: convex/smartStorage.ts[90m:269[0m
+- Preparing Convex functions...
+
+[32m√[39m 08:29:58 Convex functions ready! (6.95s)
+- Preparing Convex functions...
+
+[32m√[39m 08:30:46 Convex functions ready! (6.81s)
+- Preparing Convex functions...
+
+[32m√[39m 08:30:57 Convex functions ready! (7.67s)
+- Preparing Convex functions...
+
+[32m√[39m 08:31:06 Convex functions ready! (7.08s)
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.test.ts[0m:[93m145[0m:[93m32[0m - [91merror[0m[90m TS2304: [0mCannot find name 'getExternalUrlSource'.
+
+[7m145[0m       externalUrlSource: await getExternalUrlSource(
+[7m   [0m [91m                               ~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.test.ts[0m:[93m200[0m:[93m15[0m - [91merror[0m[90m TS2304: [0mCannot find name 'getExternalUrlSource'.
+
+[7m200[0m         await getExternalUrlSource(ctx, result.contributionSubmissionId),
+[7m   [0m [91m              ~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m238[0m:[93m15[0m - [91merror[0m[90m TS2304: [0mCannot find name 'getExternalUrlSource'.
+
+[7m238[0m         await getExternalUrlSource(ctx, result.contributionSubmissionId),
+[7m   [0m [91m              ~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m271[0m:[93m15[0m - [91merror[0m[90m TS2304: [0mCannot find name 'getExternalUrlSource'.
+
+[7m271[0m         await getExternalUrlSource(ctx, result.contributionSubmissionId),
+[7m   [0m [91m              ~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 4 errors in the same file, starting at: convex/smartStorage.test.ts[90m:145[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.test.ts[0m:[93m145[0m:[93m32[0m - [91merror[0m[90m TS2304: [0mCannot find name 'getExternalUrlSource'.
+
+[7m145[0m       externalUrlSource: await getExternalUrlSource(
+[7m   [0m [91m                               ~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.test.ts[0m:[93m200[0m:[93m15[0m - [91merror[0m[90m TS2304: [0mCannot find name 'getExternalUrlSource'.
+
+[7m200[0m         await getExternalUrlSource(ctx, result.contributionSubmissionId),
+[7m   [0m [91m              ~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m238[0m:[93m15[0m - [91merror[0m[90m TS2304: [0mCannot find name 'getExternalUrlSource'.
+
+[7m238[0m         await getExternalUrlSource(ctx, result.contributionSubmissionId),
+[7m   [0m [91m              ~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m271[0m:[93m15[0m - [91merror[0m[90m TS2304: [0mCannot find name 'getExternalUrlSource'.
+
+[7m271[0m         await getExternalUrlSource(ctx, result.contributionSubmissionId),
+[7m   [0m [91m              ~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m468[0m:[93m11[0m - [91merror[0m[90m TS7034: [0mVariable 'expiredUploads' implicitly has type 'any[]' in some locations where its type cannot be determined.
+
+[7m468[0m     const expiredUploads = [];
+[7m   [0m [91m          ~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.test.ts[0m:[93m498[0m:[93m9[0m - [91merror[0m[90m TS7005: [0mVariable 'expiredUploads' implicitly has an 'any[]' type.
+
+[7m498[0m         expiredUploads.map((upload) =>
+[7m   [0m [91m        ~~~~~~~~~~~~~~[0m
+
+Found 6 errors in the same file, starting at: convex/smartStorage.test.ts[90m:145[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.test.ts[0m:[93m468[0m:[93m11[0m - [91merror[0m[90m TS7034: [0mVariable 'expiredUploads' implicitly has type 'any[]' in some locations where its type cannot be determined.
+
+[7m468[0m     const expiredUploads = [];
+[7m   [0m [91m          ~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.test.ts[0m:[93m498[0m:[93m9[0m - [91merror[0m[90m TS7005: [0mVariable 'expiredUploads' implicitly has an 'any[]' type.
+
+[7m498[0m         expiredUploads.map((upload) =>
+[7m   [0m [91m        ~~~~~~~~~~~~~~[0m
+
+Found 2 errors in the same file, starting at: convex/smartStorage.test.ts[90m:468[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.test.ts[0m:[93m468[0m:[93m11[0m - [91merror[0m[90m TS7034: [0mVariable 'expiredUploads' implicitly has type 'any[]' in some locations where its type cannot be determined.
+
+[7m468[0m     const expiredUploads = [];
+[7m   [0m [91m          ~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.test.ts[0m:[93m498[0m:[93m9[0m - [91merror[0m[90m TS7005: [0mVariable 'expiredUploads' implicitly has an 'any[]' type.
+
+[7m498[0m         expiredUploads.map((upload) =>
+[7m   [0m [91m        ~~~~~~~~~~~~~~[0m
+
+Found 2 errors in the same file, starting at: convex/smartStorage.test.ts[90m:468[0m
+- Preparing Convex functions...
+
+[32m√[39m 08:33:38 Convex functions ready! (7.08s)
+- Preparing Convex functions...
+
+[32m√[39m 08:46:47 Convex functions ready! (8.07s)
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m503[0m:[93m23[0m - [91merror[0m[90m TS2304: [0mCannot find name 'normalizeMigrationBatchSize'.
+
+[7m503[0m     const batchSize = normalizeMigrationBatchSize(args.batchSize);
+[7m   [0m [91m                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.ts[0m:[93m515[0m:[93m32[0m - [91merror[0m[90m TS2304: [0mCannot find name 'LegacyEntryRepresentation'.
+
+[7m515[0m       const legacyRow = row as LegacyEntryRepresentation;
+[7m   [0m [91m                               ~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m523[0m:[93m31[0m - [91merror[0m[90m TS2304: [0mCannot find name 'inferRepresentationRoleForMigration'.
+
+[7m523[0m           representationRole: inferRepresentationRoleForMigration(legacyRow),
+[7m   [0m [91m                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m559[0m:[93m23[0m - [91merror[0m[90m TS2304: [0mCannot find name 'normalizeMigrationBatchSize'.
+
+[7m559[0m     const batchSize = normalizeMigrationBatchSize(args.batchSize);
+[7m   [0m [91m                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.ts[0m:[93m629[0m:[93m23[0m - [91merror[0m[90m TS2304: [0mCannot find name 'normalizeMigrationBatchSize'.
+
+[7m629[0m     const batchSize = normalizeMigrationBatchSize(args.batchSize);
+[7m   [0m [91m                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m677[0m:[93m38[0m - [91merror[0m[90m TS2304: [0mCannot find name 'firstSetValue'.
+
+[7m677[0m       let contributionSubmissionId = firstSetValue(parentIds) as
+[7m   [0m [91m                                     ~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.ts[0m:[93m692[0m:[93m44[0m - [91merror[0m[90m TS2304: [0mCannot find name 'createContributionSubmissionForLegacyRun'.
+
+[7m692[0m           contributionSubmissionId = await createContributionSubmissionForLegacyRun(
+[7m   [0m [91m                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 7 errors in the same file, starting at: convex/smartStorage.ts[90m:503[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m509[0m:[93m23[0m - [91merror[0m[90m TS2304: [0mCannot find name 'normalizeMigrationBatchSize'.
+
+[7m509[0m     const batchSize = normalizeMigrationBatchSize(args.batchSize);
+[7m   [0m [91m                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.ts[0m:[93m529[0m:[93m31[0m - [91merror[0m[90m TS2304: [0mCannot find name 'inferRepresentationRoleForMigration'.
+
+[7m529[0m           representationRole: inferRepresentationRoleForMigration(legacyRow),
+[7m   [0m [91m                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m565[0m:[93m23[0m - [91merror[0m[90m TS2304: [0mCannot find name 'normalizeMigrationBatchSize'.
+
+[7m565[0m     const batchSize = normalizeMigrationBatchSize(args.batchSize);
+[7m   [0m [91m                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m635[0m:[93m23[0m - [91merror[0m[90m TS2304: [0mCannot find name 'normalizeMigrationBatchSize'.
+
+[7m635[0m     const batchSize = normalizeMigrationBatchSize(args.batchSize);
+[7m   [0m [91m                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m683[0m:[93m38[0m - [91merror[0m[90m TS2304: [0mCannot find name 'firstSetValue'.
+
+[7m683[0m       let contributionSubmissionId = firstSetValue(parentIds) as
+[7m   [0m [91m                                     ~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m698[0m:[93m44[0m - [91merror[0m[90m TS2304: [0mCannot find name 'createContributionSubmissionForLegacyRun'.
+
+[7m698[0m           contributionSubmissionId = await createContributionSubmissionForLegacyRun(
+[7m   [0m [91m                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 6 errors in the same file, starting at: convex/smartStorage.ts[90m:509[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m509[0m:[93m23[0m - [91merror[0m[90m TS2304: [0mCannot find name 'normalizeMigrationBatchSize'.
+
+[7m509[0m     const batchSize = normalizeMigrationBatchSize(args.batchSize);
+[7m   [0m [91m                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.ts[0m:[93m529[0m:[93m31[0m - [91merror[0m[90m TS2304: [0mCannot find name 'inferRepresentationRoleForMigration'.
+
+[7m529[0m           representationRole: inferRepresentationRoleForMigration(legacyRow),
+[7m   [0m [91m                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m565[0m:[93m23[0m - [91merror[0m[90m TS2304: [0mCannot find name 'normalizeMigrationBatchSize'.
+
+[7m565[0m     const batchSize = normalizeMigrationBatchSize(args.batchSize);
+[7m   [0m [91m                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m635[0m:[93m23[0m - [91merror[0m[90m TS2304: [0mCannot find name 'normalizeMigrationBatchSize'.
+
+[7m635[0m     const batchSize = normalizeMigrationBatchSize(args.batchSize);
+[7m   [0m [91m                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.ts[0m:[93m683[0m:[93m38[0m - [91merror[0m[90m TS2304: [0mCannot find name 'firstSetValue'.
+
+[7m683[0m       let contributionSubmissionId = firstSetValue(parentIds) as
+[7m   [0m [91m                                     ~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m698[0m:[93m44[0m - [91merror[0m[90m TS2304: [0mCannot find name 'createContributionSubmissionForLegacyRun'.
+
+[7m698[0m           contributionSubmissionId = await createContributionSubmissionForLegacyRun(
+[7m   [0m [91m                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 6 errors in the same file, starting at: convex/smartStorage.ts[90m:509[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m529[0m:[93m31[0m - [91merror[0m[90m TS2304: [0mCannot find name 'inferRepresentationRoleForMigration'.
+
+[7m529[0m           representationRole: inferRepresentationRoleForMigration(legacyRow),
+[7m   [0m [91m                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.ts[0m:[93m1889[0m:[93m5[0m - [91merror[0m[90m TS2367: [0mThis comparison appears to be unintentional because the types '"queued" | "failed" | "running" | "noProposal" | "superseded"' and '"no-proposal"' have no overlap.
+
+[7m1889[0m     run.status === "no-proposal" ||
+[7m    [0m [91m    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 2 errors in the same file, starting at: convex/smartStorage.ts[90m:529[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m1889[0m:[93m5[0m - [91merror[0m[90m TS2367: [0mThis comparison appears to be unintentional because the types '"queued" | "failed" | "running" | "noProposal" | "superseded"' and '"no-proposal"' have no overlap.
+
+[7m1889[0m     run.status === "no-proposal" ||
+[7m    [0m [91m    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 1 error in convex/smartStorage.ts[90m:1889[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m1888[0m:[93m5[0m - [91merror[0m[90m TS2367: [0mThis comparison appears to be unintentional because the types '"queued" | "failed" | "running" | "noProposal" | "superseded"' and '"no-proposal"' have no overlap.
+
+[7m1888[0m     run.status === "no-proposal" ||
+[7m    [0m [91m    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 1 error in convex/smartStorage.ts[90m:1888[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m1888[0m:[93m5[0m - [91merror[0m[90m TS2367: [0mThis comparison appears to be unintentional because the types '"queued" | "failed" | "running" | "noProposal" | "superseded"' and '"no-proposal"' have no overlap.
+
+[7m1888[0m     run.status === "no-proposal" ||
+[7m    [0m [91m    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 1 error in convex/smartStorage.ts[90m:1888[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m1888[0m:[93m5[0m - [91merror[0m[90m TS2367: [0mThis comparison appears to be unintentional because the types '"queued" | "failed" | "running" | "noProposal" | "superseded"' and '"no-proposal"' have no overlap.
+
+[7m1888[0m     run.status === "no-proposal" ||
+[7m    [0m [91m    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 1 error in convex/smartStorage.ts[90m:1888[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.test.ts[0m:[93m977[0m:[93m28[0m - [91merror[0m[90m TS2304: [0mCannot find name 'insertLegacySmartStorageRows'.
+
+[7m977[0m       async (ctx) => await insertLegacySmartStorageRows(ctx, userId),
+[7m   [0m [91m                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.test.ts[0m:[93m1040[0m:[93m45[0m - [91merror[0m[90m TS2339: [0mProperty 'contributionSubmissionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 56 more...'.
+  Property 'contributionSubmissionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m1040[0m       const contributionSubmissionId = run?.contributionSubmissionId;
+[7m    [0m [91m                                            ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m1052[0m:[93m26[0m - [91merror[0m[90m TS2339: [0mProperty 'contributionSubmissionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 56 more...'.
+  Property 'contributionSubmissionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m1052[0m     expect(rowState.run?.contributionSubmissionId).toBeDefined();
+[7m    [0m [91m                         ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m1053[0m:[93m29[0m - [91merror[0m[90m TS2339: [0mProperty 'contributionSubmissionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 56 more...'.
+  Property 'contributionSubmissionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m1053[0m     expect(rowState.source?.contributionSubmissionId).toBe(
+[7m    [0m [91m                            ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.test.ts[0m:[93m1054[0m:[93m21[0m - [91merror[0m[90m TS2339: [0mProperty 'contributionSubmissionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 56 more...'.
+  Property 'contributionSubmissionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m1054[0m       rowState.run?.contributionSubmissionId,
+[7m    [0m [91m                    ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m1056[0m:[93m31[0m - [91merror[0m[90m TS2339: [0mProperty 'contributionSubmissionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 56 more...'.
+  Property 'contributionSubmissionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m1056[0m     expect(rowState.proposal?.contributionSubmissionId).toBe(
+[7m    [0m [91m                              ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m1057[0m:[93m21[0m - [91merror[0m[90m TS2339: [0mProperty 'contributionSubmissionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 56 more...'.
+  Property 'contributionSubmissionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m1057[0m       rowState.run?.contributionSubmissionId,
+[7m    [0m [91m                    ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m1094[0m:[93m28[0m - [91merror[0m[90m TS2304: [0mCannot find name 'insertMismatchedParentProposal'.
+
+[7m1094[0m       async (ctx) => await insertMismatchedParentProposal(ctx, userId),
+[7m    [0m [91m                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m1888[0m:[93m5[0m - [91merror[0m[90m TS2367: [0mThis comparison appears to be unintentional because the types '"queued" | "failed" | "running" | "noProposal" | "superseded"' and '"no-proposal"' have no overlap.
+
+[7m1888[0m     run.status === "no-proposal" ||
+[7m    [0m [91m    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 9 errors in 2 files.
+
+Errors  Files
+     8  convex/smartStorage.test.ts[90m:977[0m
+     1  convex/smartStorage.ts[90m:1888[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m1888[0m:[93m5[0m - [91merror[0m[90m TS2367: [0mThis comparison appears to be unintentional because the types '"queued" | "failed" | "running" | "noProposal" | "superseded"' and '"no-proposal"' have no overlap.
+
+[7m1888[0m     run.status === "no-proposal" ||
+[7m    [0m [91m    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 1 error in convex/smartStorage.ts[90m:1888[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m1890[0m:[93m5[0m - [91merror[0m[90m TS2367: [0mThis comparison appears to be unintentional because the types '"queued" | "failed" | "running" | "noProposal" | "superseded"' and '"no-proposal"' have no overlap.
+
+[7m1890[0m     run.status === "no-proposal" ||
+[7m    [0m [91m    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 1 error in convex/smartStorage.ts[90m:1890[0m
+- Preparing Convex functions...
+
+[32m√[39m 08:54:32 Convex functions ready! (7.22s)
+6/18/2026, 9:12:51 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[32m√[39m Added table indexes:
+  [+] smartStorageContractVersions.by_contractKey_and_version   contractKey, version, _creationTime
+  [+] typeBehaviorSnapshots.by_knowledgeType_and_version   knowledgeType, version, _creationTime
+✔ 09:32:38 Convex functions ready! (9.35s)
+- Preparing Convex functions...
+
+[32m√[39m 09:32:50 Convex functions ready! (7.45s)
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m984[0m:[93m36[0m - [91merror[0m[90m TS2552: [0mCannot find name 'TYPE_BEHAVIOR_SNAPSHOT_VERSION'. Did you mean 'TYPE_BEHAVIOR_SNAPSHOT_TEXT'?
+
+[7m984[0m       typeBehaviorSnapshotVersion: TYPE_BEHAVIOR_SNAPSHOT_VERSION,
+[7m   [0m [91m                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+  [96mconvex/smartStorage.ts[0m:[93m54[0m:[93m7[0m
+    [7m54[0m const TYPE_BEHAVIOR_SNAPSHOT_TEXT =
+    [7m  [0m [96m      ~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    'TYPE_BEHAVIOR_SNAPSHOT_TEXT' is declared here.
+
+Found 1 error in convex/smartStorage.ts[90m:984[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m970[0m:[93m29[0m - [91merror[0m[90m TS2304: [0mCannot find name 'ensureCurrentSmartStorageSnapshots'.
+
+[7m970[0m     const snapshots = await ensureCurrentSmartStorageSnapshots(ctx, {
+[7m   [0m [91m                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 1 error in convex/smartStorage.ts[90m:970[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m970[0m:[93m29[0m - [91merror[0m[90m TS2304: [0mCannot find name 'ensureCurrentSmartStorageSnapshots'.
+
+[7m970[0m     const snapshots = await ensureCurrentSmartStorageSnapshots(ctx, {
+[7m   [0m [91m                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 1 error in convex/smartStorage.ts[90m:970[0m
+- Preparing Convex functions...
+
+[32m√[39m 09:34:12 Convex functions ready! (7.47s)
+- Preparing Convex functions...
+
+[32m√[39m 09:34:40 Convex functions ready! (7.42s)
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.test.ts[0m:[93m215[0m:[93m36[0m - [91merror[0m[90m TS2353: [0mObject literal may only specify known properties, and 'title' does not exist in type 'Partial<{ externalUrls: { url: string; }[]; }>'.
+
+[7m215[0m       getLessonSmartStorageInput({ title: "First Courage Lesson" }),
+[7m   [0m [91m                                   ~~~~~[0m
+[96mconvex/smartStorage.test.ts[0m:[93m219[0m:[93m36[0m - [91merror[0m[90m TS2353: [0mObject literal may only specify known properties, and 'title' does not exist in type 'Partial<{ externalUrls: { url: string; }[]; }>'.
+
+[7m219[0m       getLessonSmartStorageInput({ title: "Second Courage Lesson" }),
+[7m   [0m [91m                                   ~~~~~[0m
+
+Found 2 errors in the same file, starting at: convex/smartStorage.test.ts[90m:215[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.test.ts[0m:[93m215[0m:[93m36[0m - [91merror[0m[90m TS2353: [0mObject literal may only specify known properties, and 'title' does not exist in type 'Partial<{ externalUrls: { url: string; }[]; }>'.
+
+[7m215[0m       getLessonSmartStorageInput({ title: "First Courage Lesson" }),
+[7m   [0m [91m                                   ~~~~~[0m
+[96mconvex/smartStorage.test.ts[0m:[93m219[0m:[93m36[0m - [91merror[0m[90m TS2353: [0mObject literal may only specify known properties, and 'title' does not exist in type 'Partial<{ externalUrls: { url: string; }[]; }>'.
+
+[7m219[0m       getLessonSmartStorageInput({ title: "Second Courage Lesson" }),
+[7m   [0m [91m                                   ~~~~~[0m
+
+Found 2 errors in the same file, starting at: convex/smartStorage.test.ts[90m:215[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.test.ts[0m:[93m215[0m:[93m36[0m - [91merror[0m[90m TS2353: [0mObject literal may only specify known properties, and 'title' does not exist in type 'Partial<{ externalUrls: { url: string; }[]; }>'.
+
+[7m215[0m       getLessonSmartStorageInput({ title: "First Courage Lesson" }),
+[7m   [0m [91m                                   ~~~~~[0m
+[96mconvex/smartStorage.test.ts[0m:[93m219[0m:[93m36[0m - [91merror[0m[90m TS2353: [0mObject literal may only specify known properties, and 'title' does not exist in type 'Partial<{ externalUrls: { url: string; }[]; }>'.
+
+[7m219[0m       getLessonSmartStorageInput({ title: "Second Courage Lesson" }),
+[7m   [0m [91m                                   ~~~~~[0m
+
+Found 2 errors in the same file, starting at: convex/smartStorage.test.ts[90m:215[0m
+- Preparing Convex functions...
+
+[32m√[39m 09:35:51 Convex functions ready! (7.52s)
+- Preparing Convex functions...
+
+[32m√[39m 09:47:43 Convex functions ready! (7.86s)
+- Preparing Convex functions...
+
+[31m×[39m Error: Unable to start push to https://impressive-stoat-625.convex.cloud
+✖ Error fetching POST  https://impressive-stoat-625.convex.cloud/api/deploy2/start_push 400 Bad Request: InvalidModules: Hit an error while pushing:
+Loading the pushed modules encountered the following
+    error:
+Failed to analyze smartStorage.js: Uncaught ReferenceError: sourceKind is not defined
+    at <anonymous> (../convex/smartStorage.ts:308:2)
+- Preparing Convex functions...
+
+[31m×[39m Error: Unable to start push to https://impressive-stoat-625.convex.cloud
+✖ Error fetching POST  https://impressive-stoat-625.convex.cloud/api/deploy2/start_push 400 Bad Request: InvalidModules: Hit an error while pushing:
+Loading the pushed modules encountered the following
+    error:
+Failed to analyze smartStorage.js: Uncaught ReferenceError: sourceKind is not defined
+    at <anonymous> (../convex/smartStorage.ts:354:2)
+- Preparing Convex functions...
+
+[31m×[39m Error: Unable to start push to https://impressive-stoat-625.convex.cloud
+✖ Error fetching POST  https://impressive-stoat-625.convex.cloud/api/deploy2/start_push 400 Bad Request: InvalidModules: Hit an error while pushing:
+Loading the pushed modules encountered the following
+    error:
+Failed to analyze smartStorage.js: Uncaught ReferenceError: sourceKind is not defined
+    at <anonymous> (../convex/smartStorage.ts:354:2)
+- Preparing Convex functions...
+
+[31m×[39m Error: Unable to start push to https://impressive-stoat-625.convex.cloud
+✖ Error fetching POST  https://impressive-stoat-625.convex.cloud/api/deploy2/start_push 400 Bad Request: InvalidModules: Hit an error while pushing:
+Loading the pushed modules encountered the following
+    error:
+Failed to analyze smartStorage.js: Uncaught ReferenceError: sourceKind is not defined
+    at <anonymous> (../convex/smartStorage.ts:354:2)
+- Preparing Convex functions...
+
+[31m×[39m Error: Unable to start push to https://impressive-stoat-625.convex.cloud
+✖ Error fetching POST  https://impressive-stoat-625.convex.cloud/api/deploy2/start_push 400 Bad Request: InvalidModules: Hit an error while pushing:
+Loading the pushed modules encountered the following
+    error:
+Failed to analyze smartStorage.js: Uncaught ReferenceError: sourceKind is not defined
+    at <anonymous> (../convex/smartStorage.ts:399:2)
+- Preparing Convex functions...
+
+[31m×[39m Error: Unable to start push to https://impressive-stoat-625.convex.cloud
+✖ Error fetching POST  https://impressive-stoat-625.convex.cloud/api/deploy2/start_push 400 Bad Request: InvalidModules: Hit an error while pushing:
+Loading the pushed modules encountered the following
+    error:
+Failed to analyze smartStorage.js: Uncaught ReferenceError: sourceKind is not defined
+    at <anonymous> (../convex/smartStorage.ts:399:2)
+- Preparing Convex functions...
+
+[31m×[39m Error: Unable to start push to https://impressive-stoat-625.convex.cloud
+✖ Error fetching POST  https://impressive-stoat-625.convex.cloud/api/deploy2/start_push 400 Bad Request: InvalidModules: Hit an error while pushing:
+Loading the pushed modules encountered the following
+    error:
+Failed to analyze smartStorage.js: Uncaught ReferenceError: sourceKind is not defined
+    at <anonymous> (../convex/smartStorage.ts:399:2)
+- Preparing Convex functions...
+
+[31m×[39m Error: Unable to start push to https://impressive-stoat-625.convex.cloud
+✖ Error fetching POST  https://impressive-stoat-625.convex.cloud/api/deploy2/start_push 400 Bad Request: InvalidModules: Hit an error while pushing:
+Loading the pushed modules encountered the following
+    error:
+Failed to analyze smartStorage.js: Uncaught ReferenceError: sourceKind is not defined
+    at <anonymous> (../convex/smartStorage.ts:399:2)
+- Preparing Convex functions...
+
+[31m×[39m Error: Unable to start push to https://impressive-stoat-625.convex.cloud
+✖ Error fetching POST  https://impressive-stoat-625.convex.cloud/api/deploy2/start_push 400 Bad Request: InvalidModules: Hit an error while pushing:
+Loading the pushed modules encountered the following
+    error:
+Failed to analyze smartStorage.js: Uncaught ReferenceError: sourceKind is not defined
+    at <anonymous> (../convex/smartStorage.ts:399:2)
+- Preparing Convex functions...
+
+[31m×[39m Error: Unable to start push to https://impressive-stoat-625.convex.cloud
+✖ Error fetching POST  https://impressive-stoat-625.convex.cloud/api/deploy2/start_push 400 Bad Request: InvalidModules: Hit an error while pushing:
+Loading the pushed modules encountered the following
+    error:
+Failed to analyze smartStorage.js: Uncaught ReferenceError: sourceKind is not defined
+    at <anonymous> (../convex/smartStorage.ts:399:2)
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/analytics.test.ts[0m:[93m53[0m:[93m42[0m - [91merror[0m[90m TS7006: [0mParameter 'visit' implicitly has an 'any' type.
+
+[7m53[0m     expect(summary.recentPageVisits.map((visit) => visit.rawPath)).toEqual([
+[7m  [0m [91m                                         ~~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m29[0m:[93m16[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m29[0m       .filter((item) => item.kind === "answer")
+[7m  [0m [91m               ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m30[0m:[93m13[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m30[0m       .map((item) => item.entry.title);
+[7m  [0m [91m            ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m84[0m:[93m10[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m84[0m         (item) =>
+[7m  [0m [91m         ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m127[0m:[93m27[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m127[0m     expect(feedItems.map((item) => item.kind)).toEqual([
+[7m   [0m [91m                          ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m134[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m134[0m         .filter((item) => item.kind === "answer")
+[7m   [0m [91m                 ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m135[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m135[0m         .map((item) => item.entry.title),
+[7m   [0m [91m              ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m139[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m139[0m         .filter((item) => item.kind === "slot")
+[7m   [0m [91m                 ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m140[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m140[0m         .map((item) => item.slot.title),
+[7m   [0m [91m              ~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m111[0m:[93m14[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m111[0m         run?.smartStorageContractVersionId === undefined
+[7m   [0m [91m             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.test.ts[0m:[93m113[0m:[93m34[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m113[0m           : await ctx.db.get(run.smartStorageContractVersionId);
+[7m   [0m [91m                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m115[0m:[93m14[0m - [91merror[0m[90m TS2339: [0mProperty 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m115[0m         run?.typeBehaviorSnapshotId === undefined
+[7m   [0m [91m             ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m117[0m:[93m34[0m - [91merror[0m[90m TS2339: [0mProperty 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m117[0m           : await ctx.db.get(run.typeBehaviorSnapshotId);
+[7m   [0m [91m                                 ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m240[0m:[93m31[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m240[0m     expect(rowState.firstRun?.smartStorageContractVersionId).toBe(
+[7m   [0m [91m                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m241[0m:[93m27[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m241[0m       rowState.secondRun?.smartStorageContractVersionId,
+[7m   [0m [91m                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m243[0m:[93m31[0m - [91merror[0m[90m TS2339: [0mProperty 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m243[0m     expect(rowState.firstRun?.typeBehaviorSnapshotId).toBe(
+[7m   [0m [91m                              ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m244[0m:[93m27[0m - [91merror[0m[90m TS2339: [0mProperty 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m244[0m       rowState.secondRun?.typeBehaviorSnapshotId,
+[7m   [0m [91m                          ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m767[0m:[93m19[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m767[0m         proposal?.smartStorageContractVersionId === undefined
+[7m   [0m [91m                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.test.ts[0m:[93m769[0m:[93m39[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m769[0m           : await ctx.db.get(proposal.smartStorageContractVersionId);
+[7m   [0m [91m                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m771[0m:[93m19[0m - [91merror[0m[90m TS2339: [0mProperty 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m771[0m         proposal?.typeBehaviorSnapshotId === undefined
+[7m   [0m [91m                  ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m773[0m:[93m39[0m - [91merror[0m[90m TS2339: [0mProperty 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m773[0m           : await ctx.db.get(proposal.typeBehaviorSnapshotId);
+[7m   [0m [91m                                      ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m789[0m:[93m25[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m789[0m           rowState.run?.smartStorageContractVersionId,
+[7m   [0m [91m                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m797[0m:[93m47[0m - [91merror[0m[90m TS2339: [0mProperty 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m797[0m         typeBehaviorSnapshotId: rowState.run?.typeBehaviorSnapshotId,
+[7m   [0m [91m                                              ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m804[0m:[93m21[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m804[0m       rowState.run?.smartStorageContractVersionId,
+[7m   [0m [91m                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m807[0m:[93m21[0m - [91merror[0m[90m TS2339: [0mProperty 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m807[0m       rowState.run?.typeBehaviorSnapshotId,
+[7m   [0m [91m                    ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m894[0m:[93m12[0m - [91merror[0m[90m TS2493: [0mTuple type '[]' of length '0' has no element at index '0'.
+
+[7m894[0m     const [url, requestInit] = fetchMock.mock.calls[0];
+[7m   [0m [91m           ~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m894[0m:[93m17[0m - [91merror[0m[90m TS2493: [0mTuple type '[]' of length '0' has no element at index '1'.
+
+[7m894[0m     const [url, requestInit] = fetchMock.mock.calls[0];
+[7m   [0m [91m                ~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m905[0m:[93m56[0m - [91merror[0m[90m TS2339: [0mProperty 'body' does not exist on type 'never'.
+
+[7m905[0m     const requestBody = JSON.parse(String(requestInit?.body));
+[7m   [0m [91m                                                       ~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m956[0m:[93m25[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m956[0m           rowState.run?.smartStorageContractVersionId,
+[7m   [0m [91m                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.test.ts[0m:[93m959[0m:[93m47[0m - [91merror[0m[90m TS2339: [0mProperty 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m959[0m         typeBehaviorSnapshotId: rowState.run?.typeBehaviorSnapshotId,
+[7m   [0m [91m                                              ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m500[0m:[93m14[0m - [91merror[0m[90m TS7022: [0m'executeModelRun' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m500[0m export const executeModelRun = action({
+[7m   [0m [91m             ~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m505[0m:[93m3[0m - [91merror[0m[90m TS7023: [0m'handler' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+
+[7m505[0m   handler: async (ctx, args) => {
+[7m   [0m [91m  ~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m998[0m:[93m45[0m - [91merror[0m[90m TS2345: [0mArgument of type '{ knowledgeType: "words" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | "lesson" | "comment" | "prayerRequest" | "event" | ... 4 more ... | "place"; ... 4 more ...; rationale: string; }' is not assignable to parameter of type '{ knowledgeType: "words" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | "lesson" | "comment" | "prayerRequest" | "event" | ... 4 more ... | "place"; ... 4 more ...; rationale: string; }'.
+  Types of property 'proposalConfidence' are incompatible.
+    Type '"low" | "medium" | "high"' is not assignable to type '"medium"'.
+      Type '"low"' is not assignable to type '"medium"'.
+
+[7m998[0m         currentProposal: cloneDraftProposal(normalizedProposal),
+[7m   [0m [91m                                            ~~~~~~~~~~~~~~~~~~[0m
+
+Found 33 errors in 4 files.
+
+Errors  Files
+     1  convex/analytics.test.ts[90m:53[0m
+     8  convex/answerFeed.test.ts[90m:29[0m
+    21  convex/smartStorage.test.ts[90m:111[0m
+     3  convex/smartStorage.ts[90m:500[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/analytics.test.ts[0m:[93m53[0m:[93m42[0m - [91merror[0m[90m TS7006: [0mParameter 'visit' implicitly has an 'any' type.
+
+[7m53[0m     expect(summary.recentPageVisits.map((visit) => visit.rawPath)).toEqual([
+[7m  [0m [91m                                         ~~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m29[0m:[93m16[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m29[0m       .filter((item) => item.kind === "answer")
+[7m  [0m [91m               ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m30[0m:[93m13[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m30[0m       .map((item) => item.entry.title);
+[7m  [0m [91m            ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m84[0m:[93m10[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m84[0m         (item) =>
+[7m  [0m [91m         ~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m127[0m:[93m27[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m127[0m     expect(feedItems.map((item) => item.kind)).toEqual([
+[7m   [0m [91m                          ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m134[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m134[0m         .filter((item) => item.kind === "answer")
+[7m   [0m [91m                 ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m135[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m135[0m         .map((item) => item.entry.title),
+[7m   [0m [91m              ~~~~[0m
+
+[96mconvex/answerFeed.test.ts[0m:[93m139[0m:[93m18[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m139[0m         .filter((item) => item.kind === "slot")
+[7m   [0m [91m                 ~~~~[0m
+[96mconvex/answerFeed.test.ts[0m:[93m140[0m:[93m15[0m - [91merror[0m[90m TS7006: [0mParameter 'item' implicitly has an 'any' type.
+
+[7m140[0m         .map((item) => item.slot.title),
+[7m   [0m [91m              ~~~~[0m
+[96mconvex/smartStorage.test.ts[0m:[93m111[0m:[93m14[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m111[0m         run?.smartStorageContractVersionId === undefined
+[7m   [0m [91m             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m113[0m:[93m34[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m113[0m           : await ctx.db.get(run.smartStorageContractVersionId);
+[7m   [0m [91m                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m115[0m:[93m14[0m - [91merror[0m[90m TS2339: [0mProperty 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m115[0m         run?.typeBehaviorSnapshotId === undefined
+[7m   [0m [91m             ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m117[0m:[93m34[0m - [91merror[0m[90m TS2339: [0mProperty 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m117[0m           : await ctx.db.get(run.typeBehaviorSnapshotId);
+[7m   [0m [91m                                 ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m240[0m:[93m31[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m240[0m     expect(rowState.firstRun?.smartStorageContractVersionId).toBe(
+[7m   [0m [91m                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.test.ts[0m:[93m241[0m:[93m27[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m241[0m       rowState.secondRun?.smartStorageContractVersionId,
+[7m   [0m [91m                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m243[0m:[93m31[0m - [91merror[0m[90m TS2339: [0mProperty 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m243[0m     expect(rowState.firstRun?.typeBehaviorSnapshotId).toBe(
+[7m   [0m [91m                              ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m244[0m:[93m27[0m - [91merror[0m[90m TS2339: [0mProperty 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m244[0m       rowState.secondRun?.typeBehaviorSnapshotId,
+[7m   [0m [91m                          ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m767[0m:[93m19[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m767[0m         proposal?.smartStorageContractVersionId === undefined
+[7m   [0m [91m                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m769[0m:[93m39[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m769[0m           : await ctx.db.get(proposal.smartStorageContractVersionId);
+[7m   [0m [91m                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m771[0m:[93m19[0m - [91merror[0m[90m TS2339: [0mProperty 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m771[0m         proposal?.typeBehaviorSnapshotId === undefined
+[7m   [0m [91m                  ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m773[0m:[93m39[0m - [91merror[0m[90m TS2339: [0mProperty 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m773[0m           : await ctx.db.get(proposal.typeBehaviorSnapshotId);
+[7m   [0m [91m                                      ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m789[0m:[93m25[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m789[0m           rowState.run?.smartStorageContractVersionId,
+[7m   [0m [91m                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m797[0m:[93m47[0m - [91merror[0m[90m TS2339: [0mProperty 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m797[0m         typeBehaviorSnapshotId: rowState.run?.typeBehaviorSnapshotId,
+[7m   [0m [91m                                              ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m804[0m:[93m21[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m804[0m       rowState.run?.smartStorageContractVersionId,
+[7m   [0m [91m                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mconvex/smartStorage.test.ts[0m:[93m807[0m:[93m21[0m - [91merror[0m[90m TS2339: [0mProperty 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m807[0m       rowState.run?.typeBehaviorSnapshotId,
+[7m   [0m [91m                    ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m894[0m:[93m12[0m - [91merror[0m[90m TS2493: [0mTuple type '[]' of length '0' has no element at index '0'.
+
+[7m894[0m     const [url, requestInit] = fetchMock.mock.calls[0];
+[7m   [0m [91m           ~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m894[0m:[93m17[0m - [91merror[0m[90m TS2493: [0mTuple type '[]' of length '0' has no element at index '1'.
+
+[7m894[0m     const [url, requestInit] = fetchMock.mock.calls[0];
+[7m   [0m [91m                ~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m905[0m:[93m56[0m - [91merror[0m[90m TS2339: [0mProperty 'body' does not exist on type 'never'.
+
+[7m905[0m     const requestBody = JSON.parse(String(requestInit?.body));
+[7m   [0m [91m                                                       ~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m956[0m:[93m25[0m - [91merror[0m[90m TS2339: [0mProperty 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'smartStorageContractVersionId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m956[0m           rowState.run?.smartStorageContractVersionId,
+[7m   [0m [91m                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m959[0m:[93m47[0m - [91merror[0m[90m TS2339: [0mProperty 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; } | ... 58 more...'.
+  Property 'typeBehaviorSnapshotId' does not exist on type '{ _id: Id<"pageVisitStats">; _creationTime: number; referentId?: Id<"referents"> | undefined; tagId?: Id<"tags"> | undefined; targetKind: "biblePassage" | "context" | "tag" | "dashboard"; pageType: "context" | ... 1 more ... | "referent"; targetKey: string; totalVisits: number; lastVisitedAt: number; }'.
+
+[7m959[0m         typeBehaviorSnapshotId: rowState.run?.typeBehaviorSnapshotId,
+[7m   [0m [91m                                              ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m507[0m:[93m14[0m - [91merror[0m[90m TS7022: [0m'executeModelRun' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m507[0m export const executeModelRun = action({
+[7m   [0m [91m             ~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m512[0m:[93m3[0m - [91merror[0m[90m TS7023: [0m'handler' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+
+[7m512[0m   handler: async (ctx, args) => {
+[7m   [0m [91m  ~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m1005[0m:[93m45[0m - [91merror[0m[90m TS2345: [0mArgument of type '{ knowledgeType: "words" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | "lesson" | "comment" | "prayerRequest" | "event" | ... 4 more ... | "place"; ... 4 more ...; rationale: string; }' is not assignable to parameter of type '{ knowledgeType: "words" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | "shortStory" | "lesson" | "comment" | "prayerRequest" | "event" | ... 4 more ... | "place"; ... 4 more ...; rationale: string; }'.
+  Types of property 'proposalConfidence' are incompatible.
+    Type '"low" | "medium" | "high"' is not assignable to type '"medium"'.
+      Type '"low"' is not assignable to type '"medium"'.
+
+[7m1005[0m         currentProposal: cloneDraftProposal(normalizedProposal),
+[7m    [0m [91m                                            ~~~~~~~~~~~~~~~~~~[0m
+
+Found 33 errors in 4 files.
+
+Errors  Files
+     1  convex/analytics.test.ts[90m:53[0m
+     8  convex/answerFeed.test.ts[90m:29[0m
+    21  convex/smartStorage.test.ts[90m:111[0m
+     3  convex/smartStorage.ts[90m:507[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.test.ts[0m:[93m894[0m:[93m12[0m - [91merror[0m[90m TS2493: [0mTuple type '[]' of length '0' has no element at index '0'.
+
+[7m894[0m     const [url, requestInit] = fetchMock.mock.calls[0];
+[7m   [0m [91m           ~~~[0m
+[96mconvex/smartStorage.test.ts[0m:[93m894[0m:[93m17[0m - [91merror[0m[90m TS2493: [0mTuple type '[]' of length '0' has no element at index '1'.
+
+[7m894[0m     const [url, requestInit] = fetchMock.mock.calls[0];
+[7m   [0m [91m                ~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m905[0m:[93m56[0m - [91merror[0m[90m TS2339: [0mProperty 'body' does not exist on type 'never'.
+
+[7m905[0m     const requestBody = JSON.parse(String(requestInit?.body));
+[7m   [0m [91m                                                       ~~~~[0m
+
+Found 3 errors in the same file, starting at: convex/smartStorage.test.ts[90m:894[0m
+Filesystem changed during push, retrying...
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.test.ts[0m:[93m894[0m:[93m12[0m - [91merror[0m[90m TS2493: [0mTuple type '[]' of length '0' has no element at index '0'.
+
+[7m894[0m     const [url, requestInit] = fetchMock.mock.calls[0];
+[7m   [0m [91m           ~~~[0m
+[96mconvex/smartStorage.test.ts[0m:[93m894[0m:[93m17[0m - [91merror[0m[90m TS2493: [0mTuple type '[]' of length '0' has no element at index '1'.
+
+[7m894[0m     const [url, requestInit] = fetchMock.mock.calls[0];
+[7m   [0m [91m                ~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m905[0m:[93m56[0m - [91merror[0m[90m TS2339: [0mProperty 'body' does not exist on type 'never'.
+
+[7m905[0m     const requestBody = JSON.parse(String(requestInit?.body));
+[7m   [0m [91m                                                       ~~~~[0m
+
+Found 3 errors in the same file, starting at: convex/smartStorage.test.ts[90m:894[0m
+- Preparing Convex functions...
+
+[32m√[39m 09:56:45 Convex functions ready! (7.38s)
+- Preparing Convex functions...
+
+[32m√[39m 10:09:17 Convex functions ready! (8.6s)
+- Preparing Convex functions...
+
+[32m√[39m 10:11:41 Convex functions ready! (7.2s)
+6/18/2026, 10:12:47 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[32m√[39m 10:13:12 Convex functions ready! (7.63s)
+- Preparing Convex functions...
+
+[32m√[39m 10:13:34 Convex functions ready! (7.98s)
+- Preparing Convex functions...
+
+[32m√[39m 10:27:24 Convex functions ready! (8.35s)
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m1951[0m:[93m17[0m - [91merror[0m[90m TS2552: [0mCannot find name 'loadLegacyRepresentationDecisions'. Did you mean 'representationDecisions'?
+
+[7m1951[0m         ? await loadLegacyRepresentationDecisions(ctx, {
+[7m    [0m [91m                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+  [96mconvex/smartStorage.ts[0m:[93m1949[0m:[93m11[0m
+    [7m1949[0m     const representationDecisions =
+    [7m    [0m [96m          ~~~~~~~~~~~~~~~~~~~~~~~[0m
+    'representationDecisions' is declared here.
+[96mconvex/smartStorage.ts[0m:[93m1958[0m:[93m17[0m - [91merror[0m[90m TS2304: [0mCannot find name 'loadExplicitRepresentationDecisions'.
+
+[7m1958[0m         : await loadExplicitRepresentationDecisions(ctx, {
+[7m    [0m [91m                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m1968[0m:[93m7[0m - [91merror[0m[90m TS2353: [0mObject literal may only specify known properties, and 'representationDecisions' does not exist in type '{ entryId: Id<"knowledgeEntries">; now: number; proposedEntry: { knowledgeType: "words" | "topic" | "series" | "question" | "quote" | "sermon" | "essay" | "poem" | "song" | "book" | ... 9 more ... | "place"; ... 4 more ...; rationale: string; }; sources: { ...; }[]; typeBehaviorDefaultRole: "unspecified" | ... 6 mor...'.
+
+[7m1968[0m       representationDecisions,
+[7m    [0m [91m      ~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+Found 3 errors in the same file, starting at: convex/smartStorage.ts[90m:1951[0m
+- Preparing Convex functions...
+
+[32m√[39m 10:28:21 Convex functions ready! (7.62s)
+- Preparing Convex functions...
+
+[32m√[39m 10:28:35 Convex functions ready! (7.86s)
+- Preparing Convex functions...
+
+[32m√[39m 10:28:45 Convex functions ready! (7.43s)
+- Preparing Convex functions...
+
+[32m√[39m 10:29:35 Convex functions ready! (7.35s)
+- Preparing Convex functions...
+
+[32m√[39m 10:30:06 Convex functions ready! (7.61s)
+6/18/2026, 11:12:38 AM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/18/2026, 12:12:28 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+6/18/2026, 1:12:19 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/smartStorage.ts[0m:[93m1888[0m:[93m17[0m - [91merror[0m[90m TS2552: [0mCannot find name 'loadAcceptedRepresentationDecisions'. Did you mean 'loadLegacyRepresentationDecisions'?
+
+[7m1888[0m           await loadAcceptedRepresentationDecisions(ctx, {
+[7m    [0m [91m                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+  [96mconvex/smartStorage.ts[0m:[93m3400[0m:[93m16[0m
+    [7m3400[0m async function loadLegacyRepresentationDecisions(
+    [7m    [0m [96m               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    'loadLegacyRepresentationDecisions' is declared here.
+[96mconvex/smartStorage.ts[0m:[93m1904[0m:[93m15[0m - [91merror[0m[90m TS2304: [0mCannot find name 'markProposalAccepted'.
+
+[7m1904[0m         await markProposalAccepted(ctx, {
+[7m    [0m [91m              ~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.ts[0m:[93m2004[0m:[93m43[0m - [91merror[0m[90m TS2552: [0mCannot find name 'loadAcceptedRepresentationDecisions'. Did you mean 'loadLegacyRepresentationDecisions'?
+
+[7m2004[0m     const representationDecisions = await loadAcceptedRepresentationDecisions(ctx, {
+[7m    [0m [91m                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+  [96mconvex/smartStorage.ts[0m:[93m3400[0m:[93m16[0m
+    [7m3400[0m async function loadLegacyRepresentationDecisions(
+    [7m    [0m [96m               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+    'loadLegacyRepresentationDecisions' is declared here.
+
+[96mconvex/smartStorage.ts[0m:[93m2019[0m:[93m11[0m - [91merror[0m[90m TS2304: [0mCannot find name 'markProposalAccepted'.
+
+[7m2019[0m     await markProposalAccepted(ctx, {
+[7m    [0m [91m          ~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 4 errors in the same file, starting at: convex/smartStorage.ts[90m:1888[0m
+- Preparing Convex functions...
+
+[32m√[39m 13:56:51 Convex functions ready! (8.19s)
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/appAccess.test.ts[0m:[93m355[0m:[93m22[0m - [91merror[0m[90m TS2352: [0mConversion of type '{ members: { membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]; name: string; organizationEntryId: Id<"organizationEntries">; organizationKind: "school" | ... 2 more ... | "community"; organizationReferentId: Id<...>; } | null' to type 'OrganizationMembershipSettings' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ members: { membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]; name: string; organizationEntryId: Id<"organizationEntries">; organizationKind: "school" | ... 2 more ... | "community"; organizationReferentId: Id<...>; }' is not comparable to type 'OrganizationMembershipSettings'.
+    Types of property 'members' are incompatible.
+      Type '{ membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]' is not comparable to type '{ email?: string | undefined; membershipId: Id<"memberships">; name: string; role: "admin" | "member"; status: "active" | "pending"; userId?: Id<"users"> | undefined; }[]'.
+        Property 'status' is missing in type '{ membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }' but required in type '{ email?: string | undefined; membershipId: Id<"memberships">; name: string; role: "admin" | "member"; status: "active" | "pending"; userId?: Id<"users"> | undefined; }'.
+
+[7m355[0m     const settings = (await admin.query(
+[7m   [0m [91m                     ~~~~~~~~~~~~~~~~~~~[0m
+[7m356[0m       api.organizationAccounts.getOrganizationMembershipSettings,
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[7m...[0m 
+[7m359[0m       },
+[7m   [0m [91m~~~~~~~~[0m
+[7m360[0m     )) as OrganizationMembershipSettings;
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+  [96mconvex/appAccess.test.ts[0m:[93m60[0m:[93m5[0m
+    [7m60[0m     status: "active" | "pending";
+    [7m  [0m [96m    ~~~~~~[0m
+    'status' is declared here.
+[96mconvex/appAccess.test.ts[0m:[93m469[0m:[93m22[0m - [91merror[0m[90m TS2352: [0mConversion of type '{ members: { membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]; name: string; organizationEntryId: Id<"organizationEntries">; organizationKind: "school" | ... 2 more ... | "community"; organizationReferentId: Id<...>; } | null' to type 'OrganizationMembershipSettings' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ members: { membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]; name: string; organizationEntryId: Id<"organizationEntries">; organizationKind: "school" | ... 2 more ... | "community"; organizationReferentId: Id<...>; }' is not comparable to type 'OrganizationMembershipSettings'.
+    Types of property 'members' are incompatible.
+      Type '{ membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]' is not comparable to type '{ email?: string | undefined; membershipId: Id<"memberships">; name: string; role: "admin" | "member"; status: "active" | "pending"; userId?: Id<"users"> | undefined; }[]'.
+        Property 'status' is missing in type '{ membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }' but required in type '{ email?: string | undefined; membershipId: Id<"memberships">; name: string; role: "admin" | "member"; status: "active" | "pending"; userId?: Id<"users"> | undefined; }'.
+
+[7m469[0m     const settings = (await admin.query(
+[7m   [0m [91m                     ~~~~~~~~~~~~~~~~~~~[0m
+[7m470[0m       api.organizationAccounts.getOrganizationMembershipSettings,
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[7m...[0m 
+[7m473[0m       },
+[7m   [0m [91m~~~~~~~~[0m
+[7m474[0m     )) as OrganizationMembershipSettings;
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+  [96mconvex/appAccess.test.ts[0m:[93m60[0m:[93m5[0m
+    [7m60[0m     status: "active" | "pending";
+    [7m  [0m [96m    ~~~~~~[0m
+    'status' is declared here.
+
+[96mconvex/smartStorage.test.ts[0m:[93m1703[0m:[93m15[0m - [91merror[0m[90m TS2304: [0mCannot find name 'insertRepresentedLessonEntryForTest'.
+
+[7m1703[0m         await insertRepresentedLessonEntryForTest(ctx, {
+[7m    [0m [91m              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 3 errors in 2 files.
+
+Errors  Files
+     2  convex/appAccess.test.ts[90m:355[0m
+     1  convex/smartStorage.test.ts[90m:1703[0m
+Filesystem changed during push, retrying...
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/appAccess.test.ts[0m:[93m355[0m:[93m22[0m - [91merror[0m[90m TS2352: [0mConversion of type '{ members: { membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]; name: string; organizationEntryId: Id<"organizationEntries">; organizationKind: "school" | ... 2 more ... | "community"; organizationReferentId: Id<...>; } | null' to type 'OrganizationMembershipSettings' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ members: { membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]; name: string; organizationEntryId: Id<"organizationEntries">; organizationKind: "school" | ... 2 more ... | "community"; organizationReferentId: Id<...>; }' is not comparable to type 'OrganizationMembershipSettings'.
+    Types of property 'members' are incompatible.
+      Type '{ membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]' is not comparable to type '{ email?: string | undefined; membershipId: Id<"memberships">; name: string; role: "admin" | "member"; status: "active" | "pending"; userId?: Id<"users"> | undefined; }[]'.
+        Property 'status' is missing in type '{ membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }' but required in type '{ email?: string | undefined; membershipId: Id<"memberships">; name: string; role: "admin" | "member"; status: "active" | "pending"; userId?: Id<"users"> | undefined; }'.
+
+[7m355[0m     const settings = (await admin.query(
+[7m   [0m [91m                     ~~~~~~~~~~~~~~~~~~~[0m
+[7m356[0m       api.organizationAccounts.getOrganizationMembershipSettings,
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[7m...[0m 
+[7m359[0m       },
+[7m   [0m [91m~~~~~~~~[0m
+[7m360[0m     )) as OrganizationMembershipSettings;
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+  [96mconvex/appAccess.test.ts[0m:[93m60[0m:[93m5[0m
+    [7m60[0m     status: "active" | "pending";
+    [7m  [0m [96m    ~~~~~~[0m
+    'status' is declared here.
+[96mconvex/appAccess.test.ts[0m:[93m469[0m:[93m22[0m - [91merror[0m[90m TS2352: [0mConversion of type '{ members: { membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]; name: string; organizationEntryId: Id<"organizationEntries">; organizationKind: "school" | ... 2 more ... | "community"; organizationReferentId: Id<...>; } | null' to type 'OrganizationMembershipSettings' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ members: { membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]; name: string; organizationEntryId: Id<"organizationEntries">; organizationKind: "school" | ... 2 more ... | "community"; organizationReferentId: Id<...>; }' is not comparable to type 'OrganizationMembershipSettings'.
+    Types of property 'members' are incompatible.
+      Type '{ membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]' is not comparable to type '{ email?: string | undefined; membershipId: Id<"memberships">; name: string; role: "admin" | "member"; status: "active" | "pending"; userId?: Id<"users"> | undefined; }[]'.
+        Property 'status' is missing in type '{ membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }' but required in type '{ email?: string | undefined; membershipId: Id<"memberships">; name: string; role: "admin" | "member"; status: "active" | "pending"; userId?: Id<"users"> | undefined; }'.
+
+[7m469[0m     const settings = (await admin.query(
+[7m   [0m [91m                     ~~~~~~~~~~~~~~~~~~~[0m
+[7m470[0m       api.organizationAccounts.getOrganizationMembershipSettings,
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[7m...[0m 
+[7m473[0m       },
+[7m   [0m [91m~~~~~~~~[0m
+[7m474[0m     )) as OrganizationMembershipSettings;
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+  [96mconvex/appAccess.test.ts[0m:[93m60[0m:[93m5[0m
+    [7m60[0m     status: "active" | "pending";
+    [7m  [0m [96m    ~~~~~~[0m
+    'status' is declared here.
+
+[96mconvex/smartStorage.test.ts[0m:[93m1703[0m:[93m15[0m - [91merror[0m[90m TS2304: [0mCannot find name 'insertRepresentedLessonEntryForTest'.
+
+[7m1703[0m         await insertRepresentedLessonEntryForTest(ctx, {
+[7m    [0m [91m              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 3 errors in 2 files.
+
+Errors  Files
+     2  convex/appAccess.test.ts[90m:355[0m
+     1  convex/smartStorage.test.ts[90m:1703[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/appAccess.test.ts[0m:[93m355[0m:[93m22[0m - [91merror[0m[90m TS2352: [0mConversion of type '{ members: { membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]; name: string; organizationEntryId: Id<"organizationEntries">; organizationKind: "school" | ... 2 more ... | "community"; organizationReferentId: Id<...>; } | null' to type 'OrganizationMembershipSettings' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ members: { membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]; name: string; organizationEntryId: Id<"organizationEntries">; organizationKind: "school" | ... 2 more ... | "community"; organizationReferentId: Id<...>; }' is not comparable to type 'OrganizationMembershipSettings'.
+    Types of property 'members' are incompatible.
+      Type '{ membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]' is not comparable to type '{ email?: string | undefined; membershipId: Id<"memberships">; name: string; role: "admin" | "member"; status: "active" | "pending"; userId?: Id<"users"> | undefined; }[]'.
+        Property 'status' is missing in type '{ membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }' but required in type '{ email?: string | undefined; membershipId: Id<"memberships">; name: string; role: "admin" | "member"; status: "active" | "pending"; userId?: Id<"users"> | undefined; }'.
+
+[7m355[0m     const settings = (await admin.query(
+[7m   [0m [91m                     ~~~~~~~~~~~~~~~~~~~[0m
+[7m356[0m       api.organizationAccounts.getOrganizationMembershipSettings,
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[7m...[0m 
+[7m359[0m       },
+[7m   [0m [91m~~~~~~~~[0m
+[7m360[0m     )) as OrganizationMembershipSettings;
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+  [96mconvex/appAccess.test.ts[0m:[93m60[0m:[93m5[0m
+    [7m60[0m     status: "active" | "pending";
+    [7m  [0m [96m    ~~~~~~[0m
+    'status' is declared here.
+[96mconvex/appAccess.test.ts[0m:[93m469[0m:[93m22[0m - [91merror[0m[90m TS2352: [0mConversion of type '{ members: { membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]; name: string; organizationEntryId: Id<"organizationEntries">; organizationKind: "school" | ... 2 more ... | "community"; organizationReferentId: Id<...>; } | null' to type 'OrganizationMembershipSettings' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ members: { membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]; name: string; organizationEntryId: Id<"organizationEntries">; organizationKind: "school" | ... 2 more ... | "community"; organizationReferentId: Id<...>; }' is not comparable to type 'OrganizationMembershipSettings'.
+    Types of property 'members' are incompatible.
+      Type '{ membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]' is not comparable to type '{ email?: string | undefined; membershipId: Id<"memberships">; name: string; role: "admin" | "member"; status: "active" | "pending"; userId?: Id<"users"> | undefined; }[]'.
+        Property 'status' is missing in type '{ membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }' but required in type '{ email?: string | undefined; membershipId: Id<"memberships">; name: string; role: "admin" | "member"; status: "active" | "pending"; userId?: Id<"users"> | undefined; }'.
+
+[7m469[0m     const settings = (await admin.query(
+[7m   [0m [91m                     ~~~~~~~~~~~~~~~~~~~[0m
+[7m470[0m       api.organizationAccounts.getOrganizationMembershipSettings,
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[7m...[0m 
+[7m473[0m       },
+[7m   [0m [91m~~~~~~~~[0m
+[7m474[0m     )) as OrganizationMembershipSettings;
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+  [96mconvex/appAccess.test.ts[0m:[93m60[0m:[93m5[0m
+    [7m60[0m     status: "active" | "pending";
+    [7m  [0m [96m    ~~~~~~[0m
+    'status' is declared here.
+[96mconvex/smartStorage.test.ts[0m:[93m1679[0m:[93m7[0m - [91merror[0m[90m TS2554: [0mExpected 1 arguments, but got 2.
+
+[7m1679[0m       getLessonSmartStorageInput({ title: "Mercy in Joshua" }),
+[7m    [0m [91m      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mconvex/smartStorage.test.ts[0m:[93m1708[0m:[93m15[0m - [91merror[0m[90m TS2304: [0mCannot find name 'insertRepresentedLessonEntryForTest'.
+
+[7m1708[0m         await insertRepresentedLessonEntryForTest(ctx, {
+[7m    [0m [91m              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 4 errors in 2 files.
+
+Errors  Files
+     2  convex/appAccess.test.ts[90m:355[0m
+     2  convex/smartStorage.test.ts[90m:1679[0m
+- Preparing Convex functions...
+
+[31m×[39m TypeScript typecheck via `tsc` failed.
+To ignore failing typecheck, use `--typecheck=disable`.
+- Collecting TypeScript errors
+
+[96mconvex/appAccess.test.ts[0m:[93m355[0m:[93m22[0m - [91merror[0m[90m TS2352: [0mConversion of type '{ members: { membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]; name: string; organizationEntryId: Id<"organizationEntries">; organizationKind: "school" | ... 2 more ... | "community"; organizationReferentId: Id<...>; } | null' to type 'OrganizationMembershipSettings' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ members: { membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]; name: string; organizationEntryId: Id<"organizationEntries">; organizationKind: "school" | ... 2 more ... | "community"; organizationReferentId: Id<...>; }' is not comparable to type 'OrganizationMembershipSettings'.
+    Types of property 'members' are incompatible.
+      Type '{ membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]' is not comparable to type '{ email?: string | undefined; membershipId: Id<"memberships">; name: string; role: "admin" | "member"; status: "active" | "pending"; userId?: Id<"users"> | undefined; }[]'.
+        Property 'status' is missing in type '{ membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }' but required in type '{ email?: string | undefined; membershipId: Id<"memberships">; name: string; role: "admin" | "member"; status: "active" | "pending"; userId?: Id<"users"> | undefined; }'.
+
+[7m355[0m     const settings = (await admin.query(
+[7m   [0m [91m                     ~~~~~~~~~~~~~~~~~~~[0m
+[7m356[0m       api.organizationAccounts.getOrganizationMembershipSettings,
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[7m...[0m 
+[7m359[0m       },
+[7m   [0m [91m~~~~~~~~[0m
+[7m360[0m     )) as OrganizationMembershipSettings;
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+  [96mconvex/appAccess.test.ts[0m:[93m60[0m:[93m5[0m
+    [7m60[0m     status: "active" | "pending";
+    [7m  [0m [96m    ~~~~~~[0m
+    'status' is declared here.
+[96mconvex/appAccess.test.ts[0m:[93m469[0m:[93m22[0m - [91merror[0m[90m TS2352: [0mConversion of type '{ members: { membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]; name: string; organizationEntryId: Id<"organizationEntries">; organizationKind: "school" | ... 2 more ... | "community"; organizationReferentId: Id<...>; } | null' to type 'OrganizationMembershipSettings' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ members: { membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]; name: string; organizationEntryId: Id<"organizationEntries">; organizationKind: "school" | ... 2 more ... | "community"; organizationReferentId: Id<...>; }' is not comparable to type 'OrganizationMembershipSettings'.
+    Types of property 'members' are incompatible.
+      Type '{ membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }[]' is not comparable to type '{ email?: string | undefined; membershipId: Id<"memberships">; name: string; role: "admin" | "member"; status: "active" | "pending"; userId?: Id<"users"> | undefined; }[]'.
+        Property 'status' is missing in type '{ membershipId: Id<"memberships">; name: string; role: "admin" | "member"; userId: Id<"users">; email?: string | undefined; }' but required in type '{ email?: string | undefined; membershipId: Id<"memberships">; name: string; role: "admin" | "member"; status: "active" | "pending"; userId?: Id<"users"> | undefined; }'.
+
+[7m469[0m     const settings = (await admin.query(
+[7m   [0m [91m                     ~~~~~~~~~~~~~~~~~~~[0m
+[7m470[0m       api.organizationAccounts.getOrganizationMembershipSettings,
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[7m...[0m 
+[7m473[0m       },
+[7m   [0m [91m~~~~~~~~[0m
+[7m474[0m     )) as OrganizationMembershipSettings;
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+  [96mconvex/appAccess.test.ts[0m:[93m60[0m:[93m5[0m
+    [7m60[0m     status: "active" | "pending";
+    [7m  [0m [96m    ~~~~~~[0m
+    'status' is declared here.
+
+[96mconvex/smartStorage.test.ts[0m:[93m1708[0m:[93m15[0m - [91merror[0m[90m TS2304: [0mCannot find name 'insertRepresentedLessonEntryForTest'.
+
+[7m1708[0m         await insertRepresentedLessonEntryForTest(ctx, {
+[7m    [0m [91m              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Found 3 errors in 2 files.
+
+Errors  Files
+     2  convex/appAccess.test.ts[90m:355[0m
+     1  convex/smartStorage.test.ts[90m:1708[0m
+- Preparing Convex functions...
+
+[32m√[39m 13:58:47 Convex functions ready! (8.31s)
+- Preparing Convex functions...
+
+[32m√[39m 13:58:58 Convex functions ready! (8.5s)
+- Preparing Convex functions...
+
+[32m√[39m 14:11:26 Convex functions ready! (13.88s)
+- Preparing Convex functions...
+
+[32m√[39m 14:11:57 Convex functions ready! (13.51s)
+Filesystem changed during push, retrying...
+- Preparing Convex functions...
+
+[32m√[39m 14:12:10 Convex functions ready! (12.8s)
+Filesystem changed during push, retrying...
+- Preparing Convex functions...
+
+[32m√[39m 14:12:20 Convex functions ready! (10.1s)
+6/18/2026, 2:12:10 PM [CONVEX M(auth:store)] [INFO] '`auth:store` type: refreshSession'
+- Preparing Convex functions...
+
+[32m√[39m 14:14:11 Convex functions ready! (9.08s)
+- Preparing Convex functions...
+
+[32m√[39m 14:15:11 Convex functions ready! (7.96s)
+- Preparing Convex functions...
+
+[32m√[39m 14:15:35 Convex functions ready! (7.94s)
+- Preparing Convex functions...
+
+[32m√[39m 14:19:30 Convex functions ready! (9.15s)
+- Preparing Convex functions...
+
+[32m√[39m 14:19:44 Convex functions ready! (8.81s)
+- Preparing Convex functions...
+
+[32m√[39m 14:20:27 Convex functions ready! (10.01s)

@@ -1,6 +1,7 @@
 import { convexAuth } from "@convex-dev/auth/server";
 import { configuredAuthProviders } from "./authProviderConfig";
 import type { MutationCtx } from "./_generated/server";
+import { claimPendingOrganizationMembershipsForVerifiedEmail } from "./lib/pendingMembershipClaims";
 
 const DUPLICATE_EMAIL_ERROR = "Email is already in use by another user.";
 
@@ -49,12 +50,27 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         }
       }
 
+      let savedUserId;
       if (userId !== null) {
         await appCtx.db.patch(userId, userData);
-        return userId;
+        savedUserId = userId;
+      } else {
+        savedUserId = await appCtx.db.insert("users", userData);
       }
 
-      return await appCtx.db.insert("users", userData);
+      if (normalizedEmail !== null && emailVerified) {
+        const user = await appCtx.db.get(savedUserId);
+        if (user) {
+          await claimPendingOrganizationMembershipsForVerifiedEmail(
+            appCtx,
+            user,
+            normalizedEmail,
+            Date.now(),
+          );
+        }
+      }
+
+      return savedUserId;
     },
   },
 });
