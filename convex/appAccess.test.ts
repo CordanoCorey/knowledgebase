@@ -481,6 +481,88 @@ describe("App organization access", () => {
     });
   });
 
+  test("activates an existing pending membership when its user account is later added", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = (await t.action(
+      internal.seedOrganizationsAction.seedDefaultOrganizations,
+      {},
+    )) as SeedActionTestResult;
+    const gelbaugh = getSeededUser(seed.users, "gelbaughcm@gmail.com");
+    const admin = t.withIdentity({
+      subject: `${gelbaugh.userId}|test-session`,
+    });
+
+    const pendingMember = await admin.mutation(
+      api.organizationAccounts.addOrganizationMember,
+      {
+        email: "future.member@example.com",
+        organizationId: "arche-classical-academy",
+        role: "member",
+      },
+    );
+    const futureUserId = await t.run(async (ctx) => {
+      return await ctx.db.insert("users", {
+        email: "future.member@example.com",
+        isActive: false,
+        name: "Future Member",
+      });
+    });
+
+    const activeMember = await admin.mutation(
+      api.organizationAccounts.addOrganizationMember,
+      {
+        email: "future.member@example.com",
+        organizationId: "arche-classical-academy",
+        role: "admin",
+      },
+    );
+
+    expect(activeMember).toMatchObject({
+      email: "future.member@example.com",
+      membershipId: pendingMember.membershipId,
+      name: "Future Member",
+      role: "admin",
+      status: "active",
+      userId: futureUserId,
+    });
+
+    const settings = (await admin.query(
+      api.organizationAccounts.getOrganizationMembershipSettings,
+      {
+        organizationId: "arche-classical-academy",
+      },
+    )) as OrganizationMembershipSettings;
+    expect(
+      settings.members.filter(
+        (member) => member.email === "future.member@example.com",
+      ),
+    ).toEqual([
+      {
+        email: "future.member@example.com",
+        membershipId: pendingMember.membershipId,
+        name: "Future Member",
+        role: "admin",
+        status: "active",
+        userId: futureUserId,
+      },
+    ]);
+
+    const access = (await t
+      .withIdentity({ subject: `${futureUserId}|test-session` })
+      .query(api.appAccess.getCurrentUserAccess, {})) as AppAccessTestState;
+    expect(access.status).toBe("allowed");
+    if (access.status !== "allowed") {
+      throw new Error("Expected claimed member to have app access.");
+    }
+    expect(access.organizations).toContainEqual({
+      name: "Arche Classical Academy",
+      organizationEntryId: expect.any(String),
+      organizationKind: "school",
+      organizationReferentId: expect.any(String),
+      role: "admin",
+    });
+  });
+
   test("rejects organization member management from non-admin members", async () => {
     const t = convexTest({ schema, modules });
     const seed = (await t.action(

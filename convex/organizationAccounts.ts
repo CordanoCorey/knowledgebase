@@ -211,9 +211,15 @@ export const addOrganizationMember = mutation({
     }
 
     const personReferentId = await upsertUserProfile(ctx, user, email, now);
+    const pendingMembership = await getPendingOrganizationMembershipByContactEmail(
+      ctx,
+      email,
+      organization.organizationReferentId,
+    );
     const membershipId = await upsertOrganizationMembership(ctx, {
       memberUserId: user._id,
       organizationReferentId: organization.organizationReferentId,
+      pendingMembershipId: pendingMembership?._id,
       personReferentId,
       role: args.role,
       updatedAt: now,
@@ -463,6 +469,7 @@ async function upsertOrganizationMembership(
   membership: {
     memberUserId: Id<"users">;
     organizationReferentId: Id<"referents">;
+    pendingMembershipId?: Id<"memberships">;
     personReferentId: Id<"referents">;
     role: OrganizationMembershipRole;
     updatedAt: number;
@@ -479,6 +486,20 @@ async function upsertOrganizationMembership(
   const existingMembership = existingMemberships[0];
 
   if (!existingMembership) {
+    if (membership.pendingMembershipId) {
+      await ctx.db.patch(membership.pendingMembershipId, {
+        memberRole: membership.role,
+        memberUserId: membership.memberUserId,
+        membershipStatus: "active",
+        organizationReferentId: membership.organizationReferentId,
+        personReferentId: membership.personReferentId,
+        targetKind: "organization",
+        updatedAt: membership.updatedAt,
+      });
+
+      return membership.pendingMembershipId;
+    }
+
     return await ctx.db.insert("memberships", {
       createdAt: membership.updatedAt,
       memberRole: membership.role,
@@ -509,7 +530,39 @@ async function upsertOrganizationMembership(
     await ctx.db.patch(existingMembership._id, patch);
   }
 
+  if (
+    membership.pendingMembershipId &&
+    membership.pendingMembershipId !== existingMembership._id
+  ) {
+    await ctx.db.patch(membership.pendingMembershipId, {
+      membershipStatus: "inactive",
+      updatedAt: membership.updatedAt,
+    });
+  }
+
   return existingMembership._id;
+}
+
+async function getPendingOrganizationMembershipByContactEmail(
+  ctx: OrganizationAccountCtx,
+  email: string,
+  organizationReferentId: Id<"referents">,
+) {
+  const personReferent = await ctx.db
+    .query("referents")
+    .withIndex("by_knowledgeType_and_canonicalKey", (q) =>
+      q.eq("knowledgeType", "person").eq("canonicalKey", `contact-email:${email}`),
+    )
+    .unique();
+  if (!personReferent) {
+    return null;
+  }
+
+  return await getPendingMembershipByPersonAndOrganization(
+    ctx,
+    personReferent._id,
+    organizationReferentId,
+  );
 }
 
 async function upsertPendingOrganizationMembership(
