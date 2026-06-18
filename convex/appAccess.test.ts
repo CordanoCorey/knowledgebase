@@ -4,6 +4,7 @@ import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { claimPendingOrganizationMembershipsForVerifiedEmail } from "./lib/pendingMembershipClaims";
 import { DEFAULT_USER_SEEDS } from "./seedOrganizations";
 import schema from "./schema";
 
@@ -561,6 +562,75 @@ describe("App organization access", () => {
       organizationReferentId: expect.any(String),
       role: "admin",
     });
+  });
+
+  test("claims pending memberships for a verified primary contact identity", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = (await t.action(
+      internal.seedOrganizationsAction.seedDefaultOrganizations,
+      {},
+    )) as SeedActionTestResult;
+    const gelbaugh = getSeededUser(seed.users, "gelbaughcm@gmail.com");
+    const admin = t.withIdentity({
+      subject: `${gelbaugh.userId}|test-session`,
+    });
+
+    const pendingMember = await admin.mutation(
+      api.organizationAccounts.addOrganizationMember,
+      {
+        email: "verified.claim@example.com",
+        organizationId: "arche-classical-academy",
+        role: "member",
+      },
+    );
+    const userId = await t.run(async (ctx) => {
+      return await ctx.db.insert("users", {
+        email: "verified.claim@example.com",
+        emailVerificationTime: Date.now(),
+        isActive: false,
+        name: "Verified Claim",
+      });
+    });
+
+    const claimedMemberships = await t.run(async (ctx) => {
+      const user = await ctx.db.get(userId);
+      if (!user || !user.email) {
+        throw new Error("Missing user for claim test.");
+      }
+
+      return await claimPendingOrganizationMembershipsForVerifiedEmail(
+        ctx,
+        user,
+        user.email,
+        Date.now(),
+      );
+    });
+
+    expect(claimedMemberships).toEqual([
+      {
+        membershipId: pendingMember.membershipId,
+        organizationReferentId: expect.any(String),
+        role: "member",
+      },
+    ]);
+
+    const stored = await t.run(async (ctx) => {
+      return {
+        membership: await ctx.db.get(pendingMember.membershipId),
+        user: await ctx.db.get(userId),
+      };
+    });
+    expect(stored.user?.isActive).toBe(true);
+    expect(stored.membership).toMatchObject({
+      memberUserId: userId,
+      membershipStatus: "active",
+      targetKind: "organization",
+    });
+
+    const access = (await t
+      .withIdentity({ subject: `${userId}|test-session` })
+      .query(api.appAccess.getCurrentUserAccess, {})) as AppAccessTestState;
+    expect(access.status).toBe("allowed");
   });
 
   test("rejects organization member management from non-admin members", async () => {

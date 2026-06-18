@@ -21,6 +21,7 @@ import type * as http from "../http.js";
 import type * as knowledgeSubscriptions from "../knowledgeSubscriptions.js";
 import type * as lib_appAccess from "../lib/appAccess.js";
 import type * as lib_organizationRoles from "../lib/organizationRoles.js";
+import type * as lib_pendingMembershipClaims from "../lib/pendingMembershipClaims.js";
 import type * as lib_scriptureReferences from "../lib/scriptureReferences.js";
 import type * as lib_typeBehavior from "../lib/typeBehavior.js";
 import type * as organizationAccounts from "../organizationAccounts.js";
@@ -54,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   knowledgeSubscriptions: typeof knowledgeSubscriptions;
   "lib/appAccess": typeof lib_appAccess;
   "lib/organizationRoles": typeof lib_organizationRoles;
+  "lib/pendingMembershipClaims": typeof lib_pendingMembershipClaims;
   "lib/scriptureReferences": typeof lib_scriptureReferences;
   "lib/typeBehavior": typeof lib_typeBehavior;
   organizationAccounts: typeof organizationAccounts;
