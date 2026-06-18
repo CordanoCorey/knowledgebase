@@ -76,6 +76,30 @@ const sourceKind = v.union(
   v.literal("manualEntry"),
 );
 
+const contributionSubmissionStatus = v.union(
+  v.literal("submitted"),
+  v.literal("processing"),
+  v.literal("reviewReady"),
+  v.literal("partiallyAccepted"),
+  v.literal("accepted"),
+  v.literal("rejected"),
+  v.literal("cancelled"),
+);
+
+const reviewScopeKind = v.union(
+  v.literal("private"),
+  v.literal("organization"),
+  v.literal("group"),
+  v.literal("public"),
+);
+
+const linkPreviewStatus = v.union(
+  v.literal("notFetched"),
+  v.literal("queued"),
+  v.literal("fetched"),
+  v.literal("failed"),
+);
+
 const sourceOutputKind = v.union(
   v.literal("produced"),
   v.literal("derived"),
@@ -149,6 +173,31 @@ const entryRepresentationKind = v.union(
   v.literal("externalUrl"),
   v.literal("audio"),
   v.literal("video"),
+);
+
+const entryRepresentationRole = v.union(
+  v.literal("unspecified"),
+  v.literal("primaryContent"),
+  v.literal("manuscript"),
+  v.literal("slides"),
+  v.literal("transcript"),
+  v.literal("recording"),
+  v.literal("thumbnail"),
+  v.literal("supportingMaterial"),
+);
+
+const temporaryUploadStatus = v.union(
+  v.literal("uploaded"),
+  v.literal("attached"),
+  v.literal("expired"),
+  v.literal("deleted"),
+);
+
+const proposalSourceCitationKind = v.union(
+  v.literal("wholeSource"),
+  v.literal("textExcerpt"),
+  v.literal("fileLocator"),
+  v.literal("externalUrl"),
 );
 
 const organizationKind = v.union(
@@ -550,7 +599,57 @@ export default defineSchema({
       "receivedAt",
     ]),
 
+  contributionSubmissions: defineTable({
+    submittedByUserId: v.id("users"),
+    submissionStatus: contributionSubmissionStatus,
+    primaryIntendedKnowledgeType: entryKnowledgeType,
+    primaryIntendedTitle: v.string(),
+    primaryIntendedBodyPreview: v.string(),
+    contributionNote: v.optional(v.string()),
+    intendedVisibilityKind: visibilityKind,
+    intendedVisibilityTargetKey: v.string(),
+    reviewScopeKind,
+    reviewScopeTargetKey: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_submittedByUserId_and_createdAt", [
+      "submittedByUserId",
+      "createdAt",
+    ])
+    .index("by_submissionStatus_and_createdAt", [
+      "submissionStatus",
+      "createdAt",
+    ])
+    .index("by_reviewScopeKind_and_reviewScopeTargetKey_and_createdAt", [
+      "reviewScopeKind",
+      "reviewScopeTargetKey",
+      "createdAt",
+    ]),
+
+  temporaryUploads: defineTable({
+    storageId: v.id("_storage"),
+    uploadedByUserId: v.id("users"),
+    fileName: v.string(),
+    contentType: v.optional(v.string()),
+    fileSizeBytes: v.optional(v.number()),
+    uploadStatus: temporaryUploadStatus,
+    expiresAt: v.number(),
+    attachedContributionSubmissionId: v.optional(
+      v.id("contributionSubmissions"),
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_uploadedByUserId_and_createdAt", [
+      "uploadedByUserId",
+      "createdAt",
+    ])
+    .index("by_uploadStatus_and_expiresAt", ["uploadStatus", "expiresAt"])
+    .index("by_storageId", ["storageId"]),
+
   sources: defineTable({
+    contributionSubmissionId: v.optional(v.id("contributionSubmissions")),
     sourceKind,
     title: v.optional(v.string()),
     rawText: v.optional(v.string()),
@@ -558,9 +657,22 @@ export default defineSchema({
     externalUrl: v.optional(v.string()),
     contentType: v.optional(v.string()),
     languageCode: v.optional(v.string()),
+    fileName: v.optional(v.string()),
+    fileSizeBytes: v.optional(v.number()),
+    linkPreviewStatus: v.optional(linkPreviewStatus),
+    linkPreviewTitle: v.optional(v.string()),
+    linkPreviewDescription: v.optional(v.string()),
+    linkPreviewImageUrl: v.optional(v.string()),
+    linkPreviewSiteName: v.optional(v.string()),
+    linkPreviewFetchedAt: v.optional(v.number()),
+    linkPreviewError: v.optional(v.string()),
     submittedByUserId: v.optional(v.id("users")),
     submittedAt: v.number(),
   })
+    .index("by_contributionSubmissionId_and_submittedAt", [
+      "contributionSubmissionId",
+      "submittedAt",
+    ])
     .index("by_submittedByUserId_and_submittedAt", [
       "submittedByUserId",
       "submittedAt",
@@ -576,14 +688,37 @@ export default defineSchema({
     .index("by_sourceId_and_entryId", ["sourceId", "entryId"])
     .index("by_entryId_and_sourceId", ["entryId", "sourceId"]),
 
+  smartStorageContractVersions: defineTable({
+    contractKey: v.string(),
+    version: v.string(),
+    snapshotText: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_contractKey_and_version", ["contractKey", "version"]),
+
+  typeBehaviorSnapshots: defineTable({
+    knowledgeType: entryKnowledgeType,
+    version: v.string(),
+    snapshotText: v.string(),
+    behaviorSnapshotJson: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_knowledgeType_and_version", ["knowledgeType", "version"]),
+
   smartStorageRuns: defineTable({
+    contributionSubmissionId: v.optional(v.id("contributionSubmissions")),
     sourceId: v.id("sources"),
+    primarySourceId: v.optional(v.id("sources")),
     status: smartStorageRunStatus,
     requestedKnowledgeType: entryKnowledgeType,
     contributionTitle: v.string(),
     contributionBodyPreview: v.string(),
     contextTags: v.array(smartStorageContextTagSnapshot),
     slotId: v.optional(v.string()),
+    smartStorageContractVersionId: v.optional(
+      v.id("smartStorageContractVersions"),
+    ),
+    typeBehaviorSnapshotId: v.optional(v.id("typeBehaviorSnapshots")),
     contractSnapshotVersion: v.optional(v.string()),
     contractSnapshotText: v.optional(v.string()),
     typeBehaviorSnapshotVersion: v.optional(v.string()),
@@ -595,6 +730,10 @@ export default defineSchema({
     updatedAt: v.number(),
     completedAt: v.optional(v.number()),
   })
+    .index("by_contributionSubmissionId_and_createdAt", [
+      "contributionSubmissionId",
+      "createdAt",
+    ])
     .index("by_sourceId_and_createdAt", ["sourceId", "createdAt"])
     .index("by_createdByUserId_and_createdAt", [
       "createdByUserId",
@@ -603,11 +742,16 @@ export default defineSchema({
     .index("by_status_and_createdAt", ["status", "createdAt"]),
 
   smartStorageProposals: defineTable({
+    contributionSubmissionId: v.optional(v.id("contributionSubmissions")),
     sourceId: v.id("sources"),
     smartStorageRunId: v.id("smartStorageRuns"),
     status: smartStorageProposalStatus,
     originalProposal: smartStorageProposedEntry,
     currentProposal: smartStorageProposedEntry,
+    smartStorageContractVersionId: v.optional(
+      v.id("smartStorageContractVersions"),
+    ),
+    typeBehaviorSnapshotId: v.optional(v.id("typeBehaviorSnapshots")),
     contractSnapshotVersion: v.optional(v.string()),
     contractSnapshotText: v.optional(v.string()),
     typeBehaviorSnapshotVersion: v.optional(v.string()),
@@ -616,6 +760,11 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
+    .index("by_contributionSubmissionId_and_status_and_createdAt", [
+      "contributionSubmissionId",
+      "status",
+      "createdAt",
+    ])
     .index("by_smartStorageRunId", ["smartStorageRunId"])
     .index("by_sourceId_and_status", ["sourceId", "status"])
     .index("by_createdByUserId_and_status_and_createdAt", [
@@ -623,6 +772,19 @@ export default defineSchema({
       "status",
       "createdAt",
     ]),
+
+  proposalSourceCitations: defineTable({
+    proposalId: v.id("smartStorageProposals"),
+    sourceId: v.id("sources"),
+    citationKind: proposalSourceCitationKind,
+    excerptText: v.optional(v.string()),
+    locator: v.optional(v.string()),
+    externalUrl: v.optional(v.string()),
+    rationale: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_proposalId", ["proposalId"])
+    .index("by_sourceId", ["sourceId"]),
 
   smartStoragePlaygroundFeedback: defineTable({
     userId: v.id("users"),
@@ -650,6 +812,7 @@ export default defineSchema({
   entryRepresentations: defineTable({
     entryId: v.id("knowledgeEntries"),
     representationKind: entryRepresentationKind,
+    representationRole: entryRepresentationRole,
     prosemirrorDocumentId: v.optional(v.string()),
     plainText: v.optional(v.string()),
     storageId: v.optional(v.id("_storage")),

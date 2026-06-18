@@ -1,0 +1,2 @@
+[2m9:46:41 AM[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22mYou are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it.
+[2m9:47:07 AM[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /.codex-temp/contribution-editor-harness.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)

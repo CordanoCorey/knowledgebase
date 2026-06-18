@@ -36,6 +36,14 @@ _Avoid_: File, document, source, post
 A content form or media form through which a Knowledge Entry is expressed, such as editable rich text, plain text, audio, video, an external URL, or a stored file. An Entry Representation does not change the Knowledge Type or Referent represented by the Knowledge Entry.
 _Avoid_: Source, Knowledge Type, file type
 
+**Primary Representation**:
+The default Entry Representation the application uses when it needs to show, open, preview, or play a Knowledge Entry and cannot present every representation at once. Primary Representation is a display and interaction default, not a claim that other representations are less true or less preserved.
+_Avoid_: Source, canonical version, original file
+
+**Representation Role**:
+The role an Entry Representation plays for a Knowledge Entry, such as manuscript, slides, transcript, recording, thumbnail, primary content, or supporting material. Representation Role is distinct from representation kind because kind describes the medium while role describes how the representation functions for the entry.
+_Avoid_: Entry Representation, file type, Knowledge Type
+
 **Visibility Scope**:
 The audience allowed to access a Knowledge Entry, such as one user, an organization, a group, a network of organizations, or everyone.
 _Avoid_: Public/private, global context, sharing folder
@@ -65,8 +73,12 @@ A rating of how strongly a Knowledge Entry reflects human substance that artific
 _Avoid_: AI score, quality score, robot score
 
 **Human Weight Expectation**:
-The Type Behavior or workflow-specific standard that determines whether low Human Weight is acceptable, merely informative, or a concern for a Knowledge Entry.
+The Type Behavior or workflow-specific standard that determines whether low Human Weight is acceptable, merely informative, or a concern for a Knowledge Entry. Human Weight Expectation levels are none, informative, expected, and required.
 _Avoid_: AI detector, quality requirement, grade
+
+**Human Weight Concern**:
+A review signal raised when a Knowledge Entry's Human Weight appears low relative to its Human Weight Expectation.
+_Avoid_: Cheating accusation, failure, AI detector verdict
 
 **Human Weight Evidence**:
 The supporting signals used to assign or revise Human Weight for a Knowledge Entry, such as credited attribution, provenance, human review, lived use, ratings, or recognition by users and organizations.
@@ -103,6 +115,14 @@ _Avoid_: Global reputation, universal authority, tag popularity
 **Context Expert**:
 A User or Person surfaced because their Context Expertise is high within a Knowledge Context.
 _Avoid_: Top contributor, admin, official authority, title
+
+**Expert Orbit**:
+The default set of Context Experts visible to a User because they share active organization membership or another explicit relationship context with that User.
+_Avoid_: Global leaderboard, all users, public ranking
+
+**Global Expert Visibility**:
+A contributor's choice to let their Context Expertise be surfaced outside another User's Expert Orbit; public figures represented as People may be globally visible even without a User account.
+_Avoid_: Public profile, permission, admin status
 
 **Weight-Bearing Knowledge Type**:
 A Knowledge Type whose entries can meaningfully carry Human Weight because they express human substance, ingenuity, craft, judgment, lived use, or divine inspiration.
@@ -248,6 +268,10 @@ _Avoid_: Lesson plan, class notes
 A Knowledge Type for a human being who may be referenced as an author, teacher, student, speaker, invitee, commenter, or other participant, whether or not that person is also a User.
 _Avoid_: User, account, profile
 
+**Person Consolidation**:
+The identity-review act of resolving two Person Referents as the same human being so their relationships can be attached to one Person.
+_Avoid_: Membership Claim, account merge, email match
+
 **Role**:
 The relation of a Person to a Knowledge Type or Knowledge Entry, such as author, teacher, student, speaker, parent, or invitee.
 _Avoid_: Knowledge Type, user type
@@ -259,6 +283,10 @@ _Avoid_: Knowledge Page, Active Knowledge Context, account
 **User**:
 A person with access to the application through an account. Every User is linked to one Person Knowledge Entry so the User can be tagged through that Person, but not every Person is a User.
 _Avoid_: Person, author, participant
+
+**Contact Identity**:
+A contact value, such as an email address, that can support matching or claiming a Person when ownership is proven without defining the Person's identity by itself. A User may prove more than one Contact Identity.
+_Avoid_: Person, User, account identity
 
 **Organization**:
 A Knowledge Type for a collective body recognized by the application, including a School, Church, Family, or Community, that can recognize Tags, receive Knowledge Slots, and participate in Visibility Scopes.
@@ -277,7 +305,7 @@ A Membership for a Person who has not yet been linked to a User account with pro
 _Avoid_: Invitation, invite, placeholder user
 
 **Membership Claim**:
-The act of connecting an existing Membership for a Person to the User who has proven they are that Person.
+The act of connecting an existing Membership for a Person to the User who has proven they are that Person, including through a verified Contact Identity.
 _Avoid_: Sign-up, invitation acceptance, account creation
 
 **School**:

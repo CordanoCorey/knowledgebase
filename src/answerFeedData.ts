@@ -6,6 +6,7 @@ import type {
   KnowledgeEntrySummary,
   KnowledgeSlotSummary,
 } from "./knowledgeContracts";
+import { getApplicableHumanWeight } from "./knowledgeContracts";
 
 export type { ActiveTag } from "./knowledgeContext";
 export type {
@@ -411,7 +412,12 @@ export function selectKnowledgeContextExperts(
       continue;
     }
 
-    const { contributor, humanWeight, updatedAt } = item.entry;
+    const humanWeight = getApplicableHumanWeight(item.entry);
+    if (humanWeight === undefined) {
+      continue;
+    }
+
+    const { contributor, updatedAt } = item.entry;
     const aggregate = aggregates.get(contributor.id);
     if (aggregate) {
       aggregate.contributionCount += 1;
@@ -476,10 +482,32 @@ function compareAnswerFeedAnswers(
   second: AnswerFeedFixtureItem & { kind: "answer" },
 ) {
   return (
-    second.entry.humanWeight - first.entry.humanWeight ||
+    compareAnswerHumanWeight(first, second) ||
     second.entry.updatedAt - first.entry.updatedAt ||
     first.entry.title.localeCompare(second.entry.title)
   );
+}
+
+function compareAnswerHumanWeight(
+  first: AnswerFeedFixtureItem & { kind: "answer" },
+  second: AnswerFeedFixtureItem & { kind: "answer" },
+) {
+  const firstHumanWeight = getApplicableHumanWeight(first.entry);
+  const secondHumanWeight = getApplicableHumanWeight(second.entry);
+
+  if (firstHumanWeight !== undefined && secondHumanWeight !== undefined) {
+    return secondHumanWeight - firstHumanWeight;
+  }
+
+  if (firstHumanWeight !== undefined) {
+    return -1;
+  }
+
+  if (secondHumanWeight !== undefined) {
+    return 1;
+  }
+
+  return 0;
 }
 
 function compareAnswerFeedSlots(
