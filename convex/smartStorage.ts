@@ -13,6 +13,7 @@ import {
 import { requireAppAccess } from "./lib/appAccess";
 import {
   ENTRY_KNOWLEDGE_TYPES,
+  getApplicableHumanWeight,
   getTypeBehavior,
   getTypeBehaviorSnapshot,
   type EntryKnowledgeType,
@@ -353,7 +354,7 @@ const knowledgeEntrySummary = v.object({
   previewText: v.string(),
   primaryTagLabel: v.string(),
   contextPreviewTagLabels: v.array(v.string()),
-  humanWeight: v.number(),
+  humanWeight: v.optional(v.number()),
   href: v.string(),
   updatedAt: v.number(),
 });
@@ -1950,6 +1951,10 @@ export const acceptScaffoldProposal = mutation({
         `Accepted ${formatKnowledgeTypeLabel(proposedEntry.knowledgeType)} proposal.`,
       MAX_BODY_PREVIEW_LENGTH,
     );
+    const humanWeight = getApplicableHumanWeight(
+      proposedEntry.knowledgeType,
+      typeBehavior.humanWeight.defaultEstimate,
+    );
     const entryId = await ctx.db.insert("knowledgeEntries", {
       knowledgeType: proposedEntry.knowledgeType,
       representedReferentId: represented.referentId,
@@ -1966,7 +1971,7 @@ export const acceptScaffoldProposal = mutation({
       ),
       primaryTagLabel: represented.primaryTagLabel,
       contextPreviewTagLabels,
-      humanWeight: typeBehavior.humanWeight.defaultEstimate,
+      ...(humanWeight === undefined ? {} : { humanWeight }),
       visibilityKind: submission?.intendedVisibilityKind ?? "public",
       visibilityTargetKey: submission?.intendedVisibilityTargetKey ?? "public",
       discoverabilityKind: submission?.intendedVisibilityKind ?? "public",
@@ -3762,6 +3767,11 @@ function summarizeEntry(
   entry: Doc<"knowledgeEntries">,
   contributor: { id: string; name: string },
 ) {
+  const humanWeight = getApplicableHumanWeight(
+    entry.knowledgeType,
+    entry.humanWeight,
+  );
+
   return {
     contributor,
     id: entry._id,
@@ -3770,7 +3780,7 @@ function summarizeEntry(
     previewText: entry.previewText,
     primaryTagLabel: entry.primaryTagLabel,
     contextPreviewTagLabels: entry.contextPreviewTagLabels,
-    humanWeight: entry.humanWeight,
+    ...(humanWeight === undefined ? {} : { humanWeight }),
     href: `/entries/${entry._id}`,
     updatedAt: entry.updatedAt,
   };

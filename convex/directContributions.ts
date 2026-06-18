@@ -2,6 +2,8 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, type MutationCtx } from "./_generated/server";
 import { requireAppAccess } from "./lib/appAccess";
+import { recordContextExpertiseEvidence } from "./lib/contextExpertiseEvidence";
+import { getApplicableHumanWeight } from "./lib/typeBehavior";
 
 const MAX_TITLE_LENGTH = 240;
 const MAX_BODY_LENGTH = 40_000;
@@ -83,7 +85,7 @@ const knowledgeEntrySummary = v.object({
   previewText: v.string(),
   primaryTagLabel: v.string(),
   contextPreviewTagLabels: v.array(v.string()),
-  humanWeight: v.number(),
+  humanWeight: v.optional(v.number()),
   href: v.string(),
   updatedAt: v.number(),
 });
@@ -123,6 +125,10 @@ export const postDirectContribution = mutation({
       throw new Error("Contribution title is required.");
     }
 
+    const slotFulfillment = await resolveSlotFulfillment(ctx, {
+      knowledgeType: args.knowledgeType,
+      slotId: args.slotId,
+    });
     const represented = await resolveRepresentedIdentity(ctx, {
       knowledgeType: args.knowledgeType,
       now,
@@ -135,10 +141,21 @@ export const postDirectContribution = mutation({
       normalizeContextTags(args.contextTags),
       access.userId,
     );
+    if (slotFulfillment !== undefined) {
+      await assertContributionIncludesSlotTags(
+        ctx,
+        slotFulfillment._id,
+        contextTags.map((tag) => tag._id),
+      );
+    }
     const previewText = buildPreviewText(args.knowledgeType, body);
     const contextPreviewTagLabels = contextTags
       .map((tag) => tag.label)
       .slice(0, MAX_CONTEXT_PREVIEW_TAG_LABELS);
+    const humanWeight = getApplicableHumanWeight(
+      args.knowledgeType,
+      DIRECT_CONTRIBUTION_HUMAN_WEIGHT,
+    );
 
     const entryId = await ctx.db.insert("knowledgeEntries", {
       knowledgeType: args.knowledgeType,
@@ -152,7 +169,7 @@ export const postDirectContribution = mutation({
       ),
       primaryTagLabel: represented.primaryTagLabel,
       contextPreviewTagLabels,
-      humanWeight: DIRECT_CONTRIBUTION_HUMAN_WEIGHT,
+      ...(humanWeight === undefined ? {} : { humanWeight }),
       visibilityKind: "public",
       visibilityTargetKey: "public",
       discoverabilityKind: "public",
@@ -181,10 +198,26 @@ export const postDirectContribution = mutation({
       });
     }
 
+    await recordContextExpertiseEvidence(ctx, {
+      contextTagIds: contextTags.map((tag) => tag._id),
+      entryId,
+      evidenceKind: "post",
+      now,
+      subjectUserId: access.userId,
+    });
+
     if (args.knowledgeType === "question") {
       await ctx.db.insert("questionEntries", {
         entryId,
         questionText: title,
+      });
+    }
+
+    if (slotFulfillment !== undefined) {
+      await ctx.db.patch(slotFulfillment._id, {
+        fulfilledEntryId: entryId,
+        status: "fulfilled",
+        updatedAt: now,
       });
     }
 
@@ -201,6 +234,60 @@ export const postDirectContribution = mutation({
     };
   },
 });
+
+async function resolveSlotFulfillment(
+  ctx: MutationCtx,
+  {
+    knowledgeType,
+    slotId,
+  }: {
+    knowledgeType: EntryKnowledgeType;
+    slotId?: string;
+  },
+) {
+  if (slotId === undefined) {
+    return undefined;
+  }
+
+  const normalizedSlotId = ctx.db.normalizeId("knowledgeSlots", slotId);
+  const slot =
+    normalizedSlotId === null ? null : await ctx.db.get(normalizedSlotId);
+  if (!slot) {
+    throw new Error("Knowledge Slot could not be found.");
+  }
+
+  if (slot.requestedKnowledgeType !== knowledgeType) {
+    throw new Error("Contribution Knowledge Type must match the Knowledge Slot request.");
+  }
+
+  if (slot.fulfilledEntryId !== undefined || slot.status === "fulfilled") {
+    throw new Error("Knowledge Slot already has Fulfillment.");
+  }
+
+  if (slot.status !== "open" && slot.status !== "overdue") {
+    throw new Error("Knowledge Slot is not open for Fulfillment.");
+  }
+
+  return slot;
+}
+
+async function assertContributionIncludesSlotTags(
+  ctx: MutationCtx,
+  slotId: Id<"knowledgeSlots">,
+  contextTagIds: Array<Id<"tags">>,
+) {
+  const contextTagIdSet = new Set(contextTagIds);
+  const slotTags = await ctx.db
+    .query("slotTags")
+    .withIndex("by_slotId_and_tagId", (q) => q.eq("slotId", slotId))
+    .collect();
+
+  for (const slotTag of slotTags) {
+    if (!contextTagIdSet.has(slotTag.tagId)) {
+      throw new Error("Contribution must include the Knowledge Slot context Tags.");
+    }
+  }
+}
 
 async function resolveRepresentedIdentity(
   ctx: MutationCtx,
@@ -425,6 +512,11 @@ function summarizeEntry(
   entry: Doc<"knowledgeEntries">,
   contributor: { id: string; name: string },
 ) {
+  const humanWeight = getApplicableHumanWeight(
+    entry.knowledgeType,
+    entry.humanWeight,
+  );
+
   return {
     contributor,
     id: entry._id,
@@ -433,7 +525,7 @@ function summarizeEntry(
     previewText: entry.previewText,
     primaryTagLabel: entry.primaryTagLabel,
     contextPreviewTagLabels: entry.contextPreviewTagLabels,
-    humanWeight: entry.humanWeight,
+    ...(humanWeight === undefined ? {} : { humanWeight }),
     href: `/entries/${entry._id}`,
     updatedAt: entry.updatedAt,
   };

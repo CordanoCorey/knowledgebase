@@ -2,14 +2,32 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import type { OrganizationMembershipRole } from "./organizationRoles";
 
-const BASE_HUMAN_WEIGHT = 0;
 const MAX_PERSON_ENTRIES_PER_REFERENT = 10;
 const MAX_PENDING_MEMBERSHIPS_TO_CLAIM = 100;
+const NON_CLAIMABLE_MEMBERSHIP_STATUSES = ["active", "inactive"] as const;
+const KNOWLEDGE_SLOT_STATUSES = [
+  "open",
+  "fulfilled",
+  "cancelled",
+  "overdue",
+] as const;
 
 export type ClaimedPendingMembership = {
   membershipId: Id<"memberships">;
   organizationReferentId: Id<"referents">;
   role: OrganizationMembershipRole;
+};
+export type PendingMembershipReviewRequired = ClaimedPendingMembership;
+export type PendingMembershipClaimResult = {
+  claimedMemberships: ClaimedPendingMembership[];
+  personConsolidationReviews: PendingMembershipReviewRequired[];
+};
+type MembershipClaimSource =
+  | "verifiedContactIdentity"
+  | "verifiedPrimaryEmail";
+type MembershipClaimOptions = {
+  claimSource: MembershipClaimSource;
+  verifiedContactIdentityId?: Id<"contactIdentities">;
 };
 
 export async function claimPendingOrganizationMembershipsForVerifiedEmail(
@@ -17,10 +35,11 @@ export async function claimPendingOrganizationMembershipsForVerifiedEmail(
   user: Doc<"users">,
   email: string,
   now: number,
-): Promise<ClaimedPendingMembership[]> {
+  options: MembershipClaimOptions = { claimSource: "verifiedPrimaryEmail" },
+): Promise<PendingMembershipClaimResult> {
   const normalizedEmail = normalizeEmail(email);
   if (!normalizedEmail) {
-    return [];
+    return emptyClaimResult();
   }
 
   const pendingPersonReferent = await getPendingPersonReferentByEmail(
@@ -28,7 +47,7 @@ export async function claimPendingOrganizationMembershipsForVerifiedEmail(
     normalizedEmail,
   );
   if (!pendingPersonReferent) {
-    return [];
+    return emptyClaimResult();
   }
 
   const pendingMemberships = await ctx.db
@@ -46,11 +65,7 @@ export async function claimPendingOrganizationMembershipsForVerifiedEmail(
       membership.organizationReferentId !== undefined,
   );
   if (claimableMemberships.length === 0) {
-    return [];
-  }
-
-  if (user.isActive !== true) {
-    await ctx.db.patch(user._id, { isActive: true });
+    return emptyClaimResult();
   }
 
   const personReferentId = await upsertUserProfile(
@@ -59,6 +74,49 @@ export async function claimPendingOrganizationMembershipsForVerifiedEmail(
     normalizedEmail,
     now,
   );
+  const canAutoClaim = await isAutoClaimablePendingPerson(
+    ctx,
+    pendingPersonReferent,
+    normalizedEmail,
+    claimableMemberships,
+  );
+  if (!canAutoClaim) {
+    const personConsolidationReviews: PendingMembershipReviewRequired[] = [];
+
+    for (const pendingMembership of claimableMemberships) {
+      const organizationReferentId = pendingMembership.organizationReferentId;
+      if (organizationReferentId === undefined) {
+        continue;
+      }
+
+      await recordPersonConsolidationReview(ctx, {
+        candidatePersonReferentId: personReferentId,
+        claimedContactValue: normalizedEmail,
+        claimSource: options.claimSource,
+        membershipId: pendingMembership._id,
+        organizationReferentId,
+        pendingPersonReferentId: pendingPersonReferent._id,
+        requestedByUserId: user._id,
+        updatedAt: now,
+        verifiedContactIdentityId: options.verifiedContactIdentityId,
+      });
+      personConsolidationReviews.push({
+        membershipId: pendingMembership._id,
+        organizationReferentId,
+        role: pendingMembership.memberRole ?? "member",
+      });
+    }
+
+    return {
+      claimedMemberships: [],
+      personConsolidationReviews,
+    };
+  }
+
+  if (user.isActive !== true) {
+    await ctx.db.patch(user._id, { isActive: true });
+  }
+
   const claimedMemberships: ClaimedPendingMembership[] = [];
 
   for (const pendingMembership of claimableMemberships) {
@@ -78,6 +136,17 @@ export async function claimPendingOrganizationMembershipsForVerifiedEmail(
         membershipStatus: "inactive",
         updatedAt: now,
       });
+      await recordMembershipClaim(ctx, {
+        claimedByUserId: user._id,
+        claimedContactValue: normalizedEmail,
+        claimSource: options.claimSource,
+        membershipId: existingUserMembership._id,
+        organizationReferentId,
+        pendingPersonReferentId: pendingPersonReferent._id,
+        resultingPersonReferentId: personReferentId,
+        updatedAt: now,
+        verifiedContactIdentityId: options.verifiedContactIdentityId,
+      });
       claimedMemberships.push({
         membershipId: existingUserMembership._id,
         organizationReferentId,
@@ -92,6 +161,17 @@ export async function claimPendingOrganizationMembershipsForVerifiedEmail(
       personReferentId,
       updatedAt: now,
     });
+    await recordMembershipClaim(ctx, {
+      claimedByUserId: user._id,
+      claimedContactValue: normalizedEmail,
+      claimSource: options.claimSource,
+      membershipId: pendingMembership._id,
+      organizationReferentId,
+      pendingPersonReferentId: pendingPersonReferent._id,
+      resultingPersonReferentId: personReferentId,
+      updatedAt: now,
+      verifiedContactIdentityId: options.verifiedContactIdentityId,
+    });
     claimedMemberships.push({
       membershipId: pendingMembership._id,
       organizationReferentId,
@@ -99,7 +179,154 @@ export async function claimPendingOrganizationMembershipsForVerifiedEmail(
     });
   }
 
-  return claimedMemberships;
+  return {
+    claimedMemberships,
+    personConsolidationReviews: [],
+  };
+}
+
+function emptyClaimResult(): PendingMembershipClaimResult {
+  return {
+    claimedMemberships: [],
+    personConsolidationReviews: [],
+  };
+}
+
+async function isAutoClaimablePendingPerson(
+  ctx: MutationCtx,
+  pendingPersonReferent: Doc<"referents">,
+  email: string,
+  claimableMemberships: Array<Doc<"memberships">>,
+) {
+  const canonicalKey = `contact-email:${email}`;
+  if (
+    pendingPersonReferent.knowledgeType !== "person" ||
+    pendingPersonReferent.canonicalKey !== canonicalKey ||
+    pendingPersonReferent.canonicalName !== email
+  ) {
+    return false;
+  }
+
+  const userProfiles = await ctx.db
+    .query("userProfiles")
+    .withIndex("by_personReferentId", (q) =>
+      q.eq("personReferentId", pendingPersonReferent._id),
+    )
+    .take(1);
+  if (userProfiles.length > 0) {
+    return false;
+  }
+
+  const entries = await ctx.db
+    .query("knowledgeEntries")
+    .withIndex("by_representedReferentId", (q) =>
+      q.eq("representedReferentId", pendingPersonReferent._id),
+    )
+    .take(MAX_PERSON_ENTRIES_PER_REFERENT);
+  if (entries.length !== 1) {
+    return false;
+  }
+
+  const personEntry = entries[0];
+  if (
+    personEntry.knowledgeType !== "person" ||
+    personEntry.title !== email ||
+    personEntry.previewText !== email ||
+    personEntry.searchText !== `${email} ${email}` ||
+    personEntry.primaryTagLabel !== email ||
+    personEntry.contextPreviewTagLabels.length !== 0 ||
+    personEntry.createdByUserId !== undefined ||
+    personEntry.publicPreviewText !== undefined
+  ) {
+    return false;
+  }
+
+  const primaryTag = await ctx.db.get(personEntry.primaryTagId);
+  if (
+    !primaryTag ||
+    primaryTag.knowledgeType !== "person" ||
+    primaryTag.label !== email ||
+    primaryTag.lookupKey !== canonicalKey ||
+    primaryTag.referentId !== pendingPersonReferent._id ||
+    primaryTag.createdByUserId !== undefined
+  ) {
+    return false;
+  }
+
+  const personEntries = await ctx.db
+    .query("personEntries")
+    .withIndex("by_entryId", (q) => q.eq("entryId", personEntry._id))
+    .take(2);
+  if (personEntries.length !== 1) {
+    return false;
+  }
+
+  for (const membershipStatus of NON_CLAIMABLE_MEMBERSHIP_STATUSES) {
+    const memberships = await ctx.db
+      .query("memberships")
+      .withIndex("by_personReferentId_and_membershipStatus", (q) =>
+        q
+          .eq("personReferentId", pendingPersonReferent._id)
+          .eq("membershipStatus", membershipStatus),
+      )
+      .take(1);
+    if (memberships.length > 0) {
+      return false;
+    }
+  }
+
+  const invitedMemberships = await ctx.db
+    .query("memberships")
+    .withIndex("by_personReferentId_and_membershipStatus", (q) =>
+      q
+        .eq("personReferentId", pendingPersonReferent._id)
+        .eq("membershipStatus", "invited"),
+    )
+    .take(MAX_PENDING_MEMBERSHIPS_TO_CLAIM + 1);
+  if (invitedMemberships.length !== claimableMemberships.length) {
+    return false;
+  }
+
+  const claimableMembershipIds = new Set(
+    claimableMemberships.map((membership) => membership._id),
+  );
+  if (
+    invitedMemberships.some(
+      (membership) =>
+        !claimableMembershipIds.has(membership._id) ||
+        membership.memberUserId !== undefined ||
+        membership.targetKind !== "organization" ||
+        membership.organizationReferentId === undefined,
+    )
+  ) {
+    return false;
+  }
+
+  const rsvpEntries = await ctx.db
+    .query("rsvpEntries")
+    .withIndex("by_personReferentId_and_respondedAt", (q) =>
+      q.eq("personReferentId", pendingPersonReferent._id),
+    )
+    .take(1);
+  if (rsvpEntries.length > 0) {
+    return false;
+  }
+
+  for (const status of KNOWLEDGE_SLOT_STATUSES) {
+    const slots = await ctx.db
+      .query("knowledgeSlots")
+      .withIndex("by_targetPersonReferentId_and_status_and_dueAt", (q) =>
+        q
+          .eq("targetPersonReferentId", pendingPersonReferent._id)
+          .eq("status", status),
+      )
+      .take(1);
+    if (slots.length > 0) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 async function getPendingPersonReferentByEmail(
@@ -129,6 +356,88 @@ async function getMembershipByUserAndOrganization(
     .take(10);
 
   return memberships[0] ?? null;
+}
+
+async function recordMembershipClaim(
+  ctx: MutationCtx,
+  claim: {
+    claimedByUserId: Id<"users">;
+    claimedContactValue: string;
+    claimSource: MembershipClaimSource;
+    membershipId: Id<"memberships">;
+    organizationReferentId: Id<"referents">;
+    pendingPersonReferentId: Id<"referents">;
+    resultingPersonReferentId: Id<"referents">;
+    updatedAt: number;
+    verifiedContactIdentityId?: Id<"contactIdentities">;
+  },
+) {
+  await ctx.db.insert("membershipClaims", {
+    claimedByUserId: claim.claimedByUserId,
+    claimedContactKind: "email",
+    claimedContactValue: claim.claimedContactValue,
+    claimSource: claim.claimSource,
+    createdAt: claim.updatedAt,
+    membershipId: claim.membershipId,
+    organizationReferentId: claim.organizationReferentId,
+    pendingPersonReferentId: claim.pendingPersonReferentId,
+    resultingPersonReferentId: claim.resultingPersonReferentId,
+    ...(claim.verifiedContactIdentityId === undefined
+      ? {}
+      : { verifiedContactIdentityId: claim.verifiedContactIdentityId }),
+  });
+}
+
+async function recordPersonConsolidationReview(
+  ctx: MutationCtx,
+  review: {
+    candidatePersonReferentId: Id<"referents">;
+    claimedContactValue: string;
+    claimSource: MembershipClaimSource;
+    membershipId: Id<"memberships">;
+    organizationReferentId: Id<"referents">;
+    pendingPersonReferentId: Id<"referents">;
+    requestedByUserId: Id<"users">;
+    updatedAt: number;
+    verifiedContactIdentityId?: Id<"contactIdentities">;
+  },
+) {
+  const existingReviews = await ctx.db
+    .query("personConsolidationReviews")
+    .withIndex("by_membershipId_and_requestedByUserId_and_reviewStatus", (q) =>
+      q
+        .eq("membershipId", review.membershipId)
+        .eq("requestedByUserId", review.requestedByUserId)
+        .eq("reviewStatus", "pending"),
+    )
+    .take(1);
+  const reviewEvidence = {
+    candidatePersonReferentId: review.candidatePersonReferentId,
+    claimedContactKind: "email" as const,
+    claimedContactValue: review.claimedContactValue,
+    claimSource: review.claimSource,
+    membershipId: review.membershipId,
+    organizationReferentId: review.organizationReferentId,
+    pendingPersonReferentId: review.pendingPersonReferentId,
+    requestedByUserId: review.requestedByUserId,
+    reviewReason: "placeholderHasMeaningfulIdentity" as const,
+    reviewStatus: "pending" as const,
+    updatedAt: review.updatedAt,
+    ...(review.verifiedContactIdentityId === undefined
+      ? {}
+      : { verifiedContactIdentityId: review.verifiedContactIdentityId }),
+  };
+
+  const existingReview = existingReviews[0];
+  if (existingReview) {
+    await ctx.db.patch(existingReview._id, reviewEvidence);
+    return;
+  }
+
+  await ctx.db.insert("personConsolidationReviews", {
+    ...reviewEvidence,
+    createdAt: review.updatedAt,
+  });
 }
 
 async function upsertUserProfile(
@@ -274,7 +583,6 @@ async function upsertKnowledgeEntry(
     contextPreviewTagLabels: [],
     discoverabilityKind: "public" as const,
     discoverabilityTargetKey: "public",
-    humanWeight: BASE_HUMAN_WEIGHT,
     knowledgeType: entry.knowledgeType,
     previewText: entry.previewText,
     primaryTagId: entry.primaryTagId,

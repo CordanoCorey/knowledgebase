@@ -410,3 +410,59 @@
 [2m2:13:55 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
 [2m2:17:10 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
 [2m2:18:47 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m2:21:09 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m2:22:30 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m2:31:07 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m2:36:38 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m2:41:52 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/auth/OrganizationAccessRequest.tsx[22m
+[2m2:42:18 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m2:47:01 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/ContributionEditor.tsx, /src/components/KnowledgeCards.tsx, /src/components/KnowledgeTypeIcon.tsx, /src/components/KnowledgeTypeOverview.tsx, /src/prototypes/LayoutPrototype.tsx, /src/SmartStoragePlayground.tsx, /src/App.tsx[22m
+[2m2:47:21 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m2:47:35 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/KnowledgeCards.tsx[22m
+[2m2:47:46 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/AnswerFeed.tsx[22m
+[2m2:47:59 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m2:48:08 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/auth/OrganizationAccessRequest.tsx[22m
+[2m2:48:22 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m2:48:32 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m2:49:13 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m2:49:48 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m2:51:46 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/auth/OrganizationAccessRequest.tsx[22m
+[2m2:52:06 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/ContributionEditor.tsx, /src/components/KnowledgeCards.tsx, /src/components/KnowledgeTypeIcon.tsx, /src/components/KnowledgeTypeOverview.tsx, /src/prototypes/LayoutPrototype.tsx, /src/SmartStoragePlayground.tsx, /src/App.tsx[22m
+[2m2:52:32 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/AnswerFeed.tsx[22m
+[2m2:54:00 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m2:54:07 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m2:55:16 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m2:55:26 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/auth/OrganizationAccessRequest.tsx[22m
+[2m2:55:44 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m2:56:06 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/ContributionEditor.tsx, /src/components/KnowledgeCards.tsx, /src/components/KnowledgeTypeIcon.tsx, /src/components/KnowledgeTypeOverview.tsx, /src/prototypes/LayoutPrototype.tsx, /src/SmartStoragePlayground.tsx, /src/App.tsx[22m
+[2m2:56:31 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/AnswerFeed.tsx[22m
+[2m2:59:10 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m3:04:43 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m3:10:29 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/ContributionEditor.tsx, /src/components/KnowledgeCards.tsx, /src/components/KnowledgeTypeIcon.tsx, /src/components/KnowledgeTypeOverview.tsx, /src/prototypes/LayoutPrototype.tsx, /src/SmartStoragePlayground.tsx, /src/App.tsx[22m
+[2m3:15:18 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m3:23:51 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m3:27:53 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m3:31:32 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m3:32:23 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m3:33:31 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/ContributionEditor.tsx, /src/components/KnowledgeCards.tsx, /src/components/KnowledgeTypeIcon.tsx, /src/components/KnowledgeTypeOverview.tsx, /src/prototypes/LayoutPrototype.tsx, /src/SmartStoragePlayground.tsx, /src/App.tsx[22m
+[2m3:33:31 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/AnswerFeed.tsx[22m
+[2m3:34:46 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m3:38:57 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m3:39:06 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/auth/OrganizationAccessRequest.tsx[22m
+[2m3:39:21 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m3:39:33 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m3:39:56 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m3:40:07 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m3:43:48 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m3:48:36 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/ContributionEditor.tsx, /src/components/KnowledgeCards.tsx, /src/components/KnowledgeTypeIcon.tsx, /src/components/KnowledgeTypeOverview.tsx, /src/prototypes/LayoutPrototype.tsx, /src/SmartStoragePlayground.tsx, /src/App.tsx[22m
+[2m3:49:05 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/KnowledgeCards.tsx[22m
+[2m3:49:13 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m3:52:44 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m4:00:50 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m4:01:38 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m4:05:32 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m4:07:25 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m4:13:35 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/ContributionEditor.tsx, /src/components/KnowledgeCards.tsx, /src/components/KnowledgeTypeIcon.tsx, /src/components/KnowledgeTypeOverview.tsx, /src/prototypes/LayoutPrototype.tsx, /src/SmartStoragePlayground.tsx, /src/App.tsx[22m
+[2m4:19:55 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mdocs/index.html[22m
+[2m4:27:22 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m4:27:51 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m

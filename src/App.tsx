@@ -85,6 +85,7 @@ import type {
   ContributionInput,
   ContributionResult,
   GuidedContributionType,
+  HumanWeightFeedbackInput,
   KnowledgeEntrySummary,
   KnowledgeContextTrendKind,
   KnowledgeContextTrendSummary,
@@ -374,10 +375,29 @@ type OrganizationAccountSetupResult = {
   organizationReferentId: Id<"referents">;
 };
 
+type MembershipClaimEvidence = {
+  claimedAt: number;
+  claimedContactKind: "email";
+  claimedContactValue: string;
+  claimSource: "verifiedContactIdentity" | "verifiedPrimaryEmail";
+};
+type PersonConsolidationReviewEvidence = {
+  claimedContactKind: "email";
+  claimedContactValue: string;
+  claimSource: "verifiedContactIdentity" | "verifiedPrimaryEmail";
+  requestedAt: number;
+  requestedByEmail?: string;
+  reviewId: Id<"personConsolidationReviews">;
+  reviewReason: "placeholderHasMeaningfulIdentity";
+  reviewStatus: "pending";
+  updatedAt: number;
+};
 type OrganizationMember = {
+  claimEvidence?: MembershipClaimEvidence;
   email?: string;
   membershipId: Id<"memberships">;
   name: string;
+  personConsolidationReview?: PersonConsolidationReviewEvidence;
   role: OrganizationMembershipRole;
   status: "active" | "pending";
   userId?: Id<"users">;
@@ -3193,6 +3213,7 @@ function ComponentScaffold({
   const acceptSmartStorageProposal = useMutation(
     api.smartStorage.acceptScaffoldProposal,
   );
+  const recordHumanWeightFeedback = useMutation(api.humanWeightFeedback.record);
   const executeSmartStorageModelRun = useAction(api.smartStorage.executeModelRun);
   const activeContextKey = getKnowledgeContextKey(activeTags);
   const routeContributionKnowledgeType =
@@ -3480,6 +3501,16 @@ function ComponentScaffold({
     setSelectedContributionSlotId(slot.id);
   }
 
+  async function handleHumanWeightFeedback(input: HumanWeightFeedbackInput) {
+    await recordHumanWeightFeedback({
+      entryId: input.entry.id as Id<"knowledgeEntries">,
+      feedbackKind: input.feedbackKind,
+      ...(input.feedbackNote === undefined
+        ? {}
+        : { feedbackNote: input.feedbackNote }),
+    });
+  }
+
   function recordNavigatorUsageEvent(
     usageKind: NavigatorUsageKind,
     tags: ActiveTag[],
@@ -3594,6 +3625,11 @@ function ComponentScaffold({
             layout="masonry"
             onContributeToSlot={handleContributeToSlot}
             onClearSearchQuery={() => setContextSearchQuery("")}
+            onHumanWeightFeedback={
+              durableFeedItems === undefined
+                ? undefined
+                : handleHumanWeightFeedback
+            }
             onNavigateToHref={onNavigateToHref}
             searchQuery={contextSearchQuery}
           />
@@ -4897,6 +4933,39 @@ function formatMembershipRole(role: string) {
   return formatOrganizationKind(role);
 }
 
+function formatOrganizationMemberStatus(member: OrganizationMember) {
+  if (member.personConsolidationReview) {
+    return "Needs Identity Review";
+  }
+  if (member.status === "pending") {
+    return `Pending ${formatMembershipRole(member.role)}`;
+  }
+
+  return formatMembershipRole(member.role);
+}
+
+function formatMembershipClaimEvidence(evidence: MembershipClaimEvidence) {
+  return `Claimed via ${formatClaimSource(evidence.claimSource)} ${evidence.claimedContactValue}.`;
+}
+
+function formatPersonConsolidationReviewEvidence(
+  evidence: PersonConsolidationReviewEvidence,
+) {
+  const requester =
+    evidence.requestedByEmail === undefined
+      ? ""
+      : ` by ${evidence.requestedByEmail}`;
+  return `Identity review requested for ${evidence.claimedContactValue}${requester}.`;
+}
+
+function formatClaimSource(
+  claimSource: MembershipClaimEvidence["claimSource"],
+) {
+  return claimSource === "verifiedPrimaryEmail"
+    ? "verified primary email"
+    : "verified contact email";
+}
+
 function getProfileDisplayName(email?: string) {
   if (!email) {
     return "Current User";
@@ -5302,11 +5371,21 @@ function OrganizationSettingsPage({
   const addOrganizationMember = useMutation(
     api.organizationAccounts.addOrganizationMember,
   );
+  const approvePersonConsolidationReview = useMutation(
+    api.organizationAccounts.approvePersonConsolidationReview,
+  );
+  const rejectPersonConsolidationReview = useMutation(
+    api.organizationAccounts.rejectPersonConsolidationReview,
+  );
   const [memberSetupError, setMemberSetupError] = useState<string | null>(null);
   const [memberSetupSuccess, setMemberSetupSuccess] = useState<string | null>(
     null,
   );
   const [isAddingMember, setIsAddingMember] = useState(false);
+  const [pendingReviewApprovalId, setPendingReviewApprovalId] =
+    useState<Id<"personConsolidationReviews"> | null>(null);
+  const [pendingReviewRejectionId, setPendingReviewRejectionId] =
+    useState<Id<"personConsolidationReviews"> | null>(null);
   const profile = organizationSettings
     ? {
         ...routeProfile,
@@ -5360,6 +5439,68 @@ function OrganizationSettingsPage({
       );
     } finally {
       setIsAddingMember(false);
+    }
+  }
+
+  async function handleApprovePersonConsolidationReview(
+    member: OrganizationMember,
+  ) {
+    const review = member.personConsolidationReview;
+    if (!review) {
+      return;
+    }
+
+    setMemberSetupError(null);
+    setMemberSetupSuccess(null);
+    setPendingReviewApprovalId(review.reviewId);
+
+    try {
+      await approvePersonConsolidationReview({
+        organizationId,
+        personConsolidationReviewId: review.reviewId,
+      });
+      setMemberSetupSuccess(
+        `Approved identity review for ${member.email ?? member.name}.`,
+      );
+    } catch (caughtError) {
+      setMemberSetupError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Identity review approval failed.",
+      );
+    } finally {
+      setPendingReviewApprovalId(null);
+    }
+  }
+
+  async function handleRejectPersonConsolidationReview(
+    member: OrganizationMember,
+  ) {
+    const review = member.personConsolidationReview;
+    if (!review) {
+      return;
+    }
+
+    setMemberSetupError(null);
+    setMemberSetupSuccess(null);
+    setPendingReviewRejectionId(review.reviewId);
+
+    try {
+      await rejectPersonConsolidationReview({
+        organizationId,
+        personConsolidationReviewId: review.reviewId,
+      });
+      setMemberSetupSuccess(
+        `Rejected identity review for ${member.email ?? member.name}.`,
+      );
+    } catch (caughtError) {
+      setMemberSetupError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Identity review rejection failed.",
+      );
+    } finally {
+      setPendingReviewRejectionId(null);
     }
   }
 
@@ -5498,12 +5639,86 @@ function OrganizationSettingsPage({
                         <div>
                           <strong>{member.name}</strong>
                           <span>{member.email ?? "No email on account"}</span>
+                          {member.claimEvidence ? (
+                            <span className="kb-org-member-evidence">
+                              {formatMembershipClaimEvidence(
+                                member.claimEvidence,
+                              )}
+                            </span>
+                          ) : null}
+                          {member.personConsolidationReview ? (
+                            <span className="kb-org-member-evidence">
+                              {formatPersonConsolidationReviewEvidence(
+                                member.personConsolidationReview,
+                              )}
+                            </span>
+                          ) : null}
                         </div>
-                        <small>
-                          {member.status === "pending"
-                            ? `Pending ${formatMembershipRole(member.role)}`
-                            : formatMembershipRole(member.role)}
-                        </small>
+                        <div className="kb-org-member-status-actions">
+                          <small>{formatOrganizationMemberStatus(member)}</small>
+                          {member.personConsolidationReview ? (
+                            <button
+                              className="kb-org-member-review-submit"
+                              disabled={
+                                pendingReviewApprovalId ===
+                                  member.personConsolidationReview.reviewId ||
+                                pendingReviewRejectionId ===
+                                  member.personConsolidationReview.reviewId
+                              }
+                              onClick={() =>
+                                void handleApprovePersonConsolidationReview(member)
+                              }
+                              type="button"
+                            >
+                              {pendingReviewApprovalId ===
+                              member.personConsolidationReview.reviewId ? (
+                                <LoaderCircle
+                                  aria-hidden="true"
+                                  className="editor-auth-spin"
+                                />
+                              ) : (
+                                <Check aria-hidden="true" />
+                              )}
+                              <span>
+                                {pendingReviewApprovalId ===
+                                member.personConsolidationReview.reviewId
+                                  ? "Approving"
+                                  : "Approve review"}
+                              </span>
+                            </button>
+                          ) : null}
+                          {member.personConsolidationReview ? (
+                            <button
+                              className="kb-org-member-review-submit kb-org-member-review-submit-secondary"
+                              disabled={
+                                pendingReviewApprovalId ===
+                                  member.personConsolidationReview.reviewId ||
+                                pendingReviewRejectionId ===
+                                  member.personConsolidationReview.reviewId
+                              }
+                              onClick={() =>
+                                void handleRejectPersonConsolidationReview(member)
+                              }
+                              type="button"
+                            >
+                              {pendingReviewRejectionId ===
+                              member.personConsolidationReview.reviewId ? (
+                                <LoaderCircle
+                                  aria-hidden="true"
+                                  className="editor-auth-spin"
+                                />
+                              ) : (
+                                <X aria-hidden="true" />
+                              )}
+                              <span>
+                                {pendingReviewRejectionId ===
+                                member.personConsolidationReview.reviewId
+                                  ? "Rejecting"
+                                  : "Reject review"}
+                              </span>
+                            </button>
+                          ) : null}
+                        </div>
                       </li>
                     ))}
                   </ul>

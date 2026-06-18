@@ -6,7 +6,10 @@ import type {
   KnowledgeEntrySummary,
   KnowledgeSlotSummary,
 } from "./knowledgeContracts";
-import { getApplicableHumanWeight } from "./knowledgeContracts";
+import {
+  getApplicableHumanWeight,
+  getHumanWeightFeedPriority,
+} from "./knowledgeContracts";
 
 export type { ActiveTag } from "./knowledgeContext";
 export type {
@@ -492,22 +495,10 @@ function compareAnswerHumanWeight(
   first: AnswerFeedFixtureItem & { kind: "answer" },
   second: AnswerFeedFixtureItem & { kind: "answer" },
 ) {
-  const firstHumanWeight = getApplicableHumanWeight(first.entry);
-  const secondHumanWeight = getApplicableHumanWeight(second.entry);
-
-  if (firstHumanWeight !== undefined && secondHumanWeight !== undefined) {
-    return secondHumanWeight - firstHumanWeight;
-  }
-
-  if (firstHumanWeight !== undefined) {
-    return -1;
-  }
-
-  if (secondHumanWeight !== undefined) {
-    return 1;
-  }
-
-  return 0;
+  return (
+    getHumanWeightFeedPriority(second.entry) -
+    getHumanWeightFeedPriority(first.entry)
+  );
 }
 
 function compareAnswerFeedSlots(
@@ -559,7 +550,7 @@ function toKnowledgeContextExpert(
     averageHumanWeight: Math.round(averageHumanWeight),
     contributionCount: aggregate.contributionCount,
     latestUpdatedAt: aggregate.latestUpdatedAt,
-    reliabilityScore: getReliabilityScore(
+    contextExpertiseScore: getContextExpertiseScore(
       averageHumanWeight,
       aggregate.contributionCount,
       aggregate.maxHumanWeight,
@@ -574,7 +565,7 @@ function toKnowledgeContextExpert(
       };
 }
 
-function getReliabilityScore(
+function getContextExpertiseScore(
   averageHumanWeight: number,
   contributionCount: number,
   maxHumanWeight: number,
@@ -591,7 +582,7 @@ function compareKnowledgeContextExperts(
   second: KnowledgeContextExpert & { latestUpdatedAt?: number },
 ) {
   return (
-    second.reliabilityScore - first.reliabilityScore ||
+    second.contextExpertiseScore - first.contextExpertiseScore ||
     second.averageHumanWeight - first.averageHumanWeight ||
     second.contributionCount - first.contributionCount ||
     (second.latestUpdatedAt ?? 0) - (first.latestUpdatedAt ?? 0) ||
@@ -608,7 +599,7 @@ function removeExpertSortFields(
     name: expert.name,
     averageHumanWeight: expert.averageHumanWeight,
     contributionCount: expert.contributionCount,
-    reliabilityScore: expert.reliabilityScore,
+    contextExpertiseScore: expert.contextExpertiseScore,
   };
 
   return expert.href === undefined

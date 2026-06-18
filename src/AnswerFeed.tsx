@@ -15,6 +15,7 @@ import {
 import type {
   AnswerFeedItem,
   AuthorableKnowledgeType,
+  HumanWeightFeedbackInput,
   KnowledgeContextExpert,
   KnowledgeContextTrendSummary,
   KnowledgeSlotSummary,
@@ -49,6 +50,9 @@ type AnswerFeedProps = {
   layout?: "list" | "masonry";
   onClearSearchQuery?: () => void;
   onContributeToSlot?: (slot: KnowledgeSlotSummary) => void;
+  onHumanWeightFeedback?: (
+    input: HumanWeightFeedbackInput,
+  ) => Promise<void> | void;
   onNavigateToHref?: (href: string) => void;
   searchQuery?: string;
 };
@@ -63,6 +67,7 @@ export function AnswerFeed({
   layout = "list",
   onClearSearchQuery,
   onContributeToSlot,
+  onHumanWeightFeedback,
   onNavigateToHref,
   searchQuery = "",
 }: AnswerFeedProps) {
@@ -177,6 +182,7 @@ export function AnswerFeed({
               {item.kind === "answer" ? (
                 <KnowledgeEntryCard
                   entry={item.entry}
+                  onHumanWeightFeedback={onHumanWeightFeedback}
                   onNavigateToHref={onNavigateToHref}
                 />
               ) : (

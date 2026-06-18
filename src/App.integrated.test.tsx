@@ -241,6 +241,20 @@ vi.mock("convex/react", () => ({
       };
     }
 
+    if (
+      functionName === "contactIdentities:sendEmailVerificationCode" &&
+      args &&
+      typeof args === "object" &&
+      "email" in args
+    ) {
+      const email = String(args.email).trim().toLowerCase();
+      return {
+        contactIdentityId: `contact:${email}`,
+        email,
+        verificationStatus: "pending",
+      };
+    }
+
     return {};
   },
   useMutation: (mutation: unknown) => async (args: unknown) => {
@@ -487,6 +501,96 @@ vi.mock("convex/react", () => ({
         name: email,
         role: args.role,
         status: "pending",
+      };
+    }
+    if (
+      functionName === "organizationAccounts:approvePersonConsolidationReview" &&
+      args &&
+      typeof args === "object" &&
+      "personConsolidationReviewId" in args
+    ) {
+      return {
+        membershipId: "membership:pending-teacher",
+        reviewStatus: "approved",
+      };
+    }
+    if (
+      functionName === "contactIdentities:requestEmailVerification" &&
+      args &&
+      typeof args === "object" &&
+      "email" in args
+    ) {
+      const email = String(args.email).trim().toLowerCase();
+      return {
+        contactIdentityId: `contact:${email}`,
+        email,
+        verificationStatus: "pending",
+      };
+    }
+    if (
+      functionName === "contactIdentities:verifyEmailAndClaimPendingMemberships" &&
+      args &&
+      typeof args === "object" &&
+      "email" in args
+    ) {
+      const email = String(args.email).trim().toLowerCase();
+      if (email === "review@example.com") {
+        return {
+          claimedMembershipCount: 0,
+          email,
+          memberships: [],
+          personConsolidationReviewCount: 1,
+          personConsolidationReviews: [
+            {
+              membershipId: "membership:review-needed",
+              organizationReferentId: "organizationReferent",
+              role: "member",
+            },
+          ],
+          verificationStatus: "verified",
+        };
+      }
+
+      return {
+        claimedMembershipCount: 2,
+        email,
+        memberships: [
+          {
+            membershipId: "membership:claimed-school",
+            organizationReferentId: "organizationReferent",
+            role: "member",
+          },
+          {
+            membershipId: "membership:claimed-church",
+            organizationReferentId: "churchOrganizationReferent",
+            role: "admin",
+          },
+        ],
+        personConsolidationReviewCount: 0,
+        personConsolidationReviews: [],
+        verificationStatus: "verified",
+      };
+    }
+    if (
+      functionName === "contactIdentities:claimVerifiedEmailMemberships" &&
+      args &&
+      typeof args === "object" &&
+      "email" in args
+    ) {
+      const email = String(args.email).trim().toLowerCase();
+      return {
+        claimedMembershipCount: 1,
+        email,
+        memberships: [
+          {
+            membershipId: "membership:claimed-verified",
+            organizationReferentId: "organizationReferent",
+            role: "member",
+          },
+        ],
+        personConsolidationReviewCount: 0,
+        personConsolidationReviews: [],
+        verificationStatus: "verified",
       };
     }
     if (
@@ -1563,6 +1667,36 @@ describe("MVP Explore/Contribute loop", () => {
     expect(getFeedItems("answer").map(getCardTitle)).toContain("Comment");
   });
 
+  test("records Human Weight Feedback from an Answer card", async () => {
+    await renderApp();
+    await click(getButton("Add First Crusade"));
+
+    const answerItem = getFeedItems("answer")[0];
+    expect(getCardTitle(answerItem)).toBe(
+      "Augustine, Ordered Loves, and the First Crusade",
+    );
+
+    await click(getButtonIn(answerItem, "Feedback"));
+    expect(answerItem.textContent).toContain("Human Weight Feedback");
+
+    await click(getButtonIn(answerItem, "Used"));
+    await setFieldValue(
+      getTextareaIn(answerItem),
+      "Used in a Grade 9 Church History seminar.",
+    );
+    await click(getButtonIn(answerItem, "Save"));
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        entryId: "entry-first-crusade-ordered-loves",
+        feedbackKind: "used",
+        feedbackNote: "Used in a Grade 9 Church History seminar.",
+        functionName: "humanWeightFeedback:record",
+      }),
+    );
+    expect(answerItem.textContent).toContain("Feedback saved.");
+  });
+
   test("stores dashboard Smart Storage contributions without direct posting", async () => {
     window.history.replaceState({}, "", "http://localhost:3000/");
     const uploadedFile = new File(["Friday chapel program"], "chapel-program.pdf", {
@@ -1952,9 +2086,34 @@ describe("MVP Explore/Contribute loop", () => {
     ];
     mockState.organizationMembershipMembers = [
       {
+        claimEvidence: {
+          claimedAt: Date.now(),
+          claimedContactKind: "email",
+          claimedContactValue: "claimed.teacher@example.com",
+          claimSource: "verifiedContactIdentity",
+        },
+        email: "teacher.personal@example.com",
+        membershipId: "membership:claimed-teacher",
+        name: "Claimed Teacher",
+        role: "member",
+        status: "active",
+        userId: "claimedTeacherUser",
+      },
+      {
         email: "pending.teacher@example.com",
         membershipId: "membership:pending-teacher",
         name: "pending.teacher@example.com",
+        personConsolidationReview: {
+          claimedContactKind: "email",
+          claimedContactValue: "pending.teacher@example.com",
+          claimSource: "verifiedContactIdentity",
+          requestedAt: Date.now(),
+          requestedByEmail: "teacher.claimant@example.com",
+          reviewId: "review:pending-teacher",
+          reviewReason: "placeholderHasMeaningfulIdentity",
+          reviewStatus: "pending",
+          updatedAt: Date.now(),
+        },
         role: "member",
         status: "pending",
       },
@@ -1966,10 +2125,31 @@ describe("MVP Explore/Contribute loop", () => {
     expect(container.textContent).toContain("Cedar Hall School");
     expect(container.textContent).toContain("Members");
     expect(container.textContent).toContain("Member email");
+    expect(container.textContent).toContain("Claimed Teacher");
+    expect(container.textContent).toContain(
+      "Claimed via verified contact email claimed.teacher@example.com.",
+    );
     expect(container.textContent).toContain("pending.teacher@example.com");
-    expect(container.textContent).toContain("Pending Member");
+    expect(container.textContent).toContain(
+      "Identity review requested for pending.teacher@example.com by teacher.claimant@example.com.",
+    );
+    expect(container.textContent).toContain("Needs Identity Review");
+    expect(getButton("Approve review")).toBeTruthy();
     expect(container.textContent).not.toContain("Invitation");
     expect(getButton("Add member")).toBeTruthy();
+
+    await click(getButton("Approve review"));
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        functionName: "organizationAccounts:approvePersonConsolidationReview",
+        organizationId: "cedar-hall-school",
+        personConsolidationReviewId: "review:pending-teacher",
+      }),
+    );
+    expect(container.textContent).toContain(
+      "Approved identity review for pending.teacher@example.com.",
+    );
 
     const emailInput = container.querySelector('input[name="memberEmail"]');
     const roleSelect = container.querySelector('select[name="memberRole"]');
@@ -2072,7 +2252,65 @@ describe("MVP Explore/Contribute loop", () => {
     expect(container.textContent).toContain("outside@example.com");
     expect(container.textContent).toContain("Request to join");
     expect(container.textContent).toContain("Request to create");
+    expect(container.textContent).toContain("Claim by email");
+
+    await setFieldValue(
+      getInputByName("claimEmail"),
+      "Corey@ArcheClassicalAcademy.com",
+    );
+    await click(getButton("Send code"));
+
+    expect(mockState.actionCalls).toContainEqual(
+      expect.objectContaining({
+        email: "Corey@ArcheClassicalAcademy.com",
+        functionName: "contactIdentities:sendEmailVerificationCode",
+      }),
+    );
+    expect(container.textContent).toContain("Verification code requested.");
+
+    await setFieldValue(getInputByName("claimCode"), "123456");
+    await click(getButton("Verify and claim"));
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        code: "123456",
+        email: "corey@archeclassicalacademy.com",
+        functionName:
+          "contactIdentities:verifyEmailAndClaimPendingMemberships",
+      }),
+    );
+    expect(container.textContent).toContain("2 memberships claimed.");
     expect(container.querySelector(".kb-shell")).toBeNull();
+  });
+
+  test("reports identity review when a verified claim cannot auto-claim", async () => {
+    mockState.appAccess = {
+      email: "outside@example.com",
+      status: "needsOrganization",
+      userId: "outsideUser",
+    };
+
+    await renderApp();
+
+    await setFieldValue(getInputByName("claimEmail"), "Review@Example.com");
+    await click(getButton("Send code"));
+    await setFieldValue(getInputByName("claimCode"), "123456");
+    await click(getButton("Verify and claim"));
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        code: "123456",
+        email: "review@example.com",
+        functionName:
+          "contactIdentities:verifyEmailAndClaimPendingMemberships",
+      }),
+    );
+    expect(container.textContent).toContain(
+      "1 membership needs identity review.",
+    );
+    expect(container.textContent).not.toContain(
+      "Email verified. No pending memberships found.",
+    );
   });
 
   test("renders user settings with account context and persisted theme control", async () => {
@@ -3026,6 +3264,15 @@ describe("MVP Explore/Contribute loop", () => {
     const input = element.querySelector('input[type="text"]');
     if (!(input instanceof HTMLInputElement)) {
       throw new Error("Missing text input");
+    }
+
+    return input;
+  }
+
+  function getInputByName(name: string) {
+    const input = container.querySelector(`input[name="${name}"]`);
+    if (!(input instanceof HTMLInputElement)) {
+      throw new Error(`Missing input: ${name}`);
     }
 
     return input;

@@ -93,6 +93,86 @@ describe("KnowledgeEntryCard", () => {
     expect(markup).not.toContain("0/100");
     expect(markup).not.toContain("Human Weight 0");
   });
+
+  it("renders Human Weight Concern as non-accusatory review copy", () => {
+    const markup = renderToStaticMarkup(
+      <KnowledgeEntryCard
+        entry={{
+          ...entryFixture,
+          humanWeight: 35,
+          humanWeightConcern: {
+            level: "possibleConcern",
+            expectation: "expected",
+            threshold: 40,
+          },
+          knowledgeType: "essay",
+          title: "Student essay on courage",
+        }}
+      />,
+    );
+
+    expect(markup).toContain("Human Weight Review");
+    expect(markup).toContain("Expected human substance below 40/100.");
+    expect(markup).not.toContain("AI-written");
+    expect(markup).not.toContain("cheating");
+    expect(markup).not.toContain("failed");
+    expect(markup).not.toContain("AI detector");
+  });
+
+  it("submits subtle Human Weight Feedback for weight-bearing entries", async () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const onHumanWeightFeedback = vi.fn(async () => undefined);
+
+    await act(async () => {
+      root?.render(
+        <KnowledgeEntryCard
+          entry={entryFixture}
+          onHumanWeightFeedback={onHumanWeightFeedback}
+        />,
+      );
+    });
+
+    await clickButton(getButtonByText(container, "Feedback"));
+    expect(container.textContent).toContain("Human Weight Feedback");
+
+    await clickButton(getButtonByText(container, "Used"));
+    const note = container.querySelector("textarea");
+    if (!(note instanceof HTMLTextAreaElement)) {
+      throw new Error("Missing feedback note field");
+    }
+    await setTextareaValue(note, "Used in a middle school lesson.");
+    await clickButton(getButtonByText(container, "Save"));
+
+    expect(onHumanWeightFeedback).toHaveBeenCalledWith({
+      entry: entryFixture,
+      feedbackKind: "used",
+      feedbackNote: "Used in a middle school lesson.",
+    });
+    expect(container.textContent).toContain("Feedback saved.");
+  });
+
+  it("does not offer Human Weight Feedback for non-weight-bearing entries", async () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(
+        <KnowledgeEntryCard
+          entry={{
+            ...entryFixture,
+            humanWeight: undefined,
+            knowledgeType: "topic",
+          }}
+          onHumanWeightFeedback={async () => undefined}
+        />,
+      );
+    });
+
+    expect(queryButtonByText(container, "Feedback")).toBeNull();
+  });
 });
 
 describe("KnowledgeSlotCard", () => {
@@ -171,4 +251,43 @@ function getLinkByText(element: HTMLElement, text: string) {
   }
 
   return link;
+}
+
+function queryButtonByText(element: HTMLElement, text: string) {
+  return (
+    Array.from(element.querySelectorAll("button")).find(
+      (candidate) => candidate.textContent?.trim() === text,
+    ) ?? null
+  );
+}
+
+function getButtonByText(element: HTMLElement, text: string) {
+  const button = queryButtonByText(element, text);
+  if (!button) {
+    throw new Error(`Missing button with text "${text}"`);
+  }
+
+  return button;
+}
+
+async function clickButton(button: HTMLButtonElement) {
+  await act(async () => {
+    button.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
+async function setTextareaValue(textarea: HTMLTextAreaElement, value: string) {
+  await act(async () => {
+    const valueSetter = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value",
+    )?.set;
+    valueSetter?.call(textarea, value);
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    await Promise.resolve();
+  });
 }

@@ -2427,7 +2427,6 @@ async function insertAllowedUser(ctx: MutationCtx, suffix: unknown = "") {
       normalizedSuffix ? ` ${normalizedSuffix}` : ""
     }`,
     contextPreviewTagLabels: [],
-    humanWeight: 0,
     visibilityKind: "public",
     visibilityTargetKey: "public",
     discoverabilityKind: "public",

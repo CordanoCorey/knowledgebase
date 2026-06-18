@@ -111,6 +111,18 @@ const smartStorageFeedbackRating = v.union(
   v.literal("wrong"),
 );
 
+const humanWeightFeedbackKind = v.union(
+  v.literal("recognize"),
+  v.literal("used"),
+  v.literal("notHuman"),
+  v.literal("wrongContext"),
+);
+
+const contextExpertiseEvidenceKind = v.union(
+  v.literal("post"),
+  v.literal("feedback"),
+);
+
 const smartStoragePredictedEntry = v.object({
   knowledgeType: entryKnowledgeType,
   title: v.string(),
@@ -247,6 +259,23 @@ const membershipStatus = v.union(
   v.literal("invited"),
   v.literal("inactive"),
 );
+const contactIdentityKind = v.union(v.literal("email"));
+const contactIdentityVerificationStatus = v.union(
+  v.literal("pending"),
+  v.literal("verified"),
+);
+const membershipClaimSource = v.union(
+  v.literal("verifiedPrimaryEmail"),
+  v.literal("verifiedContactIdentity"),
+);
+const personConsolidationReviewStatus = v.union(
+  v.literal("pending"),
+  v.literal("approved"),
+  v.literal("rejected"),
+);
+const personConsolidationReviewReason = v.union(
+  v.literal("placeholderHasMeaningfulIdentity"),
+);
 
 const knowledgeSlotStatus = v.union(
   v.literal("open"),
@@ -261,6 +290,12 @@ const knowledgeSlotTargetKind = v.union(
   v.literal("organization"),
   v.literal("group"),
   v.literal("public"),
+);
+const humanWeightExpectation = v.union(
+  v.literal("none"),
+  v.literal("informative"),
+  v.literal("expected"),
+  v.literal("required"),
 );
 
 const seriesItemKind = v.union(
@@ -378,7 +413,12 @@ export default defineSchema({
     searchText: v.string(),
     primaryTagLabel: v.string(),
     contextPreviewTagLabels: v.array(v.string()),
-    humanWeight: v.number(),
+    humanWeight: v.optional(v.number()),
+    humanWeightBaseEstimate: v.optional(v.number()),
+    humanWeightCalculationVersion: v.optional(v.string()),
+    humanWeightCalculationDefinitionId: v.optional(
+      v.id("humanWeightCalculationDefinitions"),
+    ),
     visibilityKind,
     visibilityTargetKey: v.string(),
     discoverabilityKind,
@@ -393,6 +433,7 @@ export default defineSchema({
     .index("by_knowledgeType", ["knowledgeType"])
     .index("by_knowledgeType_and_createdAt", ["knowledgeType", "createdAt"])
     .index("by_knowledgeType_and_updatedAt", ["knowledgeType", "updatedAt"])
+    .index("by_updatedAt", ["updatedAt"])
     .index("by_humanWeight_and_updatedAt", ["humanWeight", "updatedAt"])
     .index("by_createdByUserId", ["createdByUserId"])
     .index("by_createdByUserId_and_createdAt", [
@@ -492,6 +533,94 @@ export default defineSchema({
     .index("by_groupReferentId_and_membershipStatus", [
       "groupReferentId",
       "membershipStatus",
+    ]),
+
+  contactIdentities: defineTable({
+    userId: v.id("users"),
+    contactKind: contactIdentityKind,
+    value: v.string(),
+    verificationStatus: contactIdentityVerificationStatus,
+    verificationCode: v.optional(v.string()),
+    verificationCodeExpiresAt: v.optional(v.number()),
+    verifiedAt: v.optional(v.number()),
+    lastRequestedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId_and_contactKind_and_value", [
+      "userId",
+      "contactKind",
+      "value",
+    ])
+    .index("by_contactKind_and_value_and_verificationStatus", [
+      "contactKind",
+      "value",
+      "verificationStatus",
+    ])
+    .index("by_userId_and_updatedAt", ["userId", "updatedAt"]),
+
+  membershipClaims: defineTable({
+    membershipId: v.id("memberships"),
+    claimedByUserId: v.id("users"),
+    organizationReferentId: v.id("referents"),
+    claimedContactKind: contactIdentityKind,
+    claimedContactValue: v.string(),
+    verifiedContactIdentityId: v.optional(v.id("contactIdentities")),
+    pendingPersonReferentId: v.id("referents"),
+    resultingPersonReferentId: v.id("referents"),
+    claimSource: membershipClaimSource,
+    createdAt: v.number(),
+  })
+    .index("by_membershipId_and_createdAt", ["membershipId", "createdAt"])
+    .index("by_claimedByUserId_and_createdAt", [
+      "claimedByUserId",
+      "createdAt",
+    ])
+    .index("by_organizationReferentId_and_createdAt", [
+      "organizationReferentId",
+      "createdAt",
+    ])
+    .index("by_verifiedContactIdentityId_and_createdAt", [
+      "verifiedContactIdentityId",
+      "createdAt",
+    ]),
+
+  personConsolidationReviews: defineTable({
+    membershipId: v.id("memberships"),
+    organizationReferentId: v.id("referents"),
+    pendingPersonReferentId: v.id("referents"),
+    candidatePersonReferentId: v.id("referents"),
+    requestedByUserId: v.id("users"),
+    claimedContactKind: contactIdentityKind,
+    claimedContactValue: v.string(),
+    verifiedContactIdentityId: v.optional(v.id("contactIdentities")),
+    claimSource: membershipClaimSource,
+    reviewStatus: personConsolidationReviewStatus,
+    reviewReason: personConsolidationReviewReason,
+    resolvedAt: v.optional(v.number()),
+    resolvedByUserId: v.optional(v.id("users")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_membershipId_and_requestedByUserId_and_reviewStatus", [
+      "membershipId",
+      "requestedByUserId",
+      "reviewStatus",
+    ])
+    .index("by_requestedByUserId_and_reviewStatus_and_createdAt", [
+      "requestedByUserId",
+      "reviewStatus",
+      "createdAt",
+    ])
+    .index("by_pendingPersonReferentId_and_reviewStatus_and_createdAt", [
+      "pendingPersonReferentId",
+      "reviewStatus",
+      "createdAt",
+    ])
+    .index("by_organizationReferentId_and_reviewStatus_and_createdAt", [
+      "organizationReferentId",
+      "reviewStatus",
+      "createdAt",
     ]),
 
   pinnedKnowledgePages: defineTable({
@@ -705,6 +834,15 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_knowledgeType_and_version", ["knowledgeType", "version"]),
 
+  humanWeightCalculationDefinitions: defineTable({
+    definitionKey: v.string(),
+    version: v.string(),
+    snapshotText: v.string(),
+    definitionJson: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_definitionKey_and_version", ["definitionKey", "version"]),
+
   smartStorageRuns: defineTable({
     contributionSubmissionId: v.optional(v.id("contributionSubmissions")),
     sourceId: v.id("sources"),
@@ -808,6 +946,46 @@ export default defineSchema({
       "feedbackRating",
       "createdAt",
     ]),
+
+  humanWeightFeedback: defineTable({
+    entryId: v.id("knowledgeEntries"),
+    userId: v.id("users"),
+    feedbackKind: humanWeightFeedbackKind,
+    feedbackNote: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_entryId_and_createdAt", ["entryId", "createdAt"])
+    .index("by_userId_and_createdAt", ["userId", "createdAt"])
+    .index("by_feedbackKind_and_createdAt", ["feedbackKind", "createdAt"])
+    .index("by_entryId_and_userId_and_feedbackKind", [
+      "entryId",
+      "userId",
+      "feedbackKind",
+    ]),
+
+  contextExpertiseEvidence: defineTable({
+    subjectUserId: v.id("users"),
+    subjectPersonReferentId: v.optional(v.id("referents")),
+    contextKey: v.string(),
+    contextTagIds: v.array(v.id("tags")),
+    evidenceKind: contextExpertiseEvidenceKind,
+    entryId: v.id("knowledgeEntries"),
+    feedbackId: v.optional(v.id("humanWeightFeedback")),
+    visibilityKind,
+    visibilityTargetKey: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_subjectUserId_and_contextKey_and_createdAt", [
+      "subjectUserId",
+      "contextKey",
+      "createdAt",
+    ])
+    .index("by_contextKey_and_createdAt", ["contextKey", "createdAt"])
+    .index("by_entryId_and_createdAt", ["entryId", "createdAt"])
+    .index("by_feedbackId", ["feedbackId"])
+    .index("by_evidenceKind_and_createdAt", ["evidenceKind", "createdAt"]),
 
   entryRepresentations: defineTable({
     entryId: v.id("knowledgeEntries"),
@@ -978,6 +1156,7 @@ export default defineSchema({
     targetOrganizationReferentId: v.optional(v.id("referents")),
     targetGroupReferentId: v.optional(v.id("referents")),
     fulfilledEntryId: v.optional(v.id("knowledgeEntries")),
+    humanWeightExpectation: v.optional(humanWeightExpectation),
     dueAt: v.optional(v.number()),
     createdByUserId: v.optional(v.id("users")),
     createdAt: v.number(),

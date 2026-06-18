@@ -11,7 +11,13 @@ const modules = {
   ...import.meta.glob("./_generated/*.*s"),
   "./answerFeed.ts": () => import("./answerFeed"),
   "./directContributions.ts": () => import("./directContributions"),
+  "./lib/contextExpertiseEvidence.ts": () =>
+    import("./lib/contextExpertiseEvidence"),
+  "./lib/humanWeightEvidence.ts": () => import("./lib/humanWeightEvidence"),
+  "./lib/typeBehavior.ts": () => import("./lib/typeBehavior"),
 };
+
+const BASE_TIME = Date.UTC(2026, 5, 1, 12);
 
 describe("Direct Contributions", () => {
   test("creates a durable Words Knowledge Entry and makes it visible in the Answer Feed", async () => {
@@ -75,9 +81,16 @@ describe("Direct Contributions", () => {
         .query("entryTags")
         .withIndex("by_entryId_and_tagId", (q) => q.eq("entryId", result.entryId))
         .collect();
+      const contextExpertiseEvidence = await ctx.db
+        .query("contextExpertiseEvidence")
+        .withIndex("by_entryId_and_createdAt", (q) =>
+          q.eq("entryId", result.entryId),
+        )
+        .collect();
 
       return {
         courageTag,
+        contextExpertiseEvidence,
         entry,
         entryTags,
         primaryTag,
@@ -142,6 +155,19 @@ describe("Direct Contributions", () => {
     expect(rowState.sourceCount).toBe(0);
     expect(rowState.smartStorageRunCount).toBe(0);
     expect(rowState.smartStorageProposalCount).toBe(0);
+    expect(rowState.contextExpertiseEvidence).toEqual([
+      expect.objectContaining({
+        contextKey: `tags:${[seed.joshuaTagId, rowState.courageTag!._id]
+          .sort()
+          .join(",")}`,
+        contextTagIds: [seed.joshuaTagId, rowState.courageTag!._id].sort(),
+        entryId: result.entryId,
+        evidenceKind: "post",
+        subjectUserId: seed.userId,
+        visibilityKind: "public",
+        visibilityTargetKey: "public",
+      }),
+    ]);
 
     const byIdsFeed = await t.query(api.answerFeed.listForActiveTags, {
       activeTagIds: [seed.joshuaTagId, rowState.courageTag!._id],
@@ -156,6 +182,38 @@ describe("Direct Contributions", () => {
       slotLimit: 10,
     });
     expect(getAnswerTitles(byKeysFeed)).toContain("Hopeful courage in Joshua");
+  });
+
+  test("omits Human Weight for non-weight-bearing direct contributions", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedAllowedUserWithJoshuaTag);
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    const result = await authed.mutation(
+      api.directContributions.postDirectContribution,
+      {
+        body: "A topic page for gathering courage-related material.",
+        contextTags: [],
+        knowledgeType: "topic",
+        title: "Courage",
+      },
+    );
+
+    expect(result.entry).toMatchObject({
+      contributor: {
+        id: seed.userId,
+        name: "Direct Contributor",
+      },
+      id: result.entryId,
+      knowledgeType: "topic",
+      title: "Courage",
+    });
+    expect(result.entry).not.toHaveProperty("humanWeight");
+
+    const storedEntry = await t.run(async (ctx) => {
+      return await ctx.db.get(result.entryId);
+    });
+    expect(storedEntry).not.toHaveProperty("humanWeight");
   });
 
   test("stores direct Questions as Question Knowledge Entries", async () => {
@@ -199,6 +257,102 @@ describe("Direct Contributions", () => {
         questionText: "How does Joshua 1 define courage?",
       }),
     );
+  });
+
+  test("fulfills an open Knowledge Slot with a matching direct contribution", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedAllowedUserWithJoshuaTag);
+    const slotId = await t.run(async (ctx) =>
+      insertSlot(ctx, {
+        contextTagIds: [seed.joshuaTagId],
+        humanWeightExpectation: "required",
+        requestedKnowledgeType: "lesson",
+        title: "Required Joshua lesson",
+      }),
+    );
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    const result = await authed.mutation(
+      api.directContributions.postDirectContribution,
+      {
+        body: "A lesson submitted for the required Joshua Slot.",
+        contextTags: [
+          {
+            canonicalKey: "joshua-1-6-9",
+            href: "/scripture/joshua-1-6-9",
+            id: "joshua-1-6-9",
+            knowledgeType: "biblePassage",
+            label: "Joshua 1:6-9",
+            passageString: "Joshua 1:6-9",
+          },
+        ],
+        knowledgeType: "lesson",
+        slotId,
+        title: "Required Joshua lesson submission",
+      },
+    );
+
+    const fulfilledSlot = await t.run(async (ctx) => await ctx.db.get(slotId));
+
+    expect(fulfilledSlot).toEqual(
+      expect.objectContaining({
+        fulfilledEntryId: result.entryId,
+        humanWeightExpectation: "required",
+        requestedKnowledgeType: "lesson",
+        status: "fulfilled",
+      }),
+    );
+  });
+
+  test("rejects direct Slot fulfillment when the Knowledge Type does not match", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedAllowedUserWithJoshuaTag);
+    const slotId = await t.run(async (ctx) =>
+      insertSlot(ctx, {
+        contextTagIds: [seed.joshuaTagId],
+        requestedKnowledgeType: "lesson",
+        title: "Lesson-only Slot",
+      }),
+    );
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    await expect(
+      authed.mutation(api.directContributions.postDirectContribution, {
+        body: "This is not a lesson.",
+        contextTags: [
+          {
+            canonicalKey: "joshua-1-6-9",
+            href: "/scripture/joshua-1-6-9",
+            id: "joshua-1-6-9",
+            knowledgeType: "biblePassage",
+            label: "Joshua 1:6-9",
+            passageString: "Joshua 1:6-9",
+          },
+        ],
+        knowledgeType: "words",
+        slotId,
+        title: "Wrong type Slot submission",
+      }),
+    ).rejects.toThrow("must match the Knowledge Slot request");
+
+    const state = await t.run(async (ctx) => {
+      const slot = await ctx.db.get(slotId);
+      const matchingEntries = await ctx.db
+        .query("knowledgeEntries")
+        .withIndex("by_createdByUserId", (q) => q.eq("createdByUserId", seed.userId))
+        .collect();
+
+      return {
+        hasWrongTypeSubmission: matchingEntries.some(
+          (entry) => entry.title === "Wrong type Slot submission",
+        ),
+        slot,
+      };
+    });
+
+    expect(state.hasWrongTypeSubmission).toBe(false);
+    expect(state.slot).toEqual(expect.objectContaining({ status: "open" }));
+    expect(state.slot).not.toHaveProperty("fulfilledEntryId");
   });
 
   test("requires app access before creating direct Gold records", async () => {
@@ -323,7 +477,6 @@ async function insertAllowedUser(ctx: MutationCtx) {
     searchText: "Arche Classical Academy School organization.",
     primaryTagLabel: "Arche Classical Academy",
     contextPreviewTagLabels: [],
-    humanWeight: 0,
     visibilityKind: "public",
     visibilityTargetKey: "public",
     discoverabilityKind: "public",
@@ -393,4 +546,41 @@ async function insertTag(
   });
 
   return { referentId, tagId };
+}
+
+async function insertSlot(
+  ctx: MutationCtx,
+  slot: {
+    contextTagIds: Array<Id<"tags">>;
+    humanWeightExpectation?: Doc<"knowledgeSlots">["humanWeightExpectation"];
+    requestedKnowledgeType: Doc<"knowledgeSlots">["requestedKnowledgeType"];
+    title: string;
+  },
+) {
+  const slotId = await ctx.db.insert("knowledgeSlots", {
+    requestedKnowledgeType: slot.requestedKnowledgeType,
+    status: "open",
+    title: slot.title,
+    contextKey: getContextKey(slot.contextTagIds),
+    targetKind: "public",
+    ...(slot.humanWeightExpectation === undefined
+      ? {}
+      : { humanWeightExpectation: slot.humanWeightExpectation }),
+    createdAt: BASE_TIME,
+    updatedAt: BASE_TIME,
+  });
+
+  for (const tagId of slot.contextTagIds) {
+    await ctx.db.insert("slotTags", {
+      slotId,
+      tagId,
+      addedAt: BASE_TIME,
+    });
+  }
+
+  return slotId;
+}
+
+function getContextKey(tagIds: Array<Id<"tags">>) {
+  return `tags:${[...tagIds].sort().join(",")}`;
 }

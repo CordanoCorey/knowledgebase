@@ -1,7 +1,15 @@
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
-import { getApplicableHumanWeight } from "./lib/typeBehavior";
+import { summarizeHumanWeightEvidence } from "./lib/humanWeightEvidence";
+import {
+  getApplicableHumanWeight,
+  getHumanWeightConcern,
+  getHumanWeightFeedPriority,
+  isWeightBearingEntryKnowledgeType,
+  type HumanWeightConcernSummary,
+  type HumanWeightExpectation,
+} from "./lib/typeBehavior";
 
 const DEFAULT_ANSWER_LIMIT = 20;
 const DEFAULT_EXPERT_LIMIT = 3;
@@ -70,6 +78,15 @@ const knowledgeSlotStatus = v.union(
   v.literal("overdue"),
 );
 
+const humanWeightConcernSummary = v.object({
+  level: v.union(
+    v.literal("possibleConcern"),
+    v.literal("reviewRecommended"),
+  ),
+  expectation: v.union(v.literal("expected"), v.literal("required")),
+  threshold: v.number(),
+});
+
 const activeTagSnapshot = v.object({
   canonicalKey: v.string(),
   href: v.string(),
@@ -92,6 +109,8 @@ const knowledgeEntrySummary = v.object({
   primaryTagLabel: v.string(),
   contextPreviewTagLabels: v.array(v.string()),
   humanWeight: v.optional(v.number()),
+  evidenceMaturity: v.optional(v.number()),
+  humanWeightConcern: v.optional(humanWeightConcernSummary),
   href: v.string(),
   updatedAt: v.number(),
 });
@@ -102,7 +121,7 @@ const knowledgeContextExpert = v.object({
   href: v.optional(v.string()),
   averageHumanWeight: v.number(),
   contributionCount: v.number(),
-  reliabilityScore: v.number(),
+  contextExpertiseScore: v.number(),
 });
 
 const knowledgeSlotSummary = v.object({
@@ -141,7 +160,7 @@ type ContributorSummary = {
 type KnowledgeContextExpert = ContributorSummary & {
   averageHumanWeight: number;
   contributionCount: number;
-  reliabilityScore: number;
+  contextExpertiseScore: number;
 };
 
 type KnowledgeEntrySummary = {
@@ -153,6 +172,8 @@ type KnowledgeEntrySummary = {
   primaryTagLabel: string;
   contextPreviewTagLabels: string[];
   humanWeight?: number;
+  evidenceMaturity?: number;
+  humanWeightConcern?: HumanWeightConcernSummary;
   href: string;
   updatedAt: number;
 };
@@ -341,11 +362,7 @@ async function getMatchingAnswerEntries(
   const candidateLimit = getCandidateLimit(limit);
   const candidateEntries =
     activeTagIds.length === 0
-      ? await ctx.db
-          .query("knowledgeEntries")
-          .withIndex("by_humanWeight_and_updatedAt")
-          .order("desc")
-          .take(candidateLimit)
+      ? await getGlobalAnswerCandidates(ctx, candidateLimit)
       : await getEntryCandidatesForActiveTags(ctx, activeTagIds, candidateLimit);
   const matchingEntries = [];
 
@@ -356,6 +373,33 @@ async function getMatchingAnswerEntries(
   }
 
   return matchingEntries.sort(compareEntries).slice(0, limit);
+}
+
+async function getGlobalAnswerCandidates(
+  ctx: QueryCtx,
+  candidateLimit: number,
+) {
+  const byHumanWeight = await ctx.db
+    .query("knowledgeEntries")
+    .withIndex("by_humanWeight_and_updatedAt")
+    .order("desc")
+    .take(candidateLimit);
+  const byRecency = await ctx.db
+    .query("knowledgeEntries")
+    .withIndex("by_updatedAt")
+    .order("desc")
+    .take(candidateLimit);
+
+  return dedupeEntries([...byHumanWeight, ...byRecency]);
+}
+
+function dedupeEntries(entries: Array<Doc<"knowledgeEntries">>) {
+  const byEntryId = new Map<string, Doc<"knowledgeEntries">>();
+  for (const entry of entries) {
+    byEntryId.set(entry._id, entry);
+  }
+
+  return Array.from(byEntryId.values());
 }
 
 async function listMatchingSlots(
@@ -558,6 +602,18 @@ async function summarizeEntry(
     entry.knowledgeType,
     entry.humanWeight,
   );
+  const humanWeightExpectation = await getFulfilledSlotHumanWeightExpectation(
+    ctx,
+    entry._id,
+  );
+  const humanWeightConcern = getHumanWeightConcern({
+    ...(humanWeightExpectation === undefined
+      ? {}
+      : { expectation: humanWeightExpectation }),
+    knowledgeType: entry.knowledgeType,
+    humanWeight: entry.humanWeight,
+  });
+  const evidenceSummary = await getHumanWeightEvidenceSummary(ctx, entry);
 
   return {
     contributor: await getContributorSummary(
@@ -572,9 +628,78 @@ async function summarizeEntry(
     primaryTagLabel: entry.primaryTagLabel,
     contextPreviewTagLabels: entry.contextPreviewTagLabels,
     ...(humanWeight === undefined ? {} : { humanWeight }),
+    ...(evidenceSummary === undefined
+      ? {}
+      : { evidenceMaturity: evidenceSummary.evidenceMaturity }),
+    ...(humanWeightConcern === undefined ? {} : { humanWeightConcern }),
     href: `/entries/${entry._id}`,
     updatedAt: entry.updatedAt,
   };
+}
+
+async function getFulfilledSlotHumanWeightExpectation(
+  ctx: QueryCtx,
+  entryId: Id<"knowledgeEntries">,
+): Promise<HumanWeightExpectation | undefined> {
+  const slots = await ctx.db
+    .query("knowledgeSlots")
+    .withIndex("by_fulfilledEntryId", (q) => q.eq("fulfilledEntryId", entryId))
+    .collect();
+  let strongestExpectation: HumanWeightExpectation | undefined;
+
+  for (const slot of slots) {
+    if (
+      slot.status !== "fulfilled" ||
+      slot.humanWeightExpectation === undefined
+    ) {
+      continue;
+    }
+
+    strongestExpectation = getStrongerHumanWeightExpectation(
+      strongestExpectation,
+      slot.humanWeightExpectation,
+    );
+  }
+
+  return strongestExpectation;
+}
+
+const HUMAN_WEIGHT_EXPECTATION_STRENGTH: Record<HumanWeightExpectation, number> = {
+  none: 0,
+  informative: 1,
+  expected: 2,
+  required: 3,
+};
+
+function getStrongerHumanWeightExpectation(
+  current: HumanWeightExpectation | undefined,
+  candidate: HumanWeightExpectation,
+) {
+  if (
+    current === undefined ||
+    HUMAN_WEIGHT_EXPECTATION_STRENGTH[candidate] >
+      HUMAN_WEIGHT_EXPECTATION_STRENGTH[current]
+  ) {
+    return candidate;
+  }
+
+  return current;
+}
+
+async function getHumanWeightEvidenceSummary(
+  ctx: QueryCtx,
+  entry: Doc<"knowledgeEntries">,
+) {
+  if (!isWeightBearingEntryKnowledgeType(entry.knowledgeType)) {
+    return undefined;
+  }
+
+  const feedbackRows = await ctx.db
+    .query("humanWeightFeedback")
+    .withIndex("by_entryId_and_createdAt", (q) => q.eq("entryId", entry._id))
+    .collect();
+
+  return summarizeHumanWeightEvidence(entry.knowledgeType, feedbackRows);
 }
 
 async function summarizeKnowledgeContextExperts(
@@ -652,7 +777,7 @@ function toKnowledgeContextExpert(
     averageHumanWeight: Math.round(averageHumanWeight),
     contributionCount: aggregate.contributionCount,
     latestUpdatedAt: aggregate.latestUpdatedAt,
-    reliabilityScore: getReliabilityScore(
+    contextExpertiseScore: getContextExpertiseScore(
       averageHumanWeight,
       aggregate.contributionCount,
       aggregate.maxHumanWeight,
@@ -667,12 +792,12 @@ function toKnowledgeContextExpert(
       };
 }
 
-function getReliabilityScore(
+function getContextExpertiseScore(
   averageHumanWeight: number,
   contributionCount: number,
   maxHumanWeight: number,
 ) {
-  // Best guess: reliable experts have consistently high Human Weight plus repeat contributions.
+  // Temporary heuristic until durable Context Expertise Evidence drives this score.
   return Math.round(
     averageHumanWeight +
       Math.min(contributionCount, 5) * EXPERT_CONTRIBUTION_BONUS +
@@ -727,28 +852,10 @@ function compareEntryHumanWeight(
   first: Doc<"knowledgeEntries">,
   second: Doc<"knowledgeEntries">,
 ) {
-  const firstHumanWeight = getApplicableHumanWeight(
-    first.knowledgeType,
-    first.humanWeight,
+  return (
+    getHumanWeightFeedPriority(second.knowledgeType, second.humanWeight) -
+    getHumanWeightFeedPriority(first.knowledgeType, first.humanWeight)
   );
-  const secondHumanWeight = getApplicableHumanWeight(
-    second.knowledgeType,
-    second.humanWeight,
-  );
-
-  if (firstHumanWeight !== undefined && secondHumanWeight !== undefined) {
-    return secondHumanWeight - firstHumanWeight;
-  }
-
-  if (firstHumanWeight !== undefined) {
-    return -1;
-  }
-
-  if (secondHumanWeight !== undefined) {
-    return 1;
-  }
-
-  return 0;
 }
 
 function compareKnowledgeContextExperts(
@@ -756,7 +863,7 @@ function compareKnowledgeContextExperts(
   second: KnowledgeContextExpert & { latestUpdatedAt?: number },
 ) {
   return (
-    second.reliabilityScore - first.reliabilityScore ||
+    second.contextExpertiseScore - first.contextExpertiseScore ||
     second.averageHumanWeight - first.averageHumanWeight ||
     second.contributionCount - first.contributionCount ||
     (second.latestUpdatedAt ?? 0) - (first.latestUpdatedAt ?? 0) ||
@@ -773,7 +880,7 @@ function removeExpertSortFields(
     name: expert.name,
     averageHumanWeight: expert.averageHumanWeight,
     contributionCount: expert.contributionCount,
-    reliabilityScore: expert.reliabilityScore,
+    contextExpertiseScore: expert.contextExpertiseScore,
   };
 
   return expert.href === undefined
@@ -904,28 +1011,18 @@ function compareAnswerHumanWeight(
   first: AnswerFeedItem & { kind: "answer" },
   second: AnswerFeedItem & { kind: "answer" },
 ) {
-  const firstHumanWeight = getApplicableHumanWeight(
-    first.entry.knowledgeType,
-    first.entry.humanWeight,
+  return (
+    getHumanWeightFeedPriority(
+      second.entry.knowledgeType,
+      second.entry.humanWeight,
+      second.entry.evidenceMaturity,
+    ) -
+    getHumanWeightFeedPriority(
+      first.entry.knowledgeType,
+      first.entry.humanWeight,
+      first.entry.evidenceMaturity,
+    )
   );
-  const secondHumanWeight = getApplicableHumanWeight(
-    second.entry.knowledgeType,
-    second.entry.humanWeight,
-  );
-
-  if (firstHumanWeight !== undefined && secondHumanWeight !== undefined) {
-    return secondHumanWeight - firstHumanWeight;
-  }
-
-  if (firstHumanWeight !== undefined) {
-    return -1;
-  }
-
-  if (secondHumanWeight !== undefined) {
-    return 1;
-  }
-
-  return 0;
 }
 
 function compareSlotItems(

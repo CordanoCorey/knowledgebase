@@ -101,6 +101,57 @@ const nonWeightBearingAnswer: AnswerFeedFixtureItem = {
   },
 };
 
+const unscoredWeightBearingAnswer: AnswerFeedFixtureItem = {
+  kind: "answer",
+  contextTagIds: ["romans-8-28", "holy-spirit"],
+  entry: {
+    contributor: adaContributor,
+    id: "entry-unscored-lesson-needing-feedback",
+    title: "Older Lesson Needing Human Weight Feedback",
+    knowledgeType: "lesson",
+    previewText: "A weight-bearing lesson that needs Human Weight evidence.",
+    primaryTagLabel: "Romans 8:28",
+    contextPreviewTagLabels: ["Romans 8:28", "Holy Spirit"],
+    href: "/entries/entry-unscored-lesson-needing-feedback",
+    updatedAt: Date.UTC(2026, 1, 1, 11),
+  },
+};
+
+const matureSameWeightAnswer: AnswerFeedFixtureItem = {
+  kind: "answer",
+  contextTagIds: ["romans-8-28", "holy-spirit"],
+  entry: {
+    contributor: adaContributor,
+    id: "entry-mature-same-weight",
+    title: "Mature Same Weight Answer",
+    knowledgeType: "lesson",
+    previewText: "A same-weight answer with settled Human Weight evidence.",
+    primaryTagLabel: "Romans 8:28",
+    contextPreviewTagLabels: ["Romans 8:28", "Holy Spirit"],
+    humanWeight: 70,
+    evidenceMaturity: 100,
+    href: "/entries/entry-mature-same-weight",
+    updatedAt: Date.UTC(2026, 1, 1, 12),
+  },
+};
+
+const freshSameWeightAnswer: AnswerFeedFixtureItem = {
+  kind: "answer",
+  contextTagIds: ["romans-8-28", "holy-spirit"],
+  entry: {
+    contributor: benContributor,
+    id: "entry-fresh-same-weight",
+    title: "Fresh Same Weight Answer",
+    knowledgeType: "lesson",
+    previewText: "A newer same-weight answer without Human Weight evidence yet.",
+    primaryTagLabel: "Romans 8:28",
+    contextPreviewTagLabels: ["Romans 8:28", "Holy Spirit"],
+    humanWeight: 70,
+    href: "/entries/entry-fresh-same-weight",
+    updatedAt: Date.UTC(2026, 1, 3, 12),
+  },
+};
+
 const matchingSlot: AnswerFeedFixtureItem = {
   kind: "slot",
   contextTagIds: ["romans-8-28", "holy-spirit"],
@@ -195,6 +246,40 @@ describe("Answer Feed helpers", () => {
     ]);
   });
 
+  test("prioritizes unscored weight-bearing Answers before non-weight-bearing Answers", () => {
+    const feedItems = selectAnswerFeedItems(
+      [
+        nonWeightBearingAnswer,
+        unscoredWeightBearingAnswer,
+        lowerWeightAnswer,
+      ],
+      [romansTag, holySpiritTag],
+    );
+
+    expect(
+      feedItems
+        .filter((item) => item.kind === "answer")
+        .map((item) => item.entry.title),
+    ).toEqual([
+      "Older Lesson Needing Human Weight Feedback",
+      "Lower Weight Answer",
+      "Newer Topic Without Human Weight",
+    ]);
+  });
+
+  test("uses Evidence Maturity as a secondary Answer priority signal", () => {
+    const feedItems = selectAnswerFeedItems(
+      [freshSameWeightAnswer, matureSameWeightAnswer],
+      [romansTag, holySpiritTag],
+    );
+
+    expect(
+      feedItems
+        .filter((item) => item.kind === "answer")
+        .map((item) => item.entry.title),
+    ).toEqual(["Mature Same Weight Answer", "Fresh Same Weight Answer"]);
+  });
+
   test("ranks experts from matching Answer contributors", () => {
     const experts = selectKnowledgeContextExperts(
       [
@@ -213,13 +298,13 @@ describe("Answer Feed helpers", () => {
         ...benContributor,
         averageHumanWeight: 96,
         contributionCount: 1,
-        reliabilityScore: 108,
+        contextExpertiseScore: 108,
       },
       {
         ...adaContributor,
         averageHumanWeight: 42,
         contributionCount: 1,
-        reliabilityScore: 54,
+        contextExpertiseScore: 54,
       },
     ]);
   });
