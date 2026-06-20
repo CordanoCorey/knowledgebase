@@ -24,14 +24,17 @@ import {
   Check,
   Clock,
   Compass,
+  Database,
   Landmark,
   LayoutDashboard,
   LoaderCircle,
   MapPin,
+  MailCheck,
   Moon,
   MousePointerClick,
   Pin,
   PinOff,
+  RotateCcw,
   Search,
   Settings,
   Sparkles,
@@ -39,6 +42,7 @@ import {
   Tag,
   TrendingUp,
   UserCircle,
+  UserMinus,
   UserPlus,
   Users,
   UploadCloud,
@@ -46,14 +50,28 @@ import {
 } from "lucide-react";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
-import { parseBiblePassageReference } from "../convex/lib/scriptureReferences";
 import { AuthPanel, SignOutButton } from "./auth/AuthPanel";
-import { OrganizationAccessRequestScreen } from "./auth/OrganizationAccessRequest";
+import {
+  formatClaimResult,
+  OrganizationAccessRequestScreen,
+  type ClaimResultSummary,
+} from "./auth/OrganizationAccessRequest";
 import profilePlaceholderUrl from "./assets/profile-placeholder.png";
-import { AnswerFeed as AnswerFeedSurface } from "./AnswerFeed";
+import {
+  AnswerFeed as AnswerFeedSurface,
+  type QuoteAttributionCorrectionInput,
+  type QuoteAttributionPersonSearchInput,
+} from "./AnswerFeed";
 import { ContributionEditor as ContributionEditorSurface } from "./ContributionEditor";
-import { KnowledgeRequestComposer } from "./KnowledgeRequestComposer";
+import {
+  KnowledgeNavigatorQueryInput,
+  type KnowledgeNavigatorQuerySuggestion,
+} from "./KnowledgeRequestComposer";
 import { Presence } from "./Presence";
+import {
+  RootSearchResults,
+  type RootSearchResult,
+} from "./RootSearchResults";
 import {
   getNavigatorAnalyticsTagKeys,
   getPageVisitAnalyticsInput,
@@ -76,7 +94,9 @@ import {
   getCanonicalKnowledgeContextHref,
   getInactiveNavigatorTags,
   getKnowledgeContextKey,
+  getRootSearchTagSuggestions,
   removeActiveTag,
+  type RootSearchTagSuggestion,
 } from "./knowledgeContext";
 import type { ActiveTag } from "./knowledgeContext";
 import type {
@@ -85,9 +105,14 @@ import type {
   ContributionInput,
   ContributionResult,
   GuidedContributionType,
+  HumanWeightFeedbackInput,
+  KnowledgeContextExpert,
+  KnowledgeContextExpertDetail,
+  KnowledgeContextExpertScope,
   KnowledgeEntrySummary,
   KnowledgeContextTrendKind,
   KnowledgeContextTrendSummary,
+  QuoteAttributionPersonOption,
   KnowledgeSlotSummary,
   RepresentationRole,
   SmartStorageRepresentationDecision,
@@ -108,7 +133,10 @@ const SAMPLE_TAG_ID = "first-crusade";
 const SAMPLE_ORG_ID = "arche-classical-academy";
 const SAMPLE_CONTEXT_TAG_IDS = "first-crusade,matthew-5-9";
 const SAMPLE_SCRIPTURE_PASSAGE = "joshua-1-6-9";
-const MAX_PASSAGE_SUGGESTIONS = 5;
+const ROOT_SEARCH_SUGGESTION_LIMIT = 5;
+const DEFAULT_CONTEXT_EXPERTISE_OPERATION_BATCH_SIZE = 25;
+const MAX_CONTEXT_EXPERTISE_OPERATION_BATCH_SIZE = 100;
+const CONTEXT_EXPERTISE_OPERATION_SAMPLE_LIMIT = 5;
 
 type ViewTransitionDocument = Document & {
   startViewTransition?: (callback: () => void) => {
@@ -135,6 +163,7 @@ type SmartStorageRunReviewSummary = {
 
 type PageId =
   | "dashboard"
+  | "root-search"
   | "scripture"
   | "tag"
   | "explore-context"
@@ -225,7 +254,12 @@ type DashboardBibleContextSuggestion = {
 
 type NotificationFilter = "all" | "unread" | "knowledgeSlots" | "events";
 
-type NotificationKind = "answer" | "event" | "knowledgeSlot" | "subscription";
+type NotificationKind =
+  | "access"
+  | "answer"
+  | "event"
+  | "knowledgeSlot"
+  | "subscription";
 
 type NotificationStatus = "read" | "unread";
 
@@ -258,6 +292,177 @@ type UserNotificationUnreadSummary = {
   latestReceivedAt?: number;
   unreadCount: number;
 };
+
+type ContactIdentityStatus = "pending" | "verified";
+
+type ContactIdentitySummary = {
+  email: string;
+  id: Id<"contactIdentities">;
+  verificationStatus: ContactIdentityStatus;
+  verifiedAt?: number;
+};
+
+type ContactIdentitySettings = {
+  contactIdentities: ContactIdentitySummary[];
+  primaryEmail?: string;
+  primaryEmailVerified: boolean;
+};
+
+type ContextExpertiseVisibilitySettings = {
+  globalExpertVisibilityEnabled: boolean;
+};
+
+type PersonGlobalExpertVisibilityModeration = {
+  moderationNote?: string;
+  personLabel: string;
+  personReferentId: string;
+  status: "visibleByDefault" | "suppressed";
+  updatedAt?: number;
+  updatedByUserId?: string;
+};
+
+type PersonGlobalExpertVisibilityModerationEvent = {
+  action: "suppressed" | "restored" | "suppressionNoteUpdated";
+  createdAt: number;
+  eventId: string;
+  moderationNote?: string;
+  nextStatus: "visibleByDefault" | "suppressed";
+  personReferentId: string;
+  previousModerationNote?: string;
+  previousStatus: "visibleByDefault" | "suppressed";
+  updatedByUserId: string;
+};
+
+type ContextExpertiseOperationPagination = {
+  cursor: string | null;
+  numItems: number;
+};
+
+type ContextExpertiseMigrationGroup = {
+  aggregateId?: Id<"contextExpertiseAggregates">;
+  audienceScopeKind: "private" | "organization" | "group" | "public";
+  audienceScopeTargetKey: string;
+  contextKey: string;
+  evidenceCount?: number;
+  skippedReason?: "noEffectiveEvidence" | "noEvidence" | "noValidEntries";
+  subjectKind: "user" | "person";
+  subjectPersonReferentId?: Id<"referents">;
+  subjectUserId?: Id<"users">;
+};
+
+type ScopedAggregateMigrationStatus = {
+  aggregateSampleLimit: number;
+  continueCursor: string;
+  evidenceGroupCount: number;
+  isDone: boolean;
+  legacyAggregateSampleCount: number;
+  mayHaveMoreEvidence: boolean;
+  missingScopedAggregateGroupCount: number;
+  missingScopedAggregateGroups: ContextExpertiseMigrationGroup[];
+  sampledAggregateCount: number;
+  sampledEvidenceCount: number;
+  scopedAggregateSampleCount: number;
+};
+
+type ScopedAggregateMigrationBatchResult = {
+  continueCursor: string;
+  dryRun: boolean;
+  groupCount: number;
+  groups: ContextExpertiseMigrationGroup[];
+  isDone: boolean;
+  processedEvidenceCount: number;
+  rebuiltGroupCount: number;
+  skippedGroupCount: number;
+};
+
+type QuoteAttributionBackfillSkippedReason =
+  | "noQuotedPerson"
+  | "missingEntry"
+  | "invalidQuotedPerson"
+  | "notQuote"
+  | "noContextTags";
+
+type QuoteAttributionBackfillSkippedItem = {
+  entryId?: Id<"knowledgeEntries">;
+  quoteEntryId: Id<"quoteEntries">;
+  skippedReason: QuoteAttributionBackfillSkippedReason;
+  subjectPersonReferentId?: Id<"referents">;
+};
+
+type QuoteAttributionBackfillEvidenceItem = {
+  action: "existing" | "missing" | "wouldCreate" | "created";
+  contextKey: string;
+  entryId: Id<"knowledgeEntries">;
+  evidenceId?: Id<"contextExpertiseEvidence">;
+  quoteEntryId: Id<"quoteEntries">;
+  subjectPersonReferentId: Id<"referents">;
+};
+
+type QuoteAttributionBackfillStatus = {
+  attributedQuoteRowCount: number;
+  continueCursor: string;
+  eligibleQuoteRowCount: number;
+  existingEvidenceCount: number;
+  isDone: boolean;
+  mayHaveMoreQuoteRows: boolean;
+  missingEvidenceCount: number;
+  missingEvidenceItems: QuoteAttributionBackfillEvidenceItem[];
+  processedQuoteRowCount: number;
+  skippedQuoteRowCount: number;
+  skippedQuoteRowItems: QuoteAttributionBackfillSkippedItem[];
+};
+
+type QuoteAttributionBackfillBatchResult = {
+  attributedQuoteRowCount: number;
+  continueCursor: string;
+  createdEvidenceCount: number;
+  dryRun: boolean;
+  eligibleQuoteRowCount: number;
+  evidenceItems: QuoteAttributionBackfillEvidenceItem[];
+  existingEvidenceCount: number;
+  isDone: boolean;
+  mayHaveMoreQuoteRows: boolean;
+  missingEvidenceCount: number;
+  processedQuoteRowCount: number;
+  skippedQuoteRowCount: number;
+  skippedQuoteRowItems: QuoteAttributionBackfillSkippedItem[];
+  wouldCreateEvidenceCount: number;
+};
+
+type SelectedContextExpertSubject =
+  | {
+      subjectKind: "user";
+      subjectUserId: Id<"users">;
+    }
+  | {
+      subjectKind: "person";
+      subjectPersonReferentId: Id<"referents">;
+    };
+
+type QuoteAttributionPersonSearchState = {
+  entryId: string;
+  searchQuery: string;
+};
+
+function getSelectedContextExpertSubject(
+  expert: KnowledgeContextExpert,
+): SelectedContextExpertSubject {
+  if (
+    expert.subjectKind === "person" &&
+    expert.subjectPersonReferentId !== undefined
+  ) {
+    return {
+      subjectKind: "person",
+      subjectPersonReferentId:
+        expert.subjectPersonReferentId as Id<"referents">,
+    };
+  }
+
+  return {
+    subjectKind: "user",
+    subjectUserId: (expert.subjectUserId ?? expert.id) as Id<"users">,
+  };
+}
 
 type OrganizationPageProfile = {
   id: string;
@@ -344,6 +549,25 @@ type ProfileBookmarkedKnowledgePage = {
   updatedAt: number;
 };
 
+type ProfileContextExpertise = {
+  profileUserId: Id<"users">;
+  rows: ProfileContextExpertiseRow[];
+};
+
+type ProfileContextExpertiseRow = {
+  aggregateId: Id<"contextExpertiseAggregates">;
+  contextKey: string;
+  contextTags: ActiveTag[];
+  contextExpertiseMaturity: number;
+  contextExpertiseScore: number;
+  evidenceCount: number;
+  feedbackCount: number;
+  latestEvidenceAt: number;
+  postCount: number;
+  visibilityKind: "private" | "organization" | "group" | "public";
+  visibilityTargetKey: string;
+};
+
 type NotificationSubscriptionSource = {
   createdAt: number;
   href: string;
@@ -374,10 +598,37 @@ type OrganizationAccountSetupResult = {
   organizationReferentId: Id<"referents">;
 };
 
+type MembershipClaimEvidence = {
+  claimedAt: number;
+  claimedContactKind: "email";
+  claimedContactValue: string;
+  claimSource: "verifiedContactIdentity" | "verifiedPrimaryEmail";
+  personConsolidation?: {
+    approvedAt: number;
+    pendingPersonName: string;
+    pendingPersonReferentId: Id<"referents">;
+    resultingPersonName: string;
+    resultingPersonReferentId: Id<"referents">;
+    reviewId: Id<"personConsolidationReviews">;
+  };
+};
+type PersonConsolidationReviewEvidence = {
+  claimedContactKind: "email";
+  claimedContactValue: string;
+  claimSource: "verifiedContactIdentity" | "verifiedPrimaryEmail";
+  requestedAt: number;
+  requestedByEmail?: string;
+  reviewId: Id<"personConsolidationReviews">;
+  reviewReason: "placeholderHasMeaningfulIdentity";
+  reviewStatus: "approved" | "pending" | "rejected";
+  updatedAt: number;
+};
 type OrganizationMember = {
+  claimEvidence?: MembershipClaimEvidence;
   email?: string;
   membershipId: Id<"memberships">;
   name: string;
+  personConsolidationReview?: PersonConsolidationReviewEvidence;
   role: OrganizationMembershipRole;
   status: "active" | "pending";
   userId?: Id<"users">;
@@ -398,6 +649,21 @@ const ROUTES: RouteDefinition[] = [
     href: "/",
     pattern: "/",
     icon: LayoutDashboard,
+    components: [
+      "knowledge-navigator",
+      "answer-feed",
+      "knowledge-request-composer",
+      "contribution-editor",
+      "knowledge-entry-card",
+      "knowledge-slot-card",
+    ],
+  },
+  {
+    id: "root-search",
+    label: "Search Everything",
+    href: "/search",
+    pattern: "/search?q=",
+    icon: Search,
     components: [
       "knowledge-navigator",
       "answer-feed",
@@ -751,6 +1017,7 @@ const NOTIFICATION_FILTERS: Array<{
 ];
 
 const NOTIFICATION_KIND_LABELS: Record<NotificationKind, string> = {
+  access: "Access",
   answer: "Answer",
   event: "Event",
   knowledgeSlot: "Request",
@@ -779,6 +1046,12 @@ const NOTIFICATION_TIME_FORMATTER = new Intl.DateTimeFormat("en", {
   day: "numeric",
   hour: "numeric",
   minute: "2-digit",
+  month: "short",
+  timeZone: "UTC",
+});
+
+const PROFILE_CONTEXT_EXPERTISE_TIME_FORMATTER = new Intl.DateTimeFormat("en", {
+  day: "numeric",
   month: "short",
   timeZone: "UTC",
 });
@@ -1214,6 +1487,7 @@ export default function App() {
     appAccess?.status === "allowed" ? {} : "skip",
   ) as UserNotificationUnreadSummary | undefined;
   const recordPageVisit = useMutation(api.analytics.recordPageVisit);
+  const recordSearchEvent = useMutation(api.analytics.recordSearchEvent);
   const [theme, setTheme] = useState<ThemePreference>(readStoredTheme);
   const [routeState, setRouteState] = useState<RouteState>(() => getRouteState(window.location));
   const [routeMotionKey, setRouteMotionKey] = useState(0);
@@ -1279,6 +1553,13 @@ export default function App() {
   function goToDashboard() {
     window.history.replaceState({}, "", "/");
     commitRouteState(getRouteState(window.location));
+  }
+
+  function recordRootSearchEvent(searchText: string) {
+    void recordSearchEvent({
+      searchScope: "root",
+      searchText,
+    }).catch(() => undefined);
   }
 
   function commitRouteState(nextRouteState: RouteState) {
@@ -1349,6 +1630,7 @@ export default function App() {
       appAccess={appAccess}
       onNavigate={navigate}
       onNavigateToHref={navigateToHref}
+      onRootSearchSubmit={recordRootSearchEvent}
       onToggleTheme={toggleTheme}
       notificationUnreadCount={notificationUnreadSummary?.unreadCount ?? 0}
       pinnedKnowledgePages={pinnedKnowledgePages}
@@ -1496,6 +1778,7 @@ function KnowledgebaseShell({
   notificationUnreadCount,
   onNavigate,
   onNavigateToHref,
+  onRootSearchSubmit,
   onToggleTheme,
   pinnedKnowledgePages,
   routeMotionKey,
@@ -1508,6 +1791,7 @@ function KnowledgebaseShell({
   notificationUnreadCount: number;
   onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
   onNavigateToHref: (href: string) => void;
+  onRootSearchSubmit: (searchText: string) => void;
   onToggleTheme: () => void;
   pinnedKnowledgePages: SidebarPinnedKnowledgePage[];
   routeMotionKey: number;
@@ -1589,6 +1873,7 @@ function KnowledgebaseShell({
           onActiveRoleChange={setActiveRoleOptionId}
           onNavigate={onNavigate}
           onNavigateToHref={onNavigateToHref}
+          onRootSearchSubmit={onRootSearchSubmit}
         />
         <div className="kb-host-content" onScroll={handleContentScroll}>
           <div className={`kb-route-transition ${routeMotionClassName}`}>
@@ -1685,7 +1970,7 @@ function Sidebar({
               key={pageId}
               label={route.label}
               onNavigate={onNavigate}
-              secondaryLabel="Global Knowledge Context"
+              secondaryLabel="All Accessible Knowledge"
             />
           );
         })}
@@ -1914,50 +2199,85 @@ function TopBar({
   onActiveRoleChange,
   onNavigate,
   onNavigateToHref,
+  onRootSearchSubmit,
 }: {
   activeRoleOptionId: string;
   activeRoleOptions: ActiveRoleOption[];
   onActiveRoleChange: (optionId: string) => void;
   onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
   onNavigateToHref: (href: string) => void;
+  onRootSearchSubmit: (searchText: string) => void;
 }) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [rootSearchQuery, setRootSearchQuery] = useState("");
+  const [isRootSearchFocused, setIsRootSearchFocused] = useState(false);
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
-  const trimmedSearchQuery = searchQuery.trim();
-  const suggestions = useMemo(
-    () => getPassageSuggestions(trimmedSearchQuery, 4),
-    [trimmedSearchQuery],
+  const trimmedRootSearchQuery = rootSearchQuery.trim();
+  const fallbackRootSearchSuggestions = useMemo(
+    () =>
+      getRootSearchTagSuggestions(
+        trimmedRootSearchQuery,
+        ROOT_SEARCH_SUGGESTION_LIMIT,
+      ),
+    [trimmedRootSearchQuery],
   );
-  const isSuggestionListOpen =
-    isSearchFocused && trimmedSearchQuery.length > 0 && suggestions.length > 0;
+  const liveRootSearchSuggestions = useQuery(
+    api.tagSuggestions.listRootSearchTagSuggestions,
+    trimmedRootSearchQuery
+      ? {
+          limit: ROOT_SEARCH_SUGGESTION_LIMIT,
+          query: trimmedRootSearchQuery,
+        }
+      : "skip",
+  ) as RootSearchTagSuggestion[] | undefined;
+  const rootSearchSuggestions = getVisibleRootSearchSuggestions(
+    liveRootSearchSuggestions,
+    fallbackRootSearchSuggestions,
+  );
+  const isRootSearchSuggestionListOpen =
+    isRootSearchFocused &&
+    trimmedRootSearchQuery.length > 0 &&
+    rootSearchSuggestions.length > 0;
 
   useEffect(() => {
     setActiveSuggestionIndex(0);
-  }, [suggestions[0]?.href]);
+  }, [trimmedRootSearchQuery]);
 
-  function handleSearchChange(event: ChangeEvent<HTMLInputElement>) {
-    setSearchQuery(event.currentTarget.value);
+  function handleRootSearchChange(event: ChangeEvent<HTMLInputElement>) {
+    setRootSearchQuery(event.currentTarget.value);
   }
 
-  function handleSearchBlur(event: FocusEvent<HTMLDivElement>) {
+  function handleRootSearchBlur(event: FocusEvent<HTMLDivElement>) {
     const nextTarget = event.relatedTarget;
     if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) {
       return;
     }
 
-    setIsSearchFocused(false);
+    setIsRootSearchFocused(false);
   }
 
-  function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (!isSuggestionListOpen) {
+  function handleRootSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      if (isRootSearchSuggestionListOpen) {
+        const suggestion = rootSearchSuggestions[activeSuggestionIndex];
+        if (suggestion) {
+          navigateToRootSearchSuggestion(suggestion.href);
+          return;
+        }
+      }
+
+      submitRootSearchQuery();
+      return;
+    }
+
+    if (!isRootSearchSuggestionListOpen) {
       return;
     }
 
     if (event.key === "ArrowDown") {
       event.preventDefault();
       setActiveSuggestionIndex((currentIndex) =>
-        Math.min(currentIndex + 1, suggestions.length - 1),
+        Math.min(currentIndex + 1, rootSearchSuggestions.length - 1),
       );
       return;
     }
@@ -1969,29 +2289,37 @@ function TopBar({
     }
 
     if (event.key === "Escape") {
-      setIsSearchFocused(false);
+      setIsRootSearchFocused(false);
+    }
+  }
+
+  function navigateToRootSearchSuggestion(href: string) {
+    onNavigateToHref(href);
+    setRootSearchQuery("");
+    setIsRootSearchFocused(false);
+  }
+
+  function submitRootSearchQuery() {
+    const searchQuery = rootSearchQuery.trim();
+    if (!searchQuery) {
       return;
     }
 
-    if (event.key === "Enter") {
-      event.preventDefault();
-      const suggestion = suggestions[activeSuggestionIndex];
-      if (suggestion) {
-        navigateToSuggestion(suggestion.href);
-      }
-    }
+    const searchParams = new URLSearchParams();
+    searchParams.set("q", searchQuery);
+    onRootSearchSubmit(searchQuery);
+    onNavigateToHref(`/search?${searchParams.toString()}`);
+    setRootSearchQuery("");
+    setIsRootSearchFocused(false);
   }
 
-  function navigateToSuggestion(href: string) {
-    onNavigateToHref(href);
-    setSearchQuery("");
-    setIsSearchFocused(false);
-  }
-
-  function handleSuggestionClick(event: MouseEvent<HTMLAnchorElement>, href: string) {
+  function handleRootSearchSuggestionClick(
+    event: MouseEvent<HTMLAnchorElement>,
+    href: string,
+  ) {
     onNavigate(event, href);
-    setSearchQuery("");
-    setIsSearchFocused(false);
+    setRootSearchQuery("");
+    setIsRootSearchFocused(false);
   }
 
   return (
@@ -2020,43 +2348,46 @@ function TopBar({
             ))}
           </select>
         </label>
-        <div className="kb-search-wrap" onBlur={handleSearchBlur}>
-          <span className="kb-search-label">Global Search</span>
+        <div className="kb-search-wrap" onBlur={handleRootSearchBlur}>
+          <span className="kb-search-label">Search Everything</span>
           <label className="kb-search">
             <Search aria-hidden="true" />
             <input
               aria-activedescendant={
-                isSuggestionListOpen
+                isRootSearchSuggestionListOpen
                   ? `kb-search-suggestion-${activeSuggestionIndex}`
                   : undefined
               }
               aria-autocomplete="list"
               aria-controls="kb-search-suggestions"
-              aria-expanded={isSuggestionListOpen}
-              onChange={handleSearchChange}
-              onFocus={() => setIsSearchFocused(true)}
-              onKeyDown={handleSearchKeyDown}
+              aria-expanded={isRootSearchSuggestionListOpen}
+              onChange={handleRootSearchChange}
+              onFocus={() => setIsRootSearchFocused(true)}
+              onKeyDown={handleRootSearchKeyDown}
               placeholder="Search everything you can access"
-              aria-label="Global Search"
+              aria-label="Search Everything"
               type="text"
-              value={searchQuery}
+              value={rootSearchQuery}
             />
           </label>
-          <Presence present={isSuggestionListOpen}>
+          <Presence present={isRootSearchSuggestionListOpen}>
             {(presenceState) => (
               <div
+                aria-label="Root Search suggestions"
                 className="kb-search-suggestions"
                 data-presence={presenceState}
                 id="kb-search-suggestions"
                 role="listbox"
               >
-                {suggestions.map((suggestion, index) => (
+                {rootSearchSuggestions.map((suggestion, index) => (
                   <a
                     aria-selected={index === activeSuggestionIndex}
                     href={suggestion.href}
                     id={`kb-search-suggestion-${index}`}
                     key={suggestion.href}
-                    onClick={(event) => handleSuggestionClick(event, suggestion.href)}
+                    onClick={(event) =>
+                      handleRootSearchSuggestionClick(event, suggestion.href)
+                    }
                     onMouseDown={(event) => event.preventDefault()}
                     onMouseEnter={() => setActiveSuggestionIndex(index)}
                     role="option"
@@ -2064,7 +2395,7 @@ function TopBar({
                     <span>{suggestion.label}</span>
                     <KnowledgeTypeBadge
                       className="kb-search-suggestion-type"
-                      knowledgeType="biblePassage"
+                      knowledgeType={suggestion.knowledgeType}
                     />
                   </a>
                 ))}
@@ -2075,6 +2406,15 @@ function TopBar({
       </div>
     </header>
   );
+}
+
+function getVisibleRootSearchSuggestions(
+  liveSuggestions: RootSearchTagSuggestion[] | undefined,
+  fallbackSuggestions: RootSearchTagSuggestion[],
+) {
+  return liveSuggestions && liveSuggestions.length > 0
+    ? liveSuggestions
+    : fallbackSuggestions;
 }
 
 function PageScaffold({
@@ -2099,6 +2439,7 @@ function PageScaffold({
   if (route.id === "scripture") {
     return (
       <BiblePassagePage
+        appAccess={appAccess}
         onNavigateToHref={onNavigateToHref}
         routeState={routeState}
       />
@@ -2224,6 +2565,7 @@ function PageScaffold({
       {hasWorkingLayout ? (
         <ComponentScaffold
           activeTags={activeTags}
+          appAccess={appAccess}
           components={route.components}
           label={route.label}
           routeId={route.id}
@@ -2252,6 +2594,7 @@ function PageScaffold({
 function isStandardKnowledgePageShellRoute(pageId: PageId) {
   return (
     pageId === "dashboard" ||
+    pageId === "root-search" ||
     pageId === "tag" ||
     pageId === "explore-context"
   );
@@ -2294,7 +2637,11 @@ function TodayAgenda({
               onClick={(event) => onNavigate(event, item.contextHref)}
             >
               <span className="kb-today-agenda-time">{item.timeLabel}</span>
-              <span className="kb-today-agenda-icon" aria-hidden="true">
+              <span
+                className="kb-today-agenda-icon"
+                data-knowledge-type={item.knowledgeType}
+                aria-hidden="true"
+              >
                 <KnowledgeTypeIcon knowledgeType={item.knowledgeType} />
               </span>
               <span className="kb-today-agenda-content">
@@ -2380,6 +2727,38 @@ function getBibleContextSuggestionLabel(
 
 function formatCount(count: number, singular: string, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function getProfileContextExpertiseLabel(tags: ActiveTag[]) {
+  if (tags.length === 0) {
+    return "All Accessible Knowledge";
+  }
+
+  return tags.map((tag) => tag.label).join(", ");
+}
+
+function formatProfileContextTypes(tags: ActiveTag[]) {
+  if (tags.length === 0) {
+    return "Accessible Root Knowledge Context";
+  }
+
+  if (tags.length === 1) {
+    return `${formatKnowledgeTypeLabel(tags[0].knowledgeType)} Knowledge Context`;
+  }
+
+  return `${formatCount(tags.length, "Tag")} Knowledge Context`;
+}
+
+function formatProfileContextExpertiseMaturity(maturity: number) {
+  if (maturity >= 80) {
+    return "High maturity";
+  }
+
+  if (maturity >= 45) {
+    return "Developing maturity";
+  }
+
+  return "Early signal";
 }
 
 function AnalyticsPage({
@@ -2883,6 +3262,7 @@ function OrganizationPage({
 
       <ComponentScaffold
         activeTags={activeTags}
+        appAccess={appAccess}
         components={getRoute("organization-home").components}
         label={profile.name}
         onNavigateToHref={onNavigateToHref}
@@ -3142,6 +3522,7 @@ function OrganizationSubrouteLinks({
 
 function ComponentScaffold({
   activeTags,
+  appAccess,
   components,
   label,
   onNavigateToHref,
@@ -3154,6 +3535,7 @@ function ComponentScaffold({
   showSlotRail = true,
 }: {
   activeTags: ActiveTag[];
+  appAccess: AllowedAppAccess;
   components: CoreComponentId[];
   label: string;
   onNavigateToHref: (href: string) => void;
@@ -3171,12 +3553,20 @@ function ComponentScaffold({
     useState<string | null>(null);
   const [focusedCreatedEntry, setFocusedCreatedEntry] =
     useState<KnowledgeEntrySummary | null>(null);
+  const [selectedContextExpertSubject, setSelectedContextExpertSubject] =
+    useState<SelectedContextExpertSubject | null>(null);
+  const [contextExpertScope, setContextExpertScope] =
+    useState<KnowledgeContextExpertScope>("orbit");
   const [smartStorageProposalReview, setSmartStorageProposalReview] =
     useState<SmartStorageProposalReviewSummary | null>(null);
   const [smartStorageRunReview, setSmartStorageRunReview] =
     useState<SmartStorageRunReviewSummary | null>(null);
-  const [contextSearchQuery, setContextSearchQuery] = useState("");
+  const [quoteAttributionPersonSearch, setQuoteAttributionPersonSearch] =
+    useState<QuoteAttributionPersonSearchState | null>(null);
+  const [localContextSearchQuery, setLocalContextSearchQuery] = useState("");
+  const [navigatorQueryText, setNavigatorQueryText] = useState("");
   const recordNavigatorUsage = useMutation(api.analytics.recordNavigatorUsage);
+  const recordSearchEvent = useMutation(api.analytics.recordSearchEvent);
   const postDirectContribution = useMutation(
     api.directContributions.postDirectContribution,
   );
@@ -3193,8 +3583,30 @@ function ComponentScaffold({
   const acceptSmartStorageProposal = useMutation(
     api.smartStorage.acceptScaffoldProposal,
   );
+  const recordHumanWeightFeedback = useMutation(api.humanWeightFeedback.record);
+  const correctQuoteAttribution = useMutation(
+    api.contextExpertise.correctQuoteAttribution,
+  );
   const executeSmartStorageModelRun = useAction(api.smartStorage.executeModelRun);
   const activeContextKey = getKnowledgeContextKey(activeTags);
+  const routeRootSearchQuery = getRootSearchQueryFromRoute(routeState);
+  const contextSearchQuery =
+    routeId === "root-search"
+      ? ""
+      : localContextSearchQuery;
+  const rootSearchResults = useQuery(
+    api.rootSearch.listRootSearchResults,
+    routeId === "root-search" && routeRootSearchQuery.length > 0
+      ? {
+          limit: 8,
+          query: routeRootSearchQuery,
+        }
+      : "skip",
+  ) as RootSearchResult[] | undefined;
+  const isRootSearchResultsLoading =
+    routeId === "root-search" &&
+    routeRootSearchQuery.length > 0 &&
+    rootSearchResults === undefined;
   const routeContributionKnowledgeType =
     getRouteContributionKnowledgeType(routeState.search);
   const routeGuidedContributionType =
@@ -3213,10 +3625,61 @@ function ComponentScaffold({
   const durableFeedItems = useQuery(api.answerFeed.listForActiveTagKeys, {
     activeTags,
   }) as AnswerFeedItem[] | undefined;
+  const durableContextExperts = useQuery(api.answerFeed.listExpertsForActiveTagKeys, {
+    activeTags,
+    expertScope: contextExpertScope,
+  }) as KnowledgeContextExpert[] | undefined;
+  const selectedContextExpertDetail = useQuery(
+    api.answerFeed.getExpertDetailForActiveTagKeys,
+    selectedContextExpertSubject && durableContextExperts !== undefined
+        ? {
+            activeTags,
+            expertScope: contextExpertScope,
+            ...(selectedContextExpertSubject.subjectKind === "user"
+              ? { subjectUserId: selectedContextExpertSubject.subjectUserId }
+              : {
+                  subjectPersonReferentId:
+                    selectedContextExpertSubject.subjectPersonReferentId,
+                }),
+          }
+        : "skip",
+  ) as KnowledgeContextExpertDetail | null | undefined;
   const contextTrend = useQuery(
     api.analytics.getKnowledgeContextTrend,
     activeTagKeys.length > 0 ? { activeTagKeys } : "skip",
   );
+  const navigatorQuerySuggestions = useQuery(
+    api.tagSuggestions.listKnowledgeNavigatorTagSuggestions,
+    navigatorQueryText.trim().length > 0
+      ? {
+          activeTags,
+          query: navigatorQueryText,
+        }
+      : "skip",
+  ) as KnowledgeNavigatorQuerySuggestion[] | undefined;
+  const quoteAttributionPersonSearchQuery =
+    quoteAttributionPersonSearch?.searchQuery.trim() ?? "";
+  const quoteAttributionPersonOptions = useQuery(
+    api.contextExpertise.searchQuoteAttributionPeople,
+    appAccess.systemRole === "systemAdmin" &&
+      quoteAttributionPersonSearch !== null &&
+      quoteAttributionPersonSearchQuery.length >= 2
+      ? {
+          limit: 8,
+          searchQuery: quoteAttributionPersonSearchQuery,
+        }
+      : "skip",
+  ) as QuoteAttributionPersonOption[] | undefined;
+  const quoteAttributionPersonPicker =
+    quoteAttributionPersonSearch === null
+      ? undefined
+      : {
+          entryId: quoteAttributionPersonSearch.entryId,
+          isLoading:
+            quoteAttributionPersonSearchQuery.length >= 2 &&
+            quoteAttributionPersonOptions === undefined,
+          options: quoteAttributionPersonOptions ?? [],
+        };
   const fixtureFeedItems = useMemo(
     () => selectAnswerFeedItems(ANSWER_FEED_FIXTURE, activeTags),
     [activeTags],
@@ -3239,9 +3702,13 @@ function ComponentScaffold({
     setSelectedContributionSlotId(null);
     setSelectedContributionKnowledgeType(null);
     setFocusedCreatedEntry(null);
+    setContextExpertScope("orbit");
+    setSelectedContextExpertSubject(null);
     setSmartStorageProposalReview(null);
     setSmartStorageRunReview(null);
-    setContextSearchQuery("");
+    setQuoteAttributionPersonSearch(null);
+    setLocalContextSearchQuery("");
+    setNavigatorQueryText("");
   }, [activeContextKey]);
 
   async function handleSubmitContribution(
@@ -3467,17 +3934,87 @@ function ComponentScaffold({
   }
 
   function handleApplyMappedTags(mappedTags: ActiveTag[]) {
-    setContextSearchQuery("");
-    recordNavigatorUsageEvent("explore", mappedTags);
+    setLocalContextSearchQuery("");
+    recordNavigatorUsageEvent("select", mappedTags);
     onNavigateToHref(getCanonicalKnowledgeContextHref(mappedTags));
   }
 
   function handleSearchContext(query: string) {
-    setContextSearchQuery(query.trim());
+    const searchQuery = query.trim();
+    setLocalContextSearchQuery(searchQuery);
+    if (!searchQuery) {
+      return;
+    }
+
+    void recordSearchEvent({
+      searchScope: "activeKnowledgeContext",
+      searchText: searchQuery,
+      activeTagKeys,
+    }).catch(() => undefined);
+  }
+
+  function handleClearContextSearch() {
+    if (routeId === "root-search") {
+      onNavigateToHref("/");
+      return;
+    }
+
+    setLocalContextSearchQuery("");
   }
 
   function handleContributeToSlot(slot: KnowledgeSlotSummary) {
     setSelectedContributionSlotId(slot.id);
+  }
+
+  function handleContextExpertSelect(expert: KnowledgeContextExpert) {
+    setSelectedContextExpertSubject(getSelectedContextExpertSubject(expert));
+  }
+
+  function handleContextExpertDetailClose() {
+    setSelectedContextExpertSubject(null);
+  }
+
+  function handleContextExpertScopeChange(scope: KnowledgeContextExpertScope) {
+    setContextExpertScope(scope);
+    setSelectedContextExpertSubject(null);
+    setQuoteAttributionPersonSearch(null);
+  }
+
+  function handleQuoteAttributionPersonSearch(
+    input: QuoteAttributionPersonSearchInput,
+  ) {
+    const searchQuery = input.searchQuery.trim();
+    if (searchQuery.length < 2) {
+      setQuoteAttributionPersonSearch(null);
+      return;
+    }
+
+    setQuoteAttributionPersonSearch({
+      entryId: input.entry.id,
+      searchQuery,
+    });
+  }
+
+  async function handleHumanWeightFeedback(input: HumanWeightFeedbackInput) {
+    await recordHumanWeightFeedback({
+      entryId: input.entry.id as Id<"knowledgeEntries">,
+      feedbackKind: input.feedbackKind,
+      ...(input.feedbackNote === undefined
+        ? {}
+        : { feedbackNote: input.feedbackNote }),
+    });
+  }
+
+  async function handleCorrectQuoteAttribution(
+    input: QuoteAttributionCorrectionInput,
+  ) {
+    await correctQuoteAttribution({
+      entryId: input.entry.id as Id<"knowledgeEntries">,
+      nextQuotedPersonReferentId:
+        input.nextQuotedPersonReferentId === null
+          ? null
+          : (input.nextQuotedPersonReferentId as Id<"referents">),
+    });
   }
 
   function recordNavigatorUsageEvent(
@@ -3492,7 +4029,7 @@ function ComponentScaffold({
 
   return (
     <section className="kb-rail-focus-layout" aria-label={`${label} knowledge workspace`}>
-      <aside className="kb-rail-focus-context" aria-label="Knowledge context and request">
+      <aside className="kb-rail-focus-context" aria-label="Knowledge context and search">
         {components.includes("knowledge-navigator") ? (
           <KnowledgeNavigator
             activeTagsOverride={activeTags}
@@ -3501,10 +4038,12 @@ function ComponentScaffold({
             showHeader={showNavigatorHeader}
           >
             {components.includes("knowledge-request-composer") ? (
-              <KnowledgeRequestComposer
+              <KnowledgeNavigatorQueryInput
                 activeTags={activeTags}
                 onApplyMappedTags={handleApplyMappedTags}
+                onQueryTextChange={setNavigatorQueryText}
                 onSearchContext={handleSearchContext}
+                suggestions={navigatorQuerySuggestions}
               />
             ) : null}
           </KnowledgeNavigator>
@@ -3523,13 +4062,15 @@ function ComponentScaffold({
             aria-labelledby="kb-request-panel-heading"
           >
             <header>
-              <p className="kb-eyebrow">Knowledge Request</p>
+              <p className="kb-eyebrow">Context Search</p>
               <h2 id="kb-request-panel-heading">Search this Context</h2>
             </header>
-            <KnowledgeRequestComposer
+            <KnowledgeNavigatorQueryInput
               activeTags={activeTags}
               onApplyMappedTags={handleApplyMappedTags}
+              onQueryTextChange={setNavigatorQueryText}
               onSearchContext={handleSearchContext}
+              suggestions={navigatorQuerySuggestions}
             />
           </section>
         ) : null}
@@ -3585,18 +4126,74 @@ function ComponentScaffold({
           <CreatedEntryFocusPanel entry={focusedCreatedEntry} />
         ) : null}
         {components.includes("answer-feed") ? (
-          <AnswerFeedSurface
-            activeTags={activeTags}
-            contextTrend={getVisibleContextTrend(contextTrend)}
-            filterByActiveTags={false}
-            headingMode={showFeedHeading ? "visible" : "sr-only"}
-            items={feedItems}
-            layout="masonry"
-            onContributeToSlot={handleContributeToSlot}
-            onClearSearchQuery={() => setContextSearchQuery("")}
-            onNavigateToHref={onNavigateToHref}
-            searchQuery={contextSearchQuery}
-          />
+          routeId === "root-search" ? (
+            <RootSearchResults
+              isLoading={isRootSearchResultsLoading}
+              onClearSearch={handleClearContextSearch}
+              onNavigateToHref={onNavigateToHref}
+              query={routeRootSearchQuery}
+              results={rootSearchResults ?? []}
+            />
+          ) : (
+            <AnswerFeedSurface
+              activeTags={activeTags}
+              contextExpertDetail={selectedContextExpertDetail ?? undefined}
+              contextExpertDetailLoading={
+                selectedContextExpertSubject !== null &&
+                durableContextExperts !== undefined &&
+                selectedContextExpertDetail === undefined
+              }
+              contextExpertScope={contextExpertScope}
+              contextExperts={durableContextExperts}
+              contextTrend={getVisibleContextTrend(contextTrend)}
+              canCorrectQuoteAttribution={
+                appAccess.systemRole === "systemAdmin" &&
+                durableContextExperts !== undefined
+              }
+              filterByActiveTags={false}
+              headingMode={showFeedHeading ? "visible" : "sr-only"}
+              items={feedItems}
+              layout="masonry"
+              onContributeToSlot={handleContributeToSlot}
+              onClearSearchQuery={handleClearContextSearch}
+              onContextExpertDetailClose={handleContextExpertDetailClose}
+              onContextExpertSelect={
+                durableContextExperts === undefined
+                  ? undefined
+                  : handleContextExpertSelect
+              }
+              onContextExpertScopeChange={
+                durableContextExperts === undefined
+                  ? undefined
+                  : handleContextExpertScopeChange
+              }
+              onCorrectQuoteAttribution={
+                appAccess.systemRole === "systemAdmin" &&
+                durableContextExperts !== undefined
+                  ? handleCorrectQuoteAttribution
+                  : undefined
+              }
+              onQuoteAttributionPersonSearchChange={
+                appAccess.systemRole === "systemAdmin" &&
+                durableContextExperts !== undefined
+                  ? handleQuoteAttributionPersonSearch
+                  : undefined
+              }
+              onHumanWeightFeedback={
+                durableFeedItems === undefined
+                  ? undefined
+                  : handleHumanWeightFeedback
+              }
+              onNavigateToHref={onNavigateToHref}
+              quoteAttributionPersonPicker={
+                appAccess.systemRole === "systemAdmin" &&
+                durableContextExperts !== undefined
+                  ? quoteAttributionPersonPicker
+                  : undefined
+              }
+              searchQuery={contextSearchQuery}
+            />
+          )
         ) : null}
       </section>
     </section>
@@ -3613,6 +4210,7 @@ function KnowledgePageIdentityBand({
   routeId: PageId;
 }) {
   const identity = getKnowledgePageIdentity(routeId, label, activeTags);
+  const singleActiveTag = activeTags.length === 1 ? activeTags[0] : null;
 
   return (
     <header
@@ -3626,7 +4224,11 @@ function KnowledgePageIdentityBand({
       <div
         aria-label="Active Knowledge Context summary"
         className="kb-knowledge-page-context"
+        data-knowledge-type={singleActiveTag?.knowledgeType}
       >
+        {singleActiveTag ? (
+          <KnowledgeTypeIcon knowledgeType={singleActiveTag.knowledgeType} />
+        ) : null}
         <span>{identity.contextSummary}</span>
         <small>{identity.contextDetail}</small>
       </div>
@@ -3641,10 +4243,19 @@ function getKnowledgePageIdentity(
 ) {
   if (routeId === "dashboard") {
     return {
-      contextDetail: "Active Knowledge Context",
-      contextSummary: "Global Knowledge Context",
+      contextDetail: "Accessible Root Knowledge Context",
+      contextSummary: "All Accessible Knowledge",
       eyebrow: "Dashboard",
       title: "Dashboard",
+    };
+  }
+
+  if (routeId === "root-search") {
+    return {
+      contextDetail: "Accessible Root Knowledge Context",
+      contextSummary: "All Accessible Knowledge",
+      eyebrow: "Search",
+      title: "Search Everything",
     };
   }
 
@@ -3669,11 +4280,19 @@ function getKnowledgePageIdentity(
   }
 
   return {
-    contextDetail: "Active Knowledge Context",
-    contextSummary: "Global Knowledge Context",
+    contextDetail: "Accessible Root Knowledge Context",
+    contextSummary: "All Accessible Knowledge",
     eyebrow: label,
     title: label,
   };
+}
+
+function getRootSearchQueryFromRoute(routeState: RouteState) {
+  if (routeState.route.id !== "root-search") {
+    return "";
+  }
+
+  return new URLSearchParams(routeState.search).get("q")?.trim() ?? "";
 }
 
 function getSlotContributionContext(
@@ -3867,10 +4486,10 @@ function SmartStorageProposalReviewPanel({
           <p className="kb-eyebrow">Smart Storage Proposal</p>
           <h2>{currentProposal.title}</h2>
         </div>
-        <span className="kb-smart-proposal-type">
-          <KnowledgeTypeIcon knowledgeType={currentProposal.knowledgeType} />
-          <span>{formatKnowledgeTypeLabel(currentProposal.knowledgeType)}</span>
-        </span>
+        <KnowledgeTypeBadge
+          className="kb-smart-proposal-type"
+          knowledgeType={currentProposal.knowledgeType}
+        />
       </header>
 
       <p className="kb-smart-proposal-body">
@@ -3896,6 +4515,7 @@ function SmartStorageProposalReviewPanel({
           {currentProposal.contextTags.map((tag) => (
             <li key={tag.id}>
               <a
+                data-knowledge-type={tag.knowledgeType}
                 href={tag.href}
                 onClick={(event) => handleTagClick(event, tag.href)}
               >
@@ -4204,8 +4824,12 @@ function CreatedEntryFocusPanel({ entry }: { entry: KnowledgeEntrySummary }) {
         <p className="kb-eyebrow">Editing Knowledge Entry</p>
         <h2>{entry.title}</h2>
         <p>
-          New {formatKnowledgeTypeLabel(entry.knowledgeType)} entry in focus for
-          immediate edits.
+          New{" "}
+          <KnowledgeTypeBadge
+            className="kb-created-entry-type"
+            knowledgeType={entry.knowledgeType}
+          />{" "}
+          entry in focus for immediate edits.
         </p>
       </div>
       <a className="kb-created-entry-focus-action" href={entry.href}>
@@ -4297,6 +4921,10 @@ function ProfilePage({
     api.bookmarkedKnowledgePages.listForProfile,
     {},
   );
+  const profileContextExpertise = useQuery(
+    api.contextExpertise.listCurrentUserProfileContextExpertise,
+    { limit: 5 },
+  ) as ProfileContextExpertise | undefined;
   const removeBookmark = useMutation(api.bookmarkedKnowledgePages.removeBookmark);
   const bookmarksSectionRef = useRef<HTMLElement | null>(null);
   const [pendingBookmarkRemoval, setPendingBookmarkRemoval] = useState<string | null>(null);
@@ -4408,6 +5036,77 @@ function ProfilePage({
           </dl>
           <SignOutButton />
         </aside>
+      </section>
+
+      <section
+        className="kb-profile-panel kb-profile-context-expertise"
+        aria-label="Profile Context Expertise"
+        aria-labelledby="kb-profile-context-expertise-heading"
+      >
+        <header>
+          <div>
+            <p className="kb-eyebrow">Knowledge Contexts</p>
+            <h2 id="kb-profile-context-expertise-heading">Context Expertise</h2>
+          </div>
+          <TrendingUp aria-hidden="true" />
+        </header>
+
+        {profileContextExpertise === undefined ? (
+          <p className="kb-profile-empty">Loading Context Expertise.</p>
+        ) : profileContextExpertise.rows.length > 0 ? (
+          <ul className="kb-profile-context-expertise-list">
+            {profileContextExpertise.rows.map((row) => {
+              const contextHref = getCanonicalKnowledgeContextHref(row.contextTags);
+              const contextLabel = getProfileContextExpertiseLabel(row.contextTags);
+              const nonPostSignalCount = Math.max(
+                0,
+                row.evidenceCount - row.postCount,
+              );
+
+              return (
+                <li key={row.aggregateId}>
+                  <a
+                    data-knowledge-type={
+                      row.contextTags.length === 1
+                        ? row.contextTags[0].knowledgeType
+                        : undefined
+                    }
+                    href={contextHref}
+                    onClick={(event) => onNavigate(event, contextHref)}
+                  >
+                    {row.contextTags.length === 1 ? (
+                      <KnowledgeTypeIcon
+                        knowledgeType={row.contextTags[0].knowledgeType}
+                      />
+                    ) : (
+                      <Tag aria-hidden="true" />
+                    )}
+                    <span>
+                      <strong>{contextLabel}</strong>
+                      <small>{formatProfileContextTypes(row.contextTags)}</small>
+                    </span>
+                  </a>
+                  <div className="kb-profile-context-expertise-meta">
+                    <span>{formatCount(row.postCount, "post")}</span>
+                    <span>{formatCount(nonPostSignalCount, "signal")}</span>
+                    <span>
+                      {formatProfileContextExpertiseMaturity(
+                        row.contextExpertiseMaturity,
+                      )}
+                    </span>
+                    <time dateTime={new Date(row.latestEvidenceAt).toISOString()}>
+                      {PROFILE_CONTEXT_EXPERTISE_TIME_FORMATTER.format(
+                        new Date(row.latestEvidenceAt),
+                      )}
+                    </time>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="kb-profile-empty">No Context Expertise evidence yet.</p>
+        )}
       </section>
 
       <section className="kb-profile-panel kb-profile-organizations" aria-labelledby="kb-profile-organizations-heading">
@@ -4536,6 +5235,33 @@ function SettingsPage({
   const organizationCount = appAccess.organizations.length;
   const nextTheme = theme === "dark" ? "light" : "dark";
   const ThemeIcon = theme === "dark" ? Sun : Moon;
+  const contextExpertiseVisibilitySettings = useQuery(
+    api.contextExpertiseSettings.getCurrentUserSettings,
+    {},
+  ) as ContextExpertiseVisibilitySettings | undefined;
+  const updateGlobalExpertVisibility = useMutation(
+    api.contextExpertiseSettings.updateGlobalExpertVisibility,
+  );
+  const [
+    optimisticGlobalExpertVisibilityEnabled,
+    setOptimisticGlobalExpertVisibilityEnabled,
+  ] = useState<boolean | null>(null);
+  const globalExpertVisibilityEnabled =
+    optimisticGlobalExpertVisibilityEnabled ??
+    contextExpertiseVisibilitySettings?.globalExpertVisibilityEnabled ??
+    false;
+
+  useEffect(() => {
+    setOptimisticGlobalExpertVisibilityEnabled(null);
+  }, [contextExpertiseVisibilitySettings?.globalExpertVisibilityEnabled]);
+
+  function handleToggleGlobalExpertVisibility() {
+    const enabled = !globalExpertVisibilityEnabled;
+    setOptimisticGlobalExpertVisibilityEnabled(enabled);
+    void updateGlobalExpertVisibility({ enabled }).catch(() => {
+      setOptimisticGlobalExpertVisibilityEnabled(null);
+    });
+  }
 
   return (
     <main className="kb-main kb-settings-main" aria-labelledby="kb-settings-heading">
@@ -4592,6 +5318,8 @@ function SettingsPage({
           </dl>
         </section>
 
+        <ContactIdentitySettingsPanel />
+
         <section className="kb-settings-panel" aria-labelledby="kb-settings-appearance-heading">
           <header>
             <Settings aria-hidden="true" />
@@ -4611,6 +5339,35 @@ function SettingsPage({
             <span aria-hidden="true" />
             <span>Dark mode</span>
             <strong>{theme === "dark" ? "On" : "Off"}</strong>
+          </button>
+        </section>
+
+        <section
+          className="kb-settings-panel"
+          aria-labelledby="kb-settings-context-expertise-heading"
+        >
+          <header>
+            <Users aria-hidden="true" />
+            <div>
+              <p className="kb-eyebrow">Visibility</p>
+              <h2 id="kb-settings-context-expertise-heading">
+                Context Expertise
+              </h2>
+            </div>
+          </header>
+          <button
+            aria-checked={globalExpertVisibilityEnabled}
+            aria-label={`${
+              globalExpertVisibilityEnabled ? "Disable" : "Enable"
+            } Global Expert Visibility`}
+            className="kb-settings-switch"
+            onClick={handleToggleGlobalExpertVisibility}
+            role="switch"
+            type="button"
+          >
+            <span aria-hidden="true" />
+            <span>Global Expert Visibility</span>
+            <strong>{globalExpertVisibilityEnabled ? "On" : "Off"}</strong>
           </button>
         </section>
       </section>
@@ -4689,6 +5446,218 @@ function SettingsPage({
   );
 }
 
+function ContactIdentitySettingsPanel() {
+  const contactIdentitySettings = useQuery(
+    api.contactIdentities.listForCurrentUser,
+    {},
+  ) as ContactIdentitySettings | undefined;
+  const sendEmailVerificationCode = useAction(
+    api.contactIdentities.sendEmailVerificationCode,
+  );
+  const verifyEmailAndClaimPendingMemberships = useMutation(
+    api.contactIdentities.verifyEmailAndClaimPendingMemberships,
+  );
+  const claimVerifiedEmailMemberships = useMutation(
+    api.contactIdentities.claimVerifiedEmailMemberships,
+  );
+  const [contactIdentityEmail, setContactIdentityEmail] = useState("");
+  const [contactIdentityCode, setContactIdentityCode] = useState("");
+  const [requestedContactIdentityEmail, setRequestedContactIdentityEmail] =
+    useState<string | null>(null);
+  const [contactIdentityStatus, setContactIdentityStatus] =
+    useState<string | null>(null);
+  const [contactIdentityError, setContactIdentityError] =
+    useState<string | null>(null);
+  const [isRequestingContactIdentityCode, setIsRequestingContactIdentityCode] =
+    useState(false);
+  const [isVerifyingContactIdentityCode, setIsVerifyingContactIdentityCode] =
+    useState(false);
+  const normalizedContactIdentityEmail = contactIdentityEmail.trim();
+  const canRequestContactIdentityCode =
+    normalizedContactIdentityEmail.length > 0 &&
+    !isRequestingContactIdentityCode &&
+    !isVerifyingContactIdentityCode;
+  const canVerifyContactIdentityCode =
+    normalizedContactIdentityEmail.length > 0 &&
+    contactIdentityCode.trim().length > 0 &&
+    requestedContactIdentityEmail !== null &&
+    !isRequestingContactIdentityCode &&
+    !isVerifyingContactIdentityCode;
+
+  async function handleRequestContactIdentityCode(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    if (!canRequestContactIdentityCode) {
+      return;
+    }
+
+    setContactIdentityError(null);
+    setContactIdentityStatus(null);
+    setIsRequestingContactIdentityCode(true);
+    try {
+      const result = await sendEmailVerificationCode({
+        email: normalizedContactIdentityEmail,
+      });
+      setContactIdentityEmail(result.email);
+      setRequestedContactIdentityEmail(result.email);
+      setContactIdentityCode("");
+      if (result.verificationStatus === "verified") {
+        const claimed = (await claimVerifiedEmailMemberships({
+          email: result.email,
+        })) as ClaimResultSummary;
+        setContactIdentityStatus(formatClaimResult(claimed));
+      } else {
+        setContactIdentityStatus("Verification code requested.");
+      }
+    } catch (error) {
+      setContactIdentityError(getSettingsErrorMessage(error));
+    } finally {
+      setIsRequestingContactIdentityCode(false);
+    }
+  }
+
+  async function handleVerifyContactIdentityCode(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    if (!canVerifyContactIdentityCode) {
+      return;
+    }
+
+    setContactIdentityError(null);
+    setContactIdentityStatus(null);
+    setIsVerifyingContactIdentityCode(true);
+    try {
+      const result = (await verifyEmailAndClaimPendingMemberships({
+        code: contactIdentityCode,
+        email: normalizedContactIdentityEmail,
+      })) as ClaimResultSummary;
+      setContactIdentityStatus(formatClaimResult(result));
+      setContactIdentityCode("");
+    } catch (error) {
+      setContactIdentityError(getSettingsErrorMessage(error));
+    } finally {
+      setIsVerifyingContactIdentityCode(false);
+    }
+  }
+
+  return (
+    <section
+      aria-label="Contact Identities"
+      className="kb-settings-panel kb-contact-identity-panel"
+      aria-labelledby="kb-settings-contact-identities-heading"
+    >
+      <header>
+        <MailCheck aria-hidden="true" />
+        <div>
+          <p className="kb-eyebrow">Contact Identity</p>
+          <h2 id="kb-settings-contact-identities-heading">Contact Identities</h2>
+        </div>
+      </header>
+
+      {contactIdentitySettings === undefined ? (
+        <p className="kb-settings-empty" role="status">
+          Loading contact identities.
+        </p>
+      ) : (
+        <ul className="kb-contact-identity-list">
+          {contactIdentitySettings.primaryEmail ? (
+            <li>
+              <span>Primary account email</span>
+              <strong>{contactIdentitySettings.primaryEmail}</strong>
+              <small>
+                {contactIdentitySettings.primaryEmailVerified
+                  ? "Verified"
+                  : "Unverified"}
+              </small>
+            </li>
+          ) : null}
+          {contactIdentitySettings.contactIdentities.map((identity) => (
+            <li key={identity.id}>
+              <span>Contact Identity</span>
+              <strong>{identity.email}</strong>
+              <small>{formatContactIdentityStatus(identity.verificationStatus)}</small>
+            </li>
+          ))}
+          {contactIdentitySettings.primaryEmail === undefined &&
+          contactIdentitySettings.contactIdentities.length === 0 ? (
+            <li>
+              <span>Contact Identity</span>
+              <strong>No email on file</strong>
+              <small>Unavailable</small>
+            </li>
+          ) : null}
+        </ul>
+      )}
+
+      <form
+        className="kb-contact-identity-form"
+        onSubmit={(event) => void handleRequestContactIdentityCode(event)}
+      >
+        <label>
+          <span>Email</span>
+          <input
+            autoComplete="email"
+            name="contactIdentityEmail"
+            onChange={(event) => setContactIdentityEmail(event.target.value)}
+            type="email"
+            value={contactIdentityEmail}
+          />
+        </label>
+        <button disabled={!canRequestContactIdentityCode} type="submit">
+          {isRequestingContactIdentityCode ? (
+            <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
+          ) : (
+            <MailCheck aria-hidden="true" />
+          )}
+          <span>{isRequestingContactIdentityCode ? "Sending" : "Send code"}</span>
+        </button>
+      </form>
+
+      <form
+        className="kb-contact-identity-form"
+        onSubmit={(event) => void handleVerifyContactIdentityCode(event)}
+      >
+        <label>
+          <span>Code</span>
+          <input
+            autoComplete="one-time-code"
+            disabled={requestedContactIdentityEmail === null}
+            inputMode="numeric"
+            name="contactIdentityCode"
+            onChange={(event) => setContactIdentityCode(event.target.value)}
+            type="text"
+            value={contactIdentityCode}
+          />
+        </label>
+        <button disabled={!canVerifyContactIdentityCode} type="submit">
+          {isVerifyingContactIdentityCode ? (
+            <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
+          ) : (
+            <Check aria-hidden="true" />
+          )}
+          <span>
+            {isVerifyingContactIdentityCode ? "Verifying" : "Verify and claim"}
+          </span>
+        </button>
+      </form>
+
+      {contactIdentityStatus ? (
+        <p className="kb-contact-identity-success" role="status">
+          <Check aria-hidden="true" />
+          <span>{contactIdentityStatus}</span>
+        </p>
+      ) : null}
+      {contactIdentityError ? (
+        <p className="kb-contact-identity-error" role="alert">
+          {contactIdentityError}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 function SystemAdminPage({
   appAccess,
   onNavigate,
@@ -4715,7 +5684,11 @@ function SystemAdminPage({
       </header>
 
       {isSystemAdmin ? (
-        <OrganizationAccountSetupPanel onNavigate={onNavigate} />
+        <>
+          <ContextExpertiseOperationsPanel />
+          <PublicFigureExpertVisibilityPanel />
+          <OrganizationAccountSetupPanel onNavigate={onNavigate} />
+        </>
       ) : (
         <section
           className="kb-settings-panel kb-system-admin-panel"
@@ -4740,6 +5713,976 @@ function SystemAdminPage({
       ) : null}
     </main>
   );
+}
+
+function ContextExpertiseOperationsPanel() {
+  const [scopedBatchSizeInput, setScopedBatchSizeInput] = useState(
+    String(DEFAULT_CONTEXT_EXPERTISE_OPERATION_BATCH_SIZE),
+  );
+  const [scopedCursorInput, setScopedCursorInput] = useState("");
+  const [quoteBatchSizeInput, setQuoteBatchSizeInput] = useState(
+    String(DEFAULT_CONTEXT_EXPERTISE_OPERATION_BATCH_SIZE),
+  );
+  const [quoteCursorInput, setQuoteCursorInput] = useState("");
+  const [scopedDryRunResult, setScopedDryRunResult] =
+    useState<ScopedAggregateMigrationBatchResult | null>(null);
+  const [quoteDryRunResult, setQuoteDryRunResult] =
+    useState<QuoteAttributionBackfillBatchResult | null>(null);
+  const [scopedDryRunError, setScopedDryRunError] = useState<string | null>(null);
+  const [quoteDryRunError, setQuoteDryRunError] = useState<string | null>(null);
+  const [isPreviewingScopedMigration, setIsPreviewingScopedMigration] =
+    useState(false);
+  const [isPreviewingQuoteBackfill, setIsPreviewingQuoteBackfill] =
+    useState(false);
+  const scopedPagination = useMemo(
+    () =>
+      getContextExpertiseOperationPagination(
+        scopedBatchSizeInput,
+        scopedCursorInput,
+      ),
+    [scopedBatchSizeInput, scopedCursorInput],
+  );
+  const quotePagination = useMemo(
+    () =>
+      getContextExpertiseOperationPagination(
+        quoteBatchSizeInput,
+        quoteCursorInput,
+      ),
+    [quoteBatchSizeInput, quoteCursorInput],
+  );
+  const scopedStatus = useQuery(
+    api.contextExpertise.getScopedAggregateMigrationStatus,
+    {
+      aggregateSampleLimit: 50,
+      paginationOpts: scopedPagination,
+    },
+  ) as ScopedAggregateMigrationStatus | undefined;
+  const quoteStatus = useQuery(
+    api.contextExpertise.getQuoteAttributionBackfillStatus,
+    {
+      paginationOpts: quotePagination,
+    },
+  ) as QuoteAttributionBackfillStatus | undefined;
+  const previewScopedMigration = useMutation(
+    api.contextExpertise.rebuildScopedAggregateBatch,
+  );
+  const previewQuoteBackfill = useMutation(
+    api.contextExpertise.backfillQuoteAttributionEvidenceBatch,
+  );
+
+  useEffect(() => {
+    setScopedDryRunResult(null);
+    setScopedDryRunError(null);
+  }, [scopedPagination.cursor, scopedPagination.numItems]);
+
+  useEffect(() => {
+    setQuoteDryRunResult(null);
+    setQuoteDryRunError(null);
+  }, [quotePagination.cursor, quotePagination.numItems]);
+
+  async function handleScopedMigrationDryRun() {
+    setIsPreviewingScopedMigration(true);
+    setScopedDryRunError(null);
+
+    try {
+      const result = (await previewScopedMigration({
+        dryRun: true,
+        paginationOpts: scopedPagination,
+      })) as ScopedAggregateMigrationBatchResult;
+      setScopedDryRunResult(result);
+    } catch (caughtError) {
+      setScopedDryRunResult(null);
+      setScopedDryRunError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Scoped aggregate dry-run failed.",
+      );
+    } finally {
+      setIsPreviewingScopedMigration(false);
+    }
+  }
+
+  async function handleQuoteAttributionDryRun() {
+    setIsPreviewingQuoteBackfill(true);
+    setQuoteDryRunError(null);
+
+    try {
+      const result = (await previewQuoteBackfill({
+        dryRun: true,
+        paginationOpts: quotePagination,
+      })) as QuoteAttributionBackfillBatchResult;
+      setQuoteDryRunResult(result);
+    } catch (caughtError) {
+      setQuoteDryRunResult(null);
+      setQuoteDryRunError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Quote attribution dry-run failed.",
+      );
+    } finally {
+      setIsPreviewingQuoteBackfill(false);
+    }
+  }
+
+  return (
+    <section
+      className="kb-settings-panel kb-system-admin-panel kb-context-expertise-operations-panel"
+      aria-label="Context Expertise Operations"
+      aria-labelledby="kb-context-expertise-operations-heading"
+    >
+      <header>
+        <Database aria-hidden="true" />
+        <div>
+          <p className="kb-eyebrow">Context Expertise</p>
+          <h2 id="kb-context-expertise-operations-heading">Operations</h2>
+        </div>
+      </header>
+
+      <div className="kb-context-expertise-operations-grid">
+        <article
+          className="kb-context-expertise-operation"
+          aria-labelledby="kb-scoped-aggregate-operation-heading"
+        >
+          <header className="kb-context-expertise-operation-header">
+            <div>
+              <p className="kb-eyebrow">Scoped aggregates</p>
+              <h3 id="kb-scoped-aggregate-operation-heading">
+                Scoped Aggregate Migration
+              </h3>
+            </div>
+            <span className="kb-context-expertise-operation-state">
+              {scopedStatus
+                ? formatContextExpertiseOperationState(
+                    scopedStatus.isDone,
+                    scopedStatus.mayHaveMoreEvidence,
+                  )
+                : "Loading"}
+            </span>
+          </header>
+
+          {scopedStatus ? (
+            <>
+              <dl
+                className="kb-context-expertise-operation-metrics"
+                aria-label="Scoped Aggregate Migration status"
+              >
+                <ContextExpertiseOperationMetric
+                  label="Sampled evidence"
+                  value={scopedStatus.sampledEvidenceCount}
+                />
+                <ContextExpertiseOperationMetric
+                  label="Evidence groups"
+                  value={scopedStatus.evidenceGroupCount}
+                />
+                <ContextExpertiseOperationMetric
+                  label="Missing scoped groups"
+                  value={scopedStatus.missingScopedAggregateGroupCount}
+                />
+                <ContextExpertiseOperationMetric
+                  label="Legacy aggregate sample"
+                  value={`${scopedStatus.legacyAggregateSampleCount}/${scopedStatus.sampledAggregateCount}`}
+                />
+                <ContextExpertiseOperationMetric
+                  label="Scoped aggregate sample"
+                  value={`${scopedStatus.scopedAggregateSampleCount}/${scopedStatus.aggregateSampleLimit}`}
+                />
+                <ContextExpertiseOperationMetric
+                  label="Continue cursor"
+                  value={formatContextExpertiseCursor(scopedStatus.continueCursor)}
+                />
+              </dl>
+              <ContextExpertiseMigrationGroupSample
+                emptyLabel="No missing scoped groups in this page."
+                groups={scopedStatus.missingScopedAggregateGroups}
+              />
+            </>
+          ) : (
+            <p className="kb-settings-empty">Loading scoped aggregate status.</p>
+          )}
+
+          <form
+            className="kb-system-admin-form kb-context-expertise-operation-controls"
+            onSubmit={(event) => event.preventDefault()}
+          >
+            <label className="kb-system-admin-field">
+              <span>Batch size</span>
+              <input
+                max={MAX_CONTEXT_EXPERTISE_OPERATION_BATCH_SIZE}
+                min={1}
+                name="scopedAggregateMigrationBatchSize"
+                onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                  setScopedBatchSizeInput(
+                    normalizeContextExpertiseBatchSizeInput(event.target.value),
+                  )
+                }
+                type="number"
+                value={scopedBatchSizeInput}
+              />
+            </label>
+            <label className="kb-system-admin-field">
+              <span>Cursor</span>
+              <input
+                name="scopedAggregateMigrationCursor"
+                onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                  setScopedCursorInput(event.target.value)
+                }
+                type="text"
+                value={scopedCursorInput}
+              />
+            </label>
+            <button
+              className="kb-system-admin-submit"
+              disabled={isPreviewingScopedMigration}
+              onClick={() => void handleScopedMigrationDryRun()}
+              type="button"
+            >
+              {isPreviewingScopedMigration ? (
+                <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
+              ) : (
+                <Database aria-hidden="true" />
+              )}
+              <span>
+                {isPreviewingScopedMigration
+                  ? "Previewing"
+                  : "Dry-run scoped aggregate rebuild"}
+              </span>
+            </button>
+          </form>
+
+          {scopedDryRunResult ? (
+            <div
+              className="kb-context-expertise-operation-preview"
+              aria-label="Scoped Aggregate Migration dry-run preview"
+            >
+              <p className="kb-system-admin-success" role="status">
+                <Check aria-hidden="true" />
+                <span>
+                  Dry-run checked {scopedDryRunResult.processedEvidenceCount}{" "}
+                  evidence rows across {scopedDryRunResult.groupCount} groups.
+                </span>
+              </p>
+              <dl className="kb-context-expertise-operation-metrics">
+                <ContextExpertiseOperationMetric
+                  label="Would rebuild groups"
+                  value={scopedDryRunResult.groupCount}
+                />
+                <ContextExpertiseOperationMetric
+                  label="Skipped groups"
+                  value={scopedDryRunResult.skippedGroupCount}
+                />
+                <ContextExpertiseOperationMetric
+                  label="Continue cursor"
+                  value={formatContextExpertiseCursor(
+                    scopedDryRunResult.continueCursor,
+                  )}
+                />
+                <ContextExpertiseOperationMetric
+                  label="Page state"
+                  value={scopedDryRunResult.isDone ? "Done" : "More pages"}
+                />
+              </dl>
+              <ContextExpertiseMigrationGroupSample
+                emptyLabel="No groups in this dry-run page."
+                groups={scopedDryRunResult.groups}
+              />
+            </div>
+          ) : null}
+          {scopedDryRunError ? (
+            <p className="kb-system-admin-error" role="alert">
+              {scopedDryRunError}
+            </p>
+          ) : null}
+        </article>
+
+        <article
+          className="kb-context-expertise-operation"
+          aria-labelledby="kb-quote-attribution-operation-heading"
+        >
+          <header className="kb-context-expertise-operation-header">
+            <div>
+              <p className="kb-eyebrow">Quote attribution</p>
+              <h3 id="kb-quote-attribution-operation-heading">
+                Quote Attribution Backfill
+              </h3>
+            </div>
+            <span className="kb-context-expertise-operation-state">
+              {quoteStatus
+                ? formatContextExpertiseOperationState(
+                    quoteStatus.isDone,
+                    quoteStatus.mayHaveMoreQuoteRows,
+                  )
+                : "Loading"}
+            </span>
+          </header>
+
+          {quoteStatus ? (
+            <>
+              <dl
+                className="kb-context-expertise-operation-metrics"
+                aria-label="Quote Attribution Backfill status"
+              >
+                <ContextExpertiseOperationMetric
+                  label="Processed Quote rows"
+                  value={quoteStatus.processedQuoteRowCount}
+                />
+                <ContextExpertiseOperationMetric
+                  label="Attributed Quote rows"
+                  value={quoteStatus.attributedQuoteRowCount}
+                />
+                <ContextExpertiseOperationMetric
+                  label="Eligible Quote rows"
+                  value={quoteStatus.eligibleQuoteRowCount}
+                />
+                <ContextExpertiseOperationMetric
+                  label="Existing evidence"
+                  value={quoteStatus.existingEvidenceCount}
+                />
+                <ContextExpertiseOperationMetric
+                  label="Missing evidence"
+                  value={quoteStatus.missingEvidenceCount}
+                />
+                <ContextExpertiseOperationMetric
+                  label="Skipped Quote rows"
+                  value={quoteStatus.skippedQuoteRowCount}
+                />
+                <ContextExpertiseOperationMetric
+                  label="Continue cursor"
+                  value={formatContextExpertiseCursor(quoteStatus.continueCursor)}
+                />
+              </dl>
+              <QuoteAttributionEvidenceSample
+                emptyLabel="No missing Quote attribution evidence in this page."
+                items={quoteStatus.missingEvidenceItems}
+              />
+              <QuoteAttributionSkippedSample items={quoteStatus.skippedQuoteRowItems} />
+            </>
+          ) : (
+            <p className="kb-settings-empty">Loading Quote attribution status.</p>
+          )}
+
+          <form
+            className="kb-system-admin-form kb-context-expertise-operation-controls"
+            onSubmit={(event) => event.preventDefault()}
+          >
+            <label className="kb-system-admin-field">
+              <span>Batch size</span>
+              <input
+                max={MAX_CONTEXT_EXPERTISE_OPERATION_BATCH_SIZE}
+                min={1}
+                name="quoteAttributionBackfillBatchSize"
+                onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                  setQuoteBatchSizeInput(
+                    normalizeContextExpertiseBatchSizeInput(event.target.value),
+                  )
+                }
+                type="number"
+                value={quoteBatchSizeInput}
+              />
+            </label>
+            <label className="kb-system-admin-field">
+              <span>Cursor</span>
+              <input
+                name="quoteAttributionBackfillCursor"
+                onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                  setQuoteCursorInput(event.target.value)
+                }
+                type="text"
+                value={quoteCursorInput}
+              />
+            </label>
+            <button
+              className="kb-system-admin-submit"
+              disabled={isPreviewingQuoteBackfill}
+              onClick={() => void handleQuoteAttributionDryRun()}
+              type="button"
+            >
+              {isPreviewingQuoteBackfill ? (
+                <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
+              ) : (
+                <Database aria-hidden="true" />
+              )}
+              <span>
+                {isPreviewingQuoteBackfill
+                  ? "Previewing"
+                  : "Dry-run Quote attribution backfill"}
+              </span>
+            </button>
+          </form>
+
+          {quoteDryRunResult ? (
+            <div
+              className="kb-context-expertise-operation-preview"
+              aria-label="Quote Attribution Backfill dry-run preview"
+            >
+              <p className="kb-system-admin-success" role="status">
+                <Check aria-hidden="true" />
+                <span>
+                  Dry-run checked {quoteDryRunResult.processedQuoteRowCount}{" "}
+                  Quote rows and would create{" "}
+                  {quoteDryRunResult.wouldCreateEvidenceCount} evidence rows.
+                </span>
+              </p>
+              <dl className="kb-context-expertise-operation-metrics">
+                <ContextExpertiseOperationMetric
+                  label="Existing evidence"
+                  value={quoteDryRunResult.existingEvidenceCount}
+                />
+                <ContextExpertiseOperationMetric
+                  label="Missing evidence"
+                  value={quoteDryRunResult.missingEvidenceCount}
+                />
+                <ContextExpertiseOperationMetric
+                  label="Would create evidence"
+                  value={quoteDryRunResult.wouldCreateEvidenceCount}
+                />
+                <ContextExpertiseOperationMetric
+                  label="Skipped Quote rows"
+                  value={quoteDryRunResult.skippedQuoteRowCount}
+                />
+                <ContextExpertiseOperationMetric
+                  label="Continue cursor"
+                  value={formatContextExpertiseCursor(
+                    quoteDryRunResult.continueCursor,
+                  )}
+                />
+                <ContextExpertiseOperationMetric
+                  label="Page state"
+                  value={quoteDryRunResult.isDone ? "Done" : "More pages"}
+                />
+              </dl>
+              <QuoteAttributionEvidenceSample
+                emptyLabel="No Quote attribution evidence changes in this dry-run page."
+                items={quoteDryRunResult.evidenceItems}
+              />
+              <QuoteAttributionSkippedSample
+                items={quoteDryRunResult.skippedQuoteRowItems}
+              />
+            </div>
+          ) : null}
+          {quoteDryRunError ? (
+            <p className="kb-system-admin-error" role="alert">
+              {quoteDryRunError}
+            </p>
+          ) : null}
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function ContextExpertiseOperationMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: ReactNode;
+}) {
+  return (
+    <div>
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+    </div>
+  );
+}
+
+function ContextExpertiseMigrationGroupSample({
+  emptyLabel,
+  groups,
+}: {
+  emptyLabel: string;
+  groups: ContextExpertiseMigrationGroup[];
+}) {
+  const sampledGroups = groups.slice(0, CONTEXT_EXPERTISE_OPERATION_SAMPLE_LIMIT);
+
+  if (sampledGroups.length === 0) {
+    return <p className="kb-settings-empty">{emptyLabel}</p>;
+  }
+
+  return (
+    <ol className="kb-context-expertise-operation-sample">
+      {sampledGroups.map((group, index) => (
+        <li key={`${group.contextKey}-${group.subjectKind}-${index}`}>
+          <strong>{group.contextKey}</strong>
+          <span>
+            {formatContextExpertiseGroupSubject(group)} -{" "}
+            {formatContextExpertiseAudienceScope(group)}
+          </span>
+          {group.evidenceCount !== undefined || group.skippedReason ? (
+            <span>
+              {group.evidenceCount !== undefined
+                ? `${group.evidenceCount} evidence rows`
+                : ""}
+              {group.evidenceCount !== undefined && group.skippedReason
+                ? " - "
+                : ""}
+              {group.skippedReason
+                ? formatContextExpertiseReason(group.skippedReason)
+                : ""}
+            </span>
+          ) : null}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function QuoteAttributionEvidenceSample({
+  emptyLabel,
+  items,
+}: {
+  emptyLabel: string;
+  items: QuoteAttributionBackfillEvidenceItem[];
+}) {
+  const sampledItems = items.slice(0, CONTEXT_EXPERTISE_OPERATION_SAMPLE_LIMIT);
+
+  if (sampledItems.length === 0) {
+    return <p className="kb-settings-empty">{emptyLabel}</p>;
+  }
+
+  return (
+    <ol className="kb-context-expertise-operation-sample">
+      {sampledItems.map((item, index) => (
+        <li key={`${item.quoteEntryId}-${item.action}-${index}`}>
+          <strong>{formatQuoteAttributionEvidenceAction(item.action)}</strong>
+          <span>{item.contextKey}</span>
+          <span>
+            Entry {item.entryId} - Quote {item.quoteEntryId} - Person{" "}
+            {item.subjectPersonReferentId}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function QuoteAttributionSkippedSample({
+  items,
+}: {
+  items: QuoteAttributionBackfillSkippedItem[];
+}) {
+  const sampledItems = items.slice(0, CONTEXT_EXPERTISE_OPERATION_SAMPLE_LIMIT);
+
+  if (sampledItems.length === 0) {
+    return null;
+  }
+
+  return (
+    <ol className="kb-context-expertise-operation-sample">
+      {sampledItems.map((item, index) => (
+        <li key={`${item.quoteEntryId}-${item.skippedReason}-${index}`}>
+          <strong>{formatContextExpertiseReason(item.skippedReason)}</strong>
+          <span>
+            Quote {item.quoteEntryId}
+            {item.entryId ? ` - Entry ${item.entryId}` : ""}
+          </span>
+          {item.subjectPersonReferentId ? (
+            <span>Person {item.subjectPersonReferentId}</span>
+          ) : null}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function getContextExpertiseOperationPagination(
+  batchSizeInput: string,
+  cursorInput: string,
+): ContextExpertiseOperationPagination {
+  return {
+    cursor: cursorInput.trim() === "" ? null : cursorInput.trim(),
+    numItems: getContextExpertiseOperationBatchSize(batchSizeInput),
+  };
+}
+
+function getContextExpertiseOperationBatchSize(batchSizeInput: string) {
+  const parsedBatchSize = Number.parseInt(batchSizeInput, 10);
+  if (!Number.isFinite(parsedBatchSize)) {
+    return DEFAULT_CONTEXT_EXPERTISE_OPERATION_BATCH_SIZE;
+  }
+
+  return Math.max(
+    1,
+    Math.min(MAX_CONTEXT_EXPERTISE_OPERATION_BATCH_SIZE, parsedBatchSize),
+  );
+}
+
+function normalizeContextExpertiseBatchSizeInput(value: string) {
+  if (value.trim() === "") {
+    return "";
+  }
+
+  return String(getContextExpertiseOperationBatchSize(value));
+}
+
+function formatContextExpertiseOperationState(
+  isDone: boolean,
+  mayHaveMore: boolean,
+) {
+  if (isDone) {
+    return "Done";
+  }
+
+  return mayHaveMore ? "More pages" : "Pending";
+}
+
+function formatContextExpertiseCursor(cursor: string) {
+  return cursor.length > 0 ? cursor : "None";
+}
+
+function formatContextExpertiseGroupSubject(
+  group: ContextExpertiseMigrationGroup,
+) {
+  if (group.subjectKind === "person") {
+    return `Person ${group.subjectPersonReferentId ?? "unknown"}`;
+  }
+
+  return `User ${group.subjectUserId ?? "unknown"}`;
+}
+
+function formatContextExpertiseAudienceScope(
+  group: ContextExpertiseMigrationGroup,
+) {
+  if (group.audienceScopeKind === "public") {
+    return "Public";
+  }
+
+  return `${formatContextExpertiseReason(group.audienceScopeKind)} ${
+    group.audienceScopeTargetKey
+  }`;
+}
+
+function formatQuoteAttributionEvidenceAction(
+  action: QuoteAttributionBackfillEvidenceItem["action"],
+) {
+  if (action === "wouldCreate") {
+    return "Would create";
+  }
+
+  return formatContextExpertiseReason(action);
+}
+
+function formatContextExpertiseReason(reason: string) {
+  return reason
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function PublicFigureExpertVisibilityPanel() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedPerson, setSelectedPerson] =
+    useState<QuoteAttributionPersonOption | null>(null);
+  const [optimisticModeration, setOptimisticModeration] =
+    useState<PersonGlobalExpertVisibilityModeration | null>(null);
+  const [moderationNote, setModerationNote] = useState("");
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const searchTerm = searchQuery.trim();
+  const personOptions = useQuery(
+    api.contextExpertise.searchPublicFigureExpertPeople,
+    searchTerm.length >= 2
+      ? {
+          limit: 8,
+          searchQuery: searchTerm,
+        }
+      : "skip",
+  ) as QuoteAttributionPersonOption[] | undefined;
+  const queriedModeration = useQuery(
+    api.contextExpertise.getPersonGlobalExpertVisibilityModeration,
+    selectedPerson
+      ? {
+          personReferentId: selectedPerson.referentId as Id<"referents">,
+        }
+      : "skip",
+  ) as PersonGlobalExpertVisibilityModeration | undefined;
+  const moderationHistory = useQuery(
+    api.contextExpertise.listPersonGlobalExpertVisibilityModerationHistory,
+    selectedPerson
+      ? {
+          limit: 10,
+          personReferentId: selectedPerson.referentId as Id<"referents">,
+        }
+      : "skip",
+  ) as PersonGlobalExpertVisibilityModerationEvent[] | undefined;
+  const updatePersonVisibility = useMutation(
+    api.contextExpertise.updatePersonGlobalExpertVisibilityModeration,
+  );
+  const currentModeration = optimisticModeration ?? queriedModeration ?? null;
+  const isSearching = searchTerm.length >= 2 && personOptions === undefined;
+  const isLoadingStatus = selectedPerson !== null && currentModeration === null;
+  const isLoadingHistory =
+    selectedPerson !== null && moderationHistory === undefined;
+  const isSuppressed = currentModeration?.status === "suppressed";
+  const hasModerationNoteChange =
+    isSuppressed &&
+    moderationNote.trim().length > 0 &&
+    moderationNote.trim() !== (currentModeration?.moderationNote ?? "");
+
+  useEffect(() => {
+    setOptimisticModeration(null);
+    setModerationNote("");
+    setStatusMessage(null);
+    setErrorMessage(null);
+  }, [selectedPerson?.referentId]);
+
+  useEffect(() => {
+    if (queriedModeration) {
+      setModerationNote(queriedModeration.moderationNote ?? "");
+    }
+  }, [
+    queriedModeration?.moderationNote,
+    queriedModeration?.personReferentId,
+    queriedModeration?.status,
+  ]);
+
+  function handleSelectPerson(option: QuoteAttributionPersonOption) {
+    setSelectedPerson(option);
+    setSearchQuery(option.label);
+  }
+
+  async function handleUpdatePersonVisibility(suppressed: boolean) {
+    if (!selectedPerson) {
+      return;
+    }
+
+    const wasSuppressed = currentModeration?.status === "suppressed";
+    setIsSaving(true);
+    setStatusMessage(null);
+    setErrorMessage(null);
+
+    try {
+      const nextModeration = (await updatePersonVisibility({
+        ...(suppressed && moderationNote.trim()
+          ? { moderationNote: moderationNote.trim() }
+          : {}),
+        personReferentId: selectedPerson.referentId as Id<"referents">,
+        suppressed,
+      })) as PersonGlobalExpertVisibilityModeration;
+      setOptimisticModeration(nextModeration);
+      setModerationNote(nextModeration.moderationNote ?? "");
+      setStatusMessage(
+        suppressed
+          ? wasSuppressed
+            ? "Updated moderation note."
+            : "Suppressed globally."
+          : "Restored global visibility.",
+      );
+    } catch (caughtError) {
+      setErrorMessage(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Public figure expert visibility update failed.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <section
+      className="kb-settings-panel kb-system-admin-panel kb-public-figure-expert-panel"
+      aria-labelledby="kb-public-figure-experts-heading"
+    >
+      <header>
+        <UserMinus aria-hidden="true" />
+        <div>
+          <p className="kb-eyebrow">Context Expertise</p>
+          <h2 id="kb-public-figure-experts-heading">Public Figure Experts</h2>
+        </div>
+      </header>
+
+      <form
+        className="kb-system-admin-form kb-public-figure-expert-search"
+        onSubmit={(event) => event.preventDefault()}
+      >
+        <label className="kb-system-admin-field">
+          <span>Person</span>
+          <input
+            aria-label="Search public figure expert Person"
+            name="publicFigureExpertSearch"
+            onChange={(event: ChangeEvent<HTMLInputElement>) => {
+              setSearchQuery(event.target.value);
+            }}
+            type="text"
+            value={searchQuery}
+          />
+        </label>
+      </form>
+
+      {searchTerm.length >= 2 ? (
+        <div className="kb-public-figure-options" aria-label="Public Figure Expert options">
+          {isSearching ? (
+            <span className="kb-public-figure-option-status">
+              <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
+              Searching
+            </span>
+          ) : (
+            (personOptions ?? []).map((option) => (
+              <button
+                key={option.referentId}
+                className="kb-public-figure-option"
+                onClick={() => handleSelectPerson(option)}
+                type="button"
+              >
+                <Search aria-hidden="true" />
+                <span>{option.label}</span>
+              </button>
+            ))
+          )}
+        </div>
+      ) : null}
+
+      {selectedPerson ? (
+        <div
+          className="kb-public-figure-status"
+          aria-label="Public Figure Expert visibility status"
+        >
+          <div>
+            <strong>{currentModeration?.personLabel ?? selectedPerson.label}</strong>
+            <span>
+              {isLoadingStatus
+                ? "Loading status"
+                : isSuppressed
+                  ? "Suppressed globally"
+                  : "Visible globally by default"}
+            </span>
+          </div>
+
+          <label className="kb-system-admin-field">
+            <span>Moderation note</span>
+            <input
+              disabled={isSaving}
+              name="publicFigureExpertModerationNote"
+              onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                setModerationNote(event.target.value)
+              }
+              type="text"
+              value={moderationNote}
+            />
+          </label>
+
+          <button
+            className="kb-system-admin-submit"
+            disabled={isSaving || isLoadingStatus}
+            onClick={() => void handleUpdatePersonVisibility(!isSuppressed)}
+            type="button"
+          >
+            {isSaving ? (
+              <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
+            ) : isSuppressed ? (
+              <UserPlus aria-hidden="true" />
+            ) : (
+              <UserMinus aria-hidden="true" />
+            )}
+            <span>
+              {isSaving
+                ? "Saving"
+                : isSuppressed
+                  ? "Restore global visibility"
+                  : "Suppress globally"}
+            </span>
+          </button>
+
+          {isSuppressed ? (
+            <button
+              className="kb-system-admin-submit kb-public-figure-note-submit"
+              disabled={isSaving || isLoadingStatus || !hasModerationNoteChange}
+              onClick={() => void handleUpdatePersonVisibility(true)}
+              type="button"
+            >
+              {isSaving ? (
+                <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
+              ) : (
+                <Check aria-hidden="true" />
+              )}
+              <span>{isSaving ? "Saving" : "Update note"}</span>
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {selectedPerson ? (
+        <div
+          className="kb-public-figure-history"
+          aria-label="Public Figure Expert moderation history"
+        >
+          <header>
+            <Clock aria-hidden="true" />
+            <h3>Recent moderation</h3>
+          </header>
+          {isLoadingHistory ? (
+            <p className="kb-public-figure-history-empty">Loading history</p>
+          ) : moderationHistory && moderationHistory.length > 0 ? (
+            <ol>
+              {moderationHistory.map((event) => (
+                <li key={event.eventId}>
+                  <div>
+                    <strong>{formatPublicFigureModerationAction(event.action)}</strong>
+                    <span>{formatPublicFigureModerationTime(event.createdAt)}</span>
+                  </div>
+                  <p>{formatPublicFigureModerationTransition(event)}</p>
+                  {event.moderationNote ?? event.previousModerationNote ? (
+                    <p className="kb-public-figure-history-note">
+                      {event.moderationNote ?? event.previousModerationNote}
+                    </p>
+                  ) : null}
+                  <span>by {event.updatedByUserId}</span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="kb-public-figure-history-empty">
+              No moderation history yet.
+            </p>
+          )}
+        </div>
+      ) : null}
+
+      {statusMessage ? (
+        <p className="kb-system-admin-success" role="status">
+          <Check aria-hidden="true" />
+          <span>{statusMessage}</span>
+        </p>
+      ) : null}
+      {errorMessage ? (
+        <p className="kb-system-admin-error" role="alert">
+          {errorMessage}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+function formatPublicFigureModerationAction(
+  action: PersonGlobalExpertVisibilityModerationEvent["action"],
+) {
+  if (action === "restored") {
+    return "Restored";
+  }
+
+  if (action === "suppressionNoteUpdated") {
+    return "Note updated";
+  }
+
+  return "Suppressed";
+}
+
+function formatPublicFigureModerationTransition(
+  event: PersonGlobalExpertVisibilityModerationEvent,
+) {
+  if (event.action === "restored") {
+    return "Suppressed to visible by default";
+  }
+
+  if (event.action === "suppressionNoteUpdated") {
+    return "Suppression note changed";
+  }
+
+  return "Visible by default to suppressed";
+}
+
+function formatPublicFigureModerationTime(timestamp: number) {
+  return NOTIFICATION_TIME_FORMATTER.format(new Date(timestamp));
 }
 
 function OrganizationAccountSetupPanel({
@@ -4895,6 +6838,72 @@ function isOrganizationMembershipRole(
 
 function formatMembershipRole(role: string) {
   return formatOrganizationKind(role);
+}
+
+function formatContactIdentityStatus(status: ContactIdentityStatus) {
+  return status === "verified" ? "Verified" : "Pending";
+}
+
+function getSettingsErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Contact Identity update failed.";
+}
+
+function formatOrganizationMemberStatus(member: OrganizationMember) {
+  if (member.personConsolidationReview?.reviewStatus === "pending") {
+    return "Needs Identity Review";
+  }
+  if (member.personConsolidationReview?.reviewStatus === "rejected") {
+    return "Identity Review Rejected";
+  }
+  if (member.personConsolidationReview?.reviewStatus === "approved") {
+    return "Identity Review Approved";
+  }
+  if (member.status === "pending") {
+    return `Pending ${formatMembershipRole(member.role)}`;
+  }
+
+  return formatMembershipRole(member.role);
+}
+
+function canWithdrawPendingOrganizationMember(member: OrganizationMember) {
+  const reviewStatus = member.personConsolidationReview?.reviewStatus;
+  return (
+    member.status === "pending" &&
+    (reviewStatus === undefined || reviewStatus === "rejected")
+  );
+}
+
+function formatMembershipClaimEvidence(evidence: MembershipClaimEvidence) {
+  const claimSummary = `Claimed via ${formatClaimSource(evidence.claimSource)} ${evidence.claimedContactValue}.`;
+  if (evidence.personConsolidation === undefined) {
+    return claimSummary;
+  }
+
+  return `${claimSummary} Person Consolidation approved: ${evidence.personConsolidation.pendingPersonName} was consolidated into ${evidence.personConsolidation.resultingPersonName}.`;
+}
+
+function formatPersonConsolidationReviewEvidence(
+  evidence: PersonConsolidationReviewEvidence,
+) {
+  const requester =
+    evidence.requestedByEmail === undefined
+      ? ""
+      : ` by ${evidence.requestedByEmail}`;
+  if (evidence.reviewStatus === "rejected") {
+    return `Identity review rejected for ${evidence.claimedContactValue}${requester}.`;
+  }
+  if (evidence.reviewStatus === "approved") {
+    return `Identity review approved for ${evidence.claimedContactValue}${requester}.`;
+  }
+  return `Identity review requested for ${evidence.claimedContactValue}${requester}.`;
+}
+
+function formatClaimSource(
+  claimSource: MembershipClaimEvidence["claimSource"],
+) {
+  return claimSource === "verifiedPrimaryEmail"
+    ? "verified primary email"
+    : "verified contact email";
 }
 
 function getProfileDisplayName(email?: string) {
@@ -5302,11 +7311,31 @@ function OrganizationSettingsPage({
   const addOrganizationMember = useMutation(
     api.organizationAccounts.addOrganizationMember,
   );
+  const approvePersonConsolidationReview = useMutation(
+    api.organizationAccounts.approvePersonConsolidationReview,
+  );
+  const rejectPersonConsolidationReview = useMutation(
+    api.organizationAccounts.rejectPersonConsolidationReview,
+  );
+  const reopenPersonConsolidationReview = useMutation(
+    api.organizationAccounts.reopenPersonConsolidationReview,
+  );
+  const withdrawPendingOrganizationMember = useMutation(
+    api.organizationAccounts.withdrawPendingOrganizationMember,
+  );
   const [memberSetupError, setMemberSetupError] = useState<string | null>(null);
   const [memberSetupSuccess, setMemberSetupSuccess] = useState<string | null>(
     null,
   );
   const [isAddingMember, setIsAddingMember] = useState(false);
+  const [pendingReviewApprovalId, setPendingReviewApprovalId] =
+    useState<Id<"personConsolidationReviews"> | null>(null);
+  const [pendingReviewRejectionId, setPendingReviewRejectionId] =
+    useState<Id<"personConsolidationReviews"> | null>(null);
+  const [pendingReviewReopenId, setPendingReviewReopenId] =
+    useState<Id<"personConsolidationReviews"> | null>(null);
+  const [pendingMemberWithdrawalId, setPendingMemberWithdrawalId] =
+    useState<Id<"memberships"> | null>(null);
   const profile = organizationSettings
     ? {
         ...routeProfile,
@@ -5360,6 +7389,129 @@ function OrganizationSettingsPage({
       );
     } finally {
       setIsAddingMember(false);
+    }
+  }
+
+  async function handleApprovePersonConsolidationReview(
+    member: OrganizationMember,
+  ) {
+    const review = member.personConsolidationReview;
+    if (!review || review.reviewStatus !== "pending") {
+      return;
+    }
+
+    setMemberSetupError(null);
+    setMemberSetupSuccess(null);
+    setPendingReviewApprovalId(review.reviewId);
+
+    try {
+      await approvePersonConsolidationReview({
+        organizationId,
+        personConsolidationReviewId: review.reviewId,
+      });
+      setMemberSetupSuccess(
+        `Approved identity review for ${member.email ?? member.name}.`,
+      );
+    } catch (caughtError) {
+      setMemberSetupError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Identity review approval failed.",
+      );
+    } finally {
+      setPendingReviewApprovalId(null);
+    }
+  }
+
+  async function handleRejectPersonConsolidationReview(
+    member: OrganizationMember,
+  ) {
+    const review = member.personConsolidationReview;
+    if (!review || review.reviewStatus !== "pending") {
+      return;
+    }
+
+    setMemberSetupError(null);
+    setMemberSetupSuccess(null);
+    setPendingReviewRejectionId(review.reviewId);
+
+    try {
+      await rejectPersonConsolidationReview({
+        organizationId,
+        personConsolidationReviewId: review.reviewId,
+      });
+      setMemberSetupSuccess(
+        `Rejected identity review for ${member.email ?? member.name}.`,
+      );
+    } catch (caughtError) {
+      setMemberSetupError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Identity review rejection failed.",
+      );
+    } finally {
+      setPendingReviewRejectionId(null);
+    }
+  }
+
+  async function handleReopenPersonConsolidationReview(
+    member: OrganizationMember,
+  ) {
+    const review = member.personConsolidationReview;
+    if (!review || review.reviewStatus !== "rejected") {
+      return;
+    }
+
+    setMemberSetupError(null);
+    setMemberSetupSuccess(null);
+    setPendingReviewReopenId(review.reviewId);
+
+    try {
+      await reopenPersonConsolidationReview({
+        organizationId,
+        personConsolidationReviewId: review.reviewId,
+      });
+      setMemberSetupSuccess(
+        `Reopened identity review for ${member.email ?? member.name}.`,
+      );
+    } catch (caughtError) {
+      setMemberSetupError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Identity review reopening failed.",
+      );
+    } finally {
+      setPendingReviewReopenId(null);
+    }
+  }
+
+  async function handleWithdrawPendingOrganizationMember(
+    member: OrganizationMember,
+  ) {
+    if (!canWithdrawPendingOrganizationMember(member)) {
+      return;
+    }
+
+    setMemberSetupError(null);
+    setMemberSetupSuccess(null);
+    setPendingMemberWithdrawalId(member.membershipId);
+
+    try {
+      await withdrawPendingOrganizationMember({
+        membershipId: member.membershipId,
+        organizationId,
+      });
+      setMemberSetupSuccess(
+        `Withdrew pending member ${member.email ?? member.name}.`,
+      );
+    } catch (caughtError) {
+      setMemberSetupError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Pending member withdrawal failed.",
+      );
+    } finally {
+      setPendingMemberWithdrawalId(null);
     }
   }
 
@@ -5498,12 +7650,161 @@ function OrganizationSettingsPage({
                         <div>
                           <strong>{member.name}</strong>
                           <span>{member.email ?? "No email on account"}</span>
+                          {member.claimEvidence ? (
+                            <span className="kb-org-member-evidence">
+                              {formatMembershipClaimEvidence(
+                                member.claimEvidence,
+                              )}
+                            </span>
+                          ) : null}
+                          {member.personConsolidationReview ? (
+                            <span className="kb-org-member-evidence">
+                              {formatPersonConsolidationReviewEvidence(
+                                member.personConsolidationReview,
+                              )}
+                            </span>
+                          ) : null}
                         </div>
-                        <small>
-                          {member.status === "pending"
-                            ? `Pending ${formatMembershipRole(member.role)}`
-                            : formatMembershipRole(member.role)}
-                        </small>
+                        <div className="kb-org-member-status-actions">
+                          <small>{formatOrganizationMemberStatus(member)}</small>
+                          {member.personConsolidationReview?.reviewStatus ===
+                          "pending" ? (
+                            <button
+                              className="kb-org-member-review-submit"
+                              disabled={
+                                pendingReviewApprovalId ===
+                                  member.personConsolidationReview.reviewId ||
+                                pendingReviewRejectionId ===
+                                  member.personConsolidationReview.reviewId ||
+                                pendingReviewReopenId ===
+                                  member.personConsolidationReview.reviewId ||
+                                pendingMemberWithdrawalId === member.membershipId
+                              }
+                              onClick={() =>
+                                void handleApprovePersonConsolidationReview(member)
+                              }
+                              type="button"
+                            >
+                              {pendingReviewApprovalId ===
+                              member.personConsolidationReview.reviewId ? (
+                                <LoaderCircle
+                                  aria-hidden="true"
+                                  className="editor-auth-spin"
+                                />
+                              ) : (
+                                <Check aria-hidden="true" />
+                              )}
+                              <span>
+                                {pendingReviewApprovalId ===
+                                member.personConsolidationReview.reviewId
+                                  ? "Approving"
+                                  : "Approve review"}
+                              </span>
+                            </button>
+                          ) : null}
+                          {member.personConsolidationReview?.reviewStatus ===
+                          "pending" ? (
+                            <button
+                              className="kb-org-member-review-submit kb-org-member-review-submit-secondary"
+                              disabled={
+                                pendingReviewApprovalId ===
+                                  member.personConsolidationReview.reviewId ||
+                                pendingReviewRejectionId ===
+                                  member.personConsolidationReview.reviewId ||
+                                pendingReviewReopenId ===
+                                  member.personConsolidationReview.reviewId ||
+                                pendingMemberWithdrawalId === member.membershipId
+                              }
+                              onClick={() =>
+                                void handleRejectPersonConsolidationReview(member)
+                              }
+                              type="button"
+                            >
+                              {pendingReviewRejectionId ===
+                              member.personConsolidationReview.reviewId ? (
+                                <LoaderCircle
+                                  aria-hidden="true"
+                                  className="editor-auth-spin"
+                                />
+                              ) : (
+                                <X aria-hidden="true" />
+                              )}
+                              <span>
+                                {pendingReviewRejectionId ===
+                                member.personConsolidationReview.reviewId
+                                  ? "Rejecting"
+                                  : "Reject review"}
+                              </span>
+                            </button>
+                          ) : null}
+                          {member.personConsolidationReview?.reviewStatus ===
+                          "rejected" ? (
+                            <button
+                              className="kb-org-member-review-submit"
+                              disabled={
+                                pendingReviewApprovalId ===
+                                  member.personConsolidationReview.reviewId ||
+                                pendingReviewRejectionId ===
+                                  member.personConsolidationReview.reviewId ||
+                                pendingReviewReopenId ===
+                                  member.personConsolidationReview.reviewId ||
+                                pendingMemberWithdrawalId === member.membershipId
+                              }
+                              onClick={() =>
+                                void handleReopenPersonConsolidationReview(member)
+                              }
+                              type="button"
+                            >
+                              {pendingReviewReopenId ===
+                              member.personConsolidationReview.reviewId ? (
+                                <LoaderCircle
+                                  aria-hidden="true"
+                                  className="editor-auth-spin"
+                                />
+                              ) : (
+                                <RotateCcw aria-hidden="true" />
+                              )}
+                              <span>
+                                {pendingReviewReopenId ===
+                                member.personConsolidationReview.reviewId
+                                  ? "Reopening"
+                                  : "Reopen review"}
+                              </span>
+                            </button>
+                          ) : null}
+                          {canWithdrawPendingOrganizationMember(member) ? (
+                            <button
+                              className="kb-org-member-review-submit kb-org-member-review-submit-secondary"
+                              disabled={
+                                pendingMemberWithdrawalId === member.membershipId ||
+                                pendingReviewApprovalId ===
+                                  member.personConsolidationReview?.reviewId ||
+                                pendingReviewRejectionId ===
+                                  member.personConsolidationReview?.reviewId ||
+                                pendingReviewReopenId ===
+                                  member.personConsolidationReview?.reviewId
+                              }
+                              onClick={() =>
+                                void handleWithdrawPendingOrganizationMember(member)
+                              }
+                              type="button"
+                            >
+                              {pendingMemberWithdrawalId === member.membershipId ? (
+                                <LoaderCircle
+                                  aria-hidden="true"
+                                  className="editor-auth-spin"
+                                />
+                              ) : (
+                                <UserMinus aria-hidden="true" />
+                              )}
+                              <span>
+                                {pendingMemberWithdrawalId === member.membershipId
+                                  ? "Withdrawing"
+                                  : "Withdraw"}
+                              </span>
+                            </button>
+                          ) : null}
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -5752,9 +8053,11 @@ function decodePathSegment(segment: string) {
 }
 
 function BiblePassagePage({
+  appAccess,
   onNavigateToHref,
   routeState,
 }: {
+  appAccess: AllowedAppAccess;
   onNavigateToHref: (href: string) => void;
   routeState: RouteState;
 }) {
@@ -5891,6 +8194,7 @@ function BiblePassagePage({
 
       <ComponentScaffold
         activeTags={activeTags}
+        appAccess={appAccess}
         components={getRoute("scripture").components}
         label={passage.label}
         onNavigateToHref={onNavigateToHref}
@@ -5912,30 +8216,6 @@ function getScripturePassageString(pathname: string) {
   } catch {
     return pathname.slice("/scripture/".length);
   }
-}
-
-function getPassageSuggestions(query: string, limit: number) {
-  const suggestionLimit = Math.max(
-    0,
-    Math.min(Math.floor(limit), MAX_PASSAGE_SUGGESTIONS),
-  );
-  if (!query || suggestionLimit < 1) {
-    return [];
-  }
-
-  const parsedPassage = parseBiblePassageReference(query);
-  if (!parsedPassage) {
-    return [];
-  }
-
-  return [
-    {
-      href: `/scripture/${parsedPassage.slug}`,
-      kind: "biblePassage",
-      label: parsedPassage.label,
-      passageString: parsedPassage.slug,
-    },
-  ].slice(0, suggestionLimit);
 }
 
 function formatVerseReference(verse: {
@@ -6033,6 +8313,7 @@ function KnowledgeNavigator({
               <button
                 aria-label={`Remove ${tag.label}`}
                 className="kb-active-tag-chip"
+                data-knowledge-type={tag.knowledgeType}
                 key={tag.id}
                 onClick={() => handleRemoveTag(tag.id)}
                 title={`Remove ${tag.label}`}
@@ -6044,7 +8325,7 @@ function KnowledgeNavigator({
               </button>
             ))
           ) : (
-            <p className="kb-navigator-empty">Global Knowledge Context</p>
+            <p className="kb-navigator-empty">All Accessible Knowledge</p>
           )}
         </div>
 
@@ -6055,6 +8336,7 @@ function KnowledgeNavigator({
             <button
               aria-label={`Add ${tag.label}`}
               className="kb-add-tag-button"
+              data-knowledge-type={tag.knowledgeType}
               key={tag.id}
               onClick={() => handleAddTag(tag)}
               title={`Add ${tag.label}`}

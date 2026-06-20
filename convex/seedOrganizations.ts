@@ -8,7 +8,6 @@ import {
 } from "./_generated/server";
 import type { OrganizationMembershipRole } from "./lib/organizationRoles";
 
-const BASE_HUMAN_WEIGHT = 0;
 const DEFAULT_CONTEXT_TAG_LABELS: string[] = [];
 const DUPLICATE_EMAIL_ERROR = "Email is already in use by another user.";
 
@@ -524,7 +523,6 @@ async function upsertKnowledgeEntry(
     contextPreviewTagLabels: DEFAULT_CONTEXT_TAG_LABELS,
     discoverabilityKind: "public" as const,
     discoverabilityTargetKey: "public",
-    humanWeight: BASE_HUMAN_WEIGHT,
     knowledgeType: entry.knowledgeType,
     previewText: entry.previewText,
     primaryTagId: entry.primaryTagId,

@@ -336,7 +336,6 @@ async function insertOrganization(
     createdAt: now,
     discoverabilityKind: "public",
     discoverabilityTargetKey: "public",
-    humanWeight: 0,
     knowledgeType: "organization",
     previewText: `${input.name} organization.`,
     primaryTagId: tagId,

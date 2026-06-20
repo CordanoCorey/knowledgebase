@@ -1,10 +1,8 @@
 import {
   CheckCircle2,
-  FileText,
   Link,
   LoaderCircle,
   LockKeyhole,
-  Plus,
   Send,
   Sparkles,
   Trash2,
@@ -15,6 +13,7 @@ import {
   useEffect,
   useState,
   type ChangeEvent,
+  type DragEvent,
   type FormEvent,
 } from "react";
 import {
@@ -38,6 +37,9 @@ import { ReferentTagLink } from "./components/ReferentTagLink";
 import { Presence } from "./Presence";
 
 export type ContributionKnowledgeTypeSources = {
+  allowedContributionTypes?: readonly AuthorableKnowledgeType[];
+  body?: string;
+  parentEntryTitle?: string;
   selectedKnowledgeType?: KnowledgeType | null;
   slot?: KnowledgeSlotSummary;
   smartStorageProposedKnowledgeType?: KnowledgeType | null;
@@ -89,6 +91,7 @@ type UploadState =
   | { kind: "error"; message: string };
 
 export function ContributionEditor({
+  allowedContributionTypes,
   context,
   defaultMode,
   guidedContributionType,
@@ -107,10 +110,8 @@ export function ContributionEditor({
   const [isExpanded, setIsExpanded] = useState(Boolean(slot));
   const [title, setTitle] = useState(initialTitle);
   const [body, setBody] = useState(initialBody);
-  const [contributionNote, setContributionNote] = useState("");
-  const [externalUrlDraft, setExternalUrlDraft] = useState("");
-  const [externalUrls, setExternalUrls] = useState<SmartStorageExternalUrlInput[]>(
-    [],
+  const [isWordsTitleVisible, setIsWordsTitleVisible] = useState(
+    initialTitle.trim().length > 0,
   );
   const [uploadedFiles, setUploadedFiles] = useState<
     SmartStorageUploadedFileInput[]
@@ -121,7 +122,11 @@ export function ContributionEditor({
   const [submissionState, setSubmissionState] = useState<SubmissionState>({
     kind: "idle",
   });
+  const allowedTypes = getAllowedContributionTypes(allowedContributionTypes);
   const activeKnowledgeType = resolveContributionKnowledgeType({
+    allowedContributionTypes: allowedTypes,
+    body,
+    parentEntryTitle,
     selectedKnowledgeType,
     slot,
   });
@@ -130,16 +135,20 @@ export function ContributionEditor({
     guidedContributionType,
   );
   const supportsSmartStorageSources = activeGuidedContributionType === null;
+  const externalUrls = supportsSmartStorageSources
+    ? extractExternalUrlsFromText(body)
+    : [];
+  const hasExplicitWordsTitle =
+    activeKnowledgeType === "words" && title.trim().length > 0;
   const hasSupplementalSources =
     supportsSmartStorageSources &&
-    (contributionNote.trim().length > 0 ||
-      externalUrls.length > 0 ||
-      uploadedFiles.length > 0);
+    (externalUrls.length > 0 || uploadedFiles.length > 0);
   const contributionPreview = createContributionPreview({
     body,
     context,
     defaultMode,
     guidedContributionType: activeGuidedContributionType,
+    hasExplicitWordsTitle,
     hasSupplementalSources,
     knowledgeType: activeKnowledgeType,
     parentEntryTitle,
@@ -154,11 +163,17 @@ export function ContributionEditor({
   );
   const knowledgeTypeOptions = getContributionKnowledgeTypeOptions(
     activeKnowledgeType,
-    isSlotTypeFixed,
+    allowedTypes,
   );
+  const isTypeFixed = isSlotTypeFixed || knowledgeTypeOptions.length <= 1;
   const secondaryMode = getAlternateContributionMode(contributionPreview.mode);
   const showsSecondarySubmit =
-    activeGuidedContributionType === null && !hasSupplementalSources;
+    activeGuidedContributionType === null &&
+    !isSmartStorageForced({
+      hasExplicitWordsTitle,
+      hasSupplementalSources,
+      knowledgeType: activeKnowledgeType,
+    });
   const secondarySubmitLabel = getContributionSubmitLabel(
     secondaryMode,
     activeKnowledgeType,
@@ -176,6 +191,12 @@ export function ContributionEditor({
     }
   }, [slot]);
 
+  useEffect(() => {
+    if (activeKnowledgeType !== "words") {
+      setIsWordsTitleVisible(false);
+    }
+  }, [activeKnowledgeType]);
+
   function handleEditorFocus() {
     setIsExpanded(true);
   }
@@ -186,7 +207,11 @@ export function ContributionEditor({
 
   function handleKnowledgeTypeChange(event: ChangeEvent<HTMLSelectElement>) {
     const nextType = event.currentTarget.value;
-    if (!isSlotTypeFixed && isAuthorableKnowledgeType(nextType)) {
+    if (
+      !isTypeFixed &&
+      isAuthorableKnowledgeType(nextType) &&
+      allowedTypes.includes(nextType)
+    ) {
       onKnowledgeTypeChange?.(nextType);
     }
   }
@@ -199,7 +224,6 @@ export function ContributionEditor({
   async function submitContribution(mode: ContributionMode) {
     const input = createContributionInput({
       body,
-      contributionNote,
       context,
       externalUrls,
       guidedContributionType: activeGuidedContributionType,
@@ -219,34 +243,25 @@ export function ContributionEditor({
     setSubmissionState({ kind: "submitted", entryId: result.entryId, mode });
     setBody("");
     setTitle("");
-    setContributionNote("");
-    setExternalUrls([]);
+    setIsWordsTitleVisible(false);
     setUploadedFiles([]);
   }
 
-  function handleAddExternalUrl() {
-    const url = externalUrlDraft.trim();
-    if (!url) {
-      return;
-    }
-    setExternalUrls((current) => [...current, { url }]);
-    setExternalUrlDraft("");
-  }
-
-  function handleRemoveExternalUrl(index: number) {
-    setExternalUrls((current) => current.filter((_, itemIndex) => itemIndex !== index));
+  function handleRemoveExternalUrl(url: string) {
+    setBody((currentBody) => removeUrlFromText(currentBody, url));
   }
 
   function handleRemoveUploadedFile(index: number) {
-    setUploadedFiles((current) => current.filter((_, itemIndex) => itemIndex !== index));
+    setUploadedFiles((current) =>
+      current.filter((_, itemIndex) => itemIndex !== index),
+    );
   }
 
-  async function handleFileInputChange(event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.currentTarget.files ?? []);
-    event.currentTarget.value = "";
+  async function uploadFiles(files: File[]) {
     if (files.length === 0) {
       return;
     }
+
     if (!onUploadFile) {
       setUploadState({
         kind: "error",
@@ -271,23 +286,63 @@ export function ContributionEditor({
     }
   }
 
-  const typeField = (
+  async function handleFileInputChange(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.currentTarget.files ?? []);
+    event.currentTarget.value = "";
+    await uploadFiles(files);
+  }
+
+  function handleBodyDragOver(event: DragEvent<HTMLElement>) {
+    if (Array.from(event.dataTransfer.types).includes("Files")) {
+      event.preventDefault();
+    }
+  }
+
+  function handleBodyDrop(event: DragEvent<HTMLElement>) {
+    const files = Array.from(event.dataTransfer.files ?? []);
+    if (files.length === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    void uploadFiles(files);
+  }
+
+  const typeField = isTypeFixed ? (
+    <span
+      className="kb-contribution-type-chip"
+      data-knowledge-type={activeKnowledgeType}
+    >
+      {isSlotTypeFixed ? (
+        <LockKeyhole aria-hidden="true" className="kb-contribution-lock-icon" />
+      ) : null}
+      <KnowledgeTypeIcon knowledgeType={activeKnowledgeType} />
+      <span>{activeKnowledgeTypeLabel}</span>
+    </span>
+  ) : (
     <label className="kb-contribution-field kb-contribution-type-field">
       <span>Knowledge Type</span>
       <select
-        disabled={isSlotTypeFixed}
+        data-knowledge-type={activeKnowledgeType}
         onChange={handleKnowledgeTypeChange}
         value={activeKnowledgeType}
       >
         {knowledgeTypeOptions.map((knowledgeType) => (
-          <option key={knowledgeType} value={knowledgeType}>
+          <option
+            data-knowledge-type={knowledgeType}
+            key={knowledgeType}
+            value={knowledgeType}
+          >
             {formatKnowledgeTypeLabel(knowledgeType)}
           </option>
         ))}
       </select>
     </label>
   );
-  const titleField = fieldConfig.showsTitleField ? (
+  const showsWordsTitleField =
+    activeKnowledgeType === "words" && isWordsTitleVisible;
+  const showsTitleField = fieldConfig.showsTitleField || showsWordsTitleField;
+  const titleField = showsTitleField ? (
     <label
       className={getContributionFieldClassName(
         "title",
@@ -298,18 +353,30 @@ export function ContributionEditor({
       <input
         onChange={(event) => setTitle(event.currentTarget.value)}
         placeholder={fieldConfig.titlePlaceholder}
-        required
+        required={fieldConfig.showsTitleField}
         type="text"
         value={title}
       />
     </label>
   ) : null;
+  const addWordsTitleButton =
+    activeKnowledgeType === "words" && !isWordsTitleVisible ? (
+      <button
+        className="kb-contribution-add-title"
+        onClick={() => setIsWordsTitleVisible(true)}
+        type="button"
+      >
+        Add title
+      </button>
+    ) : null;
   const bodyField = fieldConfig.showsBodyField ? (
     <label
       className={getContributionFieldClassName(
         "body",
         primaryField === "body",
       )}
+      onDragOver={handleBodyDragOver}
+      onDrop={handleBodyDrop}
     >
       <span>{fieldConfig.bodyLabel}</span>
       <textarea
@@ -324,13 +391,7 @@ export function ContributionEditor({
   const sourceTools =
     supportsSmartStorageSources ? (
       <ContributionSourceTools
-        body={body}
-        contributionNote={contributionNote}
-        externalUrlDraft={externalUrlDraft}
         externalUrls={externalUrls}
-        onAddExternalUrl={handleAddExternalUrl}
-        onContributionNoteChange={setContributionNote}
-        onExternalUrlDraftChange={setExternalUrlDraft}
         onFileInputChange={(event) => void handleFileInputChange(event)}
         onRemoveExternalUrl={handleRemoveExternalUrl}
         onRemoveUploadedFile={handleRemoveUploadedFile}
@@ -338,6 +399,16 @@ export function ContributionEditor({
         uploadState={uploadState}
       />
     ) : null;
+  const modeChip = isSmartStorageForced({
+    hasExplicitWordsTitle,
+    hasSupplementalSources,
+    knowledgeType: activeKnowledgeType,
+  }) ? (
+    <span className="kb-contribution-mode-chip">
+      <Sparkles aria-hidden="true" />
+      <span>Smart Storage</span>
+    </span>
+  ) : null;
 
   return (
     <section
@@ -355,7 +426,10 @@ export function ContributionEditor({
           </h2>
         </div>
         {isSlotTypeFixed ? (
-          <span className="kb-contribution-fixed-type">
+          <span
+            className="kb-contribution-fixed-type"
+            data-knowledge-type={activeKnowledgeType}
+          >
             <LockKeyhole aria-hidden="true" className="kb-contribution-lock-icon" />
             <KnowledgeTypeIcon knowledgeType={activeKnowledgeType} />
             <span>{activeKnowledgeTypeLabel}</span>
@@ -369,19 +443,14 @@ export function ContributionEditor({
       />
 
       <form className="kb-contribution-form" onSubmit={handleSubmit}>
-        {primaryField === "title" ? (
-          <>
-            {titleField}
-            {bodyField}
-          </>
-        ) : (
-          <>
-            {bodyField}
-            {titleField}
-          </>
-        )}
-        {typeField}
+        {primaryField === "title" ? titleField : bodyField}
         {sourceTools}
+        <div className="kb-contribution-metadata-row">
+          {typeField}
+          {primaryField === "title" ? bodyField : titleField}
+          {addWordsTitleButton}
+          {modeChip}
+        </div>
 
         <button
           className="kb-contribution-submit"
@@ -427,8 +496,6 @@ export function ContributionEditor({
         ) : null}
       </form>
 
-      <ContributionPreviewPanel preview={contributionPreview} />
-
       <Presence present={submissionState.kind === "submitted"}>
         {(presenceState) => (
           <p
@@ -439,7 +506,7 @@ export function ContributionEditor({
             <CheckCircle2 aria-hidden="true" />
             {submissionState.kind === "submitted" &&
             submissionState.mode === "smartStorage"
-              ? "Stored Smartly"
+              ? "Stored"
               : "Submitted"}
           </p>
         )}
@@ -481,86 +548,34 @@ function getContributionFieldClassName(
 }
 
 function ContributionSourceTools({
-  body,
-  contributionNote,
-  externalUrlDraft,
   externalUrls,
-  onAddExternalUrl,
-  onContributionNoteChange,
-  onExternalUrlDraftChange,
   onFileInputChange,
   onRemoveExternalUrl,
   onRemoveUploadedFile,
   uploadedFiles,
   uploadState,
 }: {
-  body: string;
-  contributionNote: string;
-  externalUrlDraft: string;
   externalUrls: SmartStorageExternalUrlInput[];
-  onAddExternalUrl: () => void;
-  onContributionNoteChange: (nextNote: string) => void;
-  onExternalUrlDraftChange: (nextUrl: string) => void;
   onFileInputChange: (event: ChangeEvent<HTMLInputElement>) => void;
-  onRemoveExternalUrl: (index: number) => void;
+  onRemoveExternalUrl: (url: string) => void;
   onRemoveUploadedFile: (index: number) => void;
   uploadedFiles: SmartStorageUploadedFileInput[];
   uploadState: UploadState;
 }) {
-  const authoredTextPreview = body.trim();
-  const hasInventory =
-    authoredTextPreview.length > 0 ||
-    externalUrls.length > 0 ||
-    uploadedFiles.length > 0;
+  const hasInventory = externalUrls.length > 0 || uploadedFiles.length > 0;
 
   return (
     <section
-      aria-label="Smart Storage Source inventory"
+      aria-label="Staged Sources"
       className="kb-contribution-source-tools"
     >
-      <label className="kb-contribution-field kb-contribution-note-field">
-        <span>Contribution Note</span>
-        <textarea
-          onChange={(event) =>
-            onContributionNoteChange(event.currentTarget.value)
-          }
-          placeholder="Guidance for Smart Storage..."
-          rows={3}
-          value={contributionNote}
-        />
-      </label>
-
-      <div className="kb-contribution-source-add-row">
-        <label className="kb-contribution-field kb-contribution-url-field">
-          <span>External URL</span>
-          <input
-            onChange={(event) =>
-              onExternalUrlDraftChange(event.currentTarget.value)
-            }
-            placeholder="https://example.com/source"
-            type="url"
-            value={externalUrlDraft}
-          />
-        </label>
-        <button
-          aria-label="Add external URL Source"
-          className="kb-contribution-source-icon-button"
-          disabled={externalUrlDraft.trim().length === 0}
-          onClick={onAddExternalUrl}
-          title="Add external URL Source"
-          type="button"
-        >
-          <Plus aria-hidden="true" />
-        </button>
-      </div>
-
       <label className="kb-contribution-file-picker">
         <UploadCloud aria-hidden="true" />
         <span>
-          {uploadState.kind === "uploading" ? "Uploading..." : "Upload File"}
+          {uploadState.kind === "uploading" ? "Uploading..." : "Attach file"}
         </span>
         <input
-          aria-label="Upload file Source"
+          aria-label="Attach file Source"
           disabled={uploadState.kind === "uploading"}
           multiple
           onChange={onFileInputChange}
@@ -574,65 +589,46 @@ function ContributionSourceTools({
         </p>
       ) : null}
 
-      <div className="kb-contribution-source-inventory">
-        <header>
-          <FileText aria-hidden="true" />
-          <span>Source Inventory</span>
-        </header>
-        {hasInventory ? (
-          <ul>
-            {authoredTextPreview ? (
-              <li>
-                <FileText aria-hidden="true" />
-                <span>
-                  <strong>Authored Text</strong>
-                  <small>
-                    {limitContributionPreviewText(authoredTextPreview)}
-                  </small>
-                </span>
-              </li>
-            ) : null}
-            {externalUrls.map((externalUrl, index) => (
-              <li key={`${externalUrl.url}-${index}`}>
-                <Link aria-hidden="true" />
-                <span>
-                  <strong>{externalUrl.title ?? "External URL"}</strong>
-                  <small>{externalUrl.url}</small>
-                </span>
-                <button
-                  aria-label={`Remove external URL Source ${index + 1}`}
-                  className="kb-contribution-source-remove"
-                  onClick={() => onRemoveExternalUrl(index)}
-                  title="Remove external URL Source"
-                  type="button"
-                >
-                  <Trash2 aria-hidden="true" />
-                </button>
-              </li>
-            ))}
-            {uploadedFiles.map((uploadedFile, index) => (
-              <li key={`${uploadedFile.storageId}-${index}`}>
-                <UploadCloud aria-hidden="true" />
-                <span>
-                  <strong>{uploadedFile.title ?? uploadedFile.fileName}</strong>
-                  <small>{formatUploadedFileMeta(uploadedFile)}</small>
-                </span>
-                <button
-                  aria-label={`Remove uploaded file Source ${index + 1}`}
-                  className="kb-contribution-source-remove"
-                  onClick={() => onRemoveUploadedFile(index)}
-                  title="Remove uploaded file Source"
-                  type="button"
-                >
-                  <Trash2 aria-hidden="true" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No Sources staged.</p>
-        )}
-      </div>
+      {hasInventory ? (
+        <ul className="kb-contribution-source-chips">
+          {externalUrls.map((externalUrl, index) => (
+            <li key={`${externalUrl.url}-${index}`}>
+              <Link aria-hidden="true" />
+              <span>
+                <strong>{externalUrl.linkPreviewTitle ?? "Link preview pending"}</strong>
+                <small>{externalUrl.url}</small>
+              </span>
+              <button
+                aria-label={`Remove external URL Source ${index + 1}`}
+                className="kb-contribution-source-remove"
+                onClick={() => onRemoveExternalUrl(externalUrl.url)}
+                title="Remove external URL Source"
+                type="button"
+              >
+                <Trash2 aria-hidden="true" />
+              </button>
+            </li>
+          ))}
+          {uploadedFiles.map((uploadedFile, index) => (
+            <li key={`${uploadedFile.storageId}-${index}`}>
+              <UploadCloud aria-hidden="true" />
+              <span>
+                <strong>{uploadedFile.title ?? uploadedFile.fileName}</strong>
+                <small>{formatUploadedFileMeta(uploadedFile)}</small>
+              </span>
+              <button
+                aria-label={`Remove uploaded file Source ${index + 1}`}
+                className="kb-contribution-source-remove"
+                onClick={() => onRemoveUploadedFile(index)}
+                title="Remove uploaded file Source"
+                type="button"
+              >
+                <Trash2 aria-hidden="true" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </section>
   );
 }
@@ -661,6 +657,9 @@ function formatFileSize(sizeBytes: number) {
 }
 
 export function resolveContributionKnowledgeType({
+  allowedContributionTypes,
+  body = "",
+  parentEntryTitle,
   selectedKnowledgeType,
   slot,
 }: ContributionKnowledgeTypeSources): AuthorableKnowledgeType {
@@ -668,31 +667,58 @@ export function resolveContributionKnowledgeType({
     return slot.requestedKnowledgeType;
   }
 
-  if (isAuthorableKnowledgeType(selectedKnowledgeType)) {
+  const allowedTypes = getAllowedContributionTypes(allowedContributionTypes);
+
+  if (
+    isAuthorableKnowledgeType(selectedKnowledgeType) &&
+    allowedTypes.includes(selectedKnowledgeType)
+  ) {
     return selectedKnowledgeType;
   }
 
-  return "words";
+  if (
+    !parentEntryTitle &&
+    endsWithQuestionMark(body) &&
+    allowedTypes.includes("question")
+  ) {
+    return "question";
+  }
+
+  if (parentEntryTitle && allowedTypes.includes("comment")) {
+    return "comment";
+  }
+
+  return allowedTypes.includes("words") ? "words" : allowedTypes[0];
 }
 
 export function resolveContributionMode({
   context,
   defaultMode,
   guidedContributionType,
+  hasExplicitWordsTitle = false,
   hasSupplementalSources = false,
+  knowledgeType = "words",
   slot,
 }: {
   context: ActiveTag[];
   defaultMode?: ContributionMode;
   guidedContributionType?: GuidedContributionType | null;
+  hasExplicitWordsTitle?: boolean;
   hasSupplementalSources?: boolean;
+  knowledgeType?: AuthorableKnowledgeType;
   slot?: KnowledgeSlotSummary;
 }): ContributionMode {
   if (guidedContributionType) {
     return "direct";
   }
 
-  if (hasSupplementalSources) {
+  if (
+    isSmartStorageForced({
+      hasExplicitWordsTitle,
+      hasSupplementalSources,
+      knowledgeType,
+    })
+  ) {
     return "smartStorage";
   }
 
@@ -712,6 +738,7 @@ export function createContributionPreview({
   context,
   defaultMode,
   guidedContributionType,
+  hasExplicitWordsTitle = false,
   hasSupplementalSources = false,
   knowledgeType,
   parentEntryTitle: _parentEntryTitle,
@@ -722,6 +749,7 @@ export function createContributionPreview({
   context: ActiveTag[];
   defaultMode?: ContributionMode;
   guidedContributionType?: GuidedContributionType | null;
+  hasExplicitWordsTitle?: boolean;
   hasSupplementalSources?: boolean;
   knowledgeType: AuthorableKnowledgeType;
   parentEntryTitle?: string;
@@ -736,7 +764,9 @@ export function createContributionPreview({
     context,
     defaultMode,
     guidedContributionType: activeGuidedContributionType,
+    hasExplicitWordsTitle,
     hasSupplementalSources,
+    knowledgeType,
     slot,
   });
   const fieldConfig = getContributionFieldConfig(
@@ -753,6 +783,16 @@ export function createContributionPreview({
       value: formatContributionContextPreview(context),
     },
   ];
+  const quotedPersonTag = getSingleQuotedPersonContextTag({
+    context,
+    knowledgeType,
+  });
+  if (quotedPersonTag) {
+    attributes.push({
+      label: "Quoted Person",
+      value: quotedPersonTag.label,
+    });
+  }
   const trimmedTitle = title.trim();
   const trimmedBody = body.trim();
 
@@ -816,9 +856,10 @@ export function createContributionInput({
   );
 
   const trimmedContributionNote = contributionNote?.trim();
+  const bodyText = fieldConfig.showsBodyField ? body : "";
 
   return {
-    body: fieldConfig.showsBodyField ? body : "",
+    body: bodyText,
     ...(trimmedContributionNote
       ? { contributionNote: trimmedContributionNote }
       : {}),
@@ -827,6 +868,7 @@ export function createContributionInput({
     knowledgeType,
     slotId: slot?.id,
     title: createContributionInputTitle({
+      body: bodyText,
       knowledgeType,
       parentEntryTitle,
       title,
@@ -836,16 +878,22 @@ export function createContributionInput({
 }
 
 function createContributionInputTitle({
+  body,
   knowledgeType,
   parentEntryTitle,
   title,
 }: {
+  body: string;
   knowledgeType: AuthorableKnowledgeType;
   parentEntryTitle?: string;
   title: string;
 }) {
   if (knowledgeType === "comment") {
     return createCommentTitle(parentEntryTitle);
+  }
+
+  if (knowledgeType === "words") {
+    return title.trim() || createWordsTitle(body);
   }
 
   return title.trim();
@@ -882,6 +930,20 @@ function getContributionFieldConfig(
       bodyRequired: true,
       showsBodyField: true,
       showsTitleField: false,
+    };
+  }
+
+  if (knowledgeType === "words") {
+    return {
+      bodyLabel: "Source",
+      bodyPlaceholder: "Contribute an answer in this context...",
+      bodyPreviewLabel: "Preview",
+      bodyRequired: true,
+      showsBodyField: true,
+      showsTitleField: false,
+      titleLabel: "Title",
+      titlePlaceholder: "Optional title",
+      titlePreviewLabel: "Title",
     };
   }
 
@@ -937,18 +999,13 @@ function submitContributionInput(
 
 function getContributionKnowledgeTypeOptions(
   activeKnowledgeType: AuthorableKnowledgeType,
-  isSlotTypeFixed: boolean,
+  allowedContributionTypes: readonly AuthorableKnowledgeType[],
 ) {
-  if (
-    isSlotTypeFixed &&
-    !GENERIC_CONTRIBUTION_KNOWLEDGE_TYPES.some(
-      (knowledgeType) => knowledgeType === activeKnowledgeType,
-    )
-  ) {
-    return [activeKnowledgeType, ...GENERIC_CONTRIBUTION_KNOWLEDGE_TYPES];
+  if (!allowedContributionTypes.includes(activeKnowledgeType)) {
+    return [activeKnowledgeType, ...allowedContributionTypes];
   }
 
-  return GENERIC_CONTRIBUTION_KNOWLEDGE_TYPES;
+  return allowedContributionTypes;
 }
 
 function getAlternateContributionMode(mode: ContributionMode): ContributionMode {
@@ -961,11 +1018,19 @@ function getContributionSubmitLabel(
   guidedContributionType: GuidedContributionType | null = null,
 ) {
   if (mode === "smartStorage") {
-    return "Store Smartly";
+    return "Store";
   }
 
   if (knowledgeType === "group" && guidedContributionType === "group") {
     return "Create Group";
+  }
+
+  if (knowledgeType === "comment") {
+    return "Comment";
+  }
+
+  if (knowledgeType === "words") {
+    return "Post";
   }
 
   return `Post ${formatKnowledgeTypeLabel(knowledgeType)}`;
@@ -982,9 +1047,24 @@ function resolveGuidedContributionType(
   return null;
 }
 
+function getSingleQuotedPersonContextTag({
+  context,
+  knowledgeType,
+}: {
+  context: ActiveTag[];
+  knowledgeType: AuthorableKnowledgeType;
+}) {
+  if (knowledgeType !== "quote") {
+    return undefined;
+  }
+
+  const personTags = context.filter((tag) => tag.knowledgeType === "person");
+  return personTags.length === 1 ? personTags[0] : undefined;
+}
+
 function formatContributionContextPreview(context: ActiveTag[]) {
   if (context.length === 0) {
-    return "Global Knowledge Context";
+    return "All Accessible Knowledge";
   }
 
   return context.map((tag) => tag.label).join(", ");
@@ -998,29 +1078,6 @@ function limitContributionPreviewText(text: string) {
   return `${text.slice(0, 137).trimEnd()}...`;
 }
 
-function ContributionPreviewPanel({ preview }: { preview: ContributionPreview }) {
-  return (
-    <section
-      className="kb-contribution-preview"
-      aria-label="Contribution Preview"
-      data-mode={preview.mode}
-    >
-      <header>
-        <span>{preview.mode === "smartStorage" ? "Smart Storage" : "Direct Post"}</span>
-        <KnowledgeTypeIcon knowledgeType={preview.knowledgeType} />
-      </header>
-      <dl>
-        {preview.attributes.map((attribute) => (
-          <div key={attribute.label}>
-            <dt>{attribute.label}</dt>
-            <dd>{attribute.value}</dd>
-          </div>
-        ))}
-      </dl>
-    </section>
-  );
-}
-
 function ContributionContextTags({
   context,
   onNavigateToHref,
@@ -1031,7 +1088,7 @@ function ContributionContextTags({
   if (context.length === 0) {
     return (
       <p className="kb-contribution-context-empty" role="status">
-        Global Knowledge Context
+        All Accessible Knowledge
       </p>
     );
   }
@@ -1039,7 +1096,7 @@ function ContributionContextTags({
   return (
     <ul className="kb-contribution-context-tags" aria-label="Contribution context Tags">
       {context.map((tag) => (
-        <li key={tag.id}>
+        <li data-knowledge-type={tag.knowledgeType} key={tag.id}>
           <ReferentTagLink
             onNavigateToHref={onNavigateToHref}
             showIcon
@@ -1049,4 +1106,95 @@ function ContributionContextTags({
       ))}
     </ul>
   );
+}
+
+function getAllowedContributionTypes(
+  allowedContributionTypes?: readonly AuthorableKnowledgeType[],
+): AuthorableKnowledgeType[] {
+  const allowedTypes = (
+    allowedContributionTypes ?? GENERIC_CONTRIBUTION_KNOWLEDGE_TYPES
+  ).filter(
+    (knowledgeType): knowledgeType is AuthorableKnowledgeType =>
+      isAuthorableKnowledgeType(knowledgeType) && knowledgeType !== "rsvp",
+  );
+
+  return allowedTypes.length > 0 ? allowedTypes : ["words"];
+}
+
+function isSmartStorageForced({
+  hasExplicitWordsTitle,
+  hasSupplementalSources,
+  knowledgeType,
+}: {
+  hasExplicitWordsTitle?: boolean;
+  hasSupplementalSources?: boolean;
+  knowledgeType: AuthorableKnowledgeType;
+}) {
+  return (
+    hasSupplementalSources === true ||
+    (knowledgeType === "words" && hasExplicitWordsTitle === true) ||
+    (knowledgeType !== "words" && knowledgeType !== "comment")
+  );
+}
+
+function endsWithQuestionMark(text: string) {
+  return text.trimEnd().endsWith("?");
+}
+
+const URL_PATTERN = /\bhttps?:\/\/[^\s<>"']+/gi;
+const TRAILING_URL_PUNCTUATION = /[),.;:!?]+$/;
+
+export function extractExternalUrlsFromText(
+  text: string,
+): SmartStorageExternalUrlInput[] {
+  const matches = text.match(URL_PATTERN) ?? [];
+  const normalizedUrls = new Map<string, SmartStorageExternalUrlInput>();
+
+  for (const match of matches) {
+    const url = normalizeDetectedUrl(match);
+    if (url && !normalizedUrls.has(url)) {
+      normalizedUrls.set(url, { url });
+    }
+  }
+
+  return Array.from(normalizedUrls.values());
+}
+
+function normalizeDetectedUrl(value: string) {
+  const trimmed = value.trim().replace(TRAILING_URL_PUNCTUATION, "");
+
+  try {
+    return new URL(trimmed).href;
+  } catch {
+    return null;
+  }
+}
+
+function removeUrlFromText(text: string, url: string) {
+  return text
+    .replace(URL_PATTERN, (match) => {
+      const normalized = normalizeDetectedUrl(match);
+      return normalized === url ? "" : match;
+    })
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trimStart();
+}
+
+function createWordsTitle(body: string) {
+  const firstLine = body
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find(Boolean);
+  const source = firstLine ?? body.trim().replace(/\s+/g, " ");
+
+  return limitContributionTitle(source || "Words");
+}
+
+function limitContributionTitle(text: string) {
+  if (text.length <= 80) {
+    return text;
+  }
+
+  return `${text.slice(0, 77).trimEnd()}...`;
 }

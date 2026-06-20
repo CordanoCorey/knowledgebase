@@ -83,6 +83,92 @@ describe("Analytics MVP backend", () => {
     ]);
   });
 
+  test("records root search events without active context", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertActiveUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+
+    const search = await authed.mutation(api.analytics.recordSearchEvent, {
+      searchScope: "root",
+      searchText: "  disordered loves  ",
+      activeTagKeys: ["holy-spirit"],
+    });
+
+    expect(search).toMatchObject({
+      activeTagCount: 0,
+      recorded: true,
+      resolvedTagCount: 0,
+      searchScope: "root",
+      searchText: "disordered loves",
+    });
+
+    const events = await t.run(takeSearchEvents);
+    expect(events).toEqual([
+      expect.objectContaining({
+        activeTagCount: 0,
+        activeTagIds: [],
+        activeTagKeys: [],
+        searchScope: "root",
+        searchText: "disordered loves",
+        userId,
+      }),
+    ]);
+  });
+
+  test("records active-context search events with resolved active Tag ids", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedNavigatorRows);
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    const search = await authed.mutation(api.analytics.recordSearchEvent, {
+      searchScope: "activeKnowledgeContext",
+      searchText: "  courage in a family trial  ",
+      activeTagKeys: ["holy-spirit", "romans-8-28", "holy-spirit"],
+    });
+
+    expect(search).toMatchObject({
+      activeTagCount: 2,
+      recorded: true,
+      resolvedTagCount: 1,
+      searchScope: "activeKnowledgeContext",
+      searchText: "courage in a family trial",
+    });
+
+    const events = await t.run(takeSearchEvents);
+    expect(events).toEqual([
+      expect.objectContaining({
+        activeTagCount: 2,
+        activeTagIds: [seed.tags.holySpirit],
+        activeTagKeys: ["holy-spirit", "romans-8-28"],
+        searchScope: "activeKnowledgeContext",
+        searchText: "courage in a family trial",
+        userId: seed.userId,
+      }),
+    ]);
+  });
+
+  test("does not record whitespace-only search events", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertActiveUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+
+    const search = await authed.mutation(api.analytics.recordSearchEvent, {
+      searchScope: "activeKnowledgeContext",
+      searchText: "   ",
+      activeTagKeys: ["holy-spirit"],
+    });
+
+    expect(search).toMatchObject({
+      activeTagCount: 0,
+      eventId: null,
+      recorded: false,
+      resolvedTagCount: 0,
+      searchScope: "activeKnowledgeContext",
+      searchText: "",
+    });
+    expect(await t.run(takeSearchEvents)).toEqual([]);
+  });
+
   test("scores active Bible contexts from recent visits and open requests", async () => {
     const t = convexTest({ schema, modules });
     const seed = await t.run(seedBibleContextRows);
@@ -168,6 +254,10 @@ async function insertActiveUser(ctx: MutationCtx) {
     isActive: true,
     name: "Analytics User",
   });
+}
+
+async function takeSearchEvents(ctx: MutationCtx) {
+  return await ctx.db.query("searchEvents").take(10);
 }
 
 async function seedNavigatorRows(ctx: MutationCtx) {

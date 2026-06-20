@@ -6,7 +6,10 @@ import type {
   KnowledgeEntrySummary,
   KnowledgeSlotSummary,
 } from "./knowledgeContracts";
-import { getApplicableHumanWeight } from "./knowledgeContracts";
+import {
+  getApplicableHumanWeight,
+  getHumanWeightFeedPriority,
+} from "./knowledgeContracts";
 
 export type { ActiveTag } from "./knowledgeContext";
 export type {
@@ -39,6 +42,7 @@ const CONTRIBUTOR_ANNA: ContributorSummary = {
   name: "Anna Matthias",
 };
 
+const CONTEXT_EXPERTISE_MATURITY_PER_EVIDENCE = 20;
 const EXPERT_CONTRIBUTION_BONUS = 12;
 
 export const ANSWER_FEED_FIXTURE: AnswerFeedFixtureItem[] = [
@@ -400,9 +404,9 @@ export function selectKnowledgeContextExperts(
   const aggregates = new Map<
     string,
     ContributorSummary & {
-      contributionCount: number;
       latestUpdatedAt: number;
       maxHumanWeight: number;
+      postCount: number;
       totalHumanWeight: number;
     }
   >();
@@ -420,7 +424,7 @@ export function selectKnowledgeContextExperts(
     const { contributor, updatedAt } = item.entry;
     const aggregate = aggregates.get(contributor.id);
     if (aggregate) {
-      aggregate.contributionCount += 1;
+      aggregate.postCount += 1;
       aggregate.latestUpdatedAt = Math.max(aggregate.latestUpdatedAt, updatedAt);
       aggregate.maxHumanWeight = Math.max(aggregate.maxHumanWeight, humanWeight);
       aggregate.totalHumanWeight += humanWeight;
@@ -429,9 +433,9 @@ export function selectKnowledgeContextExperts(
 
     aggregates.set(contributor.id, {
       ...contributor,
-      contributionCount: 1,
       latestUpdatedAt: updatedAt,
       maxHumanWeight: humanWeight,
+      postCount: 1,
       totalHumanWeight: humanWeight,
     });
   }
@@ -492,22 +496,10 @@ function compareAnswerHumanWeight(
   first: AnswerFeedFixtureItem & { kind: "answer" },
   second: AnswerFeedFixtureItem & { kind: "answer" },
 ) {
-  const firstHumanWeight = getApplicableHumanWeight(first.entry);
-  const secondHumanWeight = getApplicableHumanWeight(second.entry);
-
-  if (firstHumanWeight !== undefined && secondHumanWeight !== undefined) {
-    return secondHumanWeight - firstHumanWeight;
-  }
-
-  if (firstHumanWeight !== undefined) {
-    return -1;
-  }
-
-  if (secondHumanWeight !== undefined) {
-    return 1;
-  }
-
-  return 0;
+  return (
+    getHumanWeightFeedPriority(second.entry) -
+    getHumanWeightFeedPriority(first.entry)
+  );
 }
 
 function compareAnswerFeedSlots(
@@ -545,25 +537,26 @@ function getSlotStatusOrder(status: KnowledgeSlotSummary["status"]) {
 
 function toKnowledgeContextExpert(
   aggregate: ContributorSummary & {
-    contributionCount: number;
     latestUpdatedAt: number;
     maxHumanWeight: number;
+    postCount: number;
     totalHumanWeight: number;
   },
 ): KnowledgeContextExpert & { latestUpdatedAt: number } {
-  const averageHumanWeight =
-    aggregate.totalHumanWeight / aggregate.contributionCount;
+  const averageHumanWeight = aggregate.totalHumanWeight / aggregate.postCount;
   const expert = {
     id: aggregate.id,
     name: aggregate.name,
-    averageHumanWeight: Math.round(averageHumanWeight),
-    contributionCount: aggregate.contributionCount,
+    contextExpertiseMaturity: getContextExpertiseMaturity(aggregate.postCount),
     latestUpdatedAt: aggregate.latestUpdatedAt,
-    reliabilityScore: getReliabilityScore(
+    contextExpertiseScore: getContextExpertiseScore(
       averageHumanWeight,
-      aggregate.contributionCount,
+      aggregate.postCount,
       aggregate.maxHumanWeight,
     ),
+    evidenceCount: aggregate.postCount,
+    feedbackCount: 0,
+    postCount: aggregate.postCount,
   };
 
   return aggregate.href === undefined
@@ -574,14 +567,21 @@ function toKnowledgeContextExpert(
       };
 }
 
-function getReliabilityScore(
+function getContextExpertiseMaturity(evidenceCount: number) {
+  return Math.min(
+    100,
+    Math.max(0, evidenceCount) * CONTEXT_EXPERTISE_MATURITY_PER_EVIDENCE,
+  );
+}
+
+function getContextExpertiseScore(
   averageHumanWeight: number,
-  contributionCount: number,
+  postCount: number,
   maxHumanWeight: number,
 ) {
   return Math.round(
     averageHumanWeight +
-      Math.min(contributionCount, 5) * EXPERT_CONTRIBUTION_BONUS +
+      Math.min(postCount, 5) * EXPERT_CONTRIBUTION_BONUS +
       Math.max(0, maxHumanWeight - averageHumanWeight) * 0.1,
   );
 }
@@ -591,9 +591,11 @@ function compareKnowledgeContextExperts(
   second: KnowledgeContextExpert & { latestUpdatedAt?: number },
 ) {
   return (
-    second.reliabilityScore - first.reliabilityScore ||
-    second.averageHumanWeight - first.averageHumanWeight ||
-    second.contributionCount - first.contributionCount ||
+    second.contextExpertiseScore - first.contextExpertiseScore ||
+    second.contextExpertiseMaturity - first.contextExpertiseMaturity ||
+    second.evidenceCount - first.evidenceCount ||
+    second.postCount - first.postCount ||
+    second.feedbackCount - first.feedbackCount ||
     (second.latestUpdatedAt ?? 0) - (first.latestUpdatedAt ?? 0) ||
     first.name.localeCompare(second.name) ||
     first.id.localeCompare(second.id)
@@ -606,9 +608,11 @@ function removeExpertSortFields(
   const cleanExpert: KnowledgeContextExpert = {
     id: expert.id,
     name: expert.name,
-    averageHumanWeight: expert.averageHumanWeight,
-    contributionCount: expert.contributionCount,
-    reliabilityScore: expert.reliabilityScore,
+    contextExpertiseMaturity: expert.contextExpertiseMaturity,
+    contextExpertiseScore: expert.contextExpertiseScore,
+    evidenceCount: expert.evidenceCount,
+    feedbackCount: expert.feedbackCount,
+    postCount: expert.postCount,
   };
 
   return expert.href === undefined

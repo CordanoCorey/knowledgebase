@@ -108,18 +108,14 @@ supplies it during the Vercel build.
 ### Preview deployments
 
 Vercel creates a Preview deployment for non-production branches and pull
-requests. Because this project runs `convex deploy` during every Vercel build,
-Preview builds also need Convex deployment credentials.
+requests. This project intentionally skips Preview builds through
+`ignoreCommand` in `vercel.json` so branch pushes do not deploy Convex or create
+extra preview sites.
 
-If Preview builds fail with "Vercel build environment detected but no Convex
-deployment configuration found", create a Convex **Preview** deploy key in the
-Convex dashboard and add it to Vercel as `CONVEX_DEPLOY_KEY` for the Preview
-environment only. Keep the existing Production deploy key scoped to Production.
-
-The preview key lets Convex create or reuse an isolated Convex deployment for
-the branch and pass that deployment URL to the Vite build as `VITE_CONVEX_URL`.
-Configure Convex auth env vars and OAuth redirect URLs for previews separately
-if branch preview sites need working sign-in.
+If branch previews are needed later, remove the `ignoreCommand` from
+`vercel.json`, create a Convex **Preview** deploy key in the Convex dashboard,
+and add it to Vercel as `CONVEX_DEPLOY_KEY` for the Preview environment only.
+Keep the existing Production deploy key scoped to Production.
 
 ### One-time setup
 

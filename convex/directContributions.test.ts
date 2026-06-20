@@ -10,8 +10,16 @@ import schema from "./schema";
 const modules = {
   ...import.meta.glob("./_generated/*.*s"),
   "./answerFeed.ts": () => import("./answerFeed"),
+  "./contextExpertise.ts": () => import("./contextExpertise"),
   "./directContributions.ts": () => import("./directContributions"),
+  "./lib/appAccess.ts": () => import("./lib/appAccess"),
+  "./lib/contextExpertiseEvidence.ts": () =>
+    import("./lib/contextExpertiseEvidence"),
+  "./lib/humanWeightEvidence.ts": () => import("./lib/humanWeightEvidence"),
+  "./lib/typeBehavior.ts": () => import("./lib/typeBehavior"),
 };
+
+const BASE_TIME = Date.UTC(2026, 5, 1, 12);
 
 describe("Direct Contributions", () => {
   test("creates a durable Words Knowledge Entry and makes it visible in the Answer Feed", async () => {
@@ -71,13 +79,32 @@ describe("Direct Contributions", () => {
           q.eq("knowledgeType", "topic").eq("lookupKey", "courage"),
         )
         .unique();
+      if (!courageTag) {
+        throw new Error("Courage tag was not created.");
+      }
+      const contextKey = getContextKey([seed.joshuaTagId, courageTag._id]);
       const entryTags = await ctx.db
         .query("entryTags")
         .withIndex("by_entryId_and_tagId", (q) => q.eq("entryId", result.entryId))
         .collect();
+      const contextExpertiseEvidence = await ctx.db
+        .query("contextExpertiseEvidence")
+        .withIndex("by_entryId_and_createdAt", (q) =>
+          q.eq("entryId", result.entryId),
+        )
+        .collect();
+      const contextExpertiseAggregate = await ctx.db
+        .query("contextExpertiseAggregates")
+        .withIndex("by_subjectUserId_and_contextKey", (q) =>
+          q.eq("subjectUserId", seed.userId).eq("contextKey", contextKey),
+        )
+        .unique();
 
       return {
+        contextExpertiseAggregate,
         courageTag,
+        contextExpertiseEvidence,
+        contextKey,
         entry,
         entryTags,
         primaryTag,
@@ -142,9 +169,54 @@ describe("Direct Contributions", () => {
     expect(rowState.sourceCount).toBe(0);
     expect(rowState.smartStorageRunCount).toBe(0);
     expect(rowState.smartStorageProposalCount).toBe(0);
+    expect(rowState.contextExpertiseEvidence).toEqual([
+      expect.objectContaining({
+        contextKey: rowState.contextKey,
+        contextTagIds: [seed.joshuaTagId, rowState.courageTag._id].sort(),
+        entryId: result.entryId,
+        evidenceKind: "post",
+        subjectUserId: seed.userId,
+        visibilityKind: "public",
+        visibilityTargetKey: "public",
+      }),
+    ]);
+    expect(rowState.contextExpertiseAggregate).toEqual(
+      expect.objectContaining({
+        contextExpertiseMaturity: 20,
+        contextExpertiseScore: 94,
+        contextKey: rowState.contextKey,
+        contextTagIds: [seed.joshuaTagId, rowState.courageTag._id].sort(),
+        evidenceCount: 1,
+        feedbackCount: 0,
+        postCount: 1,
+        subjectUserId: seed.userId,
+        topSupportingEntryIds: [result.entryId],
+        visibilityKind: "public",
+        visibilityTargetKey: "public",
+        audienceScopeKind: "public",
+        audienceScopeTargetKey: "public",
+      }),
+    );
+
+    const rankedAggregates = await authed.query(
+      api.contextExpertise.listForActiveTags,
+      {
+        activeTagIds: [seed.joshuaTagId, rowState.courageTag._id],
+        limit: 5,
+      },
+    );
+    expect(rankedAggregates).toEqual([
+      expect.objectContaining({
+        aggregateId: rowState.contextExpertiseAggregate!._id,
+        contextExpertiseScore: 94,
+        evidenceCount: 1,
+        subjectUserId: seed.userId,
+        topSupportingEntryIds: [result.entryId],
+      }),
+    ]);
 
     const byIdsFeed = await t.query(api.answerFeed.listForActiveTags, {
-      activeTagIds: [seed.joshuaTagId, rowState.courageTag!._id],
+      activeTagIds: [seed.joshuaTagId, rowState.courageTag._id],
       answerLimit: 10,
       slotLimit: 10,
     });
@@ -156,6 +228,38 @@ describe("Direct Contributions", () => {
       slotLimit: 10,
     });
     expect(getAnswerTitles(byKeysFeed)).toContain("Hopeful courage in Joshua");
+  });
+
+  test("omits Human Weight for non-weight-bearing direct contributions", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedAllowedUserWithJoshuaTag);
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    const result = await authed.mutation(
+      api.directContributions.postDirectContribution,
+      {
+        body: "A topic page for gathering courage-related material.",
+        contextTags: [],
+        knowledgeType: "topic",
+        title: "Courage",
+      },
+    );
+
+    expect(result.entry).toMatchObject({
+      contributor: {
+        id: seed.userId,
+        name: "Direct Contributor",
+      },
+      id: result.entryId,
+      knowledgeType: "topic",
+      title: "Courage",
+    });
+    expect(result.entry).not.toHaveProperty("humanWeight");
+
+    const storedEntry = await t.run(async (ctx) => {
+      return await ctx.db.get(result.entryId);
+    });
+    expect(storedEntry).not.toHaveProperty("humanWeight");
   });
 
   test("stores direct Questions as Question Knowledge Entries", async () => {
@@ -199,6 +303,637 @@ describe("Direct Contributions", () => {
         questionText: "How does Joshua 1 define courage?",
       }),
     );
+  });
+
+  test("stores direct Quotes with quoted Person attribution from one Person context Tag", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(async (ctx) => {
+      const base = await seedAllowedUserWithJoshuaTag(ctx);
+      const lewis = await insertTag(ctx, {
+        canonicalKey: "cs-lewis",
+        knowledgeType: "person",
+        label: "C.S. Lewis",
+      });
+
+      return {
+        ...base,
+        lewisReferentId: lewis.referentId,
+        lewisTagId: lewis.tagId,
+      };
+    });
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+    const input = {
+      body: "Courage is every virtue at the testing point.",
+      contextTags: [
+        {
+          canonicalKey: "joshua-1-6-9",
+          href: "/scripture/joshua-1-6-9",
+          id: "joshua-1-6-9",
+          knowledgeType: "biblePassage" as const,
+          label: "Joshua 1:6-9",
+          passageString: "Joshua 1:6-9",
+        },
+        {
+          canonicalKey: "cs-lewis",
+          href: "/goto/cs-lewis",
+          id: "cs-lewis",
+          knowledgeType: "person" as const,
+          label: "C.S. Lewis",
+        },
+      ],
+      knowledgeType: "quote" as const,
+      title: "Courage at the testing point",
+    };
+
+    const result = await authed.mutation(
+      api.directContributions.postDirectContribution,
+      input,
+    );
+
+    const rowState = await t.run(async (ctx) => {
+      const contextTagIds = [seed.joshuaTagId, seed.lewisTagId].sort();
+      const contextKey = getContextKey(contextTagIds);
+      const quoteRows = await ctx.db
+        .query("quoteEntries")
+        .withIndex("by_entryId", (q) => q.eq("entryId", result.entryId))
+        .collect();
+      const contextExpertiseEvidence = await ctx.db
+        .query("contextExpertiseEvidence")
+        .withIndex("by_entryId_and_createdAt", (q) =>
+          q.eq("entryId", result.entryId),
+        )
+        .collect();
+      const userAggregate = await ctx.db
+        .query("contextExpertiseAggregates")
+        .withIndex("by_subjectUserId_and_contextKey", (q) =>
+          q.eq("subjectUserId", seed.userId).eq("contextKey", contextKey),
+        )
+        .unique();
+      const personAggregate = await ctx.db
+        .query("contextExpertiseAggregates")
+        .withIndex("by_subjectPersonReferentId_and_contextKey", (q) =>
+          q
+            .eq("subjectPersonReferentId", seed.lewisReferentId)
+            .eq("contextKey", contextKey),
+        )
+        .unique();
+
+      return {
+        contextExpertiseEvidence,
+        contextKey,
+        contextTagIds,
+        personAggregate,
+        quoteRows,
+        userAggregate,
+      };
+    });
+    expect(rowState.quoteRows).toEqual([
+      expect.objectContaining({
+        entryId: result.entryId,
+        quotedPersonReferentId: seed.lewisReferentId,
+        sourceText: input.body,
+      }),
+    ]);
+    expect(rowState.contextExpertiseEvidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          contextKey: rowState.contextKey,
+          contextTagIds: rowState.contextTagIds,
+          entryId: result.entryId,
+          evidenceKind: "post",
+          subjectUserId: seed.userId,
+          visibilityKind: "public",
+          visibilityTargetKey: "public",
+        }),
+        expect.objectContaining({
+          contextKey: rowState.contextKey,
+          contextTagIds: rowState.contextTagIds,
+          entryId: result.entryId,
+          evidenceKind: "quoteAttribution",
+          subjectPersonReferentId: seed.lewisReferentId,
+          visibilityKind: "public",
+          visibilityTargetKey: "public",
+        }),
+      ]),
+    );
+    expect(rowState.contextExpertiseEvidence).toHaveLength(2);
+    const quoteAttributionEvidence = rowState.contextExpertiseEvidence.find(
+      (evidence) => evidence.evidenceKind === "quoteAttribution",
+    );
+    expect(quoteAttributionEvidence).not.toHaveProperty("subjectUserId");
+    expect(rowState.userAggregate).toEqual(
+      expect.objectContaining({
+        contextKey: rowState.contextKey,
+        evidenceCount: 1,
+        feedbackCount: 0,
+        postCount: 1,
+        subjectUserId: seed.userId,
+        topSupportingEntryIds: [result.entryId],
+      }),
+    );
+    expect(rowState.personAggregate).toEqual(
+      expect.objectContaining({
+        contextKey: rowState.contextKey,
+        evidenceCount: 1,
+        feedbackCount: 0,
+        postCount: 0,
+        subjectPersonReferentId: seed.lewisReferentId,
+        topSupportingEntryIds: [result.entryId],
+        visibilityKind: "public",
+        visibilityTargetKey: "public",
+        audienceScopeKind: "public",
+        audienceScopeTargetKey: "public",
+      }),
+    );
+    expect(rowState.personAggregate).not.toHaveProperty("subjectUserId");
+
+    const feedItems = await t.query(api.answerFeed.listForActiveTagKeys, {
+      activeTags: input.contextTags,
+      answerLimit: 10,
+      slotLimit: 0,
+    });
+    const answers = feedItems.filter((item) => item.kind === "answer");
+    expect(getAnswerByTitle(answers, input.title).entry.humanWeightCredit).toEqual(
+      {
+        basis: "quotedPerson",
+        label: "C.S. Lewis",
+      },
+    );
+    const globalExperts = await authed.query(
+      api.answerFeed.listExpertsForActiveTagKeys,
+      {
+        activeTags: input.contextTags,
+        expertLimit: 5,
+        expertScope: "global",
+      },
+    );
+    expect(globalExperts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: `person:${seed.lewisReferentId}`,
+          name: "C.S. Lewis",
+          subjectKind: "person",
+          subjectPersonReferentId: seed.lewisReferentId,
+          evidenceCount: 1,
+          feedbackCount: 0,
+          postCount: 0,
+        }),
+      ]),
+    );
+    const expertDetail = await authed.query(
+      api.answerFeed.getExpertDetailForActiveTagKeys,
+      {
+        activeTags: input.contextTags,
+        expertScope: "global",
+        subjectPersonReferentId: seed.lewisReferentId,
+      },
+    );
+    expect(expertDetail).toMatchObject({
+      id: `person:${seed.lewisReferentId}`,
+      subjectKind: "person",
+      subjectPersonReferentId: seed.lewisReferentId,
+      topSupportingEntries: [
+        {
+          id: result.entryId,
+          title: input.title,
+        },
+      ],
+    });
+  });
+
+  test("stores direct Quotes without quoted Person attribution when context is ambiguous", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(async (ctx) => {
+      const base = await seedAllowedUserWithJoshuaTag(ctx);
+      await insertTag(ctx, {
+        canonicalKey: "cs-lewis",
+        knowledgeType: "person",
+        label: "C.S. Lewis",
+      });
+      await insertTag(ctx, {
+        canonicalKey: "gk-chesterton",
+        knowledgeType: "person",
+        label: "G.K. Chesterton",
+      });
+
+      return base;
+    });
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+    const noPersonInput = {
+      body: "An unattributed quote.",
+      contextTags: [
+        {
+          canonicalKey: "joshua-1-6-9",
+          href: "/scripture/joshua-1-6-9",
+          id: "joshua-1-6-9",
+          knowledgeType: "biblePassage" as const,
+          label: "Joshua 1:6-9",
+          passageString: "Joshua 1:6-9",
+        },
+      ],
+      knowledgeType: "quote" as const,
+      title: "Quote without a Person context",
+    };
+    const multiPersonInput = {
+      body: "An ambiguously attributed quote.",
+      contextTags: [
+        {
+          canonicalKey: "cs-lewis",
+          href: "/goto/cs-lewis",
+          id: "cs-lewis",
+          knowledgeType: "person" as const,
+          label: "C.S. Lewis",
+        },
+        {
+          canonicalKey: "gk-chesterton",
+          href: "/goto/gk-chesterton",
+          id: "gk-chesterton",
+          knowledgeType: "person" as const,
+          label: "G.K. Chesterton",
+        },
+      ],
+      knowledgeType: "quote" as const,
+      title: "Quote with ambiguous Person context",
+    };
+
+    const noPersonResult = await authed.mutation(
+      api.directContributions.postDirectContribution,
+      noPersonInput,
+    );
+    const multiPersonResult = await authed.mutation(
+      api.directContributions.postDirectContribution,
+      multiPersonInput,
+    );
+
+    const rowState = await t.run(async (ctx) => ({
+      multiPersonEvidence: await ctx.db
+        .query("contextExpertiseEvidence")
+        .withIndex("by_entryId_and_createdAt", (q) =>
+          q.eq("entryId", multiPersonResult.entryId),
+        )
+        .collect(),
+      multiPersonQuoteRows: await ctx.db
+        .query("quoteEntries")
+        .withIndex("by_entryId", (q) => q.eq("entryId", multiPersonResult.entryId))
+        .collect(),
+      noPersonEvidence: await ctx.db
+        .query("contextExpertiseEvidence")
+        .withIndex("by_entryId_and_createdAt", (q) =>
+          q.eq("entryId", noPersonResult.entryId),
+        )
+        .collect(),
+      noPersonQuoteRows: await ctx.db
+        .query("quoteEntries")
+        .withIndex("by_entryId", (q) => q.eq("entryId", noPersonResult.entryId))
+        .collect(),
+    }));
+    expect(rowState.noPersonQuoteRows).toEqual([
+      expect.objectContaining({
+        entryId: noPersonResult.entryId,
+        sourceText: noPersonInput.body,
+      }),
+    ]);
+    expect(rowState.noPersonQuoteRows[0]).not.toHaveProperty(
+      "quotedPersonReferentId",
+    );
+    expect(rowState.multiPersonQuoteRows).toEqual([
+      expect.objectContaining({
+        entryId: multiPersonResult.entryId,
+        sourceText: multiPersonInput.body,
+      }),
+    ]);
+    expect(rowState.multiPersonQuoteRows[0]).not.toHaveProperty(
+      "quotedPersonReferentId",
+    );
+    expect(
+      rowState.noPersonEvidence.filter(
+        (evidence) => evidence.evidenceKind === "quoteAttribution",
+      ),
+    ).toEqual([]);
+    expect(
+      rowState.multiPersonEvidence.filter(
+        (evidence) => evidence.evidenceKind === "quoteAttribution",
+      ),
+    ).toEqual([]);
+
+    const noPersonFeedItems = await t.query(api.answerFeed.listForActiveTagKeys, {
+      activeTags: noPersonInput.contextTags,
+      answerLimit: 10,
+      slotLimit: 0,
+    });
+    const multiPersonFeedItems = await t.query(
+      api.answerFeed.listForActiveTagKeys,
+      {
+        activeTags: multiPersonInput.contextTags,
+        answerLimit: 10,
+        slotLimit: 0,
+      },
+    );
+    expect(
+      getAnswerByTitle(
+        noPersonFeedItems.filter((item) => item.kind === "answer"),
+        noPersonInput.title,
+      ).entry.humanWeightCredit,
+    ).toEqual({
+      basis: "quotedPerson",
+      label: "Quoted person",
+    });
+    expect(
+      getAnswerByTitle(
+        multiPersonFeedItems.filter((item) => item.kind === "answer"),
+        multiPersonInput.title,
+      ).entry.humanWeightCredit,
+    ).toEqual({
+      basis: "quotedPerson",
+      label: "Quoted person",
+    });
+  });
+
+  test("fulfills an open Knowledge Slot with a matching direct contribution", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedAllowedUserWithJoshuaTag);
+    const slotId = await t.run(async (ctx) =>
+      insertSlot(ctx, {
+        contextTagIds: [seed.joshuaTagId],
+        humanWeightExpectation: "required",
+        requestedKnowledgeType: "lesson",
+        title: "Required Joshua lesson",
+      }),
+    );
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    const result = await authed.mutation(
+      api.directContributions.postDirectContribution,
+      {
+        body: "A lesson submitted for the required Joshua Slot.",
+        contextTags: [
+          {
+            canonicalKey: "joshua-1-6-9",
+            href: "/scripture/joshua-1-6-9",
+            id: "joshua-1-6-9",
+            knowledgeType: "biblePassage",
+            label: "Joshua 1:6-9",
+            passageString: "Joshua 1:6-9",
+          },
+        ],
+        knowledgeType: "lesson",
+        slotId,
+        title: "Required Joshua lesson submission",
+      },
+    );
+
+    const slotContextKey = getContextKey([seed.joshuaTagId]);
+    const state = await t.run(async (ctx) => ({
+      contextExpertiseAggregate: await ctx.db
+        .query("contextExpertiseAggregates")
+        .withIndex("by_subjectUserId_and_contextKey", (q) =>
+          q.eq("subjectUserId", seed.userId).eq("contextKey", slotContextKey),
+        )
+        .unique(),
+      contextExpertiseEvidenceRows: await ctx.db
+        .query("contextExpertiseEvidence")
+        .withIndex("by_entryId_and_createdAt", (q) =>
+          q.eq("entryId", result.entryId),
+        )
+        .collect(),
+      humanWeightEvidenceRows: await ctx.db
+        .query("humanWeightEvidence")
+        .withIndex("by_slotId", (q) => q.eq("slotId", slotId))
+        .collect(),
+      fulfilledSlot: await ctx.db.get(slotId),
+    }));
+
+    expect(state.fulfilledSlot).toEqual(
+      expect.objectContaining({
+        fulfilledEntryId: result.entryId,
+        humanWeightExpectation: "required",
+        requestedKnowledgeType: "lesson",
+        status: "fulfilled",
+      }),
+    );
+    expect(state.humanWeightEvidenceRows).toEqual([
+      expect.objectContaining({
+        entryId: result.entryId,
+        evidenceKind: "slotFulfillment",
+        evidenceSignal: "used",
+        slotId,
+        subjectUserId: seed.userId,
+      }),
+    ]);
+
+    expect(state.contextExpertiseEvidenceRows).toHaveLength(2);
+    const postEvidence = state.contextExpertiseEvidenceRows.find(
+      (row) => row.evidenceKind === "post",
+    );
+    const slotFulfillmentEvidence = state.contextExpertiseEvidenceRows.find(
+      (row) => row.evidenceKind === "slotFulfillment",
+    );
+    expect(postEvidence).toEqual(
+      expect.objectContaining({
+        contextKey: slotContextKey,
+        contextTagIds: [seed.joshuaTagId],
+        entryId: result.entryId,
+        evidenceKind: "post",
+        subjectUserId: seed.userId,
+      }),
+    );
+    expect(postEvidence).not.toHaveProperty("slotId");
+    expect(slotFulfillmentEvidence).toEqual(
+      expect.objectContaining({
+        contextKey: slotContextKey,
+        contextTagIds: [seed.joshuaTagId],
+        entryId: result.entryId,
+        evidenceKind: "slotFulfillment",
+        slotId,
+        subjectUserId: seed.userId,
+      }),
+    );
+    expect(state.contextExpertiseAggregate).toEqual(
+      expect.objectContaining({
+        contextExpertiseMaturity: 40,
+        contextExpertiseScore: 100,
+        contextKey: slotContextKey,
+        contextTagIds: [seed.joshuaTagId],
+        evidenceCount: 2,
+        feedbackCount: 0,
+        postCount: 1,
+        subjectUserId: seed.userId,
+        topSupportingEntryIds: [result.entryId],
+      }),
+    );
+
+    const rankedAggregates = await authed.query(
+      api.contextExpertise.listForActiveTags,
+      {
+        activeTagIds: [seed.joshuaTagId],
+        limit: 5,
+      },
+    );
+    expect(rankedAggregates).toEqual([
+      expect.objectContaining({
+        aggregateId: state.contextExpertiseAggregate!._id,
+        contextExpertiseScore: 100,
+        evidenceCount: 2,
+        postCount: 1,
+        subjectUserId: seed.userId,
+        topSupportingEntryIds: [result.entryId],
+      }),
+    ]);
+  });
+
+  test("does not record Human Weight Slot fulfillment evidence for non-weight-bearing entries", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedAllowedUserWithJoshuaTag);
+    const slotId = await t.run(async (ctx) =>
+      insertSlot(ctx, {
+        contextTagIds: [seed.joshuaTagId],
+        requestedKnowledgeType: "topic",
+        title: "Joshua courage topic",
+      }),
+    );
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    const result = await authed.mutation(
+      api.directContributions.postDirectContribution,
+      {
+        body: "A topic page for gathering Joshua courage material.",
+        contextTags: [
+          {
+            canonicalKey: "joshua-1-6-9",
+            href: "/scripture/joshua-1-6-9",
+            id: "joshua-1-6-9",
+            knowledgeType: "biblePassage",
+            label: "Joshua 1:6-9",
+            passageString: "Joshua 1:6-9",
+          },
+        ],
+        knowledgeType: "topic",
+        slotId,
+        title: "Joshua Courage",
+      },
+    );
+
+    const slotContextKey = getContextKey([seed.joshuaTagId]);
+    const state = await t.run(async (ctx) => ({
+      contextExpertiseAggregate: await ctx.db
+        .query("contextExpertiseAggregates")
+        .withIndex("by_subjectUserId_and_contextKey", (q) =>
+          q.eq("subjectUserId", seed.userId).eq("contextKey", slotContextKey),
+        )
+        .unique(),
+      contextExpertiseEvidenceRows: await ctx.db
+        .query("contextExpertiseEvidence")
+        .withIndex("by_entryId_and_createdAt", (q) =>
+          q.eq("entryId", result.entryId),
+        )
+        .collect(),
+      entry: await ctx.db.get(result.entryId),
+      humanWeightEvidenceRows: await ctx.db
+        .query("humanWeightEvidence")
+        .withIndex("by_slotId", (q) => q.eq("slotId", slotId))
+        .collect(),
+      slot: await ctx.db.get(slotId),
+    }));
+
+    expect(state.slot).toEqual(
+      expect.objectContaining({
+        fulfilledEntryId: result.entryId,
+        requestedKnowledgeType: "topic",
+        status: "fulfilled",
+      }),
+    );
+    expect(state.entry).not.toHaveProperty("humanWeight");
+    expect(state.humanWeightEvidenceRows).toEqual([]);
+    expect(state.contextExpertiseEvidenceRows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          contextKey: slotContextKey,
+          entryId: result.entryId,
+          evidenceKind: "post",
+          subjectUserId: seed.userId,
+        }),
+        expect.objectContaining({
+          contextKey: slotContextKey,
+          entryId: result.entryId,
+          evidenceKind: "slotFulfillment",
+          slotId,
+          subjectUserId: seed.userId,
+        }),
+      ]),
+    );
+    expect(state.contextExpertiseAggregate).toEqual(
+      expect.objectContaining({
+        contextExpertiseMaturity: 40,
+        contextExpertiseScore: 79,
+        evidenceCount: 2,
+        feedbackCount: 0,
+        postCount: 1,
+        topSupportingEntryIds: [result.entryId],
+      }),
+    );
+  });
+
+  test("rejects direct Slot fulfillment when the Knowledge Type does not match", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedAllowedUserWithJoshuaTag);
+    const slotId = await t.run(async (ctx) =>
+      insertSlot(ctx, {
+        contextTagIds: [seed.joshuaTagId],
+        requestedKnowledgeType: "lesson",
+        title: "Lesson-only Slot",
+      }),
+    );
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    await expect(
+      authed.mutation(api.directContributions.postDirectContribution, {
+        body: "This is not a lesson.",
+        contextTags: [
+          {
+            canonicalKey: "joshua-1-6-9",
+            href: "/scripture/joshua-1-6-9",
+            id: "joshua-1-6-9",
+            knowledgeType: "biblePassage",
+            label: "Joshua 1:6-9",
+            passageString: "Joshua 1:6-9",
+          },
+        ],
+        knowledgeType: "words",
+        slotId,
+        title: "Wrong type Slot submission",
+      }),
+    ).rejects.toThrow("must match the Knowledge Slot request");
+
+    const state = await t.run(async (ctx) => {
+      const slot = await ctx.db.get(slotId);
+      const matchingEntries = await ctx.db
+        .query("knowledgeEntries")
+        .withIndex("by_createdByUserId", (q) => q.eq("createdByUserId", seed.userId))
+        .collect();
+      const evidenceRows = await ctx.db
+        .query("humanWeightEvidence")
+        .withIndex("by_slotId", (q) => q.eq("slotId", slotId))
+        .collect();
+      const contextExpertiseEvidenceRows = await ctx.db
+        .query("contextExpertiseEvidence")
+        .withIndex("by_slotId", (q) => q.eq("slotId", slotId))
+        .collect();
+
+      return {
+        contextExpertiseEvidenceRows,
+        evidenceRows,
+        hasWrongTypeSubmission: matchingEntries.some(
+          (entry) => entry.title === "Wrong type Slot submission",
+        ),
+        slot,
+      };
+    });
+
+    expect(state.hasWrongTypeSubmission).toBe(false);
+    expect(state.evidenceRows).toEqual([]);
+    expect(state.contextExpertiseEvidenceRows).toEqual([]);
+    expect(state.slot).toEqual(expect.objectContaining({ status: "open" }));
+    expect(state.slot).not.toHaveProperty("fulfilledEntryId");
   });
 
   test("requires app access before creating direct Gold records", async () => {
@@ -286,6 +1021,18 @@ function getAnswerTitles(
     .map((item) => item.entry.title);
 }
 
+function getAnswerByTitle<T extends { kind: "answer"; entry: { title: string } }>(
+  answers: T[],
+  title: string,
+) {
+  const answer = answers.find((item) => item.entry.title === title);
+  if (!answer) {
+    throw new Error(`Missing Answer "${title}"`);
+  }
+
+  return answer;
+}
+
 async function countEntries(t: ReturnType<typeof convexTest>) {
   return await t.run(async (ctx) => {
     return (await ctx.db.query("knowledgeEntries").collect()).length;
@@ -323,7 +1070,6 @@ async function insertAllowedUser(ctx: MutationCtx) {
     searchText: "Arche Classical Academy School organization.",
     primaryTagLabel: "Arche Classical Academy",
     contextPreviewTagLabels: [],
-    humanWeight: 0,
     visibilityKind: "public",
     visibilityTargetKey: "public",
     discoverabilityKind: "public",
@@ -393,4 +1139,41 @@ async function insertTag(
   });
 
   return { referentId, tagId };
+}
+
+async function insertSlot(
+  ctx: MutationCtx,
+  slot: {
+    contextTagIds: Array<Id<"tags">>;
+    humanWeightExpectation?: Doc<"knowledgeSlots">["humanWeightExpectation"];
+    requestedKnowledgeType: Doc<"knowledgeSlots">["requestedKnowledgeType"];
+    title: string;
+  },
+) {
+  const slotId = await ctx.db.insert("knowledgeSlots", {
+    requestedKnowledgeType: slot.requestedKnowledgeType,
+    status: "open",
+    title: slot.title,
+    contextKey: getContextKey(slot.contextTagIds),
+    targetKind: "public",
+    ...(slot.humanWeightExpectation === undefined
+      ? {}
+      : { humanWeightExpectation: slot.humanWeightExpectation }),
+    createdAt: BASE_TIME,
+    updatedAt: BASE_TIME,
+  });
+
+  for (const tagId of slot.contextTagIds) {
+    await ctx.db.insert("slotTags", {
+      slotId,
+      tagId,
+      addedAt: BASE_TIME,
+    });
+  }
+
+  return slotId;
+}
+
+function getContextKey(tagIds: Array<Id<"tags">>) {
+  return `tags:${[...tagIds].sort().join(",")}`;
 }

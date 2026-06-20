@@ -4,10 +4,10 @@ import { act, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, test } from "vitest";
-import { KnowledgeRequestComposer } from "./KnowledgeRequestComposer";
+import { KnowledgeNavigatorQueryInput } from "./KnowledgeRequestComposer";
 import {
   applyKnowledgeRequestProposal,
-  getKnowledgeRequestSuggestions,
+  getKnowledgeNavigatorQuerySuggestions,
   ignoreKnowledgeRequestProposal,
   submitKnowledgeRequestDraft,
   updateKnowledgeRequestDraftText,
@@ -76,8 +76,8 @@ function keyDown(element: HTMLElement, key: string) {
   });
 }
 
-describe("KnowledgeRequestComposer draft behavior", () => {
-  test("captures typed Knowledge Request text and submits deterministic mapped Tags", () => {
+describe("KnowledgeNavigatorQueryInput behavior", () => {
+  test("captures typed query text and submits deterministic mapped Tags", () => {
     const draft = updateKnowledgeRequestDraftText(
       createKnowledgeRequestDraft(),
       "How should I answer the student about the First Crusade and Matthew 5:9?",
@@ -98,17 +98,17 @@ describe("KnowledgeRequestComposer draft behavior", () => {
     const activeTags = [fixtureTag("matthew-5-9")];
 
     expect(
-      getKnowledgeRequestSuggestions("Romans", []).map(
+      getKnowledgeNavigatorQuerySuggestions("Romans", []).map(
         (suggestion) => suggestion.tag.id,
       ),
     ).toContain("romans-8-28");
     expect(
-      getKnowledgeRequestSuggestions("First Crusade", activeTags).map(
+      getKnowledgeNavigatorQuerySuggestions("First Crusade", activeTags).map(
         (suggestion) => suggestion.tag.id,
       ),
     ).toContain("first-crusade");
     expect(
-      getKnowledgeRequestSuggestions("Micah", []).map((suggestion) => ({
+      getKnowledgeNavigatorQuerySuggestions("Micah", []).map((suggestion) => ({
         id: suggestion.tag.id,
         knowledgeType: suggestion.tag.knowledgeType,
       })),
@@ -117,15 +117,15 @@ describe("KnowledgeRequestComposer draft behavior", () => {
       knowledgeType: "question",
     });
     expect(
-      getKnowledgeRequestSuggestions("Matthew", activeTags).map(
+      getKnowledgeNavigatorQuerySuggestions("Matthew", activeTags).map(
         (suggestion) => suggestion.tag.id,
       ),
     ).not.toContain("matthew-5-9");
   });
 
-  test("renders the compact composer without the old proposal panel", () => {
+  test("renders the query input without composer or request copy", () => {
     const markup = renderToStaticMarkup(
-      <KnowledgeRequestComposer
+      <KnowledgeNavigatorQueryInput
         activeTags={[]}
         initialDraft={createKnowledgeRequestDraft("First Crusade")}
         onApplyMappedTags={() => undefined}
@@ -133,9 +133,12 @@ describe("KnowledgeRequestComposer draft behavior", () => {
       />,
     );
 
-    expect(markup).toContain("Knowledge Composer");
-    expect(markup).toContain("Ask a Question or Add Context");
+    expect(markup).toContain("Knowledge Navigator Query Input");
+    expect(markup).toContain("Search or add tag");
     expect(markup).toContain("Search Context");
+    expect(markup).not.toContain("Knowledge Composer");
+    expect(markup).not.toContain("Knowledge Request");
+    expect(markup).not.toContain("Ask a Question");
     expect(markup).not.toContain("Map Context");
     expect(markup).not.toContain("Proposed Tags");
   });
@@ -184,7 +187,7 @@ describe("KnowledgeRequestComposer draft behavior", () => {
     const activeTags = [fixtureTag("matthew-5-9")];
     let mappedTags: ActiveTag[] = [];
     const view = renderComposer(
-      <KnowledgeRequestComposer
+      <KnowledgeNavigatorQueryInput
         activeTags={activeTags}
         onApplyMappedTags={(nextTags) => {
           mappedTags = nextTags;
@@ -194,7 +197,7 @@ describe("KnowledgeRequestComposer draft behavior", () => {
     );
     const textarea = view.querySelector("textarea");
     if (!textarea) {
-      throw new Error("Expected Knowledge Composer textarea");
+      throw new Error("Expected Knowledge Navigator Query Input textarea");
     }
 
     act(() => textarea.focus());
@@ -216,10 +219,83 @@ describe("KnowledgeRequestComposer draft behavior", () => {
     );
   });
 
+  test("renders backend-provided Tag suggestions when supplied", () => {
+    let mappedTags: ActiveTag[] = [];
+    const robinsonCrusoe: ActiveTag = {
+      canonicalKey: "robinson-crusoe",
+      href: "/goto/robinson-crusoe",
+      id: "robinson-crusoe",
+      knowledgeType: "book",
+      label: "Robinson Crusoe",
+    };
+    const view = renderComposer(
+      <KnowledgeNavigatorQueryInput
+        activeTags={[]}
+        onApplyMappedTags={(nextTags) => {
+          mappedTags = nextTags;
+        }}
+        onSearchContext={() => undefined}
+        suggestions={[
+          {
+            id: robinsonCrusoe.id,
+            matchKind: "label",
+            tag: robinsonCrusoe,
+          },
+        ]}
+      />,
+    );
+    const textarea = view.querySelector("textarea");
+    if (!textarea) {
+      throw new Error("Expected Knowledge Navigator Query Input textarea");
+    }
+
+    act(() => textarea.focus());
+    changeTextarea(textarea, "Robinson");
+    const suggestionButton = view.querySelector<HTMLButtonElement>(
+      '[data-suggestion-id="robinson-crusoe"]',
+    );
+    if (!suggestionButton) {
+      throw new Error("Expected Robinson Crusoe suggestion");
+    }
+    act(() => suggestionButton.click());
+
+    expect(mappedTags).toEqual([robinsonCrusoe]);
+  });
+
+  test("keeps local Tag suggestions visible when backend returns no suggestions", () => {
+    let mappedTags: ActiveTag[] = [];
+    const view = renderComposer(
+      <KnowledgeNavigatorQueryInput
+        activeTags={[]}
+        onApplyMappedTags={(nextTags) => {
+          mappedTags = nextTags;
+        }}
+        onSearchContext={() => undefined}
+        suggestions={[]}
+      />,
+    );
+    const textarea = view.querySelector("textarea");
+    if (!textarea) {
+      throw new Error("Expected Knowledge Navigator Query Input textarea");
+    }
+
+    act(() => textarea.focus());
+    changeTextarea(textarea, "boethiu");
+    const suggestionButton = view.querySelector<HTMLButtonElement>(
+      '[data-suggestion-id="boethius"]',
+    );
+    if (!suggestionButton) {
+      throw new Error("Expected Boethius fallback suggestion");
+    }
+    act(() => suggestionButton.click());
+
+    expect(mappedTags.map((tag) => tag.id)).toEqual(["boethius"]);
+  });
+
   test("Enter selects only a highlighted suggestion", () => {
     let mappedTags: ActiveTag[] = [];
     const view = renderComposer(
-      <KnowledgeRequestComposer
+      <KnowledgeNavigatorQueryInput
         activeTags={[]}
         onApplyMappedTags={(nextTags) => {
           mappedTags = nextTags;
@@ -229,7 +305,7 @@ describe("KnowledgeRequestComposer draft behavior", () => {
     );
     const textarea = view.querySelector("textarea");
     if (!textarea) {
-      throw new Error("Expected Knowledge Composer textarea");
+      throw new Error("Expected Knowledge Navigator Query Input textarea");
     }
 
     act(() => textarea.focus());
@@ -246,7 +322,7 @@ describe("KnowledgeRequestComposer draft behavior", () => {
     let searchQuery = "";
     let mappedTags: ActiveTag[] = [];
     const view = renderComposer(
-      <KnowledgeRequestComposer
+      <KnowledgeNavigatorQueryInput
         activeTags={activeTags}
         onApplyMappedTags={(nextTags) => {
           mappedTags = nextTags;
@@ -258,7 +334,7 @@ describe("KnowledgeRequestComposer draft behavior", () => {
     );
     const textarea = view.querySelector("textarea");
     if (!textarea) {
-      throw new Error("Expected Knowledge Composer textarea");
+      throw new Error("Expected Knowledge Navigator Query Input textarea");
     }
 
     act(() => textarea.focus());

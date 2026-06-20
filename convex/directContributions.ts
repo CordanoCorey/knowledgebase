@@ -2,6 +2,8 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, type MutationCtx } from "./_generated/server";
 import { requireAppAccess } from "./lib/appAccess";
+import { recordContextExpertiseEvidence } from "./lib/contextExpertiseEvidence";
+import { getApplicableHumanWeight } from "./lib/typeBehavior";
 
 const MAX_TITLE_LENGTH = 240;
 const MAX_BODY_LENGTH = 40_000;
@@ -83,7 +85,7 @@ const knowledgeEntrySummary = v.object({
   previewText: v.string(),
   primaryTagLabel: v.string(),
   contextPreviewTagLabels: v.array(v.string()),
-  humanWeight: v.number(),
+  humanWeight: v.optional(v.number()),
   href: v.string(),
   updatedAt: v.number(),
 });
@@ -123,6 +125,14 @@ export const postDirectContribution = mutation({
       throw new Error("Contribution title is required.");
     }
 
+    const slotFulfillment = await resolveSlotFulfillment(ctx, {
+      knowledgeType: args.knowledgeType,
+      slotId: args.slotId,
+    });
+    const slotContextTagIds =
+      slotFulfillment === undefined
+        ? undefined
+        : await getSlotContextTagIds(ctx, slotFulfillment._id);
     const represented = await resolveRepresentedIdentity(ctx, {
       knowledgeType: args.knowledgeType,
       now,
@@ -135,10 +145,20 @@ export const postDirectContribution = mutation({
       normalizeContextTags(args.contextTags),
       access.userId,
     );
+    if (slotFulfillment !== undefined) {
+      await assertContributionIncludesSlotTags(
+        slotContextTagIds ?? [],
+        contextTags.map((tag) => tag._id),
+      );
+    }
     const previewText = buildPreviewText(args.knowledgeType, body);
     const contextPreviewTagLabels = contextTags
       .map((tag) => tag.label)
       .slice(0, MAX_CONTEXT_PREVIEW_TAG_LABELS);
+    const humanWeight = getApplicableHumanWeight(
+      args.knowledgeType,
+      DIRECT_CONTRIBUTION_HUMAN_WEIGHT,
+    );
 
     const entryId = await ctx.db.insert("knowledgeEntries", {
       knowledgeType: args.knowledgeType,
@@ -152,7 +172,7 @@ export const postDirectContribution = mutation({
       ),
       primaryTagLabel: represented.primaryTagLabel,
       contextPreviewTagLabels,
-      humanWeight: DIRECT_CONTRIBUTION_HUMAN_WEIGHT,
+      ...(humanWeight === undefined ? {} : { humanWeight }),
       visibilityKind: "public",
       visibilityTargetKey: "public",
       discoverabilityKind: "public",
@@ -181,11 +201,59 @@ export const postDirectContribution = mutation({
       });
     }
 
+    await recordContextExpertiseEvidence(ctx, {
+      contextTagIds: contextTags.map((tag) => tag._id),
+      entryId,
+      evidenceKind: "post",
+      now,
+      subjectUserId: access.userId,
+    });
+
     if (args.knowledgeType === "question") {
       await ctx.db.insert("questionEntries", {
         entryId,
         questionText: title,
       });
+    }
+    if (args.knowledgeType === "quote") {
+      const quotedPersonReferentId = await insertQuoteEntry(ctx, {
+        contextTags,
+        entryId,
+        sourceText: body,
+      });
+      if (quotedPersonReferentId !== undefined) {
+        await recordContextExpertiseEvidence(ctx, {
+          contextTagIds: contextTags.map((tag) => tag._id),
+          entryId,
+          evidenceKind: "quoteAttribution",
+          now,
+          subjectPersonReferentId: quotedPersonReferentId,
+        });
+      }
+    }
+
+    if (slotFulfillment !== undefined) {
+      await ctx.db.patch(slotFulfillment._id, {
+        fulfilledEntryId: entryId,
+        status: "fulfilled",
+        updatedAt: now,
+      });
+      await recordContextExpertiseEvidence(ctx, {
+        contextTagIds: slotContextTagIds ?? [],
+        entryId,
+        evidenceKind: "slotFulfillment",
+        now,
+        slotId: slotFulfillment._id,
+        subjectUserId: access.userId,
+      });
+      if (humanWeight !== undefined) {
+        await recordSlotFulfillmentHumanWeightEvidence(ctx, {
+          entryId,
+          now,
+          slotId: slotFulfillment._id,
+          subjectUserId: access.userId,
+        });
+      }
     }
 
     const entry = await ctx.db.get(entryId);
@@ -201,6 +269,146 @@ export const postDirectContribution = mutation({
     };
   },
 });
+
+async function insertQuoteEntry(
+  ctx: MutationCtx,
+  {
+    contextTags,
+    entryId,
+    sourceText,
+  }: {
+    contextTags: Doc<"tags">[];
+    entryId: Id<"knowledgeEntries">;
+    sourceText: string;
+  },
+) {
+  const quotedPersonReferentId = getUnambiguousQuotedPersonReferentId(
+    contextTags,
+  );
+  const trimmedSourceText = sourceText.trim();
+
+  await ctx.db.insert("quoteEntries", {
+    entryId,
+    ...(quotedPersonReferentId === undefined
+      ? {}
+      : { quotedPersonReferentId }),
+    ...(trimmedSourceText === "" ? {} : { sourceText: trimmedSourceText }),
+  });
+
+  return quotedPersonReferentId;
+}
+
+function getUnambiguousQuotedPersonReferentId(contextTags: Doc<"tags">[]) {
+  const personTags = contextTags.filter((tag) => tag.knowledgeType === "person");
+  return personTags.length === 1 ? personTags[0].referentId : undefined;
+}
+
+async function recordSlotFulfillmentHumanWeightEvidence(
+  ctx: MutationCtx,
+  {
+    entryId,
+    now,
+    slotId,
+    subjectUserId,
+  }: {
+    entryId: Id<"knowledgeEntries">;
+    now: number;
+    slotId: Id<"knowledgeSlots">;
+    subjectUserId: Id<"users">;
+  },
+) {
+  const existing = await ctx.db
+    .query("humanWeightEvidence")
+    .withIndex("by_slotId", (q) => q.eq("slotId", slotId))
+    .first();
+  if (existing) {
+    if (existing.entryId !== entryId) {
+      throw new Error(
+        "Slot Fulfillment Human Weight Evidence already points to another Knowledge Entry.",
+      );
+    }
+
+    await ctx.db.patch(existing._id, {
+      subjectUserId,
+      updatedAt: now,
+    });
+    return;
+  }
+
+  await ctx.db.insert("humanWeightEvidence", {
+    entryId,
+    evidenceKind: "slotFulfillment",
+    evidenceSignal: "used",
+    slotId,
+    subjectUserId,
+    createdAt: now,
+    updatedAt: now,
+  });
+}
+
+async function resolveSlotFulfillment(
+  ctx: MutationCtx,
+  {
+    knowledgeType,
+    slotId,
+  }: {
+    knowledgeType: EntryKnowledgeType;
+    slotId?: string;
+  },
+) {
+  if (slotId === undefined) {
+    return undefined;
+  }
+
+  const normalizedSlotId = ctx.db.normalizeId("knowledgeSlots", slotId);
+  const slot =
+    normalizedSlotId === null ? null : await ctx.db.get(normalizedSlotId);
+  if (!slot) {
+    throw new Error("Knowledge Slot could not be found.");
+  }
+
+  if (slot.requestedKnowledgeType !== knowledgeType) {
+    throw new Error("Contribution Knowledge Type must match the Knowledge Slot request.");
+  }
+
+  if (slot.fulfilledEntryId !== undefined || slot.status === "fulfilled") {
+    throw new Error("Knowledge Slot already has Fulfillment.");
+  }
+
+  if (slot.status !== "open" && slot.status !== "overdue") {
+    throw new Error("Knowledge Slot is not open for Fulfillment.");
+  }
+
+  return slot;
+}
+
+async function assertContributionIncludesSlotTags(
+  slotContextTagIds: Array<Id<"tags">>,
+  contextTagIds: Array<Id<"tags">>,
+) {
+  const contextTagIdSet = new Set(contextTagIds);
+  for (const tagId of slotContextTagIds) {
+    if (!contextTagIdSet.has(tagId)) {
+      throw new Error("Contribution must include the Knowledge Slot context Tags.");
+    }
+  }
+}
+
+async function getSlotContextTagIds(
+  ctx: MutationCtx,
+  slotId: Id<"knowledgeSlots">,
+) {
+  const slotTags = await ctx.db
+    .query("slotTags")
+    .withIndex("by_slotId_and_tagId", (q) => q.eq("slotId", slotId))
+    .take(MAX_CONTEXT_TAGS + 1);
+
+  if (slotTags.length > MAX_CONTEXT_TAGS) {
+    throw new Error(`Knowledge Slot supports at most ${MAX_CONTEXT_TAGS} context Tags.`);
+  }
+
+  return slotTags.map((slotTag) => slotTag.tagId);
+}
 
 async function resolveRepresentedIdentity(
   ctx: MutationCtx,
@@ -425,6 +633,11 @@ function summarizeEntry(
   entry: Doc<"knowledgeEntries">,
   contributor: { id: string; name: string },
 ) {
+  const humanWeight = getApplicableHumanWeight(
+    entry.knowledgeType,
+    entry.humanWeight,
+  );
+
   return {
     contributor,
     id: entry._id,
@@ -433,7 +646,7 @@ function summarizeEntry(
     previewText: entry.previewText,
     primaryTagLabel: entry.primaryTagLabel,
     contextPreviewTagLabels: entry.contextPreviewTagLabels,
-    humanWeight: entry.humanWeight,
+    ...(humanWeight === undefined ? {} : { humanWeight }),
     href: `/entries/${entry._id}`,
     updatedAt: entry.updatedAt,
   };
