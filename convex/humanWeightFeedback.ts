@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAppAccess } from "./lib/appAccess";
 import {
+  correctPostContextExpertiseEvidenceForWrongContext,
   getEntryContextTagIds,
   recordContextExpertiseEvidence,
 } from "./lib/contextExpertiseEvidence";
@@ -42,8 +43,19 @@ export const getEvidenceSummary = query({
         q.eq("entryId", args.entryId),
       )
       .collect();
+    const derivedEvidenceRows = await ctx.db
+      .query("humanWeightEvidence")
+      .withIndex("by_entryId_and_createdAt", (q) =>
+        q.eq("entryId", args.entryId),
+      )
+      .collect();
 
-    return summarizeHumanWeightEvidence(entry.knowledgeType, feedbackRows) ?? null;
+    return (
+      summarizeHumanWeightEvidence(entry.knowledgeType, [
+        ...feedbackRows,
+        ...derivedEvidenceRows,
+      ]) ?? null
+    );
   },
 });
 
@@ -99,6 +111,14 @@ export const record = mutation({
         now,
         subjectUserId: access.userId,
       });
+      if (args.feedbackKind === "wrongContext") {
+        await correctPostContextExpertiseEvidenceForWrongContext(ctx, {
+          contextTagIds,
+          entryId: args.entryId,
+          feedbackId: existing._id,
+          now,
+        });
+      }
       return {
         feedbackId: existing._id,
         status: "updated" as const,
@@ -122,6 +142,14 @@ export const record = mutation({
       now,
       subjectUserId: access.userId,
     });
+    if (args.feedbackKind === "wrongContext") {
+      await correctPostContextExpertiseEvidenceForWrongContext(ctx, {
+        contextTagIds,
+        entryId: args.entryId,
+        feedbackId,
+        now,
+      });
+    }
 
     return {
       feedbackId,

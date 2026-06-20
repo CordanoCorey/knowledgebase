@@ -41,6 +41,12 @@ describe("Human Weight Feedback", () => {
     });
 
     const rowState = await t.run(async (ctx) => ({
+      contextExpertiseAggregate: await ctx.db
+        .query("contextExpertiseAggregates")
+        .withIndex("by_subjectUserId_and_contextKey", (q) =>
+          q.eq("subjectUserId", seed.userId).eq("contextKey", "tags:"),
+        )
+        .unique(),
       contextExpertiseEvidence: await ctx.db
         .query("contextExpertiseEvidence")
         .withIndex("by_feedbackId", (q) => q.eq("feedbackId", created.feedbackId))
@@ -66,6 +72,157 @@ describe("Human Weight Feedback", () => {
         subjectUserId: seed.userId,
         visibilityKind: "public",
         visibilityTargetKey: "public",
+      }),
+    ]);
+    expect(rowState.contextExpertiseAggregate).toEqual(
+      expect.objectContaining({
+        contextExpertiseMaturity: 20,
+        contextExpertiseScore: 67,
+        contextKey: "tags:",
+        contextTagIds: [],
+        evidenceCount: 1,
+        feedbackCount: 1,
+        postCount: 0,
+        subjectUserId: seed.userId,
+        topSupportingEntryIds: [seed.entries.lesson],
+        visibilityKind: "public",
+        visibilityTargetKey: "public",
+        audienceScopeKind: "public",
+        audienceScopeTargetKey: "public",
+      }),
+    );
+  });
+
+  test("wrong-context feedback corrects original post evidence without removing the audit trail", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedHumanWeightFeedbackRows);
+    const reviewer = t.withIdentity({
+      subject: `${seed.reviewerUserId}|test-session`,
+    });
+
+    await t.run(async (ctx) => {
+      const now = Date.now();
+      await ctx.db.insert("contextExpertiseEvidence", {
+        contextKey: "tags:",
+        contextTagIds: [],
+        entryId: seed.entries.lesson,
+        evidenceKind: "post",
+        subjectUserId: seed.userId,
+        visibilityKind: "public",
+        visibilityTargetKey: "public",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await ctx.db.insert("contextExpertiseAggregates", {
+        subjectUserId: seed.userId,
+        contextKey: "tags:",
+        contextTagIds: [],
+        contextExpertiseMaturity: 20,
+        contextExpertiseScore: 94,
+        evidenceCount: 1,
+        feedbackCount: 0,
+        latestEvidenceAt: now,
+        postCount: 1,
+        topSupportingEntryIds: [seed.entries.lesson],
+        visibilityKind: "public",
+        visibilityTargetKey: "public",
+        audienceScopeKind: "public",
+        audienceScopeTargetKey: "public",
+        createdAt: now,
+        updatedAt: now,
+      });
+    });
+
+    const created = await reviewer.mutation(api.humanWeightFeedback.record, {
+      entryId: seed.entries.lesson,
+      feedbackKind: "wrongContext",
+      feedbackNote: "This belongs in another Knowledge Context.",
+    });
+    const updated = await reviewer.mutation(api.humanWeightFeedback.record, {
+      entryId: seed.entries.lesson,
+      feedbackKind: "wrongContext",
+      feedbackNote: "Still wrong context after review.",
+    });
+
+    expect(updated).toEqual({
+      feedbackId: created.feedbackId,
+      status: "updated",
+    });
+
+    const rowState = await t.run(async (ctx) => ({
+      aggregates: await ctx.db.query("contextExpertiseAggregates").collect(),
+      contextExpertiseEvidence: await ctx.db
+        .query("contextExpertiseEvidence")
+        .withIndex("by_entryId_and_createdAt", (q) =>
+          q.eq("entryId", seed.entries.lesson),
+        )
+        .collect(),
+      feedbackRows: await ctx.db.query("humanWeightFeedback").collect(),
+    }));
+    const postEvidence = rowState.contextExpertiseEvidence.find(
+      (row) => row.evidenceKind === "post",
+    );
+    const feedbackEvidence = rowState.contextExpertiseEvidence.filter(
+      (row) => row.feedbackId === created.feedbackId,
+    );
+
+    expect(rowState.feedbackRows).toEqual([
+      expect.objectContaining({
+        _id: created.feedbackId,
+        entryId: seed.entries.lesson,
+        feedbackKind: "wrongContext",
+        feedbackNote: "Still wrong context after review.",
+        userId: seed.reviewerUserId,
+      }),
+    ]);
+    expect(postEvidence).toEqual(
+      expect.objectContaining({
+        contextKey: "tags:",
+        correctionKind: "wrongContext",
+        correctedByFeedbackId: created.feedbackId,
+        entryId: seed.entries.lesson,
+        evidenceKind: "post",
+        subjectUserId: seed.userId,
+      }),
+    );
+    expect(postEvidence?.correctedAt).toEqual(expect.any(Number));
+    expect(feedbackEvidence).toEqual([
+      expect.objectContaining({
+        contextKey: "tags:",
+        contextTagIds: [],
+        entryId: seed.entries.lesson,
+        evidenceKind: "feedback",
+        feedbackId: created.feedbackId,
+        subjectUserId: seed.reviewerUserId,
+        visibilityKind: "public",
+        visibilityTargetKey: "public",
+      }),
+    ]);
+    expect(feedbackEvidence[0]?.correctionKind).toBeUndefined();
+    expect(
+      rowState.aggregates.filter(
+        (row) =>
+          row.subjectUserId === seed.userId && row.contextKey === "tags:",
+      ),
+    ).toEqual([]);
+    expect(
+      rowState.aggregates.filter(
+        (row) =>
+          row.subjectUserId === seed.reviewerUserId &&
+          row.contextKey === "tags:",
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        contextExpertiseMaturity: 20,
+        contextExpertiseScore: 67,
+        evidenceCount: 1,
+        feedbackCount: 1,
+        postCount: 0,
+        topSupportingEntryIds: [seed.entries.lesson],
+        visibilityKind: "public",
+        visibilityTargetKey: "public",
+        audienceScopeKind: "public",
+        audienceScopeTargetKey: "public",
       }),
     ]);
   });
@@ -102,16 +259,38 @@ describe("Human Weight Feedback", () => {
       entryId: seed.entries.lesson,
       feedbackKind: "notHuman",
     });
+    await t.run(async (ctx) => {
+      const now = Date.now();
+      const slotId = await ctx.db.insert("knowledgeSlots", {
+        requestedKnowledgeType: "lesson",
+        status: "fulfilled",
+        title: "Courage lesson slot",
+        contextKey: "tags:",
+        targetKind: "public",
+        fulfilledEntryId: seed.entries.lesson,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await ctx.db.insert("humanWeightEvidence", {
+        entryId: seed.entries.lesson,
+        evidenceKind: "slotFulfillment",
+        evidenceSignal: "used",
+        slotId,
+        subjectUserId: seed.userId,
+        createdAt: now,
+        updatedAt: now,
+      });
+    });
 
     await expect(
       authed.query(api.humanWeightFeedback.getEvidenceSummary, {
         entryId: seed.entries.lesson,
       }),
     ).resolves.toEqual({
-      evidenceCount: 3,
-      positiveEvidenceCount: 2,
+      evidenceCount: 4,
+      positiveEvidenceCount: 3,
       negativeEvidenceCount: 1,
-      evidenceMaturity: 60,
+      evidenceMaturity: 80,
     });
   });
 
@@ -147,6 +326,12 @@ async function seedHumanWeightFeedbackRows(ctx: MutationCtx) {
     name: "Feedback User",
     systemRole: "systemAdmin",
   });
+  const reviewerUserId = await ctx.db.insert("users", {
+    email: "feedback-reviewer@example.com",
+    isActive: true,
+    name: "Feedback Reviewer",
+    systemRole: "systemAdmin",
+  });
   const lesson = await insertEntry(ctx, {
     createdByUserId: userId,
     humanWeight: 82,
@@ -166,6 +351,7 @@ async function seedHumanWeightFeedbackRows(ctx: MutationCtx) {
       lesson,
       topic,
     },
+    reviewerUserId,
     userId,
   };
 }

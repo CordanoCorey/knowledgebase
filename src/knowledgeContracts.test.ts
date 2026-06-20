@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
   CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION,
+  getDefaultHumanWeightCreditBasis,
   getDefaultHumanWeightExpectation,
   getHumanWeightConcern,
 } from "./knowledgeContracts";
@@ -113,5 +114,13 @@ describe("Human Weight Concern contract", () => {
         knowledgeType: "lesson",
       }),
     ).toBeUndefined();
+  });
+
+  test("mirrors default Human Weight credit basis by Knowledge Type", () => {
+    expect(getDefaultHumanWeightCreditBasis("words")).toBe("contributor");
+    expect(getDefaultHumanWeightCreditBasis("lesson")).toBe("contributor");
+    expect(getDefaultHumanWeightCreditBasis("quote")).toBe("quotedPerson");
+    expect(getDefaultHumanWeightCreditBasis("topic")).toBeUndefined();
+    expect(getDefaultHumanWeightCreditBasis("rsvp")).toBeUndefined();
   });
 });

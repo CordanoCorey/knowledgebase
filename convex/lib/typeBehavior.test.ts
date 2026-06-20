@@ -3,6 +3,7 @@ import { CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION } from "./humanWeightCalcul
 import {
   getHumanWeightConcern,
   getTypeBehavior,
+  getTypeBehaviorSnapshot,
 } from "./typeBehavior";
 
 describe("Human Weight Concern", () => {
@@ -114,5 +115,25 @@ describe("Human Weight Concern", () => {
         knowledgeType: "lesson",
       }),
     ).toBeUndefined();
+  });
+
+  test("defines the credited human role by Knowledge Type", () => {
+    expect(getTypeBehavior("words").version).toBe("mvp-type-behavior-v2");
+    expect(getTypeBehavior("words").humanWeight.creditBasis).toBe("contributor");
+    expect(getTypeBehavior("lesson").humanWeight.creditBasis).toBe(
+      "contributor",
+    );
+    expect(getTypeBehavior("quote").humanWeight.creditBasis).toBe(
+      "quotedPerson",
+    );
+    expect(getTypeBehavior("rsvp").humanWeight).not.toHaveProperty(
+      "creditBasis",
+    );
+    expect(getTypeBehavior("topic").humanWeight).not.toHaveProperty(
+      "creditBasis",
+    );
+    expect(getTypeBehaviorSnapshot("quote").version).toBe(
+      "mvp-type-behavior-v2",
+    );
   });
 });

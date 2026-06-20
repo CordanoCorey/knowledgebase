@@ -1,6 +1,7 @@
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import type { OrganizationMembershipRole } from "./organizationRoles";
+import { notifyOrganizationAdminsOfPersonConsolidationReview } from "./userNotificationWrites";
 
 const MAX_PERSON_ENTRIES_PER_REFERENT = 10;
 const MAX_PENDING_MEMBERSHIPS_TO_CLAIM = 100;
@@ -18,9 +19,11 @@ export type ClaimedPendingMembership = {
   role: OrganizationMembershipRole;
 };
 export type PendingMembershipReviewRequired = ClaimedPendingMembership;
+export type PendingMembershipReviewRejected = ClaimedPendingMembership;
 export type PendingMembershipClaimResult = {
   claimedMemberships: ClaimedPendingMembership[];
   personConsolidationReviews: PendingMembershipReviewRequired[];
+  personConsolidationRejections: PendingMembershipReviewRejected[];
 };
 type MembershipClaimSource =
   | "verifiedContactIdentity"
@@ -82,14 +85,30 @@ export async function claimPendingOrganizationMembershipsForVerifiedEmail(
   );
   if (!canAutoClaim) {
     const personConsolidationReviews: PendingMembershipReviewRequired[] = [];
+    const personConsolidationRejections: PendingMembershipReviewRejected[] = [];
 
     for (const pendingMembership of claimableMemberships) {
       const organizationReferentId = pendingMembership.organizationReferentId;
       if (organizationReferentId === undefined) {
         continue;
       }
+      const reviewResult = {
+        membershipId: pendingMembership._id,
+        organizationReferentId,
+        role: pendingMembership.memberRole ?? "member",
+      };
+      const rejectedReview = await getPersonConsolidationReviewByStatus(ctx, {
+        claimedContactValue: normalizedEmail,
+        membershipId: pendingMembership._id,
+        requestedByUserId: user._id,
+        reviewStatus: "rejected",
+      });
+      if (rejectedReview) {
+        personConsolidationRejections.push(reviewResult);
+        continue;
+      }
 
-      await recordPersonConsolidationReview(ctx, {
+      const personConsolidationReviewId = await recordPersonConsolidationReview(ctx, {
         candidatePersonReferentId: personReferentId,
         claimedContactValue: normalizedEmail,
         claimSource: options.claimSource,
@@ -100,16 +119,20 @@ export async function claimPendingOrganizationMembershipsForVerifiedEmail(
         updatedAt: now,
         verifiedContactIdentityId: options.verifiedContactIdentityId,
       });
-      personConsolidationReviews.push({
-        membershipId: pendingMembership._id,
+      await notifyOrganizationAdminsOfPersonConsolidationReview(ctx, {
+        claimedContactValue: normalizedEmail,
         organizationReferentId,
-        role: pendingMembership.memberRole ?? "member",
+        personConsolidationReviewId,
+        requestedByUserId: user._id,
+        updatedAt: now,
       });
+      personConsolidationReviews.push(reviewResult);
     }
 
     return {
       claimedMemberships: [],
       personConsolidationReviews,
+      personConsolidationRejections,
     };
   }
 
@@ -182,6 +205,7 @@ export async function claimPendingOrganizationMembershipsForVerifiedEmail(
   return {
     claimedMemberships,
     personConsolidationReviews: [],
+    personConsolidationRejections: [],
   };
 }
 
@@ -189,6 +213,7 @@ function emptyClaimResult(): PendingMembershipClaimResult {
   return {
     claimedMemberships: [],
     personConsolidationReviews: [],
+    personConsolidationRejections: [],
   };
 }
 
@@ -401,16 +426,13 @@ async function recordPersonConsolidationReview(
     updatedAt: number;
     verifiedContactIdentityId?: Id<"contactIdentities">;
   },
-) {
-  const existingReviews = await ctx.db
-    .query("personConsolidationReviews")
-    .withIndex("by_membershipId_and_requestedByUserId_and_reviewStatus", (q) =>
-      q
-        .eq("membershipId", review.membershipId)
-        .eq("requestedByUserId", review.requestedByUserId)
-        .eq("reviewStatus", "pending"),
-    )
-    .take(1);
+): Promise<Id<"personConsolidationReviews">> {
+  const existingReview = await getPersonConsolidationReviewByStatus(ctx, {
+    claimedContactValue: review.claimedContactValue,
+    membershipId: review.membershipId,
+    requestedByUserId: review.requestedByUserId,
+    reviewStatus: "pending",
+  });
   const reviewEvidence = {
     candidatePersonReferentId: review.candidatePersonReferentId,
     claimedContactKind: "email" as const,
@@ -428,16 +450,43 @@ async function recordPersonConsolidationReview(
       : { verifiedContactIdentityId: review.verifiedContactIdentityId }),
   };
 
-  const existingReview = existingReviews[0];
   if (existingReview) {
     await ctx.db.patch(existingReview._id, reviewEvidence);
-    return;
+    return existingReview._id;
   }
 
-  await ctx.db.insert("personConsolidationReviews", {
+  return await ctx.db.insert("personConsolidationReviews", {
     ...reviewEvidence,
     createdAt: review.updatedAt,
   });
+}
+
+async function getPersonConsolidationReviewByStatus(
+  ctx: MutationCtx,
+  review: {
+    claimedContactValue: string;
+    membershipId: Id<"memberships">;
+    requestedByUserId: Id<"users">;
+    reviewStatus: "pending" | "rejected";
+  },
+) {
+  const existingReviews = await ctx.db
+    .query("personConsolidationReviews")
+    .withIndex("by_membershipId_and_requestedByUserId_and_reviewStatus", (q) =>
+      q
+        .eq("membershipId", review.membershipId)
+        .eq("requestedByUserId", review.requestedByUserId)
+        .eq("reviewStatus", review.reviewStatus),
+    )
+    .take(10);
+
+  return (
+    existingReviews.find(
+      (existingReview) =>
+        existingReview.claimedContactKind === "email" &&
+        existingReview.claimedContactValue === review.claimedContactValue,
+    ) ?? null
+  );
 }
 
 async function upsertUserProfile(

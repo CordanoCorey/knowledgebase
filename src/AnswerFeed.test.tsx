@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import {
   AnswerFeed,
   filterAnswerFeedItems,
@@ -296,15 +296,19 @@ describe("Answer Feed helpers", () => {
     expect(experts).toEqual([
       {
         ...benContributor,
-        averageHumanWeight: 96,
-        contributionCount: 1,
+        contextExpertiseMaturity: 20,
         contextExpertiseScore: 108,
+        evidenceCount: 1,
+        feedbackCount: 0,
+        postCount: 1,
       },
       {
         ...adaContributor,
-        averageHumanWeight: 42,
-        contributionCount: 1,
+        contextExpertiseMaturity: 20,
         contextExpertiseScore: 54,
+        evidenceCount: 1,
+        feedbackCount: 0,
+        postCount: 1,
       },
     ]);
   });
@@ -410,6 +414,8 @@ describe("AnswerFeed", () => {
     expect(markup).toContain("Contributed by");
     expect(markup).toContain("Ben Scholar");
     expect(markup).toContain("Context experts");
+    expect(markup).toContain("1 post | 1 signal");
+    expect(markup).not.toContain("avg HW");
     expect(markup).toContain("Human Weight");
     expect(markup).toContain("Requested future Answer");
     expect(markup).toContain("Requested Entry");
@@ -455,8 +461,10 @@ describe("AnswerFeed", () => {
     expect(markup).toContain(
       'aria-pressed="true" data-active="true" type="button">All Types</button>',
     );
-    expect(markup).toContain(">Lesson</button>");
-    expect(markup).toContain(">Words</button>");
+    expect(markup).toContain('data-knowledge-type="lesson" type="button"');
+    expect(markup).toContain('<span class="kb-knowledge-type-label">Lesson</span>');
+    expect(markup).toContain('data-knowledge-type="words" type="button"');
+    expect(markup).toContain('<span class="kb-knowledge-type-label">Words</span>');
   });
 
   test("narrows visible cards when feed controls are selected", () => {
@@ -521,6 +529,473 @@ describe("AnswerFeed", () => {
     expect(markup).toContain("Context experts");
     expect(markup).toContain("Trending 48 + needs");
     expect(markup).toContain("3 recent visits, 7 total visits, 1 open request");
+  });
+
+  test("renders a Context Expert audience control and reports scope changes", () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    const testContainer = container;
+    root = createRoot(testContainer);
+    const scopeChanges: string[] = [];
+    const expert = {
+      ...benContributor,
+      contextExpertiseMaturity: 60,
+      contextExpertiseScore: 91,
+      evidenceCount: 3,
+      feedbackCount: 2,
+      postCount: 1,
+    };
+
+    act(() => {
+      root?.render(
+        <AnswerFeed
+          activeTags={[romansTag, holySpiritTag]}
+          contextExpertScope="orbit"
+          contextExperts={[expert]}
+          items={[lowerWeightAnswer, matchingSlot, higherWeightAnswer]}
+          onContextExpertScopeChange={(scope) => scopeChanges.push(scope)}
+        />,
+      );
+    });
+
+    expect(getButtonByText(testContainer, "Orbit").getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+
+    act(() => {
+      getButtonByText(testContainer, "Global").click();
+    });
+
+    expect(scopeChanges).toEqual(["global"]);
+  });
+
+  test("keeps the Context Expert audience control available for empty scopes", () => {
+    const markup = renderToStaticMarkup(
+      <AnswerFeed
+        activeTags={[romansTag, holySpiritTag]}
+        contextExpertScope="global"
+        contextExperts={[]}
+        items={[lowerWeightAnswer, matchingSlot, higherWeightAnswer]}
+        onContextExpertScopeChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain("Context Expert audience");
+    expect(markup).toContain("No experts in this view");
+  });
+
+  test("opens a Context Expert detail dialog with counts, contributions, and profile link", () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    const testContainer = container;
+    root = createRoot(testContainer);
+    const expert = {
+      ...benContributor,
+      href: "/profile/ben-scholar",
+      contextExpertiseMaturity: 60,
+      contextExpertiseScore: 91,
+      evidenceCount: 3,
+      feedbackCount: 2,
+      postCount: 1,
+    };
+
+    act(() => {
+      root?.render(
+        <AnswerFeed
+          activeTags={[romansTag, holySpiritTag]}
+          contextExpertDetail={{
+            ...expert,
+            topSupportingEntries: [higherWeightAnswer.entry],
+          }}
+          contextExperts={[expert]}
+          items={[lowerWeightAnswer, matchingSlot, higherWeightAnswer]}
+        />,
+      );
+    });
+
+    expect(testContainer.textContent).toContain("1 post | 3 signals");
+
+    act(() => {
+      getButtonByLabel(
+        testContainer,
+        "Open Ben Scholar Context Expert details",
+      ).click();
+    });
+
+    const dialog = getDialog(testContainer);
+    const statValues = Array.from(
+      dialog.querySelectorAll(".kb-context-expert-stats dd"),
+    ).map((stat) => stat.textContent);
+    expect(dialog.textContent).toContain("Ben Scholar");
+    expect(dialog.textContent).toContain("Posts in context");
+    expect(dialog.textContent).toContain("Non-post signals");
+    expect(statValues).toEqual(["1", "2"]);
+    expect(dialog.textContent).toContain("Higher Weight Answer");
+    expect(dialog.textContent).toContain("Lesson");
+    expect(dialog.textContent).toContain("A higher-weight answer.");
+    expect(dialog.querySelector('a[href="/profile/ben-scholar"]')?.textContent).toContain(
+      "View profile",
+    );
+    expect(
+      dialog.querySelector('a[href="/entries/entry-higher-weight"]')?.textContent,
+    ).toContain("Higher Weight Answer");
+  });
+
+  test("shows Quote attribution correction controls only for admin-enabled Quote support", () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    const testContainer = container;
+    root = createRoot(testContainer);
+    const expert = {
+      ...benContributor,
+      contextExpertiseMaturity: 60,
+      contextExpertiseScore: 91,
+      evidenceCount: 1,
+      feedbackCount: 0,
+      postCount: 0,
+    };
+    const quoteEntry = {
+      ...higherWeightAnswer.entry,
+      id: "entry-quote-attribution",
+      knowledgeType: "quote" as const,
+      quoteAttribution: {
+        quotedPersonLabel: "C. S. Lewis",
+        quotedPersonReferentId: "referent-lewis",
+      },
+      title: "Lewis Quote",
+    };
+
+    act(() => {
+      root?.render(
+        <AnswerFeed
+          activeTags={[romansTag, holySpiritTag]}
+          contextExpertDetail={{
+            ...expert,
+            topSupportingEntries: [quoteEntry],
+          }}
+          contextExperts={[expert]}
+          items={[higherWeightAnswer]}
+        />,
+      );
+    });
+    act(() => {
+      getButtonByLabel(
+        testContainer,
+        "Open Ben Scholar Context Expert details",
+      ).click();
+    });
+
+    expect(getDialog(testContainer).textContent).toContain("Lewis Quote");
+    expect(getDialog(testContainer).textContent).not.toContain("Save attribution");
+
+    act(() => {
+      root?.render(
+        <AnswerFeed
+          activeTags={[romansTag, holySpiritTag]}
+          canCorrectQuoteAttribution
+          contextExpertDetail={{
+            ...expert,
+            topSupportingEntries: [quoteEntry],
+          }}
+          contextExperts={[expert]}
+          items={[higherWeightAnswer]}
+          onCorrectQuoteAttribution={async () => undefined}
+        />,
+      );
+    });
+    act(() => {
+      getButtonByLabel(
+        testContainer,
+        "Open Ben Scholar Context Expert details",
+      ).click();
+    });
+
+    const dialog = getDialog(testContainer);
+    expect(dialog.textContent).toContain("Quoted Person");
+    expect(dialog.textContent).toContain("C. S. Lewis");
+    expect(dialog.textContent).toContain("referent-lewis");
+    expect(dialog.textContent).toContain("Corrected Person");
+    expect(dialog.textContent).toContain("Save attribution");
+  });
+
+  test("submits and clears Quote attribution corrections from the expert dialog", async () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    const testContainer = container;
+    root = createRoot(testContainer);
+    const onCorrectQuoteAttribution = vi.fn(async () => undefined);
+    const expert = {
+      ...benContributor,
+      contextExpertiseMaturity: 60,
+      contextExpertiseScore: 91,
+      evidenceCount: 1,
+      feedbackCount: 0,
+      postCount: 0,
+    };
+    const quoteEntry = {
+      ...higherWeightAnswer.entry,
+      id: "entry-quote-attribution",
+      knowledgeType: "quote" as const,
+      quoteAttribution: {
+        quotedPersonLabel: "C. S. Lewis",
+        quotedPersonReferentId: "referent-lewis",
+      },
+      title: "Lewis Quote",
+    };
+    const personOptions = [
+      {
+        label: "J. R. R. Tolkien",
+        referentId: "referent-tolkien",
+        tagId: "tag-tolkien",
+      },
+    ];
+    const onQuoteAttributionPersonSearchChange = vi.fn();
+
+    await act(async () => {
+      root?.render(
+        <AnswerFeed
+          activeTags={[romansTag, holySpiritTag]}
+          canCorrectQuoteAttribution
+          contextExpertDetail={{
+            ...expert,
+            topSupportingEntries: [quoteEntry],
+          }}
+          contextExperts={[expert]}
+          items={[higherWeightAnswer]}
+          onCorrectQuoteAttribution={onCorrectQuoteAttribution}
+          onQuoteAttributionPersonSearchChange={
+            onQuoteAttributionPersonSearchChange
+          }
+          quoteAttributionPersonPicker={{
+            entryId: quoteEntry.id,
+            isLoading: false,
+            options: personOptions,
+          }}
+        />,
+      );
+    });
+    await act(async () => {
+      getButtonByLabel(
+        testContainer,
+        "Open Ben Scholar Context Expert details",
+      ).click();
+    });
+
+    const input = getInputByLabel(
+      testContainer,
+      "Search corrected Person for Lewis Quote",
+    );
+    await setInputValue(input, "Tolkien");
+    expect(onQuoteAttributionPersonSearchChange).toHaveBeenCalledWith({
+      entry: quoteEntry,
+      searchQuery: "Tolkien",
+    });
+    await act(async () => {
+      getButtonByText(testContainer, "J. R. R. Tolkien").click();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      getButtonByText(testContainer, "Save attribution").click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(onCorrectQuoteAttribution).toHaveBeenCalledWith({
+      entry: quoteEntry,
+      nextQuotedPersonReferentId: "referent-tolkien",
+    });
+    expect(getDialog(testContainer).textContent).toContain(
+      "Quote attribution updated.",
+    );
+
+    await act(async () => {
+      getButtonByText(testContainer, "Clear attribution").click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(onCorrectQuoteAttribution).toHaveBeenLastCalledWith({
+      entry: quoteEntry,
+      nextQuotedPersonReferentId: null,
+    });
+  });
+
+  test("shows Quote attribution validation and mutation errors", async () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    const testContainer = container;
+    root = createRoot(testContainer);
+    const onCorrectQuoteAttribution = vi.fn(async () => {
+      throw new Error("Nope");
+    });
+    const expert = {
+      ...benContributor,
+      contextExpertiseMaturity: 60,
+      contextExpertiseScore: 91,
+      evidenceCount: 1,
+      feedbackCount: 0,
+      postCount: 0,
+    };
+    const quoteEntry = {
+      ...higherWeightAnswer.entry,
+      id: "entry-quote-attribution",
+      knowledgeType: "quote" as const,
+      title: "Lewis Quote",
+    };
+    const personOptions = [
+      {
+        label: "J. R. R. Tolkien",
+        referentId: "referent-tolkien",
+        tagId: "tag-tolkien",
+      },
+    ];
+
+    await act(async () => {
+      root?.render(
+        <AnswerFeed
+          activeTags={[romansTag, holySpiritTag]}
+          canCorrectQuoteAttribution
+          contextExpertDetail={{
+            ...expert,
+            topSupportingEntries: [quoteEntry],
+          }}
+          contextExperts={[expert]}
+          items={[higherWeightAnswer]}
+          onCorrectQuoteAttribution={onCorrectQuoteAttribution}
+          onQuoteAttributionPersonSearchChange={() => undefined}
+          quoteAttributionPersonPicker={{
+            entryId: quoteEntry.id,
+            isLoading: false,
+            options: personOptions,
+          }}
+        />,
+      );
+    });
+    await act(async () => {
+      getButtonByLabel(
+        testContainer,
+        "Open Ben Scholar Context Expert details",
+      ).click();
+    });
+
+    await act(async () => {
+      getButtonByText(testContainer, "Save attribution").click();
+      await Promise.resolve();
+    });
+    expect(getDialog(testContainer).textContent).toContain(
+      "Select a Person before saving attribution.",
+    );
+
+    const input = getInputByLabel(
+      testContainer,
+      "Search corrected Person for Lewis Quote",
+    );
+    await setInputValue(input, "Tolkien");
+    await act(async () => {
+      getButtonByText(testContainer, "J. R. R. Tolkien").click();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      getButtonByText(testContainer, "Save attribution").click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getDialog(testContainer).textContent).toContain(
+      "Quote attribution update failed.",
+    );
+  });
+
+  test("labels inherited Context Expert post counts as broader context counts", () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    const testContainer = container;
+    root = createRoot(testContainer);
+    const expert = {
+      ...benContributor,
+      contextExpertiseMaturity: 100,
+      contextExpertiseScore: 85,
+      contextMatchKind: "broaderContext" as const,
+      evidenceCount: 5,
+      feedbackCount: 1,
+      postCount: 4,
+    };
+
+    act(() => {
+      root?.render(
+        <AnswerFeed
+          activeTags={[romansTag, holySpiritTag]}
+          contextExpertDetail={{
+            ...expert,
+            topSupportingEntries: [broaderAnswer.entry],
+          }}
+          contextExperts={[expert]}
+          items={[broaderAnswer]}
+        />,
+      );
+    });
+
+    act(() => {
+      getButtonByLabel(
+        testContainer,
+        "Open Ben Scholar Context Expert details",
+      ).click();
+    });
+
+    const dialog = getDialog(testContainer);
+    expect(dialog.textContent).toContain("Posts in broader context");
+    expect(dialog.textContent).not.toContain("Posts in context");
+  });
+
+  test("closes the Context Expert detail dialog from the close button and Escape", () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    const testContainer = container;
+    root = createRoot(testContainer);
+    const expert = {
+      ...benContributor,
+      contextExpertiseMaturity: 60,
+      contextExpertiseScore: 91,
+      evidenceCount: 3,
+      feedbackCount: 2,
+      postCount: 1,
+    };
+
+    act(() => {
+      root?.render(
+        <AnswerFeed
+          activeTags={[romansTag, holySpiritTag]}
+          contextExperts={[expert]}
+          items={[lowerWeightAnswer, matchingSlot, higherWeightAnswer]}
+        />,
+      );
+    });
+
+    act(() => {
+      getButtonByLabel(
+        testContainer,
+        "Open Ben Scholar Context Expert details",
+      ).click();
+    });
+    expect(getDialog(testContainer).textContent).toContain("Ben Scholar");
+
+    act(() => {
+      getButtonByLabel(testContainer, "Close Context Expert details").click();
+    });
+    expect(testContainer.querySelector('[role="dialog"]')).toBeNull();
+
+    act(() => {
+      getButtonByLabel(
+        testContainer,
+        "Open Ben Scholar Context Expert details",
+      ).click();
+    });
+    expect(getDialog(testContainer).textContent).toContain("Ben Scholar");
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    expect(testContainer.querySelector('[role="dialog"]')).toBeNull();
   });
 
   test("can render the mixed feed as masonry", () => {
@@ -588,4 +1063,49 @@ function getButtonByText(container: HTMLElement, text: string) {
   }
 
   return button;
+}
+
+function getButtonByLabel(container: HTMLElement, label: string) {
+  const button = Array.from(container.querySelectorAll("button")).find(
+    (candidate) => candidate.getAttribute("aria-label") === label,
+  );
+
+  if (!button) {
+    throw new Error(`Expected button with aria-label "${label}"`);
+  }
+
+  return button;
+}
+
+function getInputByLabel(container: HTMLElement, label: string) {
+  const input = Array.from(container.querySelectorAll("input")).find(
+    (candidate) => candidate.getAttribute("aria-label") === label,
+  );
+
+  if (!(input instanceof HTMLInputElement)) {
+    throw new Error(`Expected input with aria-label "${label}"`);
+  }
+
+  return input;
+}
+
+async function setInputValue(input: HTMLInputElement, value: string) {
+  await act(async () => {
+    const valueSetter = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )?.set;
+    valueSetter?.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await Promise.resolve();
+  });
+}
+
+function getDialog(container: HTMLElement) {
+  const dialog = container.querySelector('[role="dialog"]');
+  if (!dialog) {
+    throw new Error("Expected dialog to be open.");
+  }
+
+  return dialog;
 }

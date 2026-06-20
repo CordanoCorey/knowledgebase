@@ -6,6 +6,11 @@ import {
 } from "./typeBehavior";
 
 type HumanWeightFeedbackKind = Doc<"humanWeightFeedback">["feedbackKind"];
+type HumanWeightEvidenceSignal = Doc<"humanWeightEvidence">["evidenceSignal"];
+
+type HumanWeightEvidenceRow =
+  | Pick<Doc<"humanWeightFeedback">, "feedbackKind">
+  | Pick<Doc<"humanWeightEvidence">, "evidenceSignal">;
 
 export type HumanWeightEvidenceSummary = {
   evidenceCount: number;
@@ -16,7 +21,7 @@ export type HumanWeightEvidenceSummary = {
 
 export function summarizeHumanWeightEvidence(
   knowledgeType: EntryKnowledgeType,
-  feedbackRows: Array<Pick<Doc<"humanWeightFeedback">, "feedbackKind">>,
+  evidenceRows: HumanWeightEvidenceRow[],
 ): HumanWeightEvidenceSummary | undefined {
   if (!isWeightBearingEntryKnowledgeType(knowledgeType)) {
     return undefined;
@@ -25,8 +30,9 @@ export function summarizeHumanWeightEvidence(
   let positiveEvidenceCount = 0;
   let negativeEvidenceCount = 0;
 
-  for (const row of feedbackRows) {
-    if (isPositiveFeedbackKind(row.feedbackKind)) {
+  for (const row of evidenceRows) {
+    const evidenceSignal = getEvidenceSignal(row);
+    if (isPositiveEvidenceSignal(evidenceSignal)) {
       positiveEvidenceCount += 1;
       continue;
     }
@@ -47,8 +53,18 @@ export function summarizeHumanWeightEvidence(
   };
 }
 
-function isPositiveFeedbackKind(feedbackKind: HumanWeightFeedbackKind) {
-  return feedbackKind === "recognize" || feedbackKind === "used";
+function getEvidenceSignal(row: HumanWeightEvidenceRow) {
+  if ("feedbackKind" in row) {
+    return row.feedbackKind;
+  }
+
+  return row.evidenceSignal;
+}
+
+function isPositiveEvidenceSignal(
+  evidenceSignal: HumanWeightFeedbackKind | HumanWeightEvidenceSignal,
+) {
+  return evidenceSignal === "recognize" || evidenceSignal === "used";
 }
 
 function getEvidenceMaturityForCount(evidenceCount: number) {

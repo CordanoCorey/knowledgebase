@@ -15,6 +15,7 @@ import { isWeightBearingEntryKnowledgeType } from "./lib/typeBehavior";
 const DEFAULT_RECALCULATION_BATCH_SIZE = 50;
 const MAX_RECALCULATION_BATCH_SIZE = 100;
 const MAX_FEEDBACK_ROWS_PER_ENTRY = 100;
+const MAX_DERIVED_EVIDENCE_ROWS_PER_ENTRY = 100;
 
 const recalculationBatchResult = v.object({
   calculationDefinitionId: v.id("humanWeightCalculationDefinitions"),
@@ -25,6 +26,7 @@ const recalculationBatchResult = v.object({
   unchangedCount: v.number(),
   skippedNonWeightBearingCount: v.number(),
   feedbackRowsScannedCount: v.number(),
+  derivedEvidenceRowsScannedCount: v.number(),
 });
 
 export const recalculateBatch = internalMutation({
@@ -53,6 +55,7 @@ export const recalculateBatch = internalMutation({
     let unchangedCount = 0;
     let skippedNonWeightBearingCount = 0;
     let feedbackRowsScannedCount = 0;
+    let derivedEvidenceRowsScannedCount = 0;
 
     for (const entry of entries) {
       if (!isWeightBearingEntryKnowledgeType(entry.knowledgeType)) {
@@ -65,10 +68,15 @@ export const recalculateBatch = internalMutation({
         .withIndex("by_entryId_and_createdAt", (q) => q.eq("entryId", entry._id))
         .take(MAX_FEEDBACK_ROWS_PER_ENTRY);
       feedbackRowsScannedCount += feedbackRows.length;
+      const derivedEvidenceRows = await ctx.db
+        .query("humanWeightEvidence")
+        .withIndex("by_entryId_and_createdAt", (q) => q.eq("entryId", entry._id))
+        .take(MAX_DERIVED_EVIDENCE_ROWS_PER_ENTRY);
+      derivedEvidenceRowsScannedCount += derivedEvidenceRows.length;
 
       const evidenceSummary = summarizeHumanWeightEvidence(
         entry.knowledgeType,
-        feedbackRows,
+        [...feedbackRows, ...derivedEvidenceRows],
       );
       if (evidenceSummary === undefined) {
         unchangedCount += 1;
@@ -128,6 +136,7 @@ export const recalculateBatch = internalMutation({
       unchangedCount,
       skippedNonWeightBearingCount,
       feedbackRowsScannedCount,
+      derivedEvidenceRowsScannedCount,
     };
   },
 });

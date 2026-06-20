@@ -72,6 +72,7 @@ export function KnowledgeEntryCard({
 }: KnowledgeEntryCardProps) {
   const humanWeight = getApplicableHumanWeight(entry);
   const humanWeightConcern = entry.humanWeightConcern;
+  const humanWeightCredit = entry.humanWeightCredit;
   const feedbackPanelId = useId();
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [feedbackKind, setFeedbackKind] =
@@ -156,6 +157,12 @@ export function KnowledgeEntryCard({
           <div className="kb-human-weight-concern">
             <dt>Human Weight Review</dt>
             <dd>{formatHumanWeightConcern(humanWeightConcern)}</dd>
+          </div>
+        )}
+        {humanWeightCredit === undefined ? null : (
+          <div className="kb-human-weight-credit">
+            <dt>Human Weight Credits</dt>
+            <dd>{humanWeightCredit.label}</dd>
           </div>
         )}
       </dl>
@@ -331,7 +338,10 @@ export function KnowledgeSlotCard({
         className="kb-slot-missing-content"
       >
         <div className="kb-slot-missing-header">
-          <span className="kb-slot-missing-icon">
+          <span
+            className="kb-slot-missing-icon"
+            data-knowledge-type={slot.requestedKnowledgeType}
+          >
             <KnowledgeTypeIcon knowledgeType={slot.requestedKnowledgeType} />
           </span>
           <div className="kb-slot-missing-title">

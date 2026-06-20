@@ -118,9 +118,29 @@ const humanWeightFeedbackKind = v.union(
   v.literal("wrongContext"),
 );
 
+const humanWeightEvidenceKind = v.union(v.literal("slotFulfillment"));
+
+const humanWeightEvidenceSignal = humanWeightFeedbackKind;
+
 const contextExpertiseEvidenceKind = v.union(
   v.literal("post"),
+  v.literal("quoteAttribution"),
   v.literal("feedback"),
+  v.literal("slotFulfillment"),
+  v.literal("curation"),
+);
+const contextExpertiseEvidenceCorrectionKind = v.union(
+  v.literal("attribution"),
+  v.literal("wrongContext"),
+);
+const personGlobalExpertVisibilityStatus = v.union(
+  v.literal("visibleByDefault"),
+  v.literal("suppressed"),
+);
+const personGlobalExpertVisibilityModerationAction = v.union(
+  v.literal("suppressed"),
+  v.literal("restored"),
+  v.literal("suppressionNoteUpdated"),
 );
 
 const smartStoragePredictedEntry = v.object({
@@ -223,6 +243,7 @@ const pinnedKnowledgePageKind = v.union(v.literal("organization"));
 const bookmarkedKnowledgePageKind = v.union(v.literal("organization"));
 const knowledgeSubscriptionTargetKind = v.union(v.literal("organization"));
 const userNotificationKind = v.union(
+  v.literal("access"),
   v.literal("answer"),
   v.literal("event"),
   v.literal("knowledgeSlot"),
@@ -327,6 +348,11 @@ const analyticsTargetKind = v.union(
   v.literal("tag"),
   v.literal("biblePassage"),
   v.literal("context"),
+);
+
+const searchScope = v.union(
+  v.literal("root"),
+  v.literal("activeKnowledgeContext"),
 );
 
 export default defineSchema({
@@ -502,6 +528,36 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_personEntryId", ["personEntryId"])
     .index("by_personReferentId", ["personReferentId"]),
+
+  contextExpertiseVisibilitySettings: defineTable({
+    userId: v.id("users"),
+    globalExpertVisibilityEnabled: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
+  personContextExpertiseVisibilitySettings: defineTable({
+    personReferentId: v.id("referents"),
+    globalExpertVisibilityStatus: v.literal("suppressed"),
+    moderationNote: v.optional(v.string()),
+    updatedByUserId: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_personReferentId", ["personReferentId"]),
+
+  personContextExpertiseVisibilityModerationEvents: defineTable({
+    personReferentId: v.id("referents"),
+    action: personGlobalExpertVisibilityModerationAction,
+    previousStatus: personGlobalExpertVisibilityStatus,
+    nextStatus: personGlobalExpertVisibilityStatus,
+    moderationNote: v.optional(v.string()),
+    previousModerationNote: v.optional(v.string()),
+    updatedByUserId: v.id("users"),
+    createdAt: v.number(),
+  }).index("by_personReferentId_and_createdAt", [
+    "personReferentId",
+    "createdAt",
+  ]),
 
   memberships: defineTable({
     personReferentId: v.id("referents"),
@@ -964,14 +1020,41 @@ export default defineSchema({
       "feedbackKind",
     ]),
 
+  humanWeightEvidence: defineTable({
+    entryId: v.id("knowledgeEntries"),
+    evidenceKind: humanWeightEvidenceKind,
+    evidenceSignal: humanWeightEvidenceSignal,
+    slotId: v.id("knowledgeSlots"),
+    subjectUserId: v.optional(v.id("users")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_entryId_and_createdAt", ["entryId", "createdAt"])
+    .index("by_slotId", ["slotId"]),
+
   contextExpertiseEvidence: defineTable({
-    subjectUserId: v.id("users"),
+    subjectUserId: v.optional(v.id("users")),
     subjectPersonReferentId: v.optional(v.id("referents")),
     contextKey: v.string(),
     contextTagIds: v.array(v.id("tags")),
     evidenceKind: contextExpertiseEvidenceKind,
     entryId: v.id("knowledgeEntries"),
     feedbackId: v.optional(v.id("humanWeightFeedback")),
+    slotId: v.optional(v.id("knowledgeSlots")),
+    smartStorageProposalId: v.optional(v.id("smartStorageProposals")),
+    correctionKind: v.optional(contextExpertiseEvidenceCorrectionKind),
+    correctedByFeedbackId: v.optional(v.id("humanWeightFeedback")),
+    correctedAt: v.optional(v.number()),
+    attributionCorrectedFromSubjectUserId: v.optional(v.id("users")),
+    attributionCorrectedFromSubjectPersonReferentId: v.optional(
+      v.id("referents"),
+    ),
+    attributionCorrectedByUserId: v.optional(v.id("users")),
+    attributionCorrectedAt: v.optional(v.number()),
+    visibilityCorrectedFromKind: v.optional(visibilityKind),
+    visibilityCorrectedFromTargetKey: v.optional(v.string()),
+    visibilityCorrectedByUserId: v.optional(v.id("users")),
+    visibilityCorrectedAt: v.optional(v.number()),
     visibilityKind,
     visibilityTargetKey: v.string(),
     createdAt: v.number(),
@@ -982,10 +1065,101 @@ export default defineSchema({
       "contextKey",
       "createdAt",
     ])
+    .index(
+      "by_user_context_visibility_target_updatedAt",
+      [
+        "subjectUserId",
+        "contextKey",
+        "visibilityKind",
+        "visibilityTargetKey",
+        "updatedAt",
+      ],
+    )
+    .index("by_subjectPersonReferentId_and_contextKey_and_createdAt", [
+      "subjectPersonReferentId",
+      "contextKey",
+      "createdAt",
+    ])
+    .index(
+      "by_person_context_visibility_target_updatedAt",
+      [
+        "subjectPersonReferentId",
+        "contextKey",
+        "visibilityKind",
+        "visibilityTargetKey",
+        "updatedAt",
+      ],
+    )
     .index("by_contextKey_and_createdAt", ["contextKey", "createdAt"])
     .index("by_entryId_and_createdAt", ["entryId", "createdAt"])
     .index("by_feedbackId", ["feedbackId"])
+    .index("by_slotId", ["slotId"])
+    .index("by_smartStorageProposalId", ["smartStorageProposalId"])
     .index("by_evidenceKind_and_createdAt", ["evidenceKind", "createdAt"]),
+
+  contextExpertiseAggregates: defineTable({
+    subjectUserId: v.optional(v.id("users")),
+    subjectPersonReferentId: v.optional(v.id("referents")),
+    contextKey: v.string(),
+    contextTagIds: v.array(v.id("tags")),
+    contextExpertiseScore: v.number(),
+    contextExpertiseMaturity: v.number(),
+    evidenceCount: v.number(),
+    postCount: v.number(),
+    feedbackCount: v.number(),
+    latestEvidenceAt: v.number(),
+    topSupportingEntryIds: v.array(v.id("knowledgeEntries")),
+    visibilityKind,
+    visibilityTargetKey: v.string(),
+    audienceScopeKind: v.optional(visibilityKind),
+    audienceScopeTargetKey: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_subjectUserId_and_contextKey", ["subjectUserId", "contextKey"])
+    .index("by_subjectUserId_and_contextExpertiseScore", [
+      "subjectUserId",
+      "contextExpertiseScore",
+    ])
+    .index(
+      "by_user_context_audience_scope",
+      [
+        "subjectUserId",
+        "contextKey",
+        "audienceScopeKind",
+        "audienceScopeTargetKey",
+      ],
+    )
+    .index("by_subjectPersonReferentId_and_contextKey", [
+      "subjectPersonReferentId",
+      "contextKey",
+    ])
+    .index(
+      "by_person_context_audience_scope",
+      [
+        "subjectPersonReferentId",
+        "contextKey",
+        "audienceScopeKind",
+        "audienceScopeTargetKey",
+      ],
+    )
+    .index("by_contextKey_and_contextExpertiseScore", [
+      "contextKey",
+      "contextExpertiseScore",
+    ])
+    .index(
+      "by_context_audience_scope_expertise",
+      [
+        "contextKey",
+        "audienceScopeKind",
+        "audienceScopeTargetKey",
+        "contextExpertiseScore",
+      ],
+    )
+    .index("by_contextKey_and_latestEvidenceAt", [
+      "contextKey",
+      "latestEvidenceAt",
+    ]),
 
   entryRepresentations: defineTable({
     entryId: v.id("knowledgeEntries"),
@@ -1328,4 +1502,17 @@ export default defineSchema({
       "activeTagCount",
       "occurredAt",
     ]),
+
+  searchEvents: defineTable({
+    searchScope,
+    searchText: v.string(),
+    activeTagKeys: v.array(v.string()),
+    activeTagIds: v.array(v.id("tags")),
+    activeTagCount: v.number(),
+    userId: v.optional(v.id("users")),
+    resultCount: v.optional(v.number()),
+    searchedAt: v.number(),
+  })
+    .index("by_userId_and_searchedAt", ["userId", "searchedAt"])
+    .index("by_searchScope_and_searchedAt", ["searchScope", "searchedAt"]),
 });

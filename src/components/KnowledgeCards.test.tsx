@@ -119,6 +119,34 @@ describe("KnowledgeEntryCard", () => {
     expect(markup).not.toContain("AI detector");
   });
 
+  it("renders the Human Weight credit subject subtly", () => {
+    const markup = renderToStaticMarkup(
+      <KnowledgeEntryCard
+        entry={{
+          ...entryFixture,
+          humanWeightCredit: {
+            basis: "quotedPerson",
+            label: "C.S. Lewis",
+          },
+          knowledgeType: "quote",
+          title: "Courage at the Testing Point",
+        }}
+      />,
+    );
+
+    expect(markup).toContain("Human Weight Credits");
+    expect(markup).toContain("C.S. Lewis");
+    expect(markup).not.toContain("AI-written");
+    expect(markup).not.toContain("cheating");
+    expect(markup).not.toContain("AI detector");
+  });
+
+  it("omits Human Weight credit when the summary is absent", () => {
+    const markup = renderToStaticMarkup(<KnowledgeEntryCard entry={entryFixture} />);
+
+    expect(markup).not.toContain("Human Weight Credits");
+  });
+
   it("submits subtle Human Weight Feedback for weight-bearing entries", async () => {
     container = document.createElement("div");
     document.body.append(container);

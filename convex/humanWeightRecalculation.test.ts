@@ -63,6 +63,15 @@ describe("Human Weight recalculation", () => {
         CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION.evidenceMaturityPerRow,
     });
     expect(
+      summarizeHumanWeightEvidence("lesson", [{ evidenceSignal: "used" }]),
+    ).toEqual({
+      evidenceCount: 1,
+      positiveEvidenceCount: 1,
+      negativeEvidenceCount: 0,
+      evidenceMaturity:
+        CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION.evidenceMaturityPerRow,
+    });
+    expect(
       summarizeHumanWeightEvidence(
         "lesson",
         Array.from({ length: 5 }, () => ({ feedbackKind: "used" as const })),
@@ -76,6 +85,9 @@ describe("Human Weight recalculation", () => {
     });
     expect(
       summarizeHumanWeightEvidence("topic", [{ feedbackKind: "recognize" }]),
+    ).toBeUndefined();
+    expect(
+      summarizeHumanWeightEvidence("topic", [{ evidenceSignal: "used" }]),
     ).toBeUndefined();
   });
 
@@ -177,6 +189,7 @@ describe("Human Weight recalculation", () => {
       unchangedCount: 1,
       skippedNonWeightBearingCount: 1,
       feedbackRowsScannedCount: 4,
+      derivedEvidenceRowsScannedCount: 0,
     });
 
     const rowState = await t.run(async (ctx) => ({
@@ -249,7 +262,75 @@ describe("Human Weight recalculation", () => {
       unchangedCount: 4,
       skippedNonWeightBearingCount: 1,
       feedbackRowsScannedCount: 4,
+      derivedEvidenceRowsScannedCount: 0,
     });
+  });
+
+  test("recalculates from derived Slot Fulfillment evidence", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(async (ctx) => {
+      const authorUserId = await insertUser(ctx, {
+        email: "slot-author@example.com",
+        name: "Slot Author",
+      });
+      const entryId = await insertEntry(ctx, {
+        createdByUserId: authorUserId,
+        humanWeight: 60,
+        knowledgeType: "lesson",
+        previewText: "A lesson that fulfilled an open slot.",
+        title: "Slot Fulfillment Lesson",
+        updatedAt: BASE_TIME + 1,
+      });
+      const slotId = await ctx.db.insert("knowledgeSlots", {
+        requestedKnowledgeType: "lesson",
+        status: "fulfilled",
+        title: "Needed lesson",
+        contextKey: "tags:",
+        targetKind: "public",
+        fulfilledEntryId: entryId,
+        createdByUserId: authorUserId,
+        createdAt: BASE_TIME,
+        updatedAt: BASE_TIME,
+      });
+      await ctx.db.insert("humanWeightEvidence", {
+        entryId,
+        evidenceKind: "slotFulfillment",
+        evidenceSignal: "used",
+        slotId,
+        subjectUserId: authorUserId,
+        createdAt: BASE_TIME,
+        updatedAt: BASE_TIME,
+      });
+
+      return { entryId };
+    });
+
+    const result = await t.mutation(
+      internal.humanWeightRecalculation.recalculateBatch,
+      { batchSize: 10 },
+    );
+
+    expect(result).toEqual({
+      calculationDefinitionId: expect.any(String),
+      calculationVersion: MVP_HUMAN_WEIGHT_RECALCULATION_VERSION,
+      scannedCount: 1,
+      recalculatedCount: 1,
+      changedCount: 1,
+      unchangedCount: 0,
+      skippedNonWeightBearingCount: 0,
+      feedbackRowsScannedCount: 0,
+      derivedEvidenceRowsScannedCount: 1,
+    });
+
+    const entry = await t.run(async (ctx) => await ctx.db.get(seed.entryId));
+    expect(entry).toEqual(
+      expect.objectContaining({
+        humanWeight: 63,
+        humanWeightBaseEstimate: 60,
+        humanWeightCalculationDefinitionId: result.calculationDefinitionId,
+        humanWeightCalculationVersion: MVP_HUMAN_WEIGHT_RECALCULATION_VERSION,
+      }),
+    );
   });
 
   test("honors the requested batch size", async () => {

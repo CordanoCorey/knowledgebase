@@ -42,11 +42,137 @@ const mockState = vi.hoisted(() => ({
     status: "allowed",
     userId: "user",
   } as unknown,
+  contactIdentities: {
+    contactIdentities: [
+      {
+        email: "corey@archeclassicalacademy.com",
+        id: "contact:corey@archeclassicalacademy.com",
+        verificationStatus: "verified",
+        verifiedAt: Date.UTC(2026, 5, 10, 12),
+      },
+      {
+        email: "corey@rulerofkingschurch.com",
+        id: "contact:corey@rulerofkingschurch.com",
+        verificationStatus: "pending",
+      },
+    ],
+    primaryEmail: "gelbaughcm@gmail.com",
+    primaryEmailVerified: true,
+  } as unknown,
+  contextExpertiseVisibilitySettings: {
+    globalExpertVisibilityEnabled: false,
+  } as unknown,
+  profileContextExpertise: {
+    profileUserId: "user",
+    rows: [],
+  } as unknown,
+  scopedAggregateMigrationStatus: {
+    aggregateSampleLimit: 50,
+    continueCursor: "scoped-cursor-1",
+    evidenceGroupCount: 2,
+    isDone: false,
+    legacyAggregateSampleCount: 1,
+    mayHaveMoreEvidence: true,
+    missingScopedAggregateGroupCount: 1,
+    missingScopedAggregateGroups: [
+      {
+        audienceScopeKind: "organization",
+        audienceScopeTargetKey: "organizationReferent",
+        contextKey: "first-crusade,matthew-5-9",
+        subjectKind: "user",
+        subjectUserId: "user",
+      },
+    ],
+    sampledAggregateCount: 3,
+    sampledEvidenceCount: 25,
+    scopedAggregateSampleCount: 2,
+  } as unknown,
+  scopedAggregateMigrationDryRunResult: {
+    continueCursor: "scoped-cursor-2",
+    dryRun: true,
+    groupCount: 1,
+    groups: [
+      {
+        audienceScopeKind: "organization",
+        audienceScopeTargetKey: "organizationReferent",
+        contextKey: "first-crusade,matthew-5-9",
+        subjectKind: "user",
+        subjectUserId: "user",
+      },
+    ],
+    isDone: false,
+    processedEvidenceCount: 25,
+    rebuiltGroupCount: 0,
+    skippedGroupCount: 0,
+  } as unknown,
+  quoteAttributionBackfillStatus: {
+    attributedQuoteRowCount: 2,
+    continueCursor: "quote-cursor-1",
+    eligibleQuoteRowCount: 1,
+    existingEvidenceCount: 0,
+    isDone: false,
+    mayHaveMoreQuoteRows: true,
+    missingEvidenceCount: 1,
+    missingEvidenceItems: [
+      {
+        action: "missing",
+        contextKey: "augustine,first-crusade",
+        entryId: "entry-quote-augustine",
+        quoteEntryId: "quote-augustine",
+        subjectPersonReferentId: "referent-augustine",
+      },
+    ],
+    processedQuoteRowCount: 3,
+    skippedQuoteRowCount: 1,
+    skippedQuoteRowItems: [
+      {
+        entryId: "entry-quote-anonymous",
+        quoteEntryId: "quote-anonymous",
+        skippedReason: "noQuotedPerson",
+      },
+    ],
+  } as unknown,
+  quoteAttributionBackfillDryRunResult: {
+    attributedQuoteRowCount: 2,
+    continueCursor: "quote-cursor-2",
+    createdEvidenceCount: 0,
+    dryRun: true,
+    eligibleQuoteRowCount: 1,
+    evidenceItems: [
+      {
+        action: "wouldCreate",
+        contextKey: "augustine,first-crusade",
+        entryId: "entry-quote-augustine",
+        quoteEntryId: "quote-augustine",
+        subjectPersonReferentId: "referent-augustine",
+      },
+    ],
+    existingEvidenceCount: 0,
+    isDone: false,
+    mayHaveMoreQuoteRows: true,
+    missingEvidenceCount: 1,
+    processedQuoteRowCount: 3,
+    skippedQuoteRowCount: 1,
+    skippedQuoteRowItems: [
+      {
+        entryId: "entry-quote-anonymous",
+        quoteEntryId: "quote-anonymous",
+        skippedReason: "noQuotedPerson",
+      },
+    ],
+    wouldCreateEvidenceCount: 1,
+  } as unknown,
   auth: {
     isAuthenticated: true,
     isLoading: false,
   },
   organizationMembershipMembers: [] as unknown[],
+  contextExperts: [] as unknown[],
+  contextExpertDetail: null as unknown,
+  quoteAttributionPersonOptions: [] as unknown[],
+  publicFigureExpertPersonOptions: [] as unknown[],
+  personGlobalExpertVisibilityModeration: null as unknown,
+  personGlobalExpertVisibilityModerationHistory: [] as unknown[],
   mutationCalls: [] as unknown[],
   actionCalls: [] as unknown[],
   smartStorageModelRunResult: {
@@ -58,6 +184,169 @@ const mockState = vi.hoisted(() => ({
   smartStorageAcceptReturnsTargetExists: false,
   smartStorageSourceIds: ["source-raw-chapel-notes"] as string[],
   smartStorageStartInput: null as Record<string, unknown> | null,
+  tagSuggestions: [
+    {
+      canonicalKey: "matthew-5-9",
+      href: "/scripture/matthew-5-9",
+      id: "matthew-5-9",
+      knowledgeType: "biblePassage",
+      label: "Matthew 5:9",
+      matchTerms: ["Matthew 5 9"],
+      tag: {
+        canonicalKey: "matthew-5-9",
+        href: "/scripture/matthew-5-9",
+        id: "matthew-5-9",
+        knowledgeType: "biblePassage",
+        label: "Matthew 5:9",
+        passageString: "matthew-5-9",
+      },
+    },
+    {
+      canonicalKey: "joshua-1-6-9",
+      href: "/scripture/joshua-1-6-9",
+      id: "joshua-1-6-9",
+      knowledgeType: "biblePassage",
+      label: "Joshua 1:6-9",
+      tag: {
+        canonicalKey: "joshua-1-6-9",
+        href: "/scripture/joshua-1-6-9",
+        id: "joshua-1-6-9",
+        knowledgeType: "biblePassage",
+        label: "Joshua 1:6-9",
+        passageString: "joshua-1-6-9",
+      },
+    },
+    {
+      canonicalKey: "romans-8-28",
+      href: "/scripture/romans-8-28",
+      id: "romans-8-28",
+      knowledgeType: "biblePassage",
+      label: "Romans 8:28",
+      tag: {
+        canonicalKey: "romans-8-28",
+        href: "/scripture/romans-8-28",
+        id: "romans-8-28",
+        knowledgeType: "biblePassage",
+        label: "Romans 8:28",
+        passageString: "romans-8-28",
+      },
+    },
+    {
+      canonicalKey: "first-crusade",
+      href: "/goto/first-crusade",
+      id: "first-crusade",
+      knowledgeType: "topic",
+      label: "First Crusade",
+      tag: {
+        canonicalKey: "first-crusade",
+        href: "/goto/first-crusade",
+        id: "first-crusade",
+        knowledgeType: "topic",
+        label: "First Crusade",
+      },
+    },
+    {
+      canonicalKey: "the-city-of-god",
+      href: "/goto/the-city-of-god",
+      id: "the-city-of-god",
+      knowledgeType: "book",
+      label: "The City of God",
+      matchTerms: ["City of God"],
+      tag: {
+        canonicalKey: "the-city-of-god",
+        href: "/goto/the-city-of-god",
+        id: "the-city-of-god",
+        knowledgeType: "book",
+        label: "The City of God",
+      },
+    },
+    {
+      canonicalKey: "grade-9-church-history",
+      href: "/goto/grade-9-church-history",
+      id: "grade-9-church-history",
+      knowledgeType: "group",
+      label: "Grade 9 Church History",
+      tag: {
+        canonicalKey: "grade-9-church-history",
+        href: "/goto/grade-9-church-history",
+        id: "grade-9-church-history",
+        knowledgeType: "group",
+        label: "Grade 9 Church History",
+      },
+    },
+    {
+      canonicalKey: "grade-10-medieval-literature",
+      href: "/goto/grade-10-medieval-literature",
+      id: "grade-10-medieval-literature",
+      knowledgeType: "group",
+      label: "Grade 10 Medieval Literature",
+      tag: {
+        canonicalKey: "grade-10-medieval-literature",
+        href: "/goto/grade-10-medieval-literature",
+        id: "grade-10-medieval-literature",
+        knowledgeType: "group",
+        label: "Grade 10 Medieval Literature",
+      },
+    },
+    {
+      canonicalKey: "student-crusades-question",
+      href: "/goto/student-crusades-question",
+      id: "student-crusades-question",
+      knowledgeType: "question",
+      label: "Student Crusades Question",
+      matchTerms: ["Micah", "Crusades Question"],
+      tag: {
+        canonicalKey: "student-crusades-question",
+        href: "/goto/student-crusades-question",
+        id: "student-crusades-question",
+        knowledgeType: "question",
+        label: "Student Crusades Question",
+      },
+    },
+  ] as unknown[],
+  rootSearchResults: [
+    {
+      canonicalKey: "grade-9-church-history",
+      href: "/goto/grade-9-church-history",
+      id: "grade-9-church-history",
+      knowledgeType: "group",
+      label: "Grade 9 Church History",
+      matchTerms: ["disordered loves", "earthly city", "peace"],
+      matchedEntryPreview: {
+        href: "/goto/grade-9-church-history",
+        id: "entry-first-crusade-ordered-loves",
+        knowledgeType: "lesson",
+        previewText:
+          "Grade 9 Church History prep for teaching the Crusades through Augustine's earthly city, peace, and disordered loves.",
+        primaryTagLabel: "Grade 9 Church History",
+        title: "Augustine, Ordered Loves, and the First Crusade",
+      },
+      scopeLabel: "Organization",
+      tag: {
+        canonicalKey: "grade-9-church-history",
+        href: "/goto/grade-9-church-history",
+        id: "grade-9-church-history",
+        knowledgeType: "group",
+        label: "Grade 9 Church History",
+      },
+    },
+    {
+      canonicalKey: "robinson-crusoe",
+      href: "/goto/robinson-crusoe",
+      id: "robinson-crusoe",
+      knowledgeType: "book",
+      label: "Robinson Crusoe",
+      matchTerms: ["Robinson Crusoe"],
+      scopeLabel: "Global",
+      tag: {
+        canonicalKey: "robinson-crusoe",
+        href: "/goto/robinson-crusoe",
+        id: "robinson-crusoe",
+        knowledgeType: "book",
+        label: "Robinson Crusoe",
+      },
+    },
+  ] as unknown[],
   pinnedKnowledgePages: [
     {
       href: "/organizations/organizationReferent",
@@ -248,10 +537,31 @@ vi.mock("convex/react", () => ({
       "email" in args
     ) {
       const email = String(args.email).trim().toLowerCase();
+      const verificationStatus =
+        email === "verified.alias@example.com" ? "verified" : "pending";
+      const contactIdentity = {
+        email,
+        id: `contact:${email}`,
+        verificationStatus,
+        ...(verificationStatus === "verified"
+          ? { verifiedAt: Date.UTC(2026, 5, 12, 13) }
+          : {}),
+      };
+      mockState.contactIdentities = {
+        ...(mockState.contactIdentities as Record<string, unknown>),
+        contactIdentities: [
+          contactIdentity,
+          ...(
+            (mockState.contactIdentities as {
+              contactIdentities?: Array<{ email?: string }>;
+            }).contactIdentities ?? []
+          ).filter((identity) => identity.email !== email),
+        ],
+      };
       return {
         contactIdentityId: `contact:${email}`,
         email,
-        verificationStatus: "pending",
+        verificationStatus,
       };
     }
 
@@ -264,6 +574,127 @@ vi.mock("convex/react", () => ({
         ? { ...args, functionName }
         : { args, functionName },
     );
+    if (
+      functionName === "contextExpertiseSettings:updateGlobalExpertVisibility" &&
+      args &&
+      typeof args === "object" &&
+      "enabled" in args
+    ) {
+      mockState.contextExpertiseVisibilitySettings = {
+        globalExpertVisibilityEnabled: Boolean(args.enabled),
+      };
+    }
+    if (
+      functionName ===
+        "contextExpertise:updatePersonGlobalExpertVisibilityModeration" &&
+      args &&
+      typeof args === "object" &&
+      "personReferentId" in args &&
+      "suppressed" in args
+    ) {
+      const input = args as {
+        moderationNote?: string;
+        personReferentId: string;
+        suppressed: boolean;
+      };
+      const option = (
+        mockState.publicFigureExpertPersonOptions as Array<{
+          label?: string;
+          referentId?: string;
+        }>
+      ).find((candidate) => candidate.referentId === input.personReferentId);
+      const previousModeration =
+        mockState.personGlobalExpertVisibilityModeration as
+          | {
+              moderationNote?: string;
+              status?: "visibleByDefault" | "suppressed";
+            }
+          | null;
+      const previousStatus =
+        previousModeration?.status === "suppressed"
+          ? "suppressed"
+          : "visibleByDefault";
+      const createdAt =
+        Date.UTC(2026, 5, 19, 21, 0) +
+        (mockState.personGlobalExpertVisibilityModerationHistory as unknown[])
+          .length;
+
+      if (input.suppressed && previousStatus === "visibleByDefault") {
+        mockState.personGlobalExpertVisibilityModerationHistory = [
+          {
+            action: "suppressed",
+            createdAt,
+            eventId: `public-figure-event-${createdAt}`,
+            ...(input.moderationNote
+              ? { moderationNote: input.moderationNote }
+              : {}),
+            nextStatus: "suppressed",
+            personReferentId: input.personReferentId,
+            previousStatus,
+            updatedByUserId: "system-admin-user",
+          },
+          ...(mockState.personGlobalExpertVisibilityModerationHistory as unknown[]),
+        ];
+      } else if (
+        input.suppressed &&
+        previousStatus === "suppressed" &&
+        input.moderationNote &&
+        input.moderationNote !== previousModeration?.moderationNote
+      ) {
+        mockState.personGlobalExpertVisibilityModerationHistory = [
+          {
+            action: "suppressionNoteUpdated",
+            createdAt,
+            eventId: `public-figure-event-${createdAt}`,
+            moderationNote: input.moderationNote,
+            nextStatus: "suppressed",
+            personReferentId: input.personReferentId,
+            ...(previousModeration?.moderationNote
+              ? { previousModerationNote: previousModeration.moderationNote }
+              : {}),
+            previousStatus,
+            updatedByUserId: "system-admin-user",
+          },
+          ...(mockState.personGlobalExpertVisibilityModerationHistory as unknown[]),
+        ];
+      } else if (!input.suppressed && previousStatus === "suppressed") {
+        mockState.personGlobalExpertVisibilityModerationHistory = [
+          {
+            action: "restored",
+            createdAt,
+            eventId: `public-figure-event-${createdAt}`,
+            nextStatus: "visibleByDefault",
+            personReferentId: input.personReferentId,
+            ...(previousModeration?.moderationNote
+              ? { previousModerationNote: previousModeration.moderationNote }
+              : {}),
+            previousStatus,
+            updatedByUserId: "system-admin-user",
+          },
+          ...(mockState.personGlobalExpertVisibilityModerationHistory as unknown[]),
+        ];
+      }
+      mockState.personGlobalExpertVisibilityModeration = {
+        ...(input.suppressed && (input.moderationNote ?? previousModeration?.moderationNote)
+          ? {
+              moderationNote:
+                input.moderationNote ?? previousModeration?.moderationNote,
+            }
+          : {}),
+        personLabel: option?.label ?? "Selected Person",
+        personReferentId: input.personReferentId,
+        status: input.suppressed ? "suppressed" : "visibleByDefault",
+      };
+      return mockState.personGlobalExpertVisibilityModeration;
+    }
+    if (functionName === "contextExpertise:rebuildScopedAggregateBatch") {
+      return mockState.scopedAggregateMigrationDryRunResult;
+    }
+    if (
+      functionName === "contextExpertise:backfillQuoteAttributionEvidenceBatch"
+    ) {
+      return mockState.quoteAttributionBackfillDryRunResult;
+    }
     if (
       functionName === "pinnedKnowledgePages:unpinKnowledgePage" &&
       args &&
@@ -515,6 +946,39 @@ vi.mock("convex/react", () => ({
       };
     }
     if (
+      functionName === "organizationAccounts:rejectPersonConsolidationReview" &&
+      args &&
+      typeof args === "object" &&
+      "personConsolidationReviewId" in args
+    ) {
+      return {
+        membershipId: "membership:pending-teacher",
+        reviewStatus: "rejected",
+      };
+    }
+    if (
+      functionName === "organizationAccounts:reopenPersonConsolidationReview" &&
+      args &&
+      typeof args === "object" &&
+      "personConsolidationReviewId" in args
+    ) {
+      return {
+        membershipId: "membership:rejected-teacher",
+        reviewStatus: "pending",
+      };
+    }
+    if (
+      functionName === "organizationAccounts:withdrawPendingOrganizationMember" &&
+      args &&
+      typeof args === "object" &&
+      "membershipId" in args
+    ) {
+      return {
+        membershipId: args.membershipId,
+        membershipStatus: "inactive",
+      };
+    }
+    if (
       functionName === "contactIdentities:requestEmailVerification" &&
       args &&
       typeof args === "object" &&
@@ -534,6 +998,22 @@ vi.mock("convex/react", () => ({
       "email" in args
     ) {
       const email = String(args.email).trim().toLowerCase();
+      mockState.contactIdentities = {
+        ...(mockState.contactIdentities as Record<string, unknown>),
+        contactIdentities: [
+          {
+            email,
+            id: `contact:${email}`,
+            verificationStatus: "verified",
+            verifiedAt: Date.UTC(2026, 5, 12, 13),
+          },
+          ...(
+            (mockState.contactIdentities as {
+              contactIdentities?: Array<{ email?: string }>;
+            }).contactIdentities ?? []
+          ).filter((identity) => identity.email !== email),
+        ],
+      };
       if (email === "review@example.com") {
         return {
           claimedMembershipCount: 0,
@@ -543,6 +1023,26 @@ vi.mock("convex/react", () => ({
           personConsolidationReviews: [
             {
               membershipId: "membership:review-needed",
+              organizationReferentId: "organizationReferent",
+              role: "member",
+            },
+          ],
+          personConsolidationRejectionCount: 0,
+          personConsolidationRejections: [],
+          verificationStatus: "verified",
+        };
+      }
+      if (email === "rejected@example.com") {
+        return {
+          claimedMembershipCount: 0,
+          email,
+          memberships: [],
+          personConsolidationReviewCount: 0,
+          personConsolidationReviews: [],
+          personConsolidationRejectionCount: 1,
+          personConsolidationRejections: [
+            {
+              membershipId: "membership:rejected-review",
               organizationReferentId: "organizationReferent",
               role: "member",
             },
@@ -568,6 +1068,8 @@ vi.mock("convex/react", () => ({
         ],
         personConsolidationReviewCount: 0,
         personConsolidationReviews: [],
+        personConsolidationRejectionCount: 0,
+        personConsolidationRejections: [],
         verificationStatus: "verified",
       };
     }
@@ -590,6 +1092,8 @@ vi.mock("convex/react", () => ({
         ],
         personConsolidationReviewCount: 0,
         personConsolidationReviews: [],
+        personConsolidationRejectionCount: 0,
+        personConsolidationRejections: [],
         verificationStatus: "verified",
       };
     }
@@ -839,11 +1343,79 @@ vi.mock("convex/react", () => ({
       return mockState.knowledgeSubscriptions;
     }
 
+    if (functionName === "contactIdentities:listForCurrentUser") {
+      return mockState.contactIdentities;
+    }
+
+    if (functionName === "contextExpertiseSettings:getCurrentUserSettings") {
+      return mockState.contextExpertiseVisibilitySettings;
+    }
+
+    if (
+      functionName === "contextExpertise:listCurrentUserProfileContextExpertise"
+    ) {
+      return mockState.profileContextExpertise;
+    }
+
+    if (
+      functionName === "contextExpertise:getScopedAggregateMigrationStatus"
+    ) {
+      return mockState.scopedAggregateMigrationStatus;
+    }
+
+    if (
+      functionName === "contextExpertise:getQuoteAttributionBackfillStatus"
+    ) {
+      return mockState.quoteAttributionBackfillStatus;
+    }
+
     if (functionName === "answerFeed:listForActiveTagKeys") {
       const activeTagIds = getMockActiveTagIds(args);
       return mockState.answerFeedItems
         .filter((item) => itemFitsMockKnowledgeContext(item, activeTagIds))
         .sort(compareMockAnswerFeedItems);
+    }
+
+    if (functionName === "answerFeed:listExpertsForActiveTagKeys") {
+      return mockState.contextExperts;
+    }
+
+    if (functionName === "answerFeed:getExpertDetailForActiveTagKeys") {
+      return mockState.contextExpertDetail;
+    }
+
+    if (functionName === "tagSuggestions:listRootSearchTagSuggestions") {
+      return getMockTagSuggestions(args);
+    }
+
+    if (functionName === "tagSuggestions:listKnowledgeNavigatorTagSuggestions") {
+      return getMockTagSuggestions(args, { excludeActiveTags: true });
+    }
+
+    if (functionName === "rootSearch:listRootSearchResults") {
+      return getMockRootSearchResults(args);
+    }
+
+    if (functionName === "contextExpertise:searchQuoteAttributionPeople") {
+      return mockState.quoteAttributionPersonOptions;
+    }
+
+    if (functionName === "contextExpertise:searchPublicFigureExpertPeople") {
+      return mockState.publicFigureExpertPersonOptions;
+    }
+
+    if (
+      functionName ===
+      "contextExpertise:getPersonGlobalExpertVisibilityModeration"
+    ) {
+      return mockState.personGlobalExpertVisibilityModeration;
+    }
+
+    if (
+      functionName ===
+      "contextExpertise:listPersonGlobalExpertVisibilityModerationHistory"
+    ) {
+      return mockState.personGlobalExpertVisibilityModerationHistory;
     }
 
     if (functionName === "userNotifications:listForInbox") {
@@ -1067,6 +1639,95 @@ function getFunctionName(reference: unknown) {
   return "";
 }
 
+function getMockTagSuggestions(
+  args: unknown,
+  options: { excludeActiveTags?: boolean } = {},
+) {
+  if (!args || typeof args !== "object" || !("query" in args)) {
+    return [];
+  }
+
+  const query = normalizeMockSuggestionText(String(args.query));
+  if (!query) {
+    return [];
+  }
+
+  const activeTagIds = new Set(
+    options.excludeActiveTags === true ? getMockActiveTagIds(args) : [],
+  );
+  const limit =
+    "limit" in args && typeof args.limit === "number"
+      ? Math.max(0, Math.floor(args.limit))
+      : 5;
+
+  return mockState.tagSuggestions
+    .filter(
+      (suggestion): suggestion is Record<string, unknown> =>
+        suggestion !== null && typeof suggestion === "object",
+    )
+    .filter((suggestion) => !activeTagIds.has(String(suggestion.id)))
+    .filter((suggestion) => {
+      const values = [
+        suggestion.label,
+        suggestion.id,
+        suggestion.canonicalKey,
+        ...(((suggestion.matchTerms as unknown[]) ?? []) as unknown[]),
+      ];
+
+      return values.some((value) =>
+        normalizeMockSuggestionText(String(value ?? "")).includes(query),
+      );
+    })
+    .slice(0, limit)
+    .map(({ matchTerms: _matchTerms, ...suggestion }) => ({
+      matchKind: "label",
+      ...suggestion,
+    }));
+}
+
+function getMockRootSearchResults(args: unknown) {
+  if (!args || typeof args !== "object" || !("query" in args)) {
+    return [];
+  }
+
+  const query = normalizeMockSuggestionText(String(args.query));
+  if (!query) {
+    return [];
+  }
+
+  const limit =
+    "limit" in args && typeof args.limit === "number"
+      ? Math.max(0, Math.floor(args.limit))
+      : 8;
+
+  return mockState.rootSearchResults
+    .filter(
+      (result): result is Record<string, unknown> =>
+        result !== null && typeof result === "object",
+    )
+    .filter((result) => {
+      const preview =
+        result.matchedEntryPreview &&
+        typeof result.matchedEntryPreview === "object"
+          ? (result.matchedEntryPreview as Record<string, unknown>)
+          : {};
+      const values = [
+        result.label,
+        result.id,
+        result.canonicalKey,
+        preview.title,
+        preview.previewText,
+        ...(((result.matchTerms as unknown[]) ?? []) as unknown[]),
+      ];
+
+      return values.some((value) =>
+        normalizeMockSuggestionText(String(value ?? "")).includes(query),
+      );
+    })
+    .slice(0, limit)
+    .map(({ matchTerms: _matchTerms, ...result }) => result);
+}
+
 function getNotificationSummary(notifications: unknown[]) {
   return {
     allCount: notifications.length,
@@ -1157,6 +1818,15 @@ function getMockActiveTagIds(args: unknown) {
       tag && typeof tag === "object" && "id" in tag ? String(tag.id) : "",
     )
     .filter(Boolean);
+}
+
+function normalizeMockSuggestionText(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function getMockContributionContextTagIds(args: unknown) {
@@ -1384,6 +2054,33 @@ function getMockInitialAnswerFeedItems() {
 const CONTRIBUTION_BODY =
   "A deterministic comment distinguishing Christian courage from zeal without knowledge.";
 
+const QUOTE_ATTRIBUTION_EXPERT = {
+  contextExpertiseMaturity: 80,
+  contextExpertiseScore: 110,
+  evidenceCount: 1,
+  feedbackCount: 0,
+  id: "person:referent-lewis",
+  name: "C. S. Lewis",
+  postCount: 1,
+  subjectKind: "person",
+  subjectPersonReferentId: "referent-lewis",
+};
+
+const QUOTE_ATTRIBUTION_ENTRY = {
+  contextPreviewTagLabels: ["Matthew 5:9"],
+  href: "/entries/entry-lewis-quote",
+  id: "entry-lewis-quote",
+  knowledgeType: "quote",
+  previewText: "Blessed are the peacemakers.",
+  primaryTagLabel: "Matthew 5:9",
+  quoteAttribution: {
+    quotedPersonLabel: "C. S. Lewis",
+    quotedPersonReferentId: "referent-lewis",
+  },
+  title: "Lewis on Peacemaking",
+  updatedAt: Date.UTC(2026, 5, 12, 12),
+};
+
 describe("MVP Explore/Contribute loop", () => {
   let container: HTMLDivElement;
   let root: Root | null;
@@ -1435,6 +2132,126 @@ describe("MVP Explore/Contribute loop", () => {
       ],
       status: "allowed",
       userId: "user",
+    };
+    mockState.contactIdentities = {
+      contactIdentities: [
+        {
+          email: "corey@archeclassicalacademy.com",
+          id: "contact:corey@archeclassicalacademy.com",
+          verificationStatus: "verified",
+          verifiedAt: Date.UTC(2026, 5, 10, 12),
+        },
+        {
+          email: "corey@rulerofkingschurch.com",
+          id: "contact:corey@rulerofkingschurch.com",
+          verificationStatus: "pending",
+        },
+      ],
+      primaryEmail: "gelbaughcm@gmail.com",
+      primaryEmailVerified: true,
+    };
+    mockState.contextExpertiseVisibilitySettings = {
+      globalExpertVisibilityEnabled: false,
+    };
+    mockState.profileContextExpertise = {
+      profileUserId: "user",
+      rows: [],
+    };
+    mockState.scopedAggregateMigrationStatus = {
+      aggregateSampleLimit: 50,
+      continueCursor: "scoped-cursor-1",
+      evidenceGroupCount: 2,
+      isDone: false,
+      legacyAggregateSampleCount: 1,
+      mayHaveMoreEvidence: true,
+      missingScopedAggregateGroupCount: 1,
+      missingScopedAggregateGroups: [
+        {
+          audienceScopeKind: "organization",
+          audienceScopeTargetKey: "organizationReferent",
+          contextKey: "first-crusade,matthew-5-9",
+          subjectKind: "user",
+          subjectUserId: "user",
+        },
+      ],
+      sampledAggregateCount: 3,
+      sampledEvidenceCount: 25,
+      scopedAggregateSampleCount: 2,
+    };
+    mockState.scopedAggregateMigrationDryRunResult = {
+      continueCursor: "scoped-cursor-2",
+      dryRun: true,
+      groupCount: 1,
+      groups: [
+        {
+          audienceScopeKind: "organization",
+          audienceScopeTargetKey: "organizationReferent",
+          contextKey: "first-crusade,matthew-5-9",
+          subjectKind: "user",
+          subjectUserId: "user",
+        },
+      ],
+      isDone: false,
+      processedEvidenceCount: 25,
+      rebuiltGroupCount: 0,
+      skippedGroupCount: 0,
+    };
+    mockState.quoteAttributionBackfillStatus = {
+      attributedQuoteRowCount: 2,
+      continueCursor: "quote-cursor-1",
+      eligibleQuoteRowCount: 1,
+      existingEvidenceCount: 0,
+      isDone: false,
+      mayHaveMoreQuoteRows: true,
+      missingEvidenceCount: 1,
+      missingEvidenceItems: [
+        {
+          action: "missing",
+          contextKey: "augustine,first-crusade",
+          entryId: "entry-quote-augustine",
+          quoteEntryId: "quote-augustine",
+          subjectPersonReferentId: "referent-augustine",
+        },
+      ],
+      processedQuoteRowCount: 3,
+      skippedQuoteRowCount: 1,
+      skippedQuoteRowItems: [
+        {
+          entryId: "entry-quote-anonymous",
+          quoteEntryId: "quote-anonymous",
+          skippedReason: "noQuotedPerson",
+        },
+      ],
+    };
+    mockState.quoteAttributionBackfillDryRunResult = {
+      attributedQuoteRowCount: 2,
+      continueCursor: "quote-cursor-2",
+      createdEvidenceCount: 0,
+      dryRun: true,
+      eligibleQuoteRowCount: 1,
+      evidenceItems: [
+        {
+          action: "wouldCreate",
+          contextKey: "augustine,first-crusade",
+          entryId: "entry-quote-augustine",
+          quoteEntryId: "quote-augustine",
+          subjectPersonReferentId: "referent-augustine",
+        },
+      ],
+      existingEvidenceCount: 0,
+      isDone: false,
+      mayHaveMoreQuoteRows: true,
+      missingEvidenceCount: 1,
+      processedQuoteRowCount: 3,
+      skippedQuoteRowCount: 1,
+      skippedQuoteRowItems: [
+        {
+          entryId: "entry-quote-anonymous",
+          quoteEntryId: "quote-anonymous",
+          skippedReason: "noQuotedPerson",
+        },
+      ],
+      wouldCreateEvidenceCount: 1,
     };
     mockState.pinnedKnowledgePages = [
       {
@@ -1489,6 +2306,12 @@ describe("MVP Explore/Contribute loop", () => {
     mockState.bookmarkedKnowledgePages = [];
     mockState.knowledgeSubscriptions = [];
     mockState.organizationMembershipMembers = [];
+    mockState.contextExperts = [];
+    mockState.contextExpertDetail = null;
+    mockState.quoteAttributionPersonOptions = [];
+    mockState.publicFigureExpertPersonOptions = [];
+    mockState.personGlobalExpertVisibilityModeration = null;
+    mockState.personGlobalExpertVisibilityModerationHistory = [];
     mockState.answerFeedItems = getMockInitialAnswerFeedItems();
     mockState.smartStorageSourceIds = ["source-raw-chapel-notes"];
     mockState.smartStorageStartInput = null;
@@ -1592,7 +2415,7 @@ describe("MVP Explore/Contribute loop", () => {
       expect(answerItem.textContent).toContain("First Crusade");
     }
 
-    const rail = getLabelledElement("Knowledge context and request");
+    const rail = getLabelledElement("Knowledge context and search");
     expect(rail.querySelector(".kb-knowledge-navigator")).toBeTruthy();
     expect(rail.querySelector(".kb-request-composer")).toBeTruthy();
     expect(rail.querySelector(".kb-slot-card")).toBeNull();
@@ -1624,15 +2447,12 @@ describe("MVP Explore/Contribute loop", () => {
       "Matthew 5:9",
       "Student Crusades Question",
     ]);
-    const knowledgeTypeSelect = editor.querySelector("select");
-    expect(knowledgeTypeSelect?.getAttribute("disabled")).not.toBeNull();
-    expect(knowledgeTypeSelect?.getAttribute("value") ?? knowledgeTypeSelect?.value).toBe(
-      "comment",
-    );
+    expect(editor.querySelector("select")).toBeNull();
+    expect(editor.textContent).toContain("Comment");
 
     expect(editor.querySelector('input[type="text"]')).toBeNull();
     await setFieldValue(getTextareaIn(editor), CONTRIBUTION_BODY);
-    await click(getButtonIn(editor, "Post Comment"));
+    await click(getButtonIn(editor, "Comment"));
 
     const finalAnswerItems = getFeedItems("answer");
     expect(finalAnswerItems.map(getCardTitle)).toEqual([
@@ -1697,6 +2517,78 @@ describe("MVP Explore/Contribute loop", () => {
     expect(answerItem.textContent).toContain("Feedback saved.");
   });
 
+  test("lets system admins correct Quote attribution from Context Expert details", async () => {
+    mockState.appAccess = {
+      ...(mockState.appAccess as Record<string, unknown>),
+      systemRole: "systemAdmin",
+    };
+    mockState.contextExperts = [QUOTE_ATTRIBUTION_EXPERT];
+    mockState.contextExpertDetail = {
+      ...QUOTE_ATTRIBUTION_EXPERT,
+      topSupportingEntries: [QUOTE_ATTRIBUTION_ENTRY],
+    };
+    mockState.quoteAttributionPersonOptions = [
+      {
+        label: "J. R. R. Tolkien",
+        referentId: "referent-tolkien",
+        tagId: "tag-tolkien",
+      },
+    ];
+
+    await renderApp();
+
+    await click(getButton("Open C. S. Lewis Context Expert details"));
+    const dialog = getDialog();
+    expect(dialog.textContent).toContain("Lewis on Peacemaking");
+    expect(dialog.textContent).toContain("Quoted Person");
+    expect(dialog.textContent).toContain("C. S. Lewis");
+    expect(dialog.textContent).toContain("referent-lewis");
+
+    await setFieldValue(
+      getLabelledElement(
+        "Search corrected Person for Lewis on Peacemaking",
+      ) as HTMLInputElement,
+      "Tolkien",
+    );
+    await click(getButtonIn(dialog, "J. R. R. Tolkien"));
+    await click(getButtonIn(dialog, "Save attribution"));
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        entryId: "entry-lewis-quote",
+        functionName: "contextExpertise:correctQuoteAttribution",
+        nextQuotedPersonReferentId: "referent-tolkien",
+      }),
+    );
+    expect(dialog.textContent).toContain("Quote attribution updated.");
+
+    await click(getButtonIn(dialog, "Clear attribution"));
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        entryId: "entry-lewis-quote",
+        functionName: "contextExpertise:correctQuoteAttribution",
+        nextQuotedPersonReferentId: null,
+      }),
+    );
+  });
+
+  test("hides Quote attribution correction controls from non-system admins", async () => {
+    mockState.contextExperts = [QUOTE_ATTRIBUTION_EXPERT];
+    mockState.contextExpertDetail = {
+      ...QUOTE_ATTRIBUTION_EXPERT,
+      topSupportingEntries: [QUOTE_ATTRIBUTION_ENTRY],
+    };
+
+    await renderApp();
+
+    await click(getButton("Open C. S. Lewis Context Expert details"));
+    const dialog = getDialog();
+    expect(dialog.textContent).toContain("Lewis on Peacemaking");
+    expect(dialog.textContent).not.toContain("Save attribution");
+    expect(dialog.textContent).not.toContain("Corrected Person");
+  });
+
   test("stores dashboard Smart Storage contributions without direct posting", async () => {
     window.history.replaceState({}, "", "http://localhost:3000/");
     const uploadedFile = new File(["Friday chapel program"], "chapel-program.pdf", {
@@ -1711,28 +2603,23 @@ describe("MVP Explore/Contribute loop", () => {
     await renderApp();
 
     const editor = getContributionEditor();
-    expect(editor.textContent).toContain("Smart Storage");
+    expect(editor.textContent).toContain("Store");
 
-    await setFieldValue(getTextInputIn(editor), "Raw chapel notes");
     await setFieldValue(
       getTextareaIn(editor),
-      "A source that should be preserved before enrichment.",
+      [
+        "Raw chapel notes",
+        "A source that should be preserved before enrichment.",
+        "https://example.com/chapel-program",
+      ].join("\n"),
     );
-    const contributionNote = getTextareasIn(editor)[1];
-    await setFieldValue(
-      contributionNote,
-      "Use the URL and program as supporting material.",
-    );
-    const urlInput = getUrlInputIn(editor);
-    await setFieldValue(urlInput, "https://example.com/chapel-program");
-    await click(getButtonIn(editor, "Add external URL Source"));
     await setFileInputFiles(getFileInputIn(editor), [uploadedFile]);
 
-    expect(editor.textContent).toContain("Source Inventory");
+    expect(editor.textContent).not.toContain("Source Inventory");
     expect(editor.textContent).toContain("https://example.com/chapel-program");
     expect(editor.textContent).toContain("chapel-program.pdf");
 
-    await click(getButtonIn(editor, "Store Smartly"));
+    await click(getButtonIn(editor, "Store"));
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://upload.example/convex-storage",
@@ -1754,8 +2641,11 @@ describe("MVP Explore/Contribute loop", () => {
     );
     expect(mockState.mutationCalls).toContainEqual(
       expect.objectContaining({
-        body: "A source that should be preserved before enrichment.",
-        contributionNote: "Use the URL and program as supporting material.",
+        body: [
+          "Raw chapel notes",
+          "A source that should be preserved before enrichment.",
+          "https://example.com/chapel-program",
+        ].join("\n"),
         contextTags: [],
         externalUrls: [{ url: "https://example.com/chapel-program" }],
         functionName: "smartStorage:startFromContribution",
@@ -1793,7 +2683,7 @@ describe("MVP Explore/Contribute loop", () => {
           call.functionName === "directContributions:postDirectContribution",
       ),
     ).toBe(false);
-    expect(editor.textContent).toContain("Stored Smartly");
+    expect(editor.textContent).toContain("Stored");
     const proposalReview = getLabelledElement("Smart Storage Proposal");
     expect(proposalReview.textContent).toContain("Raw chapel notes");
     expect(proposalReview.textContent).toContain("Words");
@@ -1885,12 +2775,11 @@ describe("MVP Explore/Contribute loop", () => {
     await renderApp();
 
     const editor = getContributionEditor();
-    await setFieldValue(getTextInputIn(editor), "Raw chapel notes");
     await setFieldValue(
       getTextareaIn(editor),
-      "A source that should update the existing Gold entry.",
+      "Raw chapel notes\nA source that should update the existing Gold entry.",
     );
-    await click(getButtonIn(editor, "Store Smartly"));
+    await click(getButtonIn(editor, "Store"));
 
     let proposalReview = getLabelledElement("Smart Storage Proposal");
     await click(getButtonIn(proposalReview, "Accept Proposal"));
@@ -1960,12 +2849,11 @@ describe("MVP Explore/Contribute loop", () => {
       await renderApp();
 
       const editor = getContributionEditor();
-      await setFieldValue(getTextInputIn(editor), "Raw chapel notes");
       await setFieldValue(
         getTextareaIn(editor),
-        "A source that should be preserved before enrichment.",
+        "Raw chapel notes\nA source that should be preserved before enrichment.",
       );
-      await click(getButtonIn(editor, "Store Smartly"));
+      await click(getButtonIn(editor, "Store"));
 
       expect(mockState.actionCalls).toContainEqual(
         expect.objectContaining({
@@ -2091,6 +2979,14 @@ describe("MVP Explore/Contribute loop", () => {
           claimedContactKind: "email",
           claimedContactValue: "claimed.teacher@example.com",
           claimSource: "verifiedContactIdentity",
+          personConsolidation: {
+            approvedAt: Date.now(),
+            pendingPersonName: "Review Settings",
+            pendingPersonReferentId: "person:review-settings",
+            resultingPersonName: "Claimed Teacher",
+            resultingPersonReferentId: "person:claimed-teacher",
+            reviewId: "review:approved-teacher",
+          },
         },
         email: "teacher.personal@example.com",
         membershipId: "membership:claimed-teacher",
@@ -2117,6 +3013,31 @@ describe("MVP Explore/Contribute loop", () => {
         role: "member",
         status: "pending",
       },
+      {
+        email: "plain.pending@example.com",
+        membershipId: "membership:plain-pending",
+        name: "plain.pending@example.com",
+        role: "member",
+        status: "pending",
+      },
+      {
+        email: "rejected.teacher@example.com",
+        membershipId: "membership:rejected-teacher",
+        name: "Rejected Teacher",
+        personConsolidationReview: {
+          claimedContactKind: "email",
+          claimedContactValue: "rejected.teacher@example.com",
+          claimSource: "verifiedContactIdentity",
+          requestedAt: Date.now(),
+          requestedByEmail: "rejected.claimant@example.com",
+          reviewId: "review:rejected-teacher",
+          reviewReason: "placeholderHasMeaningfulIdentity",
+          reviewStatus: "rejected",
+          updatedAt: Date.now(),
+        },
+        role: "member",
+        status: "pending",
+      },
     ];
 
     await renderApp();
@@ -2129,14 +3050,100 @@ describe("MVP Explore/Contribute loop", () => {
     expect(container.textContent).toContain(
       "Claimed via verified contact email claimed.teacher@example.com.",
     );
+    expect(container.textContent).toContain(
+      "Person Consolidation approved: Review Settings was consolidated into Claimed Teacher.",
+    );
     expect(container.textContent).toContain("pending.teacher@example.com");
     expect(container.textContent).toContain(
       "Identity review requested for pending.teacher@example.com by teacher.claimant@example.com.",
     );
     expect(container.textContent).toContain("Needs Identity Review");
     expect(getButton("Approve review")).toBeTruthy();
+    expect(getButton("Reject review")).toBeTruthy();
+    const activeMemberRow = Array.from(
+      container.querySelectorAll(".kb-org-member-list li"),
+    ).find((memberRow) =>
+      memberRow.textContent?.includes("teacher.personal@example.com"),
+    );
+    if (!activeMemberRow) {
+      throw new Error("Missing active member row.");
+    }
+    expect(activeMemberRow.textContent).not.toContain("Withdraw");
+    const pendingReviewMemberRow = Array.from(
+      container.querySelectorAll(".kb-org-member-list li"),
+    ).find((memberRow) =>
+      memberRow.textContent?.includes("pending.teacher@example.com"),
+    );
+    if (!pendingReviewMemberRow) {
+      throw new Error("Missing pending review member row.");
+    }
+    expect(pendingReviewMemberRow.textContent).not.toContain("Withdraw");
+    const plainPendingMemberRow = Array.from(
+      container.querySelectorAll(".kb-org-member-list li"),
+    ).find((memberRow) =>
+      memberRow.textContent?.includes("plain.pending@example.com"),
+    );
+    if (!plainPendingMemberRow) {
+      throw new Error("Missing plain pending member row.");
+    }
+    expect(getButtonIn(plainPendingMemberRow, "Withdraw")).toBeTruthy();
+    const rejectedMemberRow = Array.from(
+      container.querySelectorAll(".kb-org-member-list li"),
+    ).find((memberRow) =>
+      memberRow.textContent?.includes("rejected.teacher@example.com"),
+    );
+    if (!rejectedMemberRow) {
+      throw new Error("Missing rejected member row.");
+    }
+    expect(rejectedMemberRow.textContent).toContain(
+      "Identity review rejected for rejected.teacher@example.com by rejected.claimant@example.com.",
+    );
+    expect(rejectedMemberRow.textContent).toContain("Identity Review Rejected");
+    expect(rejectedMemberRow.textContent).not.toContain("Approve review");
+    expect(rejectedMemberRow.textContent).not.toContain("Reject review");
+    expect(getButtonIn(rejectedMemberRow, "Reopen review")).toBeTruthy();
+    expect(getButtonIn(rejectedMemberRow, "Withdraw")).toBeTruthy();
     expect(container.textContent).not.toContain("Invitation");
     expect(getButton("Add member")).toBeTruthy();
+
+    await click(getButtonIn(plainPendingMemberRow, "Withdraw"));
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        functionName: "organizationAccounts:withdrawPendingOrganizationMember",
+        membershipId: "membership:plain-pending",
+        organizationId: "cedar-hall-school",
+      }),
+    );
+    expect(container.textContent).toContain(
+      "Withdrew pending member plain.pending@example.com.",
+    );
+
+    await click(getButtonIn(rejectedMemberRow, "Reopen review"));
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        functionName: "organizationAccounts:reopenPersonConsolidationReview",
+        organizationId: "cedar-hall-school",
+        personConsolidationReviewId: "review:rejected-teacher",
+      }),
+    );
+    expect(container.textContent).toContain(
+      "Reopened identity review for rejected.teacher@example.com.",
+    );
+
+    await click(getButton("Reject review"));
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        functionName: "organizationAccounts:rejectPersonConsolidationReview",
+        organizationId: "cedar-hall-school",
+        personConsolidationReviewId: "review:pending-teacher",
+      }),
+    );
+    expect(container.textContent).toContain(
+      "Rejected identity review for pending.teacher@example.com.",
+    );
 
     await click(getButton("Approve review"));
 
@@ -2200,7 +3207,6 @@ describe("MVP Explore/Contribute loop", () => {
     expect(knowledgeTypeSelect?.getAttribute("value") ?? knowledgeTypeSelect?.value).toBe(
       "group",
     );
-    expect(editor.textContent).toContain("Direct Post");
     expect(editor.textContent).toContain("What is the group called?");
     expect(editor.querySelector("textarea")).toBeNull();
     expect(getContributionContextLabels(editor)).toEqual([
@@ -2313,6 +3319,39 @@ describe("MVP Explore/Contribute loop", () => {
     );
   });
 
+  test("reports a rejected identity review when a verified claim was already rejected", async () => {
+    mockState.appAccess = {
+      email: "outside@example.com",
+      status: "needsOrganization",
+      userId: "outsideUser",
+    };
+
+    await renderApp();
+
+    await setFieldValue(getInputByName("claimEmail"), "Rejected@Example.com");
+    await click(getButton("Send code"));
+    await setFieldValue(getInputByName("claimCode"), "123456");
+    await click(getButton("Verify and claim"));
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        code: "123456",
+        email: "rejected@example.com",
+        functionName:
+          "contactIdentities:verifyEmailAndClaimPendingMemberships",
+      }),
+    );
+    expect(container.textContent).toContain(
+      "1 membership was not approved after identity review. Contact the organization admin.",
+    );
+    expect(container.textContent).not.toContain(
+      "1 membership needs identity review.",
+    );
+    expect(container.textContent).not.toContain(
+      "Email verified. No pending memberships found.",
+    );
+  });
+
   test("renders user settings with account context and persisted theme control", async () => {
     window.history.replaceState({}, "", "http://localhost:3000/settings");
 
@@ -2324,6 +3363,17 @@ describe("MVP Explore/Contribute loop", () => {
     expect(container.textContent).toContain("School");
     expect(container.textContent).toContain("Admin");
     expect(container.textContent).not.toContain("Organization Accounts");
+    const contactIdentities = getLabelledElement("Contact Identities");
+    expect(contactIdentities.textContent).toContain("Primary account email");
+    expect(contactIdentities.textContent).toContain("gelbaughcm@gmail.com");
+    expect(contactIdentities.textContent).toContain(
+      "corey@archeclassicalacademy.com",
+    );
+    expect(contactIdentities.textContent).toContain(
+      "corey@rulerofkingschurch.com",
+    );
+    expect(contactIdentities.textContent).toContain("Verified");
+    expect(contactIdentities.textContent).toContain("Pending");
 
     const themeSwitch = getButton("Use dark theme");
     expect(themeSwitch.getAttribute("role")).toBe("switch");
@@ -2334,6 +3384,85 @@ describe("MVP Explore/Contribute loop", () => {
     expect(document.documentElement.dataset.theme).toBe("dark");
     expect(window.localStorage.getItem("knowledgebase-theme")).toBe("dark");
     expect(getButton("Use light theme").getAttribute("aria-checked")).toBe("true");
+
+    const globalExpertVisibilitySwitch = getButton(
+      "Enable Global Expert Visibility",
+    );
+    expect(globalExpertVisibilitySwitch.getAttribute("role")).toBe("switch");
+    expect(globalExpertVisibilitySwitch.getAttribute("aria-checked")).toBe(
+      "false",
+    );
+
+    await click(globalExpertVisibilitySwitch);
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        enabled: true,
+        functionName: "contextExpertiseSettings:updateGlobalExpertVisibility",
+      }),
+    );
+    expect(
+      getButton("Disable Global Expert Visibility").getAttribute("aria-checked"),
+    ).toBe("true");
+  });
+
+  test("lets an authorized user verify an alternate Contact Identity from settings", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/settings");
+
+    await renderApp();
+
+    await setFieldValue(
+      getInputByName("contactIdentityEmail"),
+      "Corey@ArcheClassicalAcademy.com",
+    );
+    await click(getButton("Send code"));
+
+    expect(mockState.actionCalls).toContainEqual(
+      expect.objectContaining({
+        email: "Corey@ArcheClassicalAcademy.com",
+        functionName: "contactIdentities:sendEmailVerificationCode",
+      }),
+    );
+    expect(container.textContent).toContain("Verification code requested.");
+
+    await setFieldValue(getInputByName("contactIdentityCode"), "123456");
+    await click(getButton("Verify and claim"));
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        code: "123456",
+        email: "corey@archeclassicalacademy.com",
+        functionName:
+          "contactIdentities:verifyEmailAndClaimPendingMemberships",
+      }),
+    );
+    expect(container.textContent).toContain("2 memberships claimed.");
+  });
+
+  test("claims pending memberships immediately for an already verified Contact Identity from settings", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/settings");
+
+    await renderApp();
+
+    await setFieldValue(
+      getInputByName("contactIdentityEmail"),
+      "Verified.Alias@Example.com",
+    );
+    await click(getButton("Send code"));
+
+    expect(mockState.actionCalls).toContainEqual(
+      expect.objectContaining({
+        email: "Verified.Alias@Example.com",
+        functionName: "contactIdentities:sendEmailVerificationCode",
+      }),
+    );
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        email: "verified.alias@example.com",
+        functionName: "contactIdentities:claimVerifiedEmailMemberships",
+      }),
+    );
+    expect(container.textContent).toContain("1 membership claimed.");
   });
 
   test("lets system admins create organization accounts from the sidebar route", async () => {
@@ -2379,6 +3508,181 @@ describe("MVP Explore/Contribute loop", () => {
     );
   });
 
+  test("lets system admins preview Context Expertise operations without execution", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/system-admin");
+    mockState.appAccess = {
+      ...(mockState.appAccess as Record<string, unknown>),
+      systemRole: "systemAdmin",
+    };
+
+    await renderApp();
+
+    const operations = getLabelledElement("Context Expertise Operations");
+    expect(operations.textContent).toContain("Scoped Aggregate Migration");
+    expect(operations.textContent).toContain("Missing scoped groups");
+    expect(operations.textContent).toContain("first-crusade,matthew-5-9");
+    expect(operations.textContent).toContain("Quote Attribution Backfill");
+    expect(operations.textContent).toContain("Missing evidence");
+    expect(operations.textContent).toContain("augustine,first-crusade");
+
+    await click(getButtonIn(operations, "Dry-run scoped aggregate rebuild"));
+
+    const scopedDryRunCall = mockState.mutationCalls.find(
+      (call) =>
+        call &&
+        typeof call === "object" &&
+        "functionName" in call &&
+        call.functionName === "contextExpertise:rebuildScopedAggregateBatch",
+    ) as Record<string, unknown> | undefined;
+    expect(scopedDryRunCall).toEqual(
+      expect.objectContaining({
+        dryRun: true,
+        functionName: "contextExpertise:rebuildScopedAggregateBatch",
+      }),
+    );
+    expect(scopedDryRunCall?.paginationOpts).toEqual({
+      cursor: null,
+      numItems: 25,
+    });
+    expect(scopedDryRunCall).not.toHaveProperty("execute");
+    expect(
+      getLabelledElement("Scoped Aggregate Migration dry-run preview").textContent,
+    ).toContain("Dry-run checked 25 evidence rows across 1 groups.");
+
+    await setFieldValue(getInputByName("quoteAttributionBackfillBatchSize"), "7");
+    await setFieldValue(
+      getInputByName("quoteAttributionBackfillCursor"),
+      "quote-cursor-input",
+    );
+    await click(getButtonIn(operations, "Dry-run Quote attribution backfill"));
+
+    const quoteDryRunCall = mockState.mutationCalls.find(
+      (call) =>
+        call &&
+        typeof call === "object" &&
+        "functionName" in call &&
+        call.functionName ===
+          "contextExpertise:backfillQuoteAttributionEvidenceBatch",
+    ) as Record<string, unknown> | undefined;
+    expect(quoteDryRunCall).toEqual(
+      expect.objectContaining({
+        dryRun: true,
+        functionName: "contextExpertise:backfillQuoteAttributionEvidenceBatch",
+      }),
+    );
+    expect(quoteDryRunCall?.paginationOpts).toEqual({
+      cursor: "quote-cursor-input",
+      numItems: 7,
+    });
+    expect(quoteDryRunCall).not.toHaveProperty("execute");
+    expect(
+      getLabelledElement("Quote Attribution Backfill dry-run preview").textContent,
+    ).toContain("would create 1 evidence rows");
+  });
+
+  test("lets system admins suppress and restore public figure Context Experts", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/system-admin");
+    mockState.appAccess = {
+      ...(mockState.appAccess as Record<string, unknown>),
+      systemRole: "systemAdmin",
+    };
+    mockState.publicFigureExpertPersonOptions = [
+      {
+        label: "C. S. Lewis",
+        referentId: "referent-lewis",
+        tagId: "tag-lewis",
+      },
+    ];
+    mockState.personGlobalExpertVisibilityModeration = {
+      personLabel: "C. S. Lewis",
+      personReferentId: "referent-lewis",
+      status: "visibleByDefault",
+    };
+
+    await renderApp();
+
+    expect(container.textContent).toContain("Public Figure Experts");
+    await setFieldValue(getInputByName("publicFigureExpertSearch"), "Lewis");
+    await click(getButton("C. S. Lewis"));
+    expect(
+      getLabelledElement("Public Figure Expert visibility status").textContent,
+    ).toContain("Visible globally by default");
+    expect(
+      getLabelledElement("Public Figure Expert moderation history").textContent,
+    ).toContain("No moderation history yet.");
+
+    await setFieldValue(
+      getInputByName("publicFigureExpertModerationNote"),
+      "Misattributed quote evidence.",
+    );
+    await click(getButton("Suppress globally"));
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        functionName:
+          "contextExpertise:updatePersonGlobalExpertVisibilityModeration",
+        moderationNote: "Misattributed quote evidence.",
+        personReferentId: "referent-lewis",
+        suppressed: true,
+      }),
+    );
+    expect(
+      getLabelledElement("Public Figure Expert visibility status").textContent,
+    ).toContain("Suppressed globally");
+    expect(
+      getLabelledElement("Public Figure Expert moderation history").textContent,
+    ).toContain("Suppressed");
+    expect(
+      getLabelledElement("Public Figure Expert moderation history").textContent,
+    ).toContain("Misattributed quote evidence.");
+
+    await setFieldValue(
+      getInputByName("publicFigureExpertModerationNote"),
+      "Corrected attribution reviewed.",
+    );
+    await click(getButton("Update note"));
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        functionName:
+          "contextExpertise:updatePersonGlobalExpertVisibilityModeration",
+        moderationNote: "Corrected attribution reviewed.",
+        personReferentId: "referent-lewis",
+        suppressed: true,
+      }),
+    );
+    expect(container.textContent).toContain("Updated moderation note.");
+    expect(
+      getLabelledElement("Public Figure Expert moderation history").textContent,
+    ).toContain("Note updated");
+
+    await click(getButton("Restore global visibility"));
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        functionName:
+          "contextExpertise:updatePersonGlobalExpertVisibilityModeration",
+        personReferentId: "referent-lewis",
+        suppressed: false,
+      }),
+    );
+    expect(container.textContent).toContain("Restored global visibility.");
+    expect(
+      getLabelledElement("Public Figure Expert moderation history").textContent,
+    ).toContain("Restored");
+  });
+
+  test("hides public figure Context Expert moderation from non-system admins", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/system-admin");
+
+    await renderApp();
+
+    expect(container.textContent).toContain("System Admin access required.");
+    expect(container.textContent).not.toContain("Context Expertise Operations");
+    expect(container.textContent).not.toContain("Public Figure Experts");
+    expect(container.textContent).not.toContain("Organization Accounts");
+  });
+
   test("lets system admins sign in without organization memberships", async () => {
     window.history.replaceState({}, "", "http://localhost:3000/");
     mockState.appAccess = {
@@ -2411,7 +3715,72 @@ describe("MVP Explore/Contribute loop", () => {
     expect(container.textContent).toContain("Arche Classical Academy");
     expect(container.textContent).toContain("Admin");
     expect(container.textContent).toContain("4 memberships");
+    expect(getLabelledElement("Profile Context Expertise").textContent).toContain(
+      "No Context Expertise evidence yet.",
+    );
     expect(container.textContent).not.toContain("Route scaffold");
+  });
+
+  test("renders profile Context Expertise from current user aggregate data", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/profile");
+    mockState.profileContextExpertise = {
+      profileUserId: "user",
+      rows: [
+        {
+          aggregateId: "contextExpertiseAggregate:romans-holy-spirit",
+          contextExpertiseMaturity: 84,
+          contextExpertiseScore: 97,
+          contextKey: "tags:holy-spirit,romans-8-28",
+          contextTags: [
+            {
+              canonicalKey: "romans-8-28",
+              href: "/scripture/romans-8-28",
+              id: "romans-8-28",
+              knowledgeType: "biblePassage",
+              label: "Romans 8:28",
+              passageString: "romans-8-28",
+            },
+            {
+              canonicalKey: "holy-spirit",
+              href: "/goto/holy-spirit",
+              id: "holy-spirit",
+              knowledgeType: "topic",
+              label: "Holy Spirit",
+            },
+          ],
+          evidenceCount: 5,
+          feedbackCount: 2,
+          latestEvidenceAt: Date.UTC(2026, 5, 3, 12),
+          postCount: 3,
+          visibilityKind: "public",
+          visibilityTargetKey: "public",
+        },
+      ],
+    };
+
+    await renderApp();
+
+    const contextExpertise = getLabelledElement("Profile Context Expertise");
+    expect(contextExpertise.textContent).toContain("Romans 8:28, Holy Spirit");
+    expect(contextExpertise.textContent).toContain("2 Tags Knowledge Context");
+    expect(contextExpertise.textContent).toContain("3 posts");
+    expect(contextExpertise.textContent).toContain("2 signals");
+    expect(contextExpertise.textContent).toContain("High maturity");
+    expect(contextExpertise.textContent).toContain("Jun 3");
+    expect(
+      getLinkContainingIn(contextExpertise, "Romans 8:28").getAttribute("href"),
+    ).toBe("/explore?tagIds=holy-spirit,romans-8-28");
+  });
+
+  test("renders profile Context Expertise loading state", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/profile");
+    mockState.profileContextExpertise = undefined;
+
+    await renderApp();
+
+    expect(getLabelledElement("Profile Context Expertise").textContent).toContain(
+      "Loading Context Expertise.",
+    );
   });
 
   test("renders profile Bookmarks from durable bookmark data", async () => {
@@ -2469,7 +3838,9 @@ describe("MVP Explore/Contribute loop", () => {
     );
 
     expect(destinationLinks[0].getAttribute("aria-label")).toBe("Dashboard");
-    expect(knowledgePageDestinations.textContent).toContain("Global Knowledge Context");
+    expect(knowledgePageDestinations.textContent).toContain(
+      "All Accessible Knowledge",
+    );
     expect(getLabelledLinkIn(knowledgePageDestinations, "Arche Classical Academy")).toBeTruthy();
     expect(getLabelledLinkIn(knowledgePageDestinations, "Ruler of Kings Church")).toBeTruthy();
     expect(getLabelledLinkIn(knowledgePageDestinations, "My Family")).toBeTruthy();
@@ -2731,6 +4102,332 @@ describe("MVP Explore/Contribute loop", () => {
     expect(getSelect("Active Role").value).toBe("churchOrganizationReferent:admin");
   });
 
+  test("labels the topbar search as Search Everything", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/");
+
+    await renderApp();
+
+    const topbar = container.querySelector(".kb-topbar");
+    expect(topbar).toBeTruthy();
+    expect(topbar?.textContent).toContain("Search Everything");
+    expect(topbar?.textContent).not.toContain("Global Search");
+    expect(getRootSearchInput().getAttribute("placeholder")).toBe(
+      "Search everything you can access",
+    );
+  });
+
+  test("selecting a non-Bible Root Search Tag opens exactly that Referent Page", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "http://localhost:3000/explore?tagIds=first-crusade,matthew-5-9",
+    );
+
+    await renderApp();
+
+    const rootSearchInput = getRootSearchInput();
+    await act(async () => {
+      rootSearchInput.focus();
+      await Promise.resolve();
+    });
+    await setFieldValue(rootSearchInput, "City of God");
+
+    const suggestions = getLabelledElement("Root Search suggestions");
+    const bookSuggestion = getLinkContainingIn(suggestions, "The City of God");
+    expect(bookSuggestion.getAttribute("href")).toBe("/goto/the-city-of-god");
+    expect(bookSuggestion.textContent).toContain("Book");
+
+    await click(bookSuggestion);
+
+    expect(window.location.pathname + window.location.search).toBe(
+      "/goto/the-city-of-god",
+    );
+    expect(mockState.mutationCalls).not.toContainEqual(
+      expect.objectContaining({
+        functionName: "analytics:recordSearchEvent",
+      }),
+    );
+    expect(rootSearchInput.value).toBe("");
+    expect(rootSearchInput.getAttribute("aria-expanded")).toBe("false");
+    expect(
+      container.querySelector(".kb-search-suggestions")?.getAttribute("data-presence"),
+    ).toBe("exit");
+    expect(getButton("Remove The City of God")).toBeTruthy();
+    expect(queryButton("Remove First Crusade")).toBeNull();
+    expect(queryButton("Remove Matthew 5:9")).toBeNull();
+  });
+
+  test("Root Search keeps local Tag suggestions when live suggestions are empty", async () => {
+    const originalTagSuggestions = mockState.tagSuggestions;
+    mockState.tagSuggestions = [];
+
+    try {
+      window.history.replaceState({}, "", "http://localhost:3000/");
+
+      await renderApp();
+
+      const rootSearchInput = getRootSearchInput();
+      await act(async () => {
+        rootSearchInput.focus();
+        await Promise.resolve();
+      });
+      await setFieldValue(rootSearchInput, "City of God");
+
+      const suggestions = getLabelledElement("Root Search suggestions");
+      const bookSuggestion = getLinkContainingIn(suggestions, "The City of God");
+      expect(bookSuggestion.getAttribute("href")).toBe("/goto/the-city-of-god");
+      expect(bookSuggestion.textContent).toContain("Book");
+    } finally {
+      mockState.tagSuggestions = originalTagSuggestions;
+    }
+  });
+
+  test("selecting a Bible Passage Root Search Tag opens Scripture", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/");
+
+    await renderApp();
+
+    const rootSearchInput = getRootSearchInput();
+    await act(async () => {
+      rootSearchInput.focus();
+      await Promise.resolve();
+    });
+    await setFieldValue(rootSearchInput, "Matthew 5 9");
+
+    const suggestions = getLabelledElement("Root Search suggestions");
+    const scriptureSuggestion = getLinkContainingIn(suggestions, "Matthew 5:9");
+    expect(scriptureSuggestion.getAttribute("href")).toBe(
+      "/scripture/matthew-5-9",
+    );
+    expect(scriptureSuggestion.textContent).toContain("Bible Passage");
+
+    await click(scriptureSuggestion);
+
+    expect(window.location.pathname + window.location.search).toBe(
+      "/scripture/matthew-5-9",
+    );
+  });
+
+  test("Root Search Enter without suggestions opens root search without creating a Tag", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "http://localhost:3000/explore?tagIds=first-crusade,matthew-5-9",
+    );
+
+    await renderApp();
+
+    const rootSearchInput = getRootSearchInput();
+    await act(async () => {
+      rootSearchInput.focus();
+      await Promise.resolve();
+    });
+    await setFieldValue(rootSearchInput, "unmatched free text");
+    await keyDown(rootSearchInput, "Enter");
+
+    expect(window.location.pathname + window.location.search).toBe(
+      "/search?q=unmatched+free+text",
+    );
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        functionName: "analytics:recordSearchEvent",
+        searchScope: "root",
+        searchText: "unmatched free text",
+      }),
+    );
+    expect(queryButton("Remove First Crusade")).toBeNull();
+    expect(queryButton("Remove Matthew 5:9")).toBeNull();
+    expect(queryButton("Remove Unmatched Free Text")).toBeNull();
+  });
+
+  test("Root Search free text opens root search results from the dashboard", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/");
+
+    await renderApp();
+
+    const rootSearchInput = getRootSearchInput();
+    await act(async () => {
+      rootSearchInput.focus();
+      await Promise.resolve();
+    });
+    await setFieldValue(rootSearchInput, "disordered loves");
+    await keyDown(rootSearchInput, "Enter");
+
+    expect(window.location.pathname + window.location.search).toBe(
+      "/search?q=disordered+loves",
+    );
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        functionName: "analytics:recordSearchEvent",
+        searchScope: "root",
+        searchText: "disordered loves",
+      }),
+    );
+    expect(rootSearchInput.value).toBe("");
+    expect(container.querySelector(".kb-today-agenda")).toBeNull();
+    expect(container.querySelector(".kb-knowledge-navigator")).toBeTruthy();
+    expect(container.querySelector(".kb-answer-feed")).toBeNull();
+    const results = container.querySelector(".kb-root-search-results");
+    expect(results).toBeTruthy();
+    expect(container.textContent).toContain(
+      'Searching everything for "disordered loves"',
+    );
+    expect(container.textContent).toContain(
+      "Augustine, Ordered Loves, and the First Crusade",
+    );
+    expect(container.textContent).toContain("Referent Page");
+    expect(container.textContent).toContain("Grade 9 Church History");
+    expect(container.textContent).not.toContain("Answer Micah's Crusades question");
+    expect(queryButton("Remove First Crusade")).toBeNull();
+    expect(queryButton("Remove Matthew 5:9")).toBeNull();
+
+    if (!results) {
+      throw new Error("Expected Root Search results");
+    }
+    const preview = getLabelledLinkIn(
+      results,
+      "Open Grade 9 Church History from matched preview Augustine, Ordered Loves, and the First Crusade",
+    );
+    expect(preview.getAttribute("href")).toBe("/goto/grade-9-church-history");
+    await click(preview);
+    expect(window.location.pathname + window.location.search).toBe(
+      "/goto/grade-9-church-history",
+    );
+    expect(getButton("Remove Grade 9 Church History")).toBeTruthy();
+  });
+
+  test("Root Search free text replaces an active context with root search results", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "http://localhost:3000/explore?tagIds=first-crusade,matthew-5-9",
+    );
+
+    await renderApp();
+
+    const rootSearchInput = getRootSearchInput();
+    await act(async () => {
+      rootSearchInput.focus();
+      await Promise.resolve();
+    });
+    await setFieldValue(rootSearchInput, "earthly city");
+    await keyDown(rootSearchInput, "Enter");
+
+    expect(window.location.pathname + window.location.search).toBe(
+      "/search?q=earthly+city",
+    );
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        functionName: "analytics:recordSearchEvent",
+        searchScope: "root",
+        searchText: "earthly city",
+      }),
+    );
+    expect(container.querySelector(".kb-today-agenda")).toBeNull();
+    expect(container.querySelector(".kb-answer-feed")).toBeNull();
+    const results = container.querySelector(".kb-root-search-results");
+    expect(results).toBeTruthy();
+    expect(queryButton("Remove First Crusade")).toBeNull();
+    expect(queryButton("Remove Matthew 5:9")).toBeNull();
+    expect(container.textContent).toContain(
+      'Searching everything for "earthly city"',
+    );
+    expect(container.textContent).toContain(
+      "Augustine, Ordered Loves, and the First Crusade",
+    );
+
+    if (!results) {
+      throw new Error("Expected Root Search results");
+    }
+    const resultTitle = getLinkContainingIn(results, "Grade 9 Church History");
+    expect(resultTitle.getAttribute("href")).toBe("/goto/grade-9-church-history");
+    await click(resultTitle);
+    expect(window.location.pathname + window.location.search).toBe(
+      "/goto/grade-9-church-history",
+    );
+    expect(getButton("Remove Grade 9 Church History")).toBeTruthy();
+  });
+
+  test("direct root search route renders search mode and clears back to dashboard", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "http://localhost:3000/search?q=peace",
+    );
+
+    await renderApp();
+
+    expect(container.querySelector(".kb-today-agenda")).toBeNull();
+    expect(container.querySelector(".kb-knowledge-navigator")).toBeTruthy();
+    expect(container.querySelector(".kb-answer-feed")).toBeNull();
+    expect(container.querySelector(".kb-root-search-results")).toBeTruthy();
+    expect(container.textContent).toContain('Searching everything for "peace"');
+    expect(container.textContent).toContain(
+      "Augustine, Ordered Loves, and the First Crusade",
+    );
+    expect(queryButton("Remove First Crusade")).toBeNull();
+    expect(queryButton("Remove Matthew 5:9")).toBeNull();
+
+    await click(getButton("Clear root search"));
+
+    expect(window.location.pathname + window.location.search).toBe("/");
+    expect(container.textContent).not.toContain(
+      'Searching everything for "peace"',
+    );
+    expect(container.querySelector(".kb-today-agenda")).toBeTruthy();
+  });
+
+  test("direct root search route renders Tag-only results", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "http://localhost:3000/search?q=Robinson+Crusoe",
+    );
+
+    await renderApp();
+
+    const results = container.querySelector(".kb-root-search-results");
+    expect(results).toBeTruthy();
+    expect(container.textContent).toContain(
+      'Searching everything for "Robinson Crusoe"',
+    );
+    expect(container.textContent).toContain("Robinson Crusoe");
+    expect(container.textContent).toContain("Book");
+    expect(container.textContent).not.toContain("matched preview");
+
+    if (!results) {
+      throw new Error("Expected Root Search results");
+    }
+    const resultTitle = getLinkContainingIn(results, "Robinson Crusoe");
+    expect(resultTitle.getAttribute("href")).toBe("/goto/robinson-crusoe");
+    await click(resultTitle);
+    expect(window.location.pathname + window.location.search).toBe(
+      "/goto/robinson-crusoe",
+    );
+    expect(getButton("Remove Robinson Crusoe")).toBeTruthy();
+  });
+
+  test("Root Search keyboard selection navigates to the active suggestion", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/");
+
+    await renderApp();
+
+    const rootSearchInput = getRootSearchInput();
+    await act(async () => {
+      rootSearchInput.focus();
+      await Promise.resolve();
+    });
+    await setFieldValue(rootSearchInput, "grade");
+    await keyDown(rootSearchInput, "ArrowDown");
+    await keyDown(rootSearchInput, "Enter");
+
+    expect(window.location.pathname + window.location.search).toBe(
+      "/goto/grade-10-medieval-literature",
+    );
+    expect(getButton("Remove Grade 10 Medieval Literature")).toBeTruthy();
+    expect(queryButton("Remove Grade 9 Church History")).toBeNull();
+  });
+
   test("shows the Knowledge Navigator on Knowledge Pages but not User Views", async () => {
     window.history.replaceState(
       {},
@@ -2803,18 +4500,23 @@ describe("MVP Explore/Contribute loop", () => {
     const identityBand = container.querySelector(".kb-knowledge-page-identity");
     expect(identityBand).toBeTruthy();
     expect(identityBand?.textContent).toContain("Dashboard");
-    expect(identityBand?.textContent).toContain("Global Knowledge Context");
+    expect(identityBand?.textContent).toContain("All Accessible Knowledge");
+    expect(identityBand?.textContent).toContain(
+      "Accessible Root Knowledge Context",
+    );
     expect(container.querySelector(".kb-rail-focus-heading")).toBeNull();
     expect(container.querySelector(".kb-knowledge-navigator > header")).toBeNull();
     expect(
       container.querySelector(".kb-answer-feed-header h2")?.closest(".kb-sr-only"),
     ).toBeTruthy();
-    const rail = getLabelledElement("Knowledge context and request");
+    const rail = getLabelledElement("Knowledge context and search");
     expect(rail.querySelector(".kb-knowledge-navigator")).toBeTruthy();
     expect(rail.querySelector(".kb-request-composer")).toBeTruthy();
-    expect(rail.textContent).toContain("Knowledge Composer");
+    expect(rail.textContent).toContain("Knowledge Navigator Query Input");
+    expect(rail.textContent).not.toContain("Knowledge Composer");
+    expect(rail.textContent).not.toContain("Knowledge Request");
     expect(rail.querySelector("textarea")?.getAttribute("placeholder")).toBe(
-      "Ask a Question or Context...",
+      "Search or add tag",
     );
     expect(rail.querySelector(".kb-slot-card")).toBeNull();
     expect(rail.querySelector(".kb-placeholder-block")).toBeNull();
@@ -2827,6 +4529,77 @@ describe("MVP Explore/Contribute loop", () => {
     expect(container.textContent).toContain("Answer Micah's Crusades question");
     expect(container.textContent).toContain("Teach Boethius on providence");
     expect(container.textContent).toContain("Review founding celebration event");
+
+    const queryInput = rail.querySelector("textarea");
+    if (!(queryInput instanceof HTMLTextAreaElement)) {
+      throw new Error("Expected Knowledge Navigator Query Input textarea");
+    }
+
+    await act(async () => {
+      queryInput.focus();
+      await Promise.resolve();
+    });
+    await changeTextareaValue(queryInput, "Micah");
+    const questionSuggestion = rail.querySelector<HTMLButtonElement>(
+      '[data-suggestion-id="student-crusades-question"]',
+    );
+    if (!questionSuggestion) {
+      throw new Error("Expected existing Question Tag suggestion");
+    }
+    await click(questionSuggestion);
+
+    expect(window.location.pathname + window.location.search).toBe(
+      "/goto/student-crusades-question",
+    );
+    expect(mockState.mutationCalls).not.toContainEqual(
+      expect.objectContaining({
+        functionName: "analytics:recordSearchEvent",
+      }),
+    );
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        activeTagKeys: ["student-crusades-question"],
+        usageKind: "select",
+      }),
+    );
+  });
+
+  test("Knowledge Navigator Query Input search records active-context analytics", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "http://localhost:3000/explore?tagIds=first-crusade,matthew-5-9",
+    );
+
+    await renderApp();
+
+    const rail = getLabelledElement("Knowledge context and search");
+    const queryInput = rail.querySelector("textarea");
+    if (!(queryInput instanceof HTMLTextAreaElement)) {
+      throw new Error("Expected Knowledge Navigator Query Input textarea");
+    }
+
+    await act(async () => {
+      queryInput.focus();
+      await Promise.resolve();
+    });
+    await changeTextareaValue(queryInput, "covenantal astronomy");
+    await keyDown(queryInput, "Enter");
+
+    expect(window.location.pathname + window.location.search).toBe(
+      "/explore?tagIds=first-crusade,matthew-5-9",
+    );
+    expect(container.textContent).toContain(
+      'Searching this context for "covenantal astronomy"',
+    );
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        activeTagKeys: ["first-crusade", "matthew-5-9"],
+        functionName: "analytics:recordSearchEvent",
+        searchScope: "activeKnowledgeContext",
+        searchText: "covenantal astronomy",
+      }),
+    );
   });
 
   test("hides the topbar on downward scroll and restores it on upward scroll", async () => {
@@ -2903,7 +4676,7 @@ describe("MVP Explore/Contribute loop", () => {
     expect(identityBand?.textContent).toContain("First Crusade");
     expect(identityBand?.textContent).toContain("Topic");
     expect(container.querySelector(".kb-rail-focus-heading")).toBeNull();
-    const rail = getLabelledElement("Knowledge context and request");
+    const rail = getLabelledElement("Knowledge context and search");
     expect(rail.querySelector(".kb-knowledge-navigator")).toBeTruthy();
     expect(rail.querySelector(".kb-request-composer")).toBeTruthy();
     expect(rail.textContent).toContain("First Crusade");
@@ -2956,7 +4729,7 @@ describe("MVP Explore/Contribute loop", () => {
     expect(identityBand?.textContent).toContain("Matthew 5:9");
     expect(identityBand?.textContent).toContain("2 Tags");
     expect(container.querySelector(".kb-rail-focus-heading")).toBeNull();
-    const rail = getLabelledElement("Knowledge context and request");
+    const rail = getLabelledElement("Knowledge context and search");
     expect(rail.querySelector(".kb-knowledge-navigator")).toBeTruthy();
     expect(rail.querySelector(".kb-request-composer")).toBeTruthy();
     expect(rail.textContent).toContain("First Crusade");
@@ -3022,7 +4795,7 @@ describe("MVP Explore/Contribute loop", () => {
     const editor = getContributionEditor();
     expect(getTextInputIn(editor).value).toContain("Lesson: Courage");
     expect(getTextareaIn(editor).value).toContain("Objective: Students");
-    await click(getButtonIn(editor, "Post Lesson"));
+    await click(getButtonIn(editor, "Store"));
 
     await click(getButton("Close"));
     await click(getButton("Save Feedback"));
@@ -3091,6 +4864,66 @@ describe("MVP Explore/Contribute loop", () => {
     );
     expect(getNotificationItems()).toHaveLength(2);
     expect(container.textContent).toContain("Pride Leads to Death is on Sunday's calendar");
+  });
+
+  test("renders access notifications under all and unread only", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/notifications");
+    mockState.userNotifications = [
+      {
+        id: "notice-identity-review",
+        title: "Identity review needed",
+        body:
+          "outside@example.com claimed headofschool@example.com for Arche Classical Academy.",
+        contextLabel: "Arche Classical Academy",
+        contextHref: "/organizations/arche-classical-academy/settings",
+        kind: "access",
+        receivedAt: Date.UTC(2026, 5, 12, 13),
+        status: "unread",
+      },
+      {
+        id: "notice-request",
+        title: "Requested answer",
+        body: "A Knowledge Slot needs an answer.",
+        contextLabel: "First Crusade",
+        contextHref: "/slots/requested-answer",
+        kind: "knowledgeSlot",
+        receivedAt: Date.UTC(2026, 5, 12, 12),
+        status: "unread",
+      },
+      {
+        id: "notice-event",
+        title: "Lesson starts soon",
+        body: "An Event is on your calendar.",
+        contextLabel: "Grade 10",
+        contextHref: "/events/lesson-starts-soon",
+        kind: "event",
+        receivedAt: Date.UTC(2026, 5, 12, 11),
+        status: "unread",
+      },
+    ];
+
+    await renderApp();
+
+    expect(getNotificationItems()).toHaveLength(3);
+    expect(container.textContent).toContain("Access");
+    expect(container.textContent).toContain("Identity review needed");
+
+    await click(getButton("Unread"));
+
+    expect(getNotificationItems()).toHaveLength(3);
+    expect(container.textContent).toContain("Identity review needed");
+
+    await click(getButton("Knowledge Slots"));
+
+    expect(getNotificationItems()).toHaveLength(1);
+    expect(container.textContent).toContain("Requested answer");
+    expect(container.textContent).not.toContain("Identity review needed");
+
+    await click(getButton("Events"));
+
+    expect(getNotificationItems()).toHaveLength(1);
+    expect(container.textContent).toContain("Lesson starts soon");
+    expect(container.textContent).not.toContain("Identity review needed");
   });
 
   test("renders durable subscription sources on Notifications with unsubscribe", async () => {
@@ -3245,6 +5078,15 @@ describe("MVP Explore/Contribute loop", () => {
     return element;
   }
 
+  function getDialog() {
+    const dialog = container.querySelector('[role="dialog"]');
+    if (!dialog) {
+      throw new Error("Missing dialog");
+    }
+
+    return dialog;
+  }
+
   function getContributionEditor() {
     const editor = container.querySelector(".kb-contribution-editor");
     if (!editor) {
@@ -3336,12 +5178,36 @@ describe("MVP Explore/Contribute loop", () => {
     return select;
   }
 
+  function getRootSearchInput() {
+    const input = container.querySelector('input[aria-label="Search Everything"]');
+    if (!(input instanceof HTMLInputElement)) {
+      throw new Error("Missing Root Search Input");
+    }
+
+    return input;
+  }
+
   async function click(element: Element) {
     await act(async () => {
       element.dispatchEvent(
         new MouseEvent("click", { bubbles: true, cancelable: true }),
       );
       await Promise.resolve();
+      await Promise.resolve();
+    });
+  }
+
+  async function changeTextareaValue(
+    textarea: HTMLTextAreaElement,
+    value: string,
+  ) {
+    await act(async () => {
+      const valueSetter = Object.getOwnPropertyDescriptor(
+        HTMLTextAreaElement.prototype,
+        "value",
+      )?.set;
+      valueSetter?.call(textarea, value);
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
       await Promise.resolve();
     });
   }
@@ -3374,6 +5240,19 @@ describe("MVP Explore/Contribute loop", () => {
     await act(async () => {
       element.scrollTop = scrollTop;
       element.dispatchEvent(new Event("scroll", { bubbles: true }));
+      await Promise.resolve();
+    });
+  }
+
+  async function keyDown(element: HTMLElement, key: string) {
+    await act(async () => {
+      element.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          key,
+        }),
+      );
       await Promise.resolve();
     });
   }

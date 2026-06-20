@@ -81,6 +81,14 @@ export type HumanWeightConcernSummary = {
   threshold: number;
 };
 
+export const HUMAN_WEIGHT_CREDIT_BASES = [
+  "contributor",
+  "quotedPerson",
+] as const;
+
+export type HumanWeightCreditBasis =
+  (typeof HUMAN_WEIGHT_CREDIT_BASES)[number];
+
 export const HUMAN_WEIGHT_BANDS = [
   { id: "slop", label: "Slop", min: 0, max: 19 },
   { id: "assisted", label: "Assisted", min: 20, max: 39 },
@@ -132,6 +140,7 @@ export type TypeBehavior = {
     defaultRole: RepresentationRole;
   };
   humanWeight: {
+    creditBasis?: HumanWeightCreditBasis;
     defaultEstimate: number;
     expectation: HumanWeightExpectation;
   };
@@ -140,7 +149,7 @@ export type TypeBehavior = {
   };
 };
 
-const DEFAULT_TYPE_BEHAVIOR_VERSION = "mvp-type-behavior-v1";
+const DEFAULT_TYPE_BEHAVIOR_VERSION = "mvp-type-behavior-v2";
 
 const DEFAULT_TYPE_BEHAVIOR: Omit<TypeBehavior, "knowledgeType"> = {
   version: DEFAULT_TYPE_BEHAVIOR_VERSION,
@@ -164,6 +173,7 @@ const DEFAULT_TYPE_BEHAVIOR: Omit<TypeBehavior, "knowledgeType"> = {
     defaultRole: "primaryContent",
   },
   humanWeight: {
+    creditBasis: "contributor",
     defaultEstimate: 60,
     expectation: "informative",
   },
@@ -175,6 +185,13 @@ const DEFAULT_TYPE_BEHAVIOR: Omit<TypeBehavior, "knowledgeType"> = {
 const TYPE_BEHAVIOR_OVERRIDES: Partial<
   Record<EntryKnowledgeType, Partial<Omit<TypeBehavior, "knowledgeType">>>
 > = {
+  quote: {
+    humanWeight: {
+      creditBasis: "quotedPerson",
+      defaultEstimate: 60,
+      expectation: "informative",
+    },
+  },
   essay: {
     humanWeight: {
       defaultEstimate: 60,
@@ -357,14 +374,17 @@ export function getTypeBehavior(
   knowledgeType: EntryKnowledgeType,
 ): TypeBehavior {
   const override = TYPE_BEHAVIOR_OVERRIDES[knowledgeType] ?? {};
+  const mergedHumanWeight = {
+    ...DEFAULT_TYPE_BEHAVIOR.humanWeight,
+    ...override.humanWeight,
+  };
 
   return {
     ...DEFAULT_TYPE_BEHAVIOR,
     ...override,
-    humanWeight: {
-      ...DEFAULT_TYPE_BEHAVIOR.humanWeight,
-      ...override.humanWeight,
-    },
+    humanWeight: isWeightBearingEntryKnowledgeType(knowledgeType)
+      ? mergedHumanWeight
+      : withoutHumanWeightCreditBasis(mergedHumanWeight),
     knowledgeType,
     provenance: {
       ...DEFAULT_TYPE_BEHAVIOR.provenance,
@@ -374,6 +394,15 @@ export function getTypeBehavior(
       ...DEFAULT_TYPE_BEHAVIOR.representationRoles,
       ...override.representationRoles,
     },
+  };
+}
+
+function withoutHumanWeightCreditBasis(
+  humanWeight: TypeBehavior["humanWeight"],
+): TypeBehavior["humanWeight"] {
+  return {
+    defaultEstimate: humanWeight.defaultEstimate,
+    expectation: humanWeight.expectation,
   };
 }
 

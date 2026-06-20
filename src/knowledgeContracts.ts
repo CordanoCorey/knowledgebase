@@ -103,6 +103,19 @@ export type HumanWeightConcernSummary = {
   threshold: number;
 };
 
+export const HUMAN_WEIGHT_CREDIT_BASES = [
+  "contributor",
+  "quotedPerson",
+] as const;
+
+export type HumanWeightCreditBasis =
+  (typeof HUMAN_WEIGHT_CREDIT_BASES)[number];
+
+export type HumanWeightCreditSummary = {
+  basis: HumanWeightCreditBasis;
+  label: string;
+};
+
 export const HUMAN_WEIGHT_BANDS = [
   { id: "slop", label: "Slop", min: 0, max: 19 },
   { id: "assisted", label: "Assisted", min: 20, max: 39 },
@@ -177,8 +190,21 @@ export type KnowledgeEntrySummary = {
   humanWeight?: number;
   evidenceMaturity?: number;
   humanWeightConcern?: HumanWeightConcernSummary;
+  humanWeightCredit?: HumanWeightCreditSummary;
+  quoteAttribution?: QuoteAttributionSummary;
   href: string;
   updatedAt: number;
+};
+
+export type QuoteAttributionSummary = {
+  quotedPersonLabel?: string;
+  quotedPersonReferentId?: string;
+};
+
+export type QuoteAttributionPersonOption = {
+  label: string;
+  referentId: string;
+  tagId: string;
 };
 
 export type HumanWeightEvidenceSummary = {
@@ -201,9 +227,21 @@ export type ContributorSummary = {
 };
 
 export type KnowledgeContextExpert = ContributorSummary & {
-  averageHumanWeight: number;
-  contributionCount: number;
+  subjectKind?: "user" | "person";
+  subjectUserId?: string;
+  subjectPersonReferentId?: string;
+  contextExpertiseMaturity: number;
   contextExpertiseScore: number;
+  contextMatchKind?: "broaderContext";
+  evidenceCount: number;
+  feedbackCount: number;
+  postCount: number;
+};
+
+export type KnowledgeContextExpertScope = "orbit" | "global";
+
+export type KnowledgeContextExpertDetail = KnowledgeContextExpert & {
+  topSupportingEntries: KnowledgeEntrySummary[];
 };
 
 export type KnowledgeContextTrendKind =
@@ -426,6 +464,16 @@ export function getDefaultHumanWeightExpectation(
   }
 
   return isWeightBearingKnowledgeType(knowledgeType) ? "informative" : "none";
+}
+
+export function getDefaultHumanWeightCreditBasis(
+  knowledgeType: KnowledgeType,
+): HumanWeightCreditBasis | undefined {
+  if (!isWeightBearingKnowledgeType(knowledgeType)) {
+    return undefined;
+  }
+
+  return knowledgeType === "quote" ? "quotedPerson" : "contributor";
 }
 
 export function getHumanWeightBand(

@@ -8,6 +8,7 @@ import {
   getKnowledgeLoopStateFromRoute,
   getKnowledgeContextKey,
   getReferentTagHref,
+  getRootSearchTagSuggestions,
   removeActiveTag,
   resolveTagLabel,
 } from "./knowledgeContext";
@@ -82,10 +83,19 @@ describe("Knowledge Context routes", () => {
         search: "?tagIds=matthew-5-9,first-crusade",
       }).map((tag) => tag.id),
     ).toEqual(["first-crusade", "matthew-5-9"]);
+    expect(
+      getActiveTagsFromRoute({
+        pathname: "/search",
+        search: "?q=ordered+loves",
+      }),
+    ).toEqual([]);
   });
 
   test("derives location kind and loop context from the current route", () => {
     expect(getKnowledgeLocationKindFromRoute({ pathname: "/" })).toBe(
+      "dashboard",
+    );
+    expect(getKnowledgeLocationKindFromRoute({ pathname: "/search" })).toBe(
       "dashboard",
     );
     expect(
@@ -166,5 +176,31 @@ describe("Knowledge Context routes", () => {
     expect(getReferentTagHref(resolveTagLabel("Suffering and hope"))).toBe(
       "/goto/suffering-and-hope",
     );
+  });
+
+  test("suggests existing Tags for Root Search across referent Knowledge Types", () => {
+    expect(getRootSearchTagSuggestions("City of God")).toContainEqual(
+      expect.objectContaining({
+        href: "/goto/the-city-of-god",
+        id: "the-city-of-god",
+        knowledgeType: "book",
+        label: "The City of God",
+      }),
+    );
+    expect(getRootSearchTagSuggestions("Student Crusades Question")).toContainEqual(
+      expect.objectContaining({
+        href: "/goto/student-crusades-question",
+        id: "student-crusades-question",
+        knowledgeType: "question",
+      }),
+    );
+    expect(getRootSearchTagSuggestions("Matthew 5 9")).toContainEqual(
+      expect.objectContaining({
+        href: "/scripture/matthew-5-9",
+        id: "matthew-5-9",
+        knowledgeType: "biblePassage",
+      }),
+    );
+    expect(getRootSearchTagSuggestions("Suffering and hope")).toEqual([]);
   });
 });

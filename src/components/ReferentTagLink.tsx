@@ -38,6 +38,7 @@ export function ReferentTagLink({
   return (
     <a
       className={className}
+      data-knowledge-type={referentTag.knowledgeType}
       href={href}
       onClick={handleClick}
       title={`Open ${referentTag.label}`}

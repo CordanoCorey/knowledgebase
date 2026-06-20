@@ -35,6 +35,8 @@ const contactIdentityClaimResult = v.object({
   memberships: v.array(claimedMembership),
   personConsolidationReviewCount: v.number(),
   personConsolidationReviews: v.array(personConsolidationReviewMembership),
+  personConsolidationRejectionCount: v.number(),
+  personConsolidationRejections: v.array(personConsolidationReviewMembership),
   verificationStatus: v.literal("verified"),
 });
 const emailVerificationRequestResult = v.object({
@@ -321,6 +323,9 @@ export const verifyEmailAndClaimPendingMemberships = mutation({
       personConsolidationReviewCount:
         claimResult.personConsolidationReviews.length,
       personConsolidationReviews: claimResult.personConsolidationReviews,
+      personConsolidationRejectionCount:
+        claimResult.personConsolidationRejections.length,
+      personConsolidationRejections: claimResult.personConsolidationRejections,
       verificationStatus: "verified" as const,
     };
   },
@@ -374,6 +379,9 @@ export const claimVerifiedEmailMemberships = mutation({
       personConsolidationReviewCount:
         claimResult.personConsolidationReviews.length,
       personConsolidationReviews: claimResult.personConsolidationReviews,
+      personConsolidationRejectionCount:
+        claimResult.personConsolidationRejections.length,
+      personConsolidationRejections: claimResult.personConsolidationRejections,
       verificationStatus: "verified" as const,
     };
   },

@@ -13,6 +13,7 @@ const MAX_RECENT_LIMIT = 20;
 const MAX_BIBLE_CONTEXT_LIMIT = 8;
 const MAX_TARGET_KEY_LENGTH = 180;
 const MAX_RAW_PATH_LENGTH = 360;
+const MAX_SEARCH_TEXT_LENGTH = 360;
 const MAX_ACTIVE_TAG_KEYS = 20;
 const MAX_CONTEXT_LABELS = 4;
 const MAX_RECENT_TREND_VISITS = 100;
@@ -39,6 +40,11 @@ const navigatorUsageKind = v.union(
   v.literal("deselect"),
   v.literal("explore"),
   v.literal("contribute"),
+);
+
+const searchScope = v.union(
+  v.literal("root"),
+  v.literal("activeKnowledgeContext"),
 );
 
 const contextTrendKind = v.union(
@@ -75,6 +81,15 @@ const navigatorUsageSummary = v.object({
   occurredAt: v.number(),
   resolvedTagCount: v.number(),
   usageKind: navigatorUsageKind,
+});
+
+const searchEventSummary = v.object({
+  activeTagCount: v.number(),
+  eventId: v.union(v.id("searchEvents"), v.null()),
+  recorded: v.boolean(),
+  resolvedTagCount: v.number(),
+  searchScope,
+  searchText: v.string(),
 });
 
 const contextTrendSummary = v.object({
@@ -243,6 +258,57 @@ export const recordNavigatorUsage = mutation({
   },
 });
 
+export const recordSearchEvent = mutation({
+  args: {
+    searchScope,
+    searchText: v.string(),
+    activeTagKeys: v.optional(v.array(v.string())),
+    resultCount: v.optional(v.number()),
+  },
+  returns: searchEventSummary,
+  handler: async (ctx, args) => {
+    const userId = await requireCurrentUserId(ctx);
+    const searchText = normalizeSearchText(args.searchText);
+    if (!searchText) {
+      return {
+        activeTagCount: 0,
+        eventId: null,
+        recorded: false,
+        resolvedTagCount: 0,
+        searchScope: args.searchScope,
+        searchText,
+      };
+    }
+
+    const activeTagKeys =
+      args.searchScope === "root"
+        ? []
+        : normalizeActiveTagKeys(args.activeTagKeys ?? []);
+    const activeTagIds = await resolveActiveTagIds(ctx, activeTagKeys);
+    const eventId = await ctx.db.insert("searchEvents", {
+      searchScope: args.searchScope,
+      searchText,
+      activeTagKeys,
+      activeTagIds,
+      activeTagCount: activeTagKeys.length,
+      userId,
+      ...(args.resultCount === undefined
+        ? {}
+        : { resultCount: normalizeResultCount(args.resultCount) }),
+      searchedAt: Date.now(),
+    });
+
+    return {
+      activeTagCount: activeTagKeys.length,
+      eventId,
+      recorded: true,
+      resolvedTagCount: activeTagIds.length,
+      searchScope: args.searchScope,
+      searchText,
+    };
+  },
+});
+
 export const getMvpSummary = query({
   args: {
     popularLimit: v.optional(v.number()),
@@ -406,7 +472,7 @@ async function getContextTrendTarget(
   if (activeTagKeys.length === 0) {
     return {
       href: "/",
-      label: "Global Knowledge Context",
+      label: "All Accessible Knowledge",
       pageType: "dashboard",
       targetKey: "global",
       targetKind: "dashboard",
@@ -879,7 +945,7 @@ async function getContextLabel(ctx: QueryCtx, targetKey: string) {
     ? targetKey.slice("tags:".length).split(",").filter(Boolean)
     : [];
   if (tagKeys.length === 0) {
-    return "Global Knowledge Context";
+    return "All Accessible Knowledge";
   }
 
   const labels = [];
@@ -973,6 +1039,18 @@ function normalizeTrendWindowMs(value: number | undefined) {
 
 function normalizeTargetKey(value: string) {
   return limitString(value.trim().toLowerCase() || "unknown", MAX_TARGET_KEY_LENGTH);
+}
+
+function normalizeSearchText(value: string) {
+  return limitString(value.trim(), MAX_SEARCH_TEXT_LENGTH);
+}
+
+function normalizeResultCount(value: number) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.floor(value));
 }
 
 function normalizeLimit(value: number | undefined, defaultValue: number, maxValue: number) {

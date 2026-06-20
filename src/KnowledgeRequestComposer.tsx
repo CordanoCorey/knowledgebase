@@ -20,11 +20,13 @@ import {
 } from "./knowledgeContracts";
 import { KnowledgeTypeBadge } from "./components/KnowledgeTypeIcon";
 
-type KnowledgeRequestComposerProps = {
+type KnowledgeNavigatorQueryInputProps = {
   activeTags: ActiveTag[];
   initialDraft?: KnowledgeRequestDraft;
   onApplyMappedTags: (mappedTags: ActiveTag[]) => void;
+  onQueryTextChange?: (queryText: string) => void;
   onSearchContext?: (query: string) => void;
+  suggestions?: KnowledgeNavigatorQuerySuggestion[];
 };
 
 type KnowledgeRequestTagRule = {
@@ -32,13 +34,16 @@ type KnowledgeRequestTagRule = {
   tagId: string;
 };
 
-export type KnowledgeRequestSuggestion = {
+export type KnowledgeNavigatorQuerySuggestion = {
   id: string;
-  matchKind: "label" | "rule";
+  matchKind: "alias" | "label" | "rule";
   tag: ActiveTag;
 };
 
+export type KnowledgeRequestSuggestion = KnowledgeNavigatorQuerySuggestion;
+
 const KNOWLEDGE_REQUEST_SUGGESTION_LIMIT = 5;
+const KNOWLEDGE_NAVIGATOR_QUERY_PLACEHOLDER = "Search or add tag";
 
 const KNOWLEDGE_REQUEST_TAG_RULES: KnowledgeRequestTagRule[] = [
   {
@@ -122,27 +127,35 @@ const KNOWLEDGE_REQUEST_TAG_RULES: KnowledgeRequestTagRule[] = [
   },
 ];
 
-export function KnowledgeRequestComposer({
+export function KnowledgeNavigatorQueryInput({
   activeTags,
   initialDraft,
   onApplyMappedTags,
+  onQueryTextChange,
   onSearchContext,
-}: KnowledgeRequestComposerProps) {
+  suggestions: liveSuggestions,
+}: KnowledgeNavigatorQueryInputProps) {
   const [draft, setDraft] = useState<KnowledgeRequestDraft>(
     () => initialDraft ?? createKnowledgeRequestDraft(),
   );
-  const [isComposerFocused, setIsComposerFocused] = useState(false);
+  const [isQueryFocused, setIsQueryFocused] = useState(false);
   const [activeSuggestionIndex, setActiveSuggestionIndex] =
     useState<number | null>(null);
-  const suggestions = useMemo(
-    () => getKnowledgeRequestSuggestions(draft.text, activeTags),
+  const fallbackSuggestions = useMemo(
+    () => getKnowledgeNavigatorQuerySuggestions(draft.text, activeTags),
     [activeTags, draft.text],
   );
+  const suggestions = getVisibleKnowledgeNavigatorQuerySuggestions(
+    liveSuggestions,
+    fallbackSuggestions,
+  );
   const isSuggestionListOpen =
-    isComposerFocused && draft.text.trim().length > 0 && suggestions.length > 0;
+    isQueryFocused && draft.text.trim().length > 0 && suggestions.length > 0;
 
   function handleRequestChange(event: ChangeEvent<HTMLTextAreaElement>) {
-    setDraft(updateKnowledgeRequestDraftText(draft, event.currentTarget.value));
+    const nextText = event.currentTarget.value;
+    setDraft(updateKnowledgeRequestDraftText(draft, nextText));
+    onQueryTextChange?.(nextText);
     setActiveSuggestionIndex(null);
   }
 
@@ -152,7 +165,7 @@ export function KnowledgeRequestComposer({
       return;
     }
 
-    setIsComposerFocused(false);
+    setIsQueryFocused(false);
     setActiveSuggestionIndex(null);
   }
 
@@ -200,7 +213,7 @@ export function KnowledgeRequestComposer({
 
     if (event.key === "Escape") {
       setActiveSuggestionIndex(null);
-      setIsComposerFocused(false);
+      setIsQueryFocused(false);
     }
   }
 
@@ -220,8 +233,9 @@ export function KnowledgeRequestComposer({
     const nextTags = addActiveTag(activeTags, suggestion.tag);
     onApplyMappedTags(nextTags);
     setDraft(createKnowledgeRequestDraft());
+    onQueryTextChange?.("");
     setActiveSuggestionIndex(null);
-    setIsComposerFocused(false);
+    setIsQueryFocused(false);
   }
 
   function submitContextSearch() {
@@ -232,6 +246,7 @@ export function KnowledgeRequestComposer({
 
     onSearchContext?.(searchQuery);
     setDraft(createKnowledgeRequestDraft());
+    onQueryTextChange?.("");
     setActiveSuggestionIndex(null);
   }
 
@@ -239,7 +254,7 @@ export function KnowledgeRequestComposer({
     <div className="kb-request-composer" onBlur={handleComposerBlur}>
       <form className="kb-request-composer-form" onSubmit={handleSubmit}>
         <label className="kb-request-field">
-          <span>Knowledge Composer</span>
+          <span>Knowledge Navigator Query Input</span>
           <textarea
             aria-activedescendant={
               activeSuggestionIndex !== null && isSuggestionListOpen
@@ -250,9 +265,9 @@ export function KnowledgeRequestComposer({
             aria-controls="kb-request-suggestions"
             aria-expanded={isSuggestionListOpen}
             onChange={handleRequestChange}
-            onFocus={() => setIsComposerFocused(true)}
+            onFocus={() => setIsQueryFocused(true)}
             onKeyDown={handleRequestKeyDown}
-            placeholder="Ask a Question or Context..."
+            placeholder={KNOWLEDGE_NAVIGATOR_QUERY_PLACEHOLDER}
             rows={4}
             value={draft.text}
           />
@@ -265,7 +280,7 @@ export function KnowledgeRequestComposer({
 
       {isSuggestionListOpen ? (
         <div
-          aria-label="Knowledge Composer suggestions"
+          aria-label="Knowledge Navigator Query Input suggestions"
           className="kb-request-suggestions"
           id="kb-request-suggestions"
           role="listbox"
@@ -296,21 +311,35 @@ export function KnowledgeRequestComposer({
   );
 }
 
-export function getKnowledgeRequestSuggestions(
+export const KnowledgeRequestComposer = KnowledgeNavigatorQueryInput;
+
+function getVisibleKnowledgeNavigatorQuerySuggestions(
+  liveSuggestions: KnowledgeNavigatorQuerySuggestion[] | undefined,
+  fallbackSuggestions: KnowledgeNavigatorQuerySuggestion[],
+) {
+  return liveSuggestions && liveSuggestions.length > 0
+    ? liveSuggestions
+    : fallbackSuggestions;
+}
+
+export function getKnowledgeNavigatorQuerySuggestions(
   requestText: string,
   activeTags: ActiveTag[] = [],
   limit = KNOWLEDGE_REQUEST_SUGGESTION_LIMIT,
-): KnowledgeRequestSuggestion[] {
+): KnowledgeNavigatorQuerySuggestion[] {
   const normalizedText = normalizeKnowledgeRequestText(requestText);
   if (!normalizedText || limit <= 0) {
     return [];
   }
 
   const activeTagIds = new Set(activeTags.map((tag) => tag.id));
-  const suggestions: KnowledgeRequestSuggestion[] = [];
+  const suggestions: KnowledgeNavigatorQuerySuggestion[] = [];
   const suggestedTagIds = new Set<string>();
 
-  function addSuggestion(tag: ActiveTag, matchKind: KnowledgeRequestSuggestion["matchKind"]) {
+  function addSuggestion(
+    tag: ActiveTag,
+    matchKind: KnowledgeNavigatorQuerySuggestion["matchKind"],
+  ) {
     if (activeTagIds.has(tag.id) || suggestedTagIds.has(tag.id)) {
       return;
     }
@@ -342,6 +371,8 @@ export function getKnowledgeRequestSuggestions(
 
   return suggestions.slice(0, limit);
 }
+
+export const getKnowledgeRequestSuggestions = getKnowledgeNavigatorQuerySuggestions;
 
 export function updateKnowledgeRequestDraftText(
   draft: KnowledgeRequestDraft,

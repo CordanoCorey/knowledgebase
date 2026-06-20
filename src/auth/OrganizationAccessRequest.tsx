@@ -16,9 +16,10 @@ type OrganizationAccessRequestScreenProps = {
   reason: "inactiveUser" | "needsOrganization" | "unauthenticated";
   surface?: "app" | "editor";
 };
-type ClaimResultSummary = {
+export type ClaimResultSummary = {
   claimedMembershipCount: number;
   personConsolidationReviewCount?: number;
+  personConsolidationRejectionCount?: number;
 };
 
 const ACCESS_REQUEST_EMAIL = "gelbaughcm@gmail.com";
@@ -233,10 +234,12 @@ function getRequestHref(kind: "create" | "join", email?: string) {
   return `mailto:${ACCESS_REQUEST_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
-function formatClaimResult(result: ClaimResultSummary) {
+export function formatClaimResult(result: ClaimResultSummary) {
   const { claimedMembershipCount } = result;
   const personConsolidationReviewCount =
     result.personConsolidationReviewCount ?? 0;
+  const personConsolidationRejectionCount =
+    result.personConsolidationRejectionCount ?? 0;
   const messages = [];
   if (claimedMembershipCount > 0) {
     messages.push(
@@ -250,6 +253,15 @@ function formatClaimResult(result: ClaimResultSummary) {
       `${personConsolidationReviewCount} ${
         personConsolidationReviewCount === 1 ? "membership needs" : "memberships need"
       } identity review.`,
+    );
+  }
+  if (personConsolidationRejectionCount > 0) {
+    messages.push(
+      `${personConsolidationRejectionCount} ${
+        personConsolidationRejectionCount === 1
+          ? "membership was"
+          : "memberships were"
+      } not approved after identity review. Contact the organization admin.`,
     );
   }
   if (messages.length > 0) {

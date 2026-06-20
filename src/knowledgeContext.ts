@@ -21,6 +21,15 @@ export type KnowledgeRouteLocation = {
   search?: string;
 };
 
+export type RootSearchTagSuggestion = {
+  canonicalKey: string;
+  href: string;
+  id: string;
+  knowledgeType: KnowledgeType;
+  label: string;
+  tag: ActiveTag;
+};
+
 export const NAVIGATOR_TAG_FIXTURES: ActiveTag[] = [
   biblePassageTag("matthew-5-9", "Matthew 5:9"),
   biblePassageTag("joshua-1-6-9", "Joshua 1:6-9"),
@@ -73,7 +82,7 @@ export function getActiveTagsFromRoute(
 ): ActiveTag[] {
   const pathname = normalizePathname(location.pathname);
 
-  if (pathname === "/") {
+  if (pathname === "/" || pathname === "/search") {
     return [];
   }
 
@@ -97,7 +106,7 @@ export function getKnowledgeLocationKindFromRoute(
 ): KnowledgeLocationKind {
   const pathname = normalizePathname(location.pathname);
 
-  if (pathname === "/") {
+  if (pathname === "/" || pathname === "/search") {
     return "dashboard";
   }
 
@@ -156,6 +165,32 @@ export function getCanonicalKnowledgeContextHref(tags: ActiveTag[]) {
 
 export function getReferentTagHref(tag: ActiveTag) {
   return getSingleTagHref(tag);
+}
+
+export function getRootSearchTagSuggestions(
+  query: string,
+  limit = 5,
+): RootSearchTagSuggestion[] {
+  const suggestionLimit = Math.max(0, Math.floor(limit));
+  const normalizedQuery = normalizeRootSearchText(query);
+  if (!normalizedQuery || suggestionLimit < 1) {
+    return [];
+  }
+
+  const compactQuery = compactRootSearchText(normalizedQuery);
+
+  return REFERENT_TAG_FIXTURES.filter((tag) =>
+    rootSearchTagMatches(tag, normalizedQuery, compactQuery),
+  )
+    .map((tag) => ({
+      canonicalKey: tag.canonicalKey,
+      href: getReferentTagHref(tag),
+      id: tag.id,
+      knowledgeType: tag.knowledgeType,
+      label: tag.label,
+      tag,
+    }))
+    .slice(0, suggestionLimit);
 }
 
 export function getKnowledgeContextKey(tags: ActiveTag[]) {
@@ -314,6 +349,38 @@ function decodePathSegment(segment: string) {
 
 function normalizeTagLabel(label: string) {
   return label.trim().toLowerCase();
+}
+
+function rootSearchTagMatches(
+  tag: ActiveTag,
+  normalizedQuery: string,
+  compactQuery: string,
+) {
+  return [
+    tag.label,
+    tag.id.replaceAll("-", " "),
+    tag.canonicalKey.replaceAll("-", " "),
+    tag.passageString ?? "",
+  ].some((value) => {
+    const normalizedValue = normalizeRootSearchText(value);
+    return (
+      normalizedValue.includes(normalizedQuery) ||
+      compactRootSearchText(normalizedValue).includes(compactQuery)
+    );
+  });
+}
+
+function normalizeRootSearchText(text: string) {
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function compactRootSearchText(text: string) {
+  return text.replace(/\s+/g, "");
 }
 
 function slugifyTagId(value: string) {

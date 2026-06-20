@@ -1,6 +1,15 @@
-import { useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type MouseEvent,
+  type RefObject,
+} from "react";
 import { UserCircle, X } from "lucide-react";
 import { KnowledgeEntryCard, KnowledgeSlotCard } from "./components/KnowledgeCards";
+import { KnowledgeTypeBadge } from "./components/KnowledgeTypeIcon";
 import { ReferentTagLink } from "./components/ReferentTagLink";
 import {
   ANSWER_FEED_FIXTURE,
@@ -17,7 +26,11 @@ import type {
   AuthorableKnowledgeType,
   HumanWeightFeedbackInput,
   KnowledgeContextExpert,
+  KnowledgeContextExpertDetail,
+  KnowledgeContextExpertScope,
+  KnowledgeEntrySummary,
   KnowledgeContextTrendSummary,
+  QuoteAttributionPersonOption,
   KnowledgeSlotSummary,
 } from "./knowledgeContracts";
 import { formatKnowledgeTypeLabel } from "./knowledgeContracts";
@@ -31,6 +44,22 @@ export type AnswerFeedFilters = {
   searchQuery?: string;
 };
 
+export type QuoteAttributionCorrectionInput = {
+  entry: KnowledgeEntrySummary;
+  nextQuotedPersonReferentId: string | null;
+};
+
+export type QuoteAttributionPersonSearchInput = {
+  entry: KnowledgeEntrySummary;
+  searchQuery: string;
+};
+
+export type QuoteAttributionPersonPickerState = {
+  entryId: string;
+  isLoading: boolean;
+  options: QuoteAttributionPersonOption[];
+};
+
 const FEED_KIND_FILTERS: Array<{
   id: AnswerFeedKindFilter;
   label: string;
@@ -42,33 +71,57 @@ const FEED_KIND_FILTERS: Array<{
 
 type AnswerFeedProps = {
   activeTags: ActiveTag[];
+  contextExpertDetail?: KnowledgeContextExpertDetail;
+  contextExpertDetailLoading?: boolean;
+  contextExpertScope?: KnowledgeContextExpertScope;
   contextExperts?: KnowledgeContextExpert[];
   contextTrend?: KnowledgeContextTrendSummary;
+  canCorrectQuoteAttribution?: boolean;
   filterByActiveTags?: boolean;
   headingMode?: "visible" | "sr-only";
   items?: AnswerFeedItem[];
   layout?: "list" | "masonry";
   onClearSearchQuery?: () => void;
   onContributeToSlot?: (slot: KnowledgeSlotSummary) => void;
+  onContextExpertDetailClose?: () => void;
+  onContextExpertSelect?: (expert: KnowledgeContextExpert) => void;
+  onContextExpertScopeChange?: (scope: KnowledgeContextExpertScope) => void;
+  onCorrectQuoteAttribution?: (
+    input: QuoteAttributionCorrectionInput,
+  ) => Promise<void> | void;
+  onQuoteAttributionPersonSearchChange?: (
+    input: QuoteAttributionPersonSearchInput,
+  ) => void;
   onHumanWeightFeedback?: (
     input: HumanWeightFeedbackInput,
   ) => Promise<void> | void;
   onNavigateToHref?: (href: string) => void;
+  quoteAttributionPersonPicker?: QuoteAttributionPersonPickerState;
   searchQuery?: string;
 };
 
 export function AnswerFeed({
   activeTags,
+  contextExpertDetail,
+  contextExpertDetailLoading = false,
+  contextExpertScope = "orbit",
   contextExperts,
   contextTrend,
+  canCorrectQuoteAttribution = false,
   filterByActiveTags = true,
   headingMode = "visible",
   items = ANSWER_FEED_FIXTURE,
   layout = "list",
   onClearSearchQuery,
   onContributeToSlot,
+  onContextExpertDetailClose,
+  onContextExpertSelect,
+  onContextExpertScopeChange,
+  onCorrectQuoteAttribution,
   onHumanWeightFeedback,
   onNavigateToHref,
+  onQuoteAttributionPersonSearchChange,
+  quoteAttributionPersonPicker,
   searchQuery = "",
 }: AnswerFeedProps) {
   const [kindFilter, setKindFilter] = useState<AnswerFeedKindFilter>("all");
@@ -158,8 +211,22 @@ export function AnswerFeed({
       />
       <ContextExperts
         activeTags={activeTags}
+        contextExpertDetail={contextExpertDetail}
+        contextExpertDetailLoading={contextExpertDetailLoading}
+        contextExpertScope={contextExpertScope}
         contextTrend={contextTrend}
+        canCorrectQuoteAttribution={canCorrectQuoteAttribution}
         experts={experts}
+        feedItems={feedItems}
+        onContextExpertDetailClose={onContextExpertDetailClose}
+        onContextExpertSelect={onContextExpertSelect}
+        onContextExpertScopeChange={onContextExpertScopeChange}
+        onCorrectQuoteAttribution={onCorrectQuoteAttribution}
+        onNavigateToHref={onNavigateToHref}
+        onQuoteAttributionPersonSearchChange={
+          onQuoteAttributionPersonSearchChange
+        }
+        quoteAttributionPersonPicker={quoteAttributionPersonPicker}
       />
 
       {!hasActiveFilters && answerCount === 0 ? (
@@ -287,6 +354,7 @@ function AnswerFeedControls({
           {knowledgeTypeOptions.map((knowledgeType) => (
             <button
               aria-pressed={knowledgeTypeFilter === knowledgeType}
+              data-knowledge-type={knowledgeType}
               data-active={
                 knowledgeTypeFilter === knowledgeType ? "true" : undefined
               }
@@ -294,7 +362,7 @@ function AnswerFeedControls({
               onClick={() => onKnowledgeTypeFilterChange(knowledgeType)}
               type="button"
             >
-              {formatKnowledgeTypeLabel(knowledgeType)}
+              <KnowledgeTypeBadge knowledgeType={knowledgeType} />
             </button>
           ))}
         </div>
@@ -305,53 +373,523 @@ function AnswerFeedControls({
 
 function ContextExperts({
   activeTags,
+  contextExpertDetail,
+  contextExpertDetailLoading,
+  contextExpertScope,
   contextTrend,
+  canCorrectQuoteAttribution,
   experts,
+  feedItems,
+  onContextExpertDetailClose,
+  onContextExpertSelect,
+  onContextExpertScopeChange,
+  onCorrectQuoteAttribution,
+  onNavigateToHref,
+  onQuoteAttributionPersonSearchChange,
+  quoteAttributionPersonPicker,
 }: {
   activeTags: ActiveTag[];
+  contextExpertDetail?: KnowledgeContextExpertDetail;
+  contextExpertDetailLoading: boolean;
+  contextExpertScope: KnowledgeContextExpertScope;
   contextTrend?: KnowledgeContextTrendSummary;
+  canCorrectQuoteAttribution: boolean;
   experts: KnowledgeContextExpert[];
+  feedItems: AnswerFeedItem[];
+  onContextExpertDetailClose?: () => void;
+  onContextExpertSelect?: (expert: KnowledgeContextExpert) => void;
+  onContextExpertScopeChange?: (scope: KnowledgeContextExpertScope) => void;
+  onCorrectQuoteAttribution?: (
+    input: QuoteAttributionCorrectionInput,
+  ) => Promise<void> | void;
+  onNavigateToHref?: (href: string) => void;
+  onQuoteAttributionPersonSearchChange?: (
+    input: QuoteAttributionPersonSearchInput,
+  ) => void;
+  quoteAttributionPersonPicker?: QuoteAttributionPersonPickerState;
 }) {
-  if (experts.length === 0) {
+  const [selectedExpert, setSelectedExpert] =
+    useState<KnowledgeContextExpert | null>(null);
+  const dialogRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!selectedExpert) {
+      return;
+    }
+
+    dialogRef.current?.focus();
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        handleCloseDialog();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedExpert]);
+
+  const canChangeScope =
+    activeTags.length > 0 && onContextExpertScopeChange !== undefined;
+
+  if (experts.length === 0 && !canChangeScope) {
     return null;
   }
 
   const trendLabel = getContextTrendBadgeLabel(contextTrend);
+  const selectedExpertDetail =
+    selectedExpert && contextExpertDetail?.id === selectedExpert.id
+      ? contextExpertDetail
+      : selectedExpert
+        ? getFallbackContextExpertDetail(selectedExpert, feedItems)
+        : null;
+  const isSelectedExpertLoading =
+    selectedExpert !== null &&
+    contextExpertDetailLoading &&
+    contextExpertDetail?.id !== selectedExpert.id;
+
+  function handleSelectExpert(expert: KnowledgeContextExpert) {
+    setSelectedExpert(expert);
+    onContextExpertSelect?.(expert);
+  }
+
+  function handleCloseDialog() {
+    setSelectedExpert(null);
+    onContextExpertDetailClose?.();
+  }
+
+  function handleScopeChange(scope: KnowledgeContextExpertScope) {
+    if (scope === contextExpertScope) {
+      return;
+    }
+
+    handleCloseDialog();
+    onContextExpertScopeChange?.(scope);
+  }
 
   return (
-    <section
-      aria-label={
-        activeTags.length > 0 ? "Knowledge Context experts" : "Top contributors"
+    <>
+      <section
+        aria-label={
+          activeTags.length > 0 ? "Knowledge Context experts" : "Top contributors"
+        }
+        className="kb-feed-experts"
+      >
+        <span className="kb-feed-experts-label">
+          {activeTags.length > 0 ? "Context experts" : "Top contributors"}
+        </span>
+        {trendLabel ? (
+          <span className="kb-feed-trend-badge" title={getContextTrendTitle(contextTrend)}>
+            {trendLabel}
+          </span>
+        ) : null}
+        {canChangeScope ? (
+          <div className="kb-feed-expert-scope" aria-label="Context Expert audience">
+            <button
+              aria-pressed={contextExpertScope === "orbit"}
+              onClick={() => handleScopeChange("orbit")}
+              type="button"
+            >
+              Orbit
+            </button>
+            <button
+              aria-pressed={contextExpertScope === "global"}
+              onClick={() => handleScopeChange("global")}
+              type="button"
+            >
+              Global
+            </button>
+          </div>
+        ) : null}
+        {experts.length > 0 ? (
+          <ul>
+            {experts.map((expert) => (
+              <li key={expert.id}>
+                <UserCircle aria-hidden="true" />
+                <button
+                  aria-label={`Open ${expert.name} Context Expert details`}
+                  className="kb-feed-expert-button"
+                  onClick={() => handleSelectExpert(expert)}
+                  type="button"
+                >
+                  <strong>{expert.name}</strong>
+                  <small>
+                    {formatCount(expert.postCount, "post")} |{" "}
+                    {formatCount(expert.evidenceCount, "signal")}
+                  </small>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="kb-feed-experts-empty">No experts in this view</p>
+        )}
+      </section>
+
+      {selectedExpert && selectedExpertDetail ? (
+        <ContextExpertDialog
+          detail={selectedExpertDetail}
+          dialogRef={dialogRef}
+          isLoading={isSelectedExpertLoading}
+          canCorrectQuoteAttribution={canCorrectQuoteAttribution}
+          onClose={handleCloseDialog}
+          onCorrectQuoteAttribution={onCorrectQuoteAttribution}
+          onNavigateToHref={onNavigateToHref}
+          onQuoteAttributionPersonSearchChange={
+            onQuoteAttributionPersonSearchChange
+          }
+          quoteAttributionPersonPicker={quoteAttributionPersonPicker}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function ContextExpertDialog({
+  detail,
+  dialogRef,
+  isLoading,
+  canCorrectQuoteAttribution,
+  onClose,
+  onCorrectQuoteAttribution,
+  onNavigateToHref,
+  onQuoteAttributionPersonSearchChange,
+  quoteAttributionPersonPicker,
+}: {
+  detail: KnowledgeContextExpertDetail;
+  dialogRef: RefObject<HTMLElement | null>;
+  isLoading: boolean;
+  canCorrectQuoteAttribution: boolean;
+  onClose: () => void;
+  onCorrectQuoteAttribution?: (
+    input: QuoteAttributionCorrectionInput,
+  ) => Promise<void> | void;
+  onNavigateToHref?: (href: string) => void;
+  onQuoteAttributionPersonSearchChange?: (
+    input: QuoteAttributionPersonSearchInput,
+  ) => void;
+  quoteAttributionPersonPicker?: QuoteAttributionPersonPickerState;
+}) {
+  const nonPostSignalCount = getNonPostSignalCount(detail);
+  const postCountLabel =
+    detail.contextMatchKind === "broaderContext"
+      ? "Posts in broader context"
+      : "Posts in context";
+
+  function handleLinkClick(event: MouseEvent<HTMLAnchorElement>, href: string) {
+    if (!onNavigateToHref) {
+      return;
+    }
+
+    event.preventDefault();
+    onClose();
+    onNavigateToHref(href);
+  }
+
+  return (
+    <div className="kb-context-expert-dialog-backdrop" onMouseDown={onClose}>
+      <section
+        aria-labelledby="kb-context-expert-dialog-heading"
+        aria-modal="true"
+        className="kb-context-expert-dialog"
+        onMouseDown={(event) => event.stopPropagation()}
+        ref={dialogRef}
+        role="dialog"
+        tabIndex={-1}
+      >
+        <header>
+          <div>
+            <p className="kb-eyebrow">Context Expert</p>
+            <h3 id="kb-context-expert-dialog-heading">{detail.name}</h3>
+          </div>
+          <button
+            aria-label="Close Context Expert details"
+            className="kb-context-expert-dialog-close"
+            onClick={onClose}
+            type="button"
+          >
+            <X aria-hidden="true" />
+          </button>
+        </header>
+
+        <dl className="kb-context-expert-stats">
+          <div>
+            <dt>{postCountLabel}</dt>
+            <dd>{detail.postCount}</dd>
+          </div>
+          <div>
+            <dt>Non-post signals</dt>
+            <dd>{nonPostSignalCount}</dd>
+          </div>
+        </dl>
+
+        {detail.href ? (
+          <a
+            className="kb-context-expert-profile-link"
+            href={detail.href}
+            onClick={(event) => handleLinkClick(event, detail.href!)}
+          >
+            <UserCircle aria-hidden="true" />
+            View profile
+          </a>
+        ) : null}
+
+        <section
+          aria-labelledby="kb-context-expert-contributions-heading"
+          className="kb-context-expert-contributions"
+        >
+          <h4 id="kb-context-expert-contributions-heading">
+            Top visible contributions
+          </h4>
+          {isLoading ? (
+            <p className="kb-context-expert-empty">Loading contributions...</p>
+          ) : detail.topSupportingEntries.length > 0 ? (
+            <ol>
+              {detail.topSupportingEntries.map((entry) => (
+                <li key={entry.id}>
+                  <a
+                    href={entry.href}
+                    onClick={(event) => handleLinkClick(event, entry.href)}
+                  >
+                    <strong>{entry.title}</strong>
+                    <KnowledgeTypeBadge
+                      className="kb-context-expert-entry-type"
+                      knowledgeType={entry.knowledgeType}
+                    />
+                    <small>{entry.previewText}</small>
+                  </a>
+                  {canCorrectQuoteAttribution &&
+                  onCorrectQuoteAttribution &&
+                  entry.knowledgeType === "quote" ? (
+                    <QuoteAttributionCorrectionForm
+                      entry={entry}
+                      onCorrectQuoteAttribution={onCorrectQuoteAttribution}
+                      onQuoteAttributionPersonSearchChange={
+                        onQuoteAttributionPersonSearchChange
+                      }
+                      personPicker={
+                        quoteAttributionPersonPicker?.entryId === entry.id
+                          ? quoteAttributionPersonPicker
+                          : undefined
+                      }
+                    />
+                  ) : null}
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="kb-context-expert-empty">
+              No visible supporting contributions yet.
+            </p>
+          )}
+        </section>
+      </section>
+    </div>
+  );
+}
+
+type QuoteAttributionCorrectionStatus = "idle" | "saving" | "saved" | "error";
+
+function QuoteAttributionCorrectionForm({
+  entry,
+  onCorrectQuoteAttribution,
+  onQuoteAttributionPersonSearchChange,
+  personPicker,
+}: {
+  entry: KnowledgeEntrySummary;
+  onCorrectQuoteAttribution: (
+    input: QuoteAttributionCorrectionInput,
+  ) => Promise<void> | void;
+  onQuoteAttributionPersonSearchChange?: (
+    input: QuoteAttributionPersonSearchInput,
+  ) => void;
+  personPicker?: QuoteAttributionPersonPickerState;
+}) {
+  const [searchQuery, setSearchQuery] = useState(
+    entry.quoteAttribution?.quotedPersonLabel ?? "",
+  );
+  const [selectedPerson, setSelectedPerson] =
+    useState<QuoteAttributionPersonOption | null>(null);
+  const [hasSearchedPerson, setHasSearchedPerson] = useState(false);
+  const [status, setStatus] =
+    useState<QuoteAttributionCorrectionStatus>("idle");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSearchQuery(entry.quoteAttribution?.quotedPersonLabel ?? "");
+    setSelectedPerson(null);
+    setHasSearchedPerson(false);
+    setStatus("idle");
+    setErrorMessage(null);
+  }, [entry.id, entry.quoteAttribution?.quotedPersonLabel]);
+
+  async function submitCorrection(nextPersonReferentId: string | null) {
+    setStatus("saving");
+    setErrorMessage(null);
+    try {
+      await onCorrectQuoteAttribution({
+        entry,
+        nextQuotedPersonReferentId: nextPersonReferentId,
+      });
+      setStatus("saved");
+      if (nextPersonReferentId === null) {
+        setSearchQuery("");
+        setSelectedPerson(null);
+        setHasSearchedPerson(false);
+        onQuoteAttributionPersonSearchChange?.({ entry, searchQuery: "" });
       }
-      className="kb-feed-experts"
-    >
-      <span className="kb-feed-experts-label">
-        {activeTags.length > 0 ? "Context experts" : "Top contributors"}
-      </span>
-      {trendLabel ? (
-        <span className="kb-feed-trend-badge" title={getContextTrendTitle(contextTrend)}>
-          {trendLabel}
+    } catch {
+      setStatus("error");
+      setErrorMessage("Quote attribution update failed.");
+    }
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedPerson) {
+      setStatus("error");
+      setErrorMessage("Select a Person before saving attribution.");
+      return;
+    }
+
+    void submitCorrection(selectedPerson.referentId);
+  }
+
+  function handleSearchChange(nextSearchQuery: string) {
+    setSearchQuery(nextSearchQuery);
+    setSelectedPerson(null);
+    setHasSearchedPerson(true);
+    setStatus("idle");
+    setErrorMessage(null);
+    onQuoteAttributionPersonSearchChange?.({
+      entry,
+      searchQuery: nextSearchQuery,
+    });
+  }
+
+  function handleSelectPerson(option: QuoteAttributionPersonOption) {
+    setSearchQuery(option.label);
+    setSelectedPerson(option);
+    setHasSearchedPerson(true);
+    setStatus("idle");
+    setErrorMessage(null);
+  }
+
+  const currentLabel =
+    entry.quoteAttribution?.quotedPersonLabel ?? "No quoted Person";
+  const currentReferentId = entry.quoteAttribution?.quotedPersonReferentId;
+  const isSaving = status === "saving";
+  const trimmedSearchQuery = searchQuery.trim();
+  const personOptions = personPicker?.options ?? [];
+  const showPersonOptions =
+    hasSearchedPerson && trimmedSearchQuery.length >= 2;
+
+  return (
+    <form className="kb-quote-attribution-correction" onSubmit={handleSubmit}>
+      <p>
+        <span>Quoted Person</span>
+        <strong>{currentLabel}</strong>
+        {currentReferentId ? <code>{currentReferentId}</code> : null}
+      </p>
+      <label>
+        <span>Corrected Person</span>
+        <input
+          aria-label={`Search corrected Person for ${entry.title}`}
+          disabled={isSaving}
+          name={`quote-attribution-${entry.id}`}
+          onChange={(event) => handleSearchChange(event.target.value)}
+          type="text"
+          value={searchQuery}
+        />
+      </label>
+      {showPersonOptions ? (
+        <div
+          aria-label={`Person search results for ${entry.title}`}
+          className="kb-quote-attribution-person-options"
+          role="listbox"
+        >
+          {personPicker?.isLoading ? (
+            <span className="kb-quote-attribution-option-empty">
+              Searching People...
+            </span>
+          ) : personOptions.length > 0 ? (
+            personOptions.map((option) => (
+              <button
+                aria-selected={
+                  selectedPerson?.referentId === option.referentId
+                    ? "true"
+                    : "false"
+                }
+                className="kb-quote-attribution-person-option"
+                key={option.tagId}
+                onClick={() => handleSelectPerson(option)}
+                role="option"
+                type="button"
+              >
+                <span>{option.label}</span>
+              </button>
+            ))
+          ) : (
+            <span className="kb-quote-attribution-option-empty">
+              No matching People.
+            </span>
+          )}
+        </div>
+      ) : null}
+      {selectedPerson ? (
+        <span className="kb-quote-attribution-selected" role="status">
+          Selected {selectedPerson.label}
         </span>
       ) : null}
-      <ul>
-        {experts.map((expert) => (
-          <li key={expert.id}>
-            <UserCircle aria-hidden="true" />
-            <div>
-              <strong>
-                {expert.href ? <a href={expert.href}>{expert.name}</a> : expert.name}
-              </strong>
-              <small>
-                {expert.contributionCount}{" "}
-                {expert.contributionCount === 1 ? "entry" : "entries"} |{" "}
-                {expert.averageHumanWeight} avg HW
-              </small>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </section>
+      <footer>
+        <button disabled={isSaving} type="submit">
+          {isSaving ? "Saving" : "Save attribution"}
+        </button>
+        <button
+          disabled={isSaving}
+          onClick={() => void submitCorrection(null)}
+          type="button"
+        >
+          Clear attribution
+        </button>
+      </footer>
+      {status === "saved" ? (
+        <span className="kb-quote-attribution-status" role="status">
+          Quote attribution updated.
+        </span>
+      ) : null}
+      {errorMessage ? (
+        <span className="kb-quote-attribution-status" role="alert">
+          {errorMessage}
+        </span>
+      ) : null}
+    </form>
   );
+}
+
+function getFallbackContextExpertDetail(
+  expert: KnowledgeContextExpert,
+  feedItems: AnswerFeedItem[],
+): KnowledgeContextExpertDetail {
+  return {
+    ...expert,
+    topSupportingEntries: getFallbackTopSupportingEntries(expert, feedItems),
+  };
+}
+
+function getFallbackTopSupportingEntries(
+  expert: KnowledgeContextExpert,
+  feedItems: AnswerFeedItem[],
+): KnowledgeEntrySummary[] {
+  return feedItems
+    .filter(isAnswerFeedAnswer)
+    .map((item) => item.entry)
+    .filter((entry) => entry.contributor.id === expert.id)
+    .slice(0, 5);
+}
+
+function getNonPostSignalCount(expert: KnowledgeContextExpert) {
+  return Math.max(0, expert.evidenceCount - expert.postCount);
 }
 
 function getContextTrendBadgeLabel(
@@ -400,7 +938,7 @@ function ActiveContextTags({
   if (activeTags.length === 0) {
     return (
       <p className="kb-feed-context-empty" role="status">
-        Global Knowledge Context
+        All Accessible Knowledge
       </p>
     );
   }

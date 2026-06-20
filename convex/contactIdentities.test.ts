@@ -237,6 +237,14 @@ describe("Contact identities", () => {
       {},
     )) as SeedActionTestResult;
     const adminUser = getSeededUser(seed.users, DEFAULT_USER_SEEDS[0].email);
+    const archeAdminUser = getSeededUser(
+      seed.users,
+      DEFAULT_USER_SEEDS[2].email,
+    );
+    const archeMemberUser = getSeededUser(
+      seed.users,
+      DEFAULT_USER_SEEDS[1].email,
+    );
     const admin = t.withIdentity({
       subject: `${adminUser.userId}|test-session`,
     });
@@ -368,6 +376,30 @@ describe("Contact identities", () => {
         .withIndex("by_userId", (q) => q.eq("userId", userId))
         .unique();
 
+      const reviews = await ctx.db
+        .query("personConsolidationReviews")
+        .withIndex(
+          "by_membershipId_and_requestedByUserId_and_reviewStatus",
+          (q) =>
+            q
+              .eq("membershipId", pendingMember.membershipId)
+              .eq("requestedByUserId", userId)
+              .eq("reviewStatus", "pending"),
+        )
+        .take(10);
+      const reviewNotifications =
+        reviews[0] === undefined
+          ? []
+          : await ctx.db
+              .query("userNotifications")
+              .withIndex("by_sourceSubscriptionKey_and_receivedAt", (q) =>
+                q.eq(
+                  "sourceSubscriptionKey",
+                  `person-consolidation-review:${reviews[0]._id}:requested`,
+                ),
+              )
+              .take(10);
+
       return {
         contactIdentity,
         membership,
@@ -377,17 +409,8 @@ describe("Contact identities", () => {
             q.eq("claimedByUserId", userId),
           )
           .take(10),
-        reviews: await ctx.db
-          .query("personConsolidationReviews")
-          .withIndex(
-            "by_membershipId_and_requestedByUserId_and_reviewStatus",
-            (q) =>
-              q
-                .eq("membershipId", pendingMember.membershipId)
-                .eq("requestedByUserId", userId)
-                .eq("reviewStatus", "pending"),
-          )
-          .take(10),
+        reviewNotifications,
+        reviews,
         user: await ctx.db.get(userId),
         userProfile,
       };
@@ -418,6 +441,491 @@ describe("Contact identities", () => {
       reviewStatus: "pending",
       verifiedContactIdentityId: stored.contactIdentity?._id,
     });
+    expect(stored.reviewNotifications).toHaveLength(2);
+    expect(
+      stored.reviewNotifications.map((notification) => notification.userId).sort(),
+    ).toEqual([adminUser.userId, archeAdminUser.userId].sort());
+    expect(
+      stored.reviewNotifications.some(
+        (notification) => notification.userId === archeMemberUser.userId,
+      ),
+    ).toBe(false);
+    expect(stored.reviewNotifications).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          body: expect.stringContaining("needs.review@example.com"),
+          contextHref: "/organizations/arche-classical-academy/settings",
+          contextLabel: "Arche Classical Academy",
+          notificationKind: "access",
+          notificationStatus: "unread",
+          sourceKind: "system",
+          sourceSubscriptionKey: `person-consolidation-review:${stored.reviews[0]._id}:requested`,
+          targetReferentId: stored.membership?.organizationReferentId,
+          title: "Identity review needed",
+        }),
+      ]),
+    );
+  });
+
+  test("notifies the claimant when a Person Consolidation review is approved", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = (await t.action(
+      internal.seedOrganizationsAction.seedDefaultOrganizations,
+      {},
+    )) as SeedActionTestResult;
+    const adminUser = getSeededUser(seed.users, DEFAULT_USER_SEEDS[0].email);
+    const admin = t.withIdentity({
+      subject: `${adminUser.userId}|test-session`,
+    });
+
+    const pendingMember = await admin.mutation(
+      api.organizationAccounts.addOrganizationMember,
+      {
+        email: "approved.review@example.com",
+        organizationId: "arche-classical-academy",
+        role: "member",
+      },
+    );
+    const userId = await t.run(async (ctx) => {
+      return await ctx.db.insert("users", {
+        email: "approved.review.owner@example.com",
+        emailVerificationTime: Date.now(),
+        isActive: false,
+        name: "Approved Review Owner",
+      });
+    });
+    await t.run(async (ctx) => {
+      const membership = await ctx.db.get(pendingMember.membershipId);
+      if (!membership) {
+        throw new Error("Missing pending membership.");
+      }
+      const personEntry = (
+        await ctx.db
+          .query("knowledgeEntries")
+          .withIndex("by_representedReferentId", (q) =>
+            q.eq("representedReferentId", membership.personReferentId),
+          )
+          .take(10)
+      ).find((entry) => entry.knowledgeType === "person");
+      if (!personEntry) {
+        throw new Error("Missing pending person entry.");
+      }
+
+      await ctx.db.patch(membership.personReferentId, {
+        canonicalName: "Approved Review",
+      });
+      await ctx.db.patch(personEntry._id, {
+        previewText: "Approved Review",
+        primaryTagLabel: "Approved Review",
+        searchText: "Approved Review approved.review@example.com",
+        title: "Approved Review",
+        updatedAt: Date.now(),
+      });
+    });
+    const claimant = t.withIdentity({ subject: `${userId}|test-session` });
+
+    await claimant.mutation(api.contactIdentities.requestEmailVerification, {
+      email: "approved.review@example.com",
+    });
+    const verificationCode = await t.run(async (ctx) => {
+      const contactIdentity = await ctx.db
+        .query("contactIdentities")
+        .withIndex("by_userId_and_contactKind_and_value", (q) =>
+          q
+            .eq("userId", userId)
+            .eq("contactKind", "email")
+            .eq("value", "approved.review@example.com"),
+        )
+        .unique();
+
+      return contactIdentity?.verificationCode ?? null;
+    });
+    if (!verificationCode) {
+      throw new Error("Missing verification code.");
+    }
+
+    await claimant.mutation(
+      api.contactIdentities.verifyEmailAndClaimPendingMemberships,
+      {
+        code: verificationCode,
+        email: "approved.review@example.com",
+      },
+    );
+
+    const reviewId = await t.run(async (ctx) => {
+      const review = (
+        await ctx.db
+          .query("personConsolidationReviews")
+          .withIndex(
+            "by_membershipId_and_requestedByUserId_and_reviewStatus",
+            (q) =>
+              q
+                .eq("membershipId", pendingMember.membershipId)
+                .eq("requestedByUserId", userId)
+                .eq("reviewStatus", "pending"),
+          )
+          .take(10)
+      )[0];
+
+      return review?._id ?? null;
+    });
+    if (!reviewId) {
+      throw new Error("Missing Person Consolidation review.");
+    }
+
+    await admin.mutation(
+      api.organizationAccounts.approvePersonConsolidationReview,
+      {
+        organizationId: "arche-classical-academy",
+        personConsolidationReviewId: reviewId,
+      },
+    );
+
+    const stored = await t.run(async (ctx) => {
+      return {
+        membership: await ctx.db.get(pendingMember.membershipId),
+        notifications: await ctx.db
+          .query("userNotifications")
+          .withIndex("by_sourceSubscriptionKey_and_receivedAt", (q) =>
+            q.eq(
+              "sourceSubscriptionKey",
+              `person-consolidation-review:${reviewId}:approved`,
+            ),
+          )
+          .take(10),
+        user: await ctx.db.get(userId),
+      };
+    });
+
+    expect(stored.user?.isActive).toBe(true);
+    expect(stored.membership).toMatchObject({
+      memberUserId: userId,
+      membershipStatus: "active",
+    });
+    expect(stored.notifications).toHaveLength(1);
+    expect(stored.notifications[0]).toMatchObject({
+      body: expect.stringContaining("approved.review@example.com"),
+      contextHref: "/organizations/arche-classical-academy",
+      contextLabel: "Arche Classical Academy",
+      notificationKind: "access",
+      notificationStatus: "unread",
+      sourceKind: "system",
+      targetReferentId: stored.membership?.organizationReferentId,
+      title: "Membership claim approved",
+      userId,
+    });
+  });
+
+  test("returns a rejected review result instead of reopening a rejected Person Consolidation review", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = (await t.action(
+      internal.seedOrganizationsAction.seedDefaultOrganizations,
+      {},
+    )) as SeedActionTestResult;
+    const adminUser = getSeededUser(seed.users, DEFAULT_USER_SEEDS[0].email);
+    const admin = t.withIdentity({
+      subject: `${adminUser.userId}|test-session`,
+    });
+
+    const pendingMember = await admin.mutation(
+      api.organizationAccounts.addOrganizationMember,
+      {
+        email: "rejected.review@example.com",
+        organizationId: "arche-classical-academy",
+        role: "member",
+      },
+    );
+    const userId = await t.run(async (ctx) => {
+      return await ctx.db.insert("users", {
+        email: "rejected.review.owner@example.com",
+        emailVerificationTime: Date.now(),
+        isActive: false,
+        name: "Rejected Review Owner",
+      });
+    });
+    await t.run(async (ctx) => {
+      const membership = await ctx.db.get(pendingMember.membershipId);
+      if (!membership) {
+        throw new Error("Missing pending membership.");
+      }
+      const personEntry = (
+        await ctx.db
+          .query("knowledgeEntries")
+          .withIndex("by_representedReferentId", (q) =>
+            q.eq("representedReferentId", membership.personReferentId),
+          )
+          .take(10)
+      ).find((entry) => entry.knowledgeType === "person");
+      if (!personEntry) {
+        throw new Error("Missing pending person entry.");
+      }
+
+      await ctx.db.patch(membership.personReferentId, {
+        canonicalName: "Rejected Review",
+      });
+      await ctx.db.patch(personEntry._id, {
+        previewText: "Rejected Review",
+        primaryTagLabel: "Rejected Review",
+        searchText: "Rejected Review rejected.review@example.com",
+        title: "Rejected Review",
+        updatedAt: Date.now(),
+      });
+    });
+    const claimant = t.withIdentity({ subject: `${userId}|test-session` });
+
+    await claimant.mutation(api.contactIdentities.requestEmailVerification, {
+      email: "rejected.review@example.com",
+    });
+    const verificationCode = await t.run(async (ctx) => {
+      const contactIdentity = await ctx.db
+        .query("contactIdentities")
+        .withIndex("by_userId_and_contactKind_and_value", (q) =>
+          q
+            .eq("userId", userId)
+            .eq("contactKind", "email")
+            .eq("value", "rejected.review@example.com"),
+        )
+        .unique();
+
+      return contactIdentity?.verificationCode ?? null;
+    });
+    if (!verificationCode) {
+      throw new Error("Missing verification code.");
+    }
+
+    const firstClaim = await claimant.mutation(
+      api.contactIdentities.verifyEmailAndClaimPendingMemberships,
+      {
+        code: verificationCode,
+        email: "rejected.review@example.com",
+      },
+    );
+    expect(firstClaim).toMatchObject({
+      claimedMembershipCount: 0,
+      memberships: [],
+      personConsolidationReviewCount: 1,
+      personConsolidationRejectionCount: 0,
+      personConsolidationRejections: [],
+    });
+
+    const reviewId = await t.run(async (ctx) => {
+      const review = (
+        await ctx.db
+          .query("personConsolidationReviews")
+          .withIndex(
+            "by_membershipId_and_requestedByUserId_and_reviewStatus",
+            (q) =>
+              q
+                .eq("membershipId", pendingMember.membershipId)
+                .eq("requestedByUserId", userId)
+                .eq("reviewStatus", "pending"),
+          )
+          .take(10)
+      )[0];
+
+      return review?._id ?? null;
+    });
+    if (!reviewId) {
+      throw new Error("Missing Person Consolidation review.");
+    }
+    await admin.mutation(
+      api.organizationAccounts.rejectPersonConsolidationReview,
+      {
+        organizationId: "arche-classical-academy",
+        personConsolidationReviewId: reviewId,
+      },
+    );
+
+    const verifyRetryClaim = await claimant.mutation(
+      api.contactIdentities.verifyEmailAndClaimPendingMemberships,
+      {
+        code: "000000",
+        email: "rejected.review@example.com",
+      },
+    );
+    const verifiedRetryClaim = await claimant.mutation(
+      api.contactIdentities.claimVerifiedEmailMemberships,
+      {
+        email: "rejected.review@example.com",
+      },
+    );
+
+    expect(verifyRetryClaim).toMatchObject({
+      claimedMembershipCount: 0,
+      email: "rejected.review@example.com",
+      memberships: [],
+      personConsolidationReviewCount: 0,
+      personConsolidationReviews: [],
+      personConsolidationRejectionCount: 1,
+      personConsolidationRejections: [
+        {
+          membershipId: pendingMember.membershipId,
+          organizationReferentId: expect.any(String),
+          role: "member",
+        },
+      ],
+      verificationStatus: "verified",
+    });
+    expect(verifiedRetryClaim).toMatchObject({
+      claimedMembershipCount: 0,
+      email: "rejected.review@example.com",
+      memberships: [],
+      personConsolidationReviewCount: 0,
+      personConsolidationReviews: [],
+      personConsolidationRejectionCount: 1,
+      personConsolidationRejections: [
+        {
+          membershipId: pendingMember.membershipId,
+          organizationReferentId: expect.any(String),
+          role: "member",
+        },
+      ],
+      verificationStatus: "verified",
+    });
+
+    const stored = await t.run(async (ctx) => {
+      return {
+        membership: await ctx.db.get(pendingMember.membershipId),
+        membershipClaims: await ctx.db
+          .query("membershipClaims")
+          .withIndex("by_claimedByUserId_and_createdAt", (q) =>
+            q.eq("claimedByUserId", userId),
+          )
+          .take(10),
+        pendingReviews: await ctx.db
+          .query("personConsolidationReviews")
+          .withIndex(
+            "by_membershipId_and_requestedByUserId_and_reviewStatus",
+            (q) =>
+              q
+                .eq("membershipId", pendingMember.membershipId)
+                .eq("requestedByUserId", userId)
+                .eq("reviewStatus", "pending"),
+          )
+          .take(10),
+        outcomeNotifications: await ctx.db
+          .query("userNotifications")
+          .withIndex("by_sourceSubscriptionKey_and_receivedAt", (q) =>
+            q.eq(
+              "sourceSubscriptionKey",
+              `person-consolidation-review:${reviewId}:rejected`,
+            ),
+          )
+          .take(10),
+        rejectedReviews: await ctx.db
+          .query("personConsolidationReviews")
+          .withIndex(
+            "by_membershipId_and_requestedByUserId_and_reviewStatus",
+            (q) =>
+              q
+                .eq("membershipId", pendingMember.membershipId)
+                .eq("requestedByUserId", userId)
+                .eq("reviewStatus", "rejected"),
+          )
+          .take(10),
+        user: await ctx.db.get(userId),
+      };
+    });
+
+    expect(stored.user?.isActive).toBe(false);
+    expect(stored.membership).toMatchObject({
+      membershipStatus: "invited",
+    });
+    expect(stored.membership?.memberUserId).toBeUndefined();
+    expect(stored.membershipClaims).toEqual([]);
+    expect(stored.pendingReviews).toEqual([]);
+    expect(stored.outcomeNotifications).toHaveLength(1);
+    expect(stored.outcomeNotifications[0]).toMatchObject({
+      body: expect.stringContaining("not approved after identity review"),
+      contextHref: "/organizations/arche-classical-academy",
+      contextLabel: "Arche Classical Academy",
+      notificationKind: "access",
+      notificationStatus: "unread",
+      sourceKind: "system",
+      title: "Membership claim not approved",
+      userId,
+    });
+    expect(stored.rejectedReviews).toHaveLength(1);
+    expect(stored.rejectedReviews[0]).toMatchObject({
+      claimedContactKind: "email",
+      claimedContactValue: "rejected.review@example.com",
+      membershipId: pendingMember.membershipId,
+      requestedByUserId: userId,
+      reviewStatus: "rejected",
+    });
+
+    const reopened = await admin.mutation(
+      api.organizationAccounts.reopenPersonConsolidationReview,
+      {
+        organizationId: "arche-classical-academy",
+        personConsolidationReviewId: reviewId,
+      },
+    );
+    expect(reopened).toEqual({
+      membershipId: pendingMember.membershipId,
+      reviewStatus: "pending",
+    });
+
+    const reopenedClaim = await claimant.mutation(
+      api.contactIdentities.claimVerifiedEmailMemberships,
+      {
+        email: "rejected.review@example.com",
+      },
+    );
+    expect(reopenedClaim).toMatchObject({
+      claimedMembershipCount: 0,
+      email: "rejected.review@example.com",
+      memberships: [],
+      personConsolidationReviewCount: 1,
+      personConsolidationReviews: [
+        {
+          membershipId: pendingMember.membershipId,
+          organizationReferentId: expect.any(String),
+          role: "member",
+        },
+      ],
+      personConsolidationRejectionCount: 0,
+      personConsolidationRejections: [],
+      verificationStatus: "verified",
+    });
+
+    const reopenedStored = await t.run(async (ctx) => {
+      return {
+        pendingReviews: await ctx.db
+          .query("personConsolidationReviews")
+          .withIndex(
+            "by_membershipId_and_requestedByUserId_and_reviewStatus",
+            (q) =>
+              q
+                .eq("membershipId", pendingMember.membershipId)
+                .eq("requestedByUserId", userId)
+                .eq("reviewStatus", "pending"),
+          )
+          .take(10),
+        rejectedReviews: await ctx.db
+          .query("personConsolidationReviews")
+          .withIndex(
+            "by_membershipId_and_requestedByUserId_and_reviewStatus",
+            (q) =>
+              q
+                .eq("membershipId", pendingMember.membershipId)
+                .eq("requestedByUserId", userId)
+                .eq("reviewStatus", "rejected"),
+          )
+          .take(10),
+      };
+    });
+    expect(reopenedStored.pendingReviews).toHaveLength(1);
+    expect(reopenedStored.pendingReviews[0]).toMatchObject({
+      claimedContactKind: "email",
+      claimedContactValue: "rejected.review@example.com",
+      membershipId: pendingMember.membershipId,
+      requestedByUserId: userId,
+      reviewStatus: "pending",
+    });
+    expect(reopenedStored.pendingReviews[0]?.resolvedAt).toBeUndefined();
+    expect(reopenedStored.pendingReviews[0]?.resolvedByUserId).toBeUndefined();
+    expect(reopenedStored.rejectedReviews).toEqual([]);
   });
 
   test("rejects an incorrect alternate email verification code without claiming", async () => {

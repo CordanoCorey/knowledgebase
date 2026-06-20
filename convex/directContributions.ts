@@ -129,6 +129,10 @@ export const postDirectContribution = mutation({
       knowledgeType: args.knowledgeType,
       slotId: args.slotId,
     });
+    const slotContextTagIds =
+      slotFulfillment === undefined
+        ? undefined
+        : await getSlotContextTagIds(ctx, slotFulfillment._id);
     const represented = await resolveRepresentedIdentity(ctx, {
       knowledgeType: args.knowledgeType,
       now,
@@ -143,8 +147,7 @@ export const postDirectContribution = mutation({
     );
     if (slotFulfillment !== undefined) {
       await assertContributionIncludesSlotTags(
-        ctx,
-        slotFulfillment._id,
+        slotContextTagIds ?? [],
         contextTags.map((tag) => tag._id),
       );
     }
@@ -212,6 +215,22 @@ export const postDirectContribution = mutation({
         questionText: title,
       });
     }
+    if (args.knowledgeType === "quote") {
+      const quotedPersonReferentId = await insertQuoteEntry(ctx, {
+        contextTags,
+        entryId,
+        sourceText: body,
+      });
+      if (quotedPersonReferentId !== undefined) {
+        await recordContextExpertiseEvidence(ctx, {
+          contextTagIds: contextTags.map((tag) => tag._id),
+          entryId,
+          evidenceKind: "quoteAttribution",
+          now,
+          subjectPersonReferentId: quotedPersonReferentId,
+        });
+      }
+    }
 
     if (slotFulfillment !== undefined) {
       await ctx.db.patch(slotFulfillment._id, {
@@ -219,6 +238,22 @@ export const postDirectContribution = mutation({
         status: "fulfilled",
         updatedAt: now,
       });
+      await recordContextExpertiseEvidence(ctx, {
+        contextTagIds: slotContextTagIds ?? [],
+        entryId,
+        evidenceKind: "slotFulfillment",
+        now,
+        slotId: slotFulfillment._id,
+        subjectUserId: access.userId,
+      });
+      if (humanWeight !== undefined) {
+        await recordSlotFulfillmentHumanWeightEvidence(ctx, {
+          entryId,
+          now,
+          slotId: slotFulfillment._id,
+          subjectUserId: access.userId,
+        });
+      }
     }
 
     const entry = await ctx.db.get(entryId);
@@ -234,6 +269,82 @@ export const postDirectContribution = mutation({
     };
   },
 });
+
+async function insertQuoteEntry(
+  ctx: MutationCtx,
+  {
+    contextTags,
+    entryId,
+    sourceText,
+  }: {
+    contextTags: Doc<"tags">[];
+    entryId: Id<"knowledgeEntries">;
+    sourceText: string;
+  },
+) {
+  const quotedPersonReferentId = getUnambiguousQuotedPersonReferentId(
+    contextTags,
+  );
+  const trimmedSourceText = sourceText.trim();
+
+  await ctx.db.insert("quoteEntries", {
+    entryId,
+    ...(quotedPersonReferentId === undefined
+      ? {}
+      : { quotedPersonReferentId }),
+    ...(trimmedSourceText === "" ? {} : { sourceText: trimmedSourceText }),
+  });
+
+  return quotedPersonReferentId;
+}
+
+function getUnambiguousQuotedPersonReferentId(contextTags: Doc<"tags">[]) {
+  const personTags = contextTags.filter((tag) => tag.knowledgeType === "person");
+  return personTags.length === 1 ? personTags[0].referentId : undefined;
+}
+
+async function recordSlotFulfillmentHumanWeightEvidence(
+  ctx: MutationCtx,
+  {
+    entryId,
+    now,
+    slotId,
+    subjectUserId,
+  }: {
+    entryId: Id<"knowledgeEntries">;
+    now: number;
+    slotId: Id<"knowledgeSlots">;
+    subjectUserId: Id<"users">;
+  },
+) {
+  const existing = await ctx.db
+    .query("humanWeightEvidence")
+    .withIndex("by_slotId", (q) => q.eq("slotId", slotId))
+    .first();
+  if (existing) {
+    if (existing.entryId !== entryId) {
+      throw new Error(
+        "Slot Fulfillment Human Weight Evidence already points to another Knowledge Entry.",
+      );
+    }
+
+    await ctx.db.patch(existing._id, {
+      subjectUserId,
+      updatedAt: now,
+    });
+    return;
+  }
+
+  await ctx.db.insert("humanWeightEvidence", {
+    entryId,
+    evidenceKind: "slotFulfillment",
+    evidenceSignal: "used",
+    slotId,
+    subjectUserId,
+    createdAt: now,
+    updatedAt: now,
+  });
+}
 
 async function resolveSlotFulfillment(
   ctx: MutationCtx,
@@ -272,21 +383,31 @@ async function resolveSlotFulfillment(
 }
 
 async function assertContributionIncludesSlotTags(
-  ctx: MutationCtx,
-  slotId: Id<"knowledgeSlots">,
+  slotContextTagIds: Array<Id<"tags">>,
   contextTagIds: Array<Id<"tags">>,
 ) {
   const contextTagIdSet = new Set(contextTagIds);
-  const slotTags = await ctx.db
-    .query("slotTags")
-    .withIndex("by_slotId_and_tagId", (q) => q.eq("slotId", slotId))
-    .collect();
-
-  for (const slotTag of slotTags) {
-    if (!contextTagIdSet.has(slotTag.tagId)) {
+  for (const tagId of slotContextTagIds) {
+    if (!contextTagIdSet.has(tagId)) {
       throw new Error("Contribution must include the Knowledge Slot context Tags.");
     }
   }
+}
+
+async function getSlotContextTagIds(
+  ctx: MutationCtx,
+  slotId: Id<"knowledgeSlots">,
+) {
+  const slotTags = await ctx.db
+    .query("slotTags")
+    .withIndex("by_slotId_and_tagId", (q) => q.eq("slotId", slotId))
+    .take(MAX_CONTEXT_TAGS + 1);
+
+  if (slotTags.length > MAX_CONTEXT_TAGS) {
+    throw new Error(`Knowledge Slot supports at most ${MAX_CONTEXT_TAGS} context Tags.`);
+  }
+
+  return slotTags.map((slotTag) => slotTag.tagId);
 }
 
 async function resolveRepresentedIdentity(

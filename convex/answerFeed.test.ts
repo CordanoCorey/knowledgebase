@@ -10,6 +10,10 @@ import schema from "./schema";
 const modules = {
   ...import.meta.glob("./_generated/*.*s"),
   "./answerFeed.ts": () => import("./answerFeed"),
+  "./auth.ts": () => import("./auth"),
+  "./authProviderConfig.ts": () => import("./authProviderConfig"),
+  "./lib/contextExpertiseScoring.ts": () =>
+    import("./lib/contextExpertiseScoring"),
   "./lib/humanWeightEvidence.ts": () => import("./lib/humanWeightEvidence"),
   "./lib/typeBehavior.ts": () => import("./lib/typeBehavior"),
 };
@@ -66,6 +70,10 @@ describe("Answer Feed backend adapter", () => {
         contextPreviewTagLabels: ["Romans 8:28", "Holy Spirit"],
         humanWeight: 96,
         evidenceMaturity: 60,
+        humanWeightCredit: {
+          basis: "contributor",
+          label: "Ada Teacher",
+        },
         href: `/entries/${seed.entries.highWeight}`,
         updatedAt: BASE_TIME + 3,
       },
@@ -102,9 +110,10 @@ describe("Answer Feed backend adapter", () => {
     expect(nonWeightBearingItem.entry.knowledgeType).toBe("topic");
     expect(nonWeightBearingItem.entry).not.toHaveProperty("humanWeight");
     expect(nonWeightBearingItem.entry).not.toHaveProperty("evidenceMaturity");
+    expect(nonWeightBearingItem.entry).not.toHaveProperty("humanWeightCredit");
   });
 
-  test("ranks context experts by Context Expertise from matching contributors", async () => {
+  test("falls back to matching contributors when no Context Expertise aggregates exist", async () => {
     const t = convexTest({ schema, modules });
     const seed = await t.run(seedAnswerFeedRows);
 
@@ -117,17 +126,883 @@ describe("Answer Feed backend adapter", () => {
       {
         id: seed.users.ada,
         name: "Ada Teacher",
-        averageHumanWeight: 84,
-        contributionCount: 2,
+        contextExpertiseMaturity: 40,
         contextExpertiseScore: 109,
+        evidenceCount: 2,
+        feedbackCount: 0,
+        postCount: 2,
       },
       {
         id: seed.users.ben,
         name: "Ben Scholar",
-        averageHumanWeight: 88,
-        contributionCount: 1,
+        contextExpertiseMaturity: 20,
         contextExpertiseScore: 100,
+        evidenceCount: 1,
+        feedbackCount: 0,
+        postCount: 1,
       },
+    ]);
+  });
+
+  test("prefers exact-context Context Expertise aggregates when available", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedAnswerFeedRows);
+
+    await t.run(async (ctx) => {
+      await insertContextExpertiseAggregate(ctx, {
+        contextExpertiseMaturity: 100,
+        contextExpertiseScore: 100,
+        contextTagIds: [seed.tags.romans],
+        evidenceCount: 8,
+        feedbackCount: 4,
+        latestEvidenceAt: BASE_TIME + 50,
+        postCount: 4,
+        subjectUserId: seed.users.ada,
+        topSupportingEntryIds: [seed.entries.missingHolySpirit],
+      });
+      await insertContextExpertiseAggregate(ctx, {
+        contextExpertiseMaturity: 40,
+        contextExpertiseScore: 74,
+        contextTagIds: [seed.tags.romans, seed.tags.holySpirit],
+        evidenceCount: 2,
+        feedbackCount: 0,
+        latestEvidenceAt: BASE_TIME + 20,
+        postCount: 2,
+        subjectUserId: seed.users.ada,
+        topSupportingEntryIds: [seed.entries.highWeight],
+      });
+      await insertContextExpertiseAggregate(ctx, {
+        contextExpertiseMaturity: 60,
+        contextExpertiseScore: 91,
+        contextTagIds: [seed.tags.holySpirit, seed.tags.romans],
+        evidenceCount: 3,
+        feedbackCount: 2,
+        latestEvidenceAt: BASE_TIME + 30,
+        postCount: 1,
+        subjectUserId: seed.users.ben,
+        topSupportingEntryIds: [seed.entries.extraTag],
+      });
+    });
+
+    const experts = await t.query(api.answerFeed.listExpertsForActiveTags, {
+      activeTagIds: [seed.tags.romans, seed.tags.holySpirit],
+      expertLimit: 3,
+    });
+
+    expect(experts).toEqual([
+      {
+        id: seed.users.ben,
+        name: "Ben Scholar",
+        contextExpertiseMaturity: 60,
+        contextExpertiseScore: 91,
+        evidenceCount: 3,
+        feedbackCount: 2,
+        postCount: 1,
+      },
+      {
+        id: seed.users.ada,
+        name: "Ada Teacher",
+        contextExpertiseMaturity: 40,
+        contextExpertiseScore: 74,
+        evidenceCount: 2,
+        feedbackCount: 0,
+        postCount: 2,
+      },
+    ]);
+  });
+
+  test("inherits broader parent Context Expertise for narrower active contexts", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedAnswerFeedRows);
+
+    await t.run(async (ctx) => {
+      await insertContextExpertiseAggregate(ctx, {
+        contextExpertiseMaturity: 40,
+        contextExpertiseScore: 74,
+        contextTagIds: [seed.tags.romans, seed.tags.holySpirit],
+        evidenceCount: 2,
+        feedbackCount: 0,
+        latestEvidenceAt: BASE_TIME + 20,
+        postCount: 2,
+        subjectUserId: seed.users.ada,
+        topSupportingEntryIds: [seed.entries.highWeight],
+      });
+      await insertContextExpertiseAggregate(ctx, {
+        contextExpertiseMaturity: 100,
+        contextExpertiseScore: 100,
+        contextTagIds: [seed.tags.romans],
+        evidenceCount: 5,
+        feedbackCount: 1,
+        latestEvidenceAt: BASE_TIME + 50,
+        postCount: 4,
+        subjectUserId: seed.users.ben,
+        topSupportingEntryIds: [seed.entries.missingHolySpirit],
+      });
+    });
+
+    const experts = await t.query(api.answerFeed.listExpertsForActiveTags, {
+      activeTagIds: [seed.tags.romans, seed.tags.holySpirit],
+      expertLimit: 3,
+    });
+    const detail = await t.query(api.answerFeed.getExpertDetailForActiveTags, {
+      activeTagIds: [seed.tags.romans, seed.tags.holySpirit],
+      subjectUserId: seed.users.ben,
+    });
+    const singleTagExperts = await t.query(api.answerFeed.listExpertsForActiveTags, {
+      activeTagIds: [seed.tags.romans],
+      expertLimit: 3,
+    });
+
+    expect(experts).toEqual([
+      {
+        id: seed.users.ben,
+        name: "Ben Scholar",
+        contextExpertiseMaturity: 100,
+        contextExpertiseScore: 85,
+        contextMatchKind: "broaderContext",
+        evidenceCount: 5,
+        feedbackCount: 1,
+        postCount: 4,
+      },
+      {
+        id: seed.users.ada,
+        name: "Ada Teacher",
+        contextExpertiseMaturity: 40,
+        contextExpertiseScore: 74,
+        evidenceCount: 2,
+        feedbackCount: 0,
+        postCount: 2,
+      },
+    ]);
+    expect(detail).toMatchObject({
+      id: seed.users.ben,
+      contextExpertiseScore: 85,
+      contextMatchKind: "broaderContext",
+      topSupportingEntries: [
+        {
+          id: seed.entries.missingHolySpirit,
+          title: "Missing Holy Spirit Answer",
+        },
+      ],
+    });
+    expect(singleTagExperts).toEqual([
+      {
+        id: seed.users.ben,
+        name: "Ben Scholar",
+        contextExpertiseMaturity: 100,
+        contextExpertiseScore: 100,
+        evidenceCount: 5,
+        feedbackCount: 1,
+        postCount: 4,
+      },
+    ]);
+  });
+
+  test("scopes aggregate-backed Context Experts to the viewer's Expert Orbit", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedAnswerFeedRows);
+    const viewerUserId = await t.run(async (ctx) => {
+      const viewerUserId = await insertUser(ctx, {
+        email: "viewer@example.com",
+        name: "Viewer",
+      });
+      const sharedOrganization = await insertOrganization(ctx, {
+        createdByUserId: viewerUserId,
+        name: "Shared School",
+      });
+      const outsideOrganization = await insertOrganization(ctx, {
+        createdByUserId: viewerUserId,
+        name: "Outside School",
+      });
+
+      await insertOrganizationMembership(ctx, {
+        organizationReferentId: sharedOrganization.organizationReferentId,
+        userId: viewerUserId,
+      });
+      await insertOrganizationMembership(ctx, {
+        organizationReferentId: sharedOrganization.organizationReferentId,
+        userId: seed.users.ada,
+      });
+      await insertOrganizationMembership(ctx, {
+        organizationReferentId: outsideOrganization.organizationReferentId,
+        userId: seed.users.ben,
+      });
+      await insertContextExpertiseAggregate(ctx, {
+        contextExpertiseMaturity: 40,
+        contextExpertiseScore: 74,
+        contextTagIds: [seed.tags.romans, seed.tags.holySpirit],
+        evidenceCount: 2,
+        feedbackCount: 0,
+        latestEvidenceAt: BASE_TIME + 20,
+        postCount: 2,
+        subjectUserId: seed.users.ada,
+        topSupportingEntryIds: [seed.entries.highWeight],
+        visibilityKind: "organization",
+        visibilityTargetKey: sharedOrganization.organizationReferentId,
+      });
+      await insertContextExpertiseAggregate(ctx, {
+        contextExpertiseMaturity: 80,
+        contextExpertiseScore: 99,
+        contextTagIds: [seed.tags.holySpirit, seed.tags.romans],
+        evidenceCount: 5,
+        feedbackCount: 1,
+        latestEvidenceAt: BASE_TIME + 30,
+        postCount: 4,
+        subjectUserId: seed.users.ben,
+        topSupportingEntryIds: [seed.entries.extraTag],
+        visibilityKind: "organization",
+        visibilityTargetKey: outsideOrganization.organizationReferentId,
+      });
+
+      return viewerUserId;
+    });
+
+    const experts = await t
+      .withIdentity({ subject: `${viewerUserId}|test-session` })
+      .query(api.answerFeed.listExpertsForActiveTags, {
+        activeTagIds: [seed.tags.romans, seed.tags.holySpirit],
+        expertLimit: 3,
+        expertScope: "orbit",
+      });
+
+    expect(experts).toEqual([
+      {
+        id: seed.users.ada,
+        name: "Ada Teacher",
+        contextExpertiseMaturity: 40,
+        contextExpertiseScore: 74,
+        evidenceCount: 2,
+        feedbackCount: 0,
+        postCount: 2,
+      },
+    ]);
+  });
+
+  test("requires public evidence and contributor opt-in for Global Context Experts", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedAnswerFeedRows);
+    const viewerUserId = await t.run(async (ctx) => {
+      const viewerUserId = await insertUser(ctx, {
+        email: "global-viewer@example.com",
+        name: "Global Viewer",
+      });
+      const charlieUserId = await insertUser(ctx, {
+        email: "charlie@example.com",
+        name: "Charlie Private",
+      });
+      const organization = await insertOrganization(ctx, {
+        createdByUserId: viewerUserId,
+        name: "Viewer School",
+      });
+      await insertOrganizationMembership(ctx, {
+        organizationReferentId: organization.organizationReferentId,
+        userId: viewerUserId,
+      });
+      await insertGlobalExpertVisibilitySetting(ctx, {
+        enabled: true,
+        userId: seed.users.ada,
+      });
+      await insertGlobalExpertVisibilitySetting(ctx, {
+        enabled: true,
+        userId: charlieUserId,
+      });
+      await insertContextExpertiseAggregate(ctx, {
+        contextExpertiseMaturity: 40,
+        contextExpertiseScore: 74,
+        contextTagIds: [seed.tags.romans, seed.tags.holySpirit],
+        evidenceCount: 2,
+        feedbackCount: 0,
+        latestEvidenceAt: BASE_TIME + 20,
+        postCount: 2,
+        subjectUserId: seed.users.ada,
+        topSupportingEntryIds: [seed.entries.highWeight],
+      });
+      await insertContextExpertiseAggregate(ctx, {
+        contextExpertiseMaturity: 80,
+        contextExpertiseScore: 99,
+        contextTagIds: [seed.tags.holySpirit, seed.tags.romans],
+        evidenceCount: 5,
+        feedbackCount: 1,
+        latestEvidenceAt: BASE_TIME + 30,
+        postCount: 4,
+        subjectUserId: seed.users.ben,
+        topSupportingEntryIds: [seed.entries.extraTag],
+      });
+      await insertContextExpertiseAggregate(ctx, {
+        contextExpertiseMaturity: 60,
+        contextExpertiseScore: 91,
+        contextTagIds: [seed.tags.holySpirit, seed.tags.romans],
+        evidenceCount: 3,
+        feedbackCount: 1,
+        latestEvidenceAt: BASE_TIME + 40,
+        postCount: 2,
+        subjectUserId: charlieUserId,
+        topSupportingEntryIds: [seed.entries.lowerWeight],
+        visibilityKind: "organization",
+        visibilityTargetKey: organization.organizationReferentId,
+      });
+
+      return viewerUserId;
+    });
+
+    const experts = await t
+      .withIdentity({ subject: `${viewerUserId}|test-session` })
+      .query(api.answerFeed.listExpertsForActiveTags, {
+        activeTagIds: [seed.tags.romans, seed.tags.holySpirit],
+        expertLimit: 3,
+        expertScope: "global",
+      });
+
+    expect(experts).toEqual([
+      {
+        id: seed.users.ada,
+        name: "Ada Teacher",
+        contextExpertiseMaturity: 40,
+        contextExpertiseScore: 74,
+        evidenceCount: 2,
+        feedbackCount: 0,
+        postCount: 2,
+      },
+    ]);
+  });
+
+  test("shows public Person-subject aggregate experts globally and links their detail", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedAnswerFeedRows);
+    const { person, personEntryId, viewerUserId } = await t.run(async (ctx) => {
+      const viewerUserId = await insertUser(ctx, {
+        email: "person-global-viewer@example.com",
+        name: "Person Global Viewer",
+      });
+      const organization = await insertOrganization(ctx, {
+        createdByUserId: viewerUserId,
+        name: "Person Viewer School",
+      });
+      await insertOrganizationMembership(ctx, {
+        organizationReferentId: organization.organizationReferentId,
+        userId: viewerUserId,
+      });
+      const person = await insertTag(ctx, {
+        canonicalKey: "c-s-lewis",
+        knowledgeType: "person",
+        label: "C. S. Lewis",
+      });
+      const personEntryId = await insertEntry(ctx, {
+        contextTagIds: [seed.tags.romans, seed.tags.holySpirit],
+        contextPreviewTagLabels: ["Romans 8:28", "Holy Spirit"],
+        createdByUserId: seed.users.ada,
+        humanWeight: 94,
+        knowledgeType: "essay",
+        previewText: "A shared essay from C. S. Lewis.",
+        title: "Shared Lewis Essay",
+        updatedAt: BASE_TIME + 70,
+      });
+      await insertContextExpertiseAggregate(ctx, {
+        contextExpertiseMaturity: 90,
+        contextExpertiseScore: 120,
+        contextTagIds: [seed.tags.holySpirit, seed.tags.romans],
+        evidenceCount: 1,
+        feedbackCount: 0,
+        latestEvidenceAt: BASE_TIME + 70,
+        postCount: 1,
+        subjectPersonReferentId: person.referentId,
+        topSupportingEntryIds: [personEntryId],
+      });
+
+      return { person, personEntryId, viewerUserId };
+    });
+
+    const authed = t.withIdentity({ subject: `${viewerUserId}|test-session` });
+    const globalExperts = await authed.query(api.answerFeed.listExpertsForActiveTags, {
+      activeTagIds: [seed.tags.romans, seed.tags.holySpirit],
+      expertLimit: 3,
+      expertScope: "global",
+    });
+    const orbitExperts = await authed.query(api.answerFeed.listExpertsForActiveTags, {
+      activeTagIds: [seed.tags.romans, seed.tags.holySpirit],
+      expertLimit: 3,
+      expertScope: "orbit",
+    });
+    const detail = await authed.query(api.answerFeed.getExpertDetailForActiveTags, {
+      activeTagIds: [seed.tags.romans, seed.tags.holySpirit],
+      expertScope: "global",
+      subjectPersonReferentId: person.referentId,
+    });
+
+    expect(globalExperts).toEqual([
+      {
+        id: `person:${person.referentId}`,
+        name: "C. S. Lewis",
+        href: "/goto/c-s-lewis",
+        subjectKind: "person",
+        subjectPersonReferentId: person.referentId,
+        contextExpertiseMaturity: 90,
+        contextExpertiseScore: 120,
+        evidenceCount: 1,
+        feedbackCount: 0,
+        postCount: 1,
+      },
+    ]);
+    expect(orbitExperts).toEqual([]);
+    expect(detail).toMatchObject({
+      id: `person:${person.referentId}`,
+      name: "C. S. Lewis",
+      href: "/goto/c-s-lewis",
+      subjectKind: "person",
+      subjectPersonReferentId: person.referentId,
+      contextExpertiseMaturity: 90,
+      contextExpertiseScore: 120,
+      topSupportingEntries: [
+        {
+          id: personEntryId,
+          title: "Shared Lewis Essay",
+        },
+      ],
+    });
+
+    const suppressionId = await t.run(async (ctx) => {
+      return await ctx.db.insert("personContextExpertiseVisibilitySettings", {
+        personReferentId: person.referentId,
+        globalExpertVisibilityStatus: "suppressed",
+        updatedByUserId: viewerUserId,
+        createdAt: BASE_TIME + 71,
+        updatedAt: BASE_TIME + 71,
+      });
+    });
+
+    await expect(
+      authed.query(api.answerFeed.listExpertsForActiveTags, {
+        activeTagIds: [seed.tags.romans, seed.tags.holySpirit],
+        expertLimit: 3,
+        expertScope: "global",
+      }),
+    ).resolves.toEqual([]);
+    await expect(
+      authed.query(api.answerFeed.getExpertDetailForActiveTags, {
+        activeTagIds: [seed.tags.romans, seed.tags.holySpirit],
+        expertScope: "global",
+        subjectPersonReferentId: person.referentId,
+      }),
+    ).resolves.toBeNull();
+
+    await t.run(async (ctx) => {
+      await ctx.db.delete(suppressionId);
+    });
+    await expect(
+      authed.query(api.answerFeed.listExpertsForActiveTags, {
+        activeTagIds: [seed.tags.romans, seed.tags.holySpirit],
+        expertLimit: 3,
+        expertScope: "global",
+      }),
+    ).resolves.toEqual(globalExperts);
+  });
+
+  test("includes Quote attribution summary in Context Expert supporting Quote entries", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedAnswerFeedRows);
+    const { person, quoteEntryId, viewerUserId } = await t.run(async (ctx) => {
+      const viewerUserId = await insertUser(ctx, {
+        email: "quote-attribution-ui-viewer@example.com",
+        name: "Quote Attribution UI Viewer",
+      });
+      const organization = await insertOrganization(ctx, {
+        createdByUserId: viewerUserId,
+        name: "Quote Attribution UI School",
+      });
+      await insertOrganizationMembership(ctx, {
+        organizationReferentId: organization.organizationReferentId,
+        userId: viewerUserId,
+      });
+      const person = await insertTag(ctx, {
+        canonicalKey: "quote-attribution-ui-person",
+        knowledgeType: "person",
+        label: "Quote Attribution UI Person",
+      });
+      const quoteEntryId = await insertEntry(ctx, {
+        contextTagIds: [seed.tags.romans, seed.tags.holySpirit],
+        contextPreviewTagLabels: ["Romans 8:28", "Holy Spirit"],
+        createdByUserId: seed.users.ada,
+        humanWeight: 91,
+        knowledgeType: "quote",
+        previewText: "A quote with a structured quoted Person.",
+        title: "Quote Attribution Supporting Quote",
+        updatedAt: BASE_TIME + 80,
+      });
+      await ctx.db.insert("quoteEntries", {
+        entryId: quoteEntryId,
+        quotedPersonReferentId: person.referentId,
+      });
+      await insertContextExpertiseAggregate(ctx, {
+        contextExpertiseMaturity: 80,
+        contextExpertiseScore: 110,
+        contextTagIds: [seed.tags.holySpirit, seed.tags.romans],
+        evidenceCount: 1,
+        feedbackCount: 0,
+        latestEvidenceAt: BASE_TIME + 80,
+        postCount: 0,
+        subjectPersonReferentId: person.referentId,
+        topSupportingEntryIds: [quoteEntryId],
+      });
+
+      return { person, quoteEntryId, viewerUserId };
+    });
+
+    const detail = await t
+      .withIdentity({ subject: `${viewerUserId}|test-session` })
+      .query(api.answerFeed.getExpertDetailForActiveTags, {
+        activeTagIds: [seed.tags.romans, seed.tags.holySpirit],
+        expertScope: "global",
+        subjectPersonReferentId: person.referentId,
+      });
+
+    expect(detail).toMatchObject({
+      id: `person:${person.referentId}`,
+      topSupportingEntries: [
+        {
+          id: quoteEntryId,
+          knowledgeType: "quote",
+          quoteAttribution: {
+            quotedPersonLabel: "Quote Attribution UI Person",
+            quotedPersonReferentId: person.referentId,
+          },
+          title: "Quote Attribution Supporting Quote",
+        },
+      ],
+    });
+  });
+
+  test("combines only audience-eligible scoped aggregate rows for Orbit and Global experts", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedAnswerFeedRows);
+    const { organizationEntryId, publicEntryId, viewerUserId } = await t.run(
+      async (ctx) => {
+        const viewerUserId = await insertUser(ctx, {
+          email: "scoped-viewer@example.com",
+          name: "Scoped Viewer",
+        });
+        const sharedOrganization = await insertOrganization(ctx, {
+          createdByUserId: viewerUserId,
+          name: "Scoped Shared School",
+        });
+        const outsideOrganization = await insertOrganization(ctx, {
+          createdByUserId: viewerUserId,
+          name: "Scoped Outside School",
+        });
+        await insertOrganizationMembership(ctx, {
+          organizationReferentId: sharedOrganization.organizationReferentId,
+          userId: viewerUserId,
+        });
+        await insertOrganizationMembership(ctx, {
+          organizationReferentId: sharedOrganization.organizationReferentId,
+          userId: seed.users.ada,
+        });
+        await insertGlobalExpertVisibilitySetting(ctx, {
+          enabled: true,
+          userId: seed.users.ada,
+        });
+        const organizationEntryId = await insertEntry(ctx, {
+          contextTagIds: [seed.tags.romans, seed.tags.holySpirit],
+          contextPreviewTagLabels: ["Romans 8:28", "Holy Spirit"],
+          createdByUserId: seed.users.ada,
+          humanWeight: 90,
+          knowledgeType: "lesson",
+          previewText: "Shared-organization expertise evidence.",
+          title: "Shared Organization Expertise",
+          updatedAt: BASE_TIME + 80,
+          visibilityKind: "organization",
+          visibilityTargetKey: sharedOrganization.organizationReferentId,
+        });
+        const publicEntryId = await insertEntry(ctx, {
+          contextTagIds: [seed.tags.romans, seed.tags.holySpirit],
+          contextPreviewTagLabels: ["Romans 8:28", "Holy Spirit"],
+          createdByUserId: seed.users.ada,
+          humanWeight: 82,
+          knowledgeType: "words",
+          previewText: "Public expertise evidence.",
+          title: "Public Expertise Evidence",
+          updatedAt: BASE_TIME + 79,
+        });
+        await insertContextExpertiseAggregate(ctx, {
+          audienceScopeKind: "public",
+          audienceScopeTargetKey: "public",
+          contextExpertiseMaturity: 20,
+          contextExpertiseScore: 82,
+          contextTagIds: [seed.tags.romans, seed.tags.holySpirit],
+          evidenceCount: 1,
+          feedbackCount: 0,
+          latestEvidenceAt: BASE_TIME + 79,
+          postCount: 1,
+          subjectUserId: seed.users.ada,
+          topSupportingEntryIds: [publicEntryId],
+        });
+        await insertContextExpertiseAggregate(ctx, {
+          audienceScopeKind: "organization",
+          audienceScopeTargetKey: sharedOrganization.organizationReferentId,
+          contextExpertiseMaturity: 40,
+          contextExpertiseScore: 90,
+          contextTagIds: [seed.tags.romans, seed.tags.holySpirit],
+          evidenceCount: 2,
+          feedbackCount: 1,
+          latestEvidenceAt: BASE_TIME + 80,
+          postCount: 1,
+          subjectUserId: seed.users.ada,
+          topSupportingEntryIds: [organizationEntryId],
+          visibilityKind: "organization",
+          visibilityTargetKey: sharedOrganization.organizationReferentId,
+        });
+        await insertContextExpertiseAggregate(ctx, {
+          audienceScopeKind: "organization",
+          audienceScopeTargetKey: outsideOrganization.organizationReferentId,
+          contextExpertiseMaturity: 100,
+          contextExpertiseScore: 99,
+          contextTagIds: [seed.tags.romans, seed.tags.holySpirit],
+          evidenceCount: 5,
+          feedbackCount: 0,
+          latestEvidenceAt: BASE_TIME + 81,
+          postCount: 5,
+          subjectUserId: seed.users.ada,
+          topSupportingEntryIds: [seed.entries.extraTag],
+          visibilityKind: "organization",
+          visibilityTargetKey: outsideOrganization.organizationReferentId,
+        });
+
+        return { organizationEntryId, publicEntryId, viewerUserId };
+      },
+    );
+
+    const authed = t.withIdentity({ subject: `${viewerUserId}|test-session` });
+    const orbitExperts = await authed.query(api.answerFeed.listExpertsForActiveTags, {
+      activeTagIds: [seed.tags.romans, seed.tags.holySpirit],
+      expertLimit: 3,
+      expertScope: "orbit",
+    });
+    const globalExperts = await authed.query(api.answerFeed.listExpertsForActiveTags, {
+      activeTagIds: [seed.tags.romans, seed.tags.holySpirit],
+      expertLimit: 3,
+      expertScope: "global",
+    });
+    const orbitDetail = await authed.query(
+      api.answerFeed.getExpertDetailForActiveTags,
+      {
+        activeTagIds: [seed.tags.romans, seed.tags.holySpirit],
+        expertScope: "orbit",
+        subjectUserId: seed.users.ada,
+      },
+    );
+    const globalDetail = await authed.query(
+      api.answerFeed.getExpertDetailForActiveTags,
+      {
+        activeTagIds: [seed.tags.romans, seed.tags.holySpirit],
+        expertScope: "global",
+        subjectUserId: seed.users.ada,
+      },
+    );
+
+    expect(orbitExperts).toEqual([
+      {
+        id: seed.users.ada,
+        name: "Ada Teacher",
+        contextExpertiseMaturity: 60,
+        contextExpertiseScore: 100,
+        evidenceCount: 3,
+        feedbackCount: 1,
+        postCount: 2,
+      },
+    ]);
+    expect(globalExperts).toEqual([
+      {
+        id: seed.users.ada,
+        name: "Ada Teacher",
+        contextExpertiseMaturity: 20,
+        contextExpertiseScore: 82,
+        evidenceCount: 1,
+        feedbackCount: 0,
+        postCount: 1,
+      },
+    ]);
+    expect(orbitDetail?.topSupportingEntries.map((entry) => entry.id)).toEqual([
+      organizationEntryId,
+      publicEntryId,
+    ]);
+    expect(globalDetail?.topSupportingEntries.map((entry) => entry.id)).toEqual([
+      publicEntryId,
+    ]);
+  });
+
+  test("returns aggregate-backed Context Expert details with top visible contributions", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedAnswerFeedRows);
+
+    await t.run(async (ctx) => {
+      await insertContextExpertiseAggregate(ctx, {
+        contextExpertiseMaturity: 80,
+        contextExpertiseScore: 97,
+        contextTagIds: [seed.tags.romans, seed.tags.holySpirit],
+        evidenceCount: 4,
+        feedbackCount: 2,
+        latestEvidenceAt: BASE_TIME + 50,
+        postCount: 2,
+        subjectUserId: seed.users.ada,
+        topSupportingEntryIds: [
+          seed.entries.highWeight,
+          seed.entries.lowerWeight,
+        ],
+      });
+    });
+
+    const detail = await t.query(api.answerFeed.getExpertDetailForActiveTags, {
+      activeTagIds: [seed.tags.holySpirit, seed.tags.romans],
+      subjectUserId: seed.users.ada,
+    });
+
+    expect(detail).toMatchObject({
+      id: seed.users.ada,
+      name: "Ada Teacher",
+      contextExpertiseMaturity: 80,
+      contextExpertiseScore: 97,
+      evidenceCount: 4,
+      feedbackCount: 2,
+      postCount: 2,
+      topSupportingEntries: [
+        {
+          id: seed.entries.highWeight,
+          title: "High Weight Matching Lesson",
+          knowledgeType: "lesson",
+          previewText: "A high-weight lesson preview.",
+          href: `/entries/${seed.entries.highWeight}`,
+        },
+        {
+          id: seed.entries.lowerWeight,
+          title: "Lower Weight Matching Answer",
+          knowledgeType: "words",
+          previewText: "A lower-weight answer preview.",
+          href: `/entries/${seed.entries.lowerWeight}`,
+        },
+      ],
+    });
+  });
+
+  test("keeps Context Expert detail contributions bounded", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedAnswerFeedRows);
+
+    await t.run(async (ctx) => {
+      await insertContextExpertiseAggregate(ctx, {
+        contextExpertiseMaturity: 100,
+        contextExpertiseScore: 110,
+        contextTagIds: [seed.tags.romans, seed.tags.holySpirit],
+        evidenceCount: 5,
+        feedbackCount: 1,
+        latestEvidenceAt: BASE_TIME + 60,
+        postCount: 4,
+        subjectUserId: seed.users.ada,
+        topSupportingEntryIds: [
+          seed.entries.highWeight,
+          seed.entries.lowerWeight,
+          seed.entries.extraTag,
+        ],
+      });
+    });
+
+    const detail = await t.query(api.answerFeed.getExpertDetailForActiveTags, {
+      activeTagIds: [seed.tags.romans, seed.tags.holySpirit],
+      contributionLimit: 2,
+      subjectUserId: seed.users.ada,
+    });
+
+    expect(detail?.topSupportingEntries.map((entry) => entry.title)).toEqual([
+      "High Weight Matching Lesson",
+      "Lower Weight Matching Answer",
+    ]);
+  });
+
+  test("filters Context Expert detail contributions by selected audience scope", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedAnswerFeedRows);
+    const { organizationEntryId, publicEntryId, viewerUserId } = await t.run(
+      async (ctx) => {
+        const viewerUserId = await insertUser(ctx, {
+          email: "detail-viewer@example.com",
+          name: "Detail Viewer",
+        });
+        const organization = await insertOrganization(ctx, {
+          createdByUserId: viewerUserId,
+          name: "Detail School",
+        });
+        await insertOrganizationMembership(ctx, {
+          organizationReferentId: organization.organizationReferentId,
+          userId: viewerUserId,
+        });
+        await insertOrganizationMembership(ctx, {
+          organizationReferentId: organization.organizationReferentId,
+          userId: seed.users.ada,
+        });
+        await insertGlobalExpertVisibilitySetting(ctx, {
+          enabled: true,
+          userId: seed.users.ada,
+        });
+        const organizationEntryId = await insertEntry(ctx, {
+          contextTagIds: [seed.tags.romans, seed.tags.holySpirit],
+          contextPreviewTagLabels: ["Romans 8:28", "Holy Spirit"],
+          createdByUserId: seed.users.ada,
+          humanWeight: 88,
+          knowledgeType: "lesson",
+          previewText: "Organization-visible supporting lesson.",
+          title: "Organization Visible Lesson",
+          updatedAt: BASE_TIME + 65,
+          visibilityKind: "organization",
+          visibilityTargetKey: organization.organizationReferentId,
+        });
+        const publicEntryId = await insertEntry(ctx, {
+          contextTagIds: [seed.tags.romans, seed.tags.holySpirit],
+          contextPreviewTagLabels: ["Romans 8:28", "Holy Spirit"],
+          createdByUserId: seed.users.ada,
+          humanWeight: 86,
+          knowledgeType: "words",
+          previewText: "Public supporting words.",
+          title: "Public Supporting Words",
+          updatedAt: BASE_TIME + 64,
+        });
+        await insertContextExpertiseAggregate(ctx, {
+          contextExpertiseMaturity: 80,
+          contextExpertiseScore: 97,
+          contextTagIds: [seed.tags.romans, seed.tags.holySpirit],
+          evidenceCount: 4,
+          feedbackCount: 1,
+          latestEvidenceAt: BASE_TIME + 70,
+          postCount: 3,
+          subjectUserId: seed.users.ada,
+          topSupportingEntryIds: [organizationEntryId, publicEntryId],
+        });
+
+        return { organizationEntryId, publicEntryId, viewerUserId };
+      },
+    );
+
+    const authed = t.withIdentity({ subject: `${viewerUserId}|test-session` });
+    const orbitDetail = await authed.query(
+      api.answerFeed.getExpertDetailForActiveTags,
+      {
+        activeTagIds: [seed.tags.romans, seed.tags.holySpirit],
+        expertScope: "orbit",
+        subjectUserId: seed.users.ada,
+      },
+    );
+    const globalDetail = await authed.query(
+      api.answerFeed.getExpertDetailForActiveTags,
+      {
+        activeTagIds: [seed.tags.romans, seed.tags.holySpirit],
+        expertScope: "global",
+        subjectUserId: seed.users.ada,
+      },
+    );
+
+    expect(orbitDetail?.topSupportingEntries.map((entry) => entry.id)).toEqual([
+      organizationEntryId,
+      publicEntryId,
+    ]);
+    expect(globalDetail?.topSupportingEntries.map((entry) => entry.id)).toEqual([
+      publicEntryId,
     ]);
   });
 
@@ -246,6 +1121,48 @@ describe("Answer Feed backend adapter", () => {
     expect(lowLesson.entry).not.toHaveProperty("humanWeightConcern");
     expect(nonWeightBearingTopic.entry).not.toHaveProperty("humanWeightConcern");
     expect(requiredSlotTopic.entry).not.toHaveProperty("humanWeightConcern");
+  });
+
+  test("surfaces type-aware Human Weight credit subjects", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedHumanWeightCreditRows);
+
+    const feedItems = await t.query(api.answerFeed.listForActiveTags, {
+      activeTagIds: [seed.tagId],
+      answerLimit: 10,
+      slotLimit: 0,
+    });
+
+    const answers = feedItems.filter((item) => item.kind === "answer");
+    const attributedQuote = getAnswerByTitle(
+      answers,
+      "Quote With Attributed Person",
+    );
+    const unattributedQuote = getAnswerByTitle(
+      answers,
+      "Quote Without Attributed Person",
+    );
+    const authoredWords = getAnswerByTitle(answers, "Authored Words");
+    const nonWeightBearingTopic = getAnswerByTitle(
+      answers,
+      "Non Weight Credit Topic",
+    );
+
+    expect(attributedQuote.entry.humanWeightCredit).toEqual({
+      basis: "quotedPerson",
+      label: "C.S. Lewis",
+    });
+    expect(unattributedQuote.entry.humanWeightCredit).toEqual({
+      basis: "quotedPerson",
+      label: "Quoted person",
+    });
+    expect(authoredWords.entry.humanWeightCredit).toEqual({
+      basis: "contributor",
+      label: "Ada Teacher",
+    });
+    expect(nonWeightBearingTopic.entry).not.toHaveProperty(
+      "humanWeightCredit",
+    );
   });
 });
 
@@ -552,6 +1469,73 @@ async function seedHumanWeightConcernRows(ctx: MutationCtx) {
   return { tagId: tag.tagId };
 }
 
+async function seedHumanWeightCreditRows(ctx: MutationCtx) {
+  const adaUserId = await insertUser(ctx, {
+    email: "ada.credit@example.com",
+    name: "Ada Teacher",
+  });
+  const tag = await insertTag(ctx, {
+    canonicalKey: "human-weight-credit",
+    knowledgeType: "topic",
+    label: "Human Weight Credit",
+  });
+  const lewis = await insertTag(ctx, {
+    canonicalKey: "cs-lewis",
+    knowledgeType: "person",
+    label: "C.S. Lewis",
+  });
+
+  const attributedQuote = await insertEntry(ctx, {
+    contextTagIds: [tag.tagId],
+    contextPreviewTagLabels: ["Human Weight Credit"],
+    createdByUserId: adaUserId,
+    humanWeight: 92,
+    knowledgeType: "quote",
+    previewText: "A quote attributed to C.S. Lewis.",
+    title: "Quote With Attributed Person",
+    updatedAt: BASE_TIME + 3,
+  });
+  await ctx.db.insert("quoteEntries", {
+    entryId: attributedQuote,
+    quotedPersonReferentId: lewis.referentId,
+  });
+  const unattributedQuote = await insertEntry(ctx, {
+    contextTagIds: [tag.tagId],
+    contextPreviewTagLabels: ["Human Weight Credit"],
+    createdByUserId: adaUserId,
+    humanWeight: 88,
+    knowledgeType: "quote",
+    previewText: "A quote without a structured quoted person yet.",
+    title: "Quote Without Attributed Person",
+    updatedAt: BASE_TIME + 2,
+  });
+  await ctx.db.insert("quoteEntries", {
+    entryId: unattributedQuote,
+  });
+  await insertEntry(ctx, {
+    contextTagIds: [tag.tagId],
+    contextPreviewTagLabels: ["Human Weight Credit"],
+    createdByUserId: adaUserId,
+    humanWeight: 84,
+    knowledgeType: "words",
+    previewText: "Words authored by the contributor.",
+    title: "Authored Words",
+    updatedAt: BASE_TIME + 1,
+  });
+  await insertEntry(ctx, {
+    contextTagIds: [tag.tagId],
+    contextPreviewTagLabels: ["Human Weight Credit"],
+    createdByUserId: adaUserId,
+    humanWeight: 5,
+    knowledgeType: "topic",
+    previewText: "A non-weight-bearing topic.",
+    title: "Non Weight Credit Topic",
+    updatedAt: BASE_TIME,
+  });
+
+  return { tagId: tag.tagId };
+}
+
 async function insertUser(
   ctx: MutationCtx,
   user: {
@@ -589,6 +1573,76 @@ async function insertTag(
   return { referentId, tagId };
 }
 
+async function insertOrganization(
+  ctx: MutationCtx,
+  organization: {
+    createdByUserId: Id<"users">;
+    name: string;
+  },
+) {
+  const canonicalKey = slugify(organization.name);
+  const organizationReferentId = await ctx.db.insert("referents", {
+    knowledgeType: "organization",
+    canonicalKey,
+    canonicalName: organization.name,
+  });
+  const tagId = await ctx.db.insert("tags", {
+    referentId: organizationReferentId,
+    knowledgeType: "organization",
+    label: organization.name,
+    lookupKey: canonicalKey,
+  });
+  const entryId = await ctx.db.insert("knowledgeEntries", {
+    knowledgeType: "organization",
+    representedReferentId: organizationReferentId,
+    primaryTagId: tagId,
+    title: organization.name,
+    previewText: `${organization.name} organization profile.`,
+    searchText: organization.name,
+    primaryTagLabel: organization.name,
+    contextPreviewTagLabels: [],
+    createdByUserId: organization.createdByUserId,
+    visibilityKind: "organization",
+    visibilityTargetKey: organizationReferentId,
+    discoverabilityKind: "organization",
+    discoverabilityTargetKey: organizationReferentId,
+    createdAt: BASE_TIME,
+    updatedAt: BASE_TIME,
+  });
+  const organizationEntryId = await ctx.db.insert("organizationEntries", {
+    entryId,
+    organizationKind: "school",
+    isActive: true,
+  });
+
+  return { organizationEntryId, organizationReferentId };
+}
+
+async function insertOrganizationMembership(
+  ctx: MutationCtx,
+  membership: {
+    organizationReferentId: Id<"referents">;
+    userId: Id<"users">;
+  },
+) {
+  const personReferentId = await ctx.db.insert("referents", {
+    knowledgeType: "person",
+    canonicalKey: `person-${membership.userId}`,
+    canonicalName: `Person ${membership.userId}`,
+  });
+
+  await ctx.db.insert("memberships", {
+    personReferentId,
+    memberUserId: membership.userId,
+    targetKind: "organization",
+    organizationReferentId: membership.organizationReferentId,
+    membershipStatus: "active",
+    memberRole: "member",
+    createdAt: BASE_TIME,
+    updatedAt: BASE_TIME,
+  });
+}
+
 async function insertEntry(
   ctx: MutationCtx,
   entry: {
@@ -600,6 +1654,8 @@ async function insertEntry(
     previewText: string;
     title: string;
     updatedAt: number;
+    visibilityKind?: Doc<"knowledgeEntries">["visibilityKind"];
+    visibilityTargetKey?: string;
   },
 ) {
   const primary = await insertTag(ctx, {
@@ -607,6 +1663,9 @@ async function insertEntry(
     knowledgeType: entry.knowledgeType,
     label: entry.title,
   });
+  const visibilityKind = entry.visibilityKind ?? "public";
+  const visibilityTargetKey =
+    entry.visibilityTargetKey ?? (visibilityKind === "public" ? "public" : "");
   const entryId = await ctx.db.insert("knowledgeEntries", {
     knowledgeType: entry.knowledgeType,
     representedReferentId: primary.referentId,
@@ -620,10 +1679,10 @@ async function insertEntry(
     ...(entry.humanWeight === undefined
       ? {}
       : { humanWeight: entry.humanWeight }),
-    visibilityKind: "public",
-    visibilityTargetKey: "public",
-    discoverabilityKind: "public",
-    discoverabilityTargetKey: "public",
+    visibilityKind,
+    visibilityTargetKey,
+    discoverabilityKind: visibilityKind,
+    discoverabilityTargetKey: visibilityTargetKey,
     createdAt: BASE_TIME,
     updatedAt: entry.updatedAt,
   });
@@ -701,6 +1760,75 @@ async function insertHumanWeightFeedback(
     feedbackKind: feedback.feedbackKind,
     createdAt: BASE_TIME,
     updatedAt: BASE_TIME,
+  });
+}
+
+async function insertGlobalExpertVisibilitySetting(
+  ctx: MutationCtx,
+  setting: {
+    enabled: boolean;
+    userId: Id<"users">;
+  },
+) {
+  await ctx.db.insert("contextExpertiseVisibilitySettings", {
+    userId: setting.userId,
+    globalExpertVisibilityEnabled: setting.enabled,
+    createdAt: BASE_TIME,
+    updatedAt: BASE_TIME,
+  });
+}
+
+async function insertContextExpertiseAggregate(
+  ctx: MutationCtx,
+  aggregate: {
+    contextExpertiseMaturity: number;
+    contextExpertiseScore: number;
+    contextTagIds: Array<Id<"tags">>;
+    evidenceCount: number;
+    feedbackCount: number;
+    latestEvidenceAt: number;
+    postCount: number;
+    subjectPersonReferentId?: Id<"referents">;
+    subjectUserId?: Id<"users">;
+    topSupportingEntryIds: Array<Id<"knowledgeEntries">>;
+    audienceScopeKind?: Doc<"contextExpertiseAggregates">["visibilityKind"];
+    audienceScopeTargetKey?: string;
+    visibilityKind?: Doc<"contextExpertiseAggregates">["visibilityKind"];
+    visibilityTargetKey?: string;
+  },
+) {
+  const contextTagIds = [...aggregate.contextTagIds].sort();
+  const visibilityKind = aggregate.visibilityKind ?? "public";
+  const visibilityTargetKey =
+    aggregate.visibilityTargetKey ??
+    (visibilityKind === "public" ? "public" : "");
+
+  await ctx.db.insert("contextExpertiseAggregates", {
+    ...(aggregate.subjectPersonReferentId === undefined
+      ? {}
+      : { subjectPersonReferentId: aggregate.subjectPersonReferentId }),
+    ...(aggregate.subjectUserId === undefined
+      ? {}
+      : { subjectUserId: aggregate.subjectUserId }),
+    contextKey: getContextKey(contextTagIds),
+    contextTagIds,
+    contextExpertiseScore: aggregate.contextExpertiseScore,
+    contextExpertiseMaturity: aggregate.contextExpertiseMaturity,
+    evidenceCount: aggregate.evidenceCount,
+    postCount: aggregate.postCount,
+    feedbackCount: aggregate.feedbackCount,
+    latestEvidenceAt: aggregate.latestEvidenceAt,
+    topSupportingEntryIds: aggregate.topSupportingEntryIds,
+    visibilityKind,
+    visibilityTargetKey,
+    ...(aggregate.audienceScopeKind === undefined
+      ? {}
+      : { audienceScopeKind: aggregate.audienceScopeKind }),
+    ...(aggregate.audienceScopeTargetKey === undefined
+      ? {}
+      : { audienceScopeTargetKey: aggregate.audienceScopeTargetKey }),
+    createdAt: BASE_TIME,
+    updatedAt: aggregate.latestEvidenceAt,
   });
 }
 

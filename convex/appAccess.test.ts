@@ -59,6 +59,14 @@ type OrganizationMembershipSettings = {
       claimedContactKind: "email";
       claimedContactValue: string;
       claimSource: "verifiedContactIdentity" | "verifiedPrimaryEmail";
+      personConsolidation?: {
+        approvedAt: number;
+        pendingPersonName: string;
+        pendingPersonReferentId: Id<"referents">;
+        resultingPersonName: string;
+        resultingPersonReferentId: Id<"referents">;
+        reviewId: Id<"personConsolidationReviews">;
+      };
     };
     email?: string;
     membershipId: Id<"memberships">;
@@ -71,7 +79,7 @@ type OrganizationMembershipSettings = {
       requestedByEmail?: string;
       reviewId: Id<"personConsolidationReviews">;
       reviewReason: "placeholderHasMeaningfulIdentity";
-      reviewStatus: "pending";
+      reviewStatus: "approved" | "pending" | "rejected";
       updatedAt: number;
     };
     role: "admin" | "member";
@@ -499,6 +507,241 @@ describe("App organization access", () => {
     });
   });
 
+  test("allows organization admins to withdraw unclaimed pending members", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = (await t.action(
+      internal.seedOrganizationsAction.seedDefaultOrganizations,
+      {},
+    )) as SeedActionTestResult;
+    const gelbaugh = getSeededUser(seed.users, "gelbaughcm@gmail.com");
+    const admin = t.withIdentity({
+      subject: `${gelbaugh.userId}|test-session`,
+    });
+
+    const member = await admin.mutation(
+      api.organizationAccounts.addOrganizationMember,
+      {
+        email: "Withdraw.Me@Example.com",
+        organizationId: "arche-classical-academy",
+        role: "member",
+      },
+    );
+
+    const withdrawn = await admin.mutation(
+      api.organizationAccounts.withdrawPendingOrganizationMember,
+      {
+        membershipId: member.membershipId,
+        organizationId: "arche-classical-academy",
+      },
+    );
+
+    expect(withdrawn).toEqual({
+      membershipId: member.membershipId,
+      membershipStatus: "inactive",
+    });
+
+    const settings = (await admin.query(
+      api.organizationAccounts.getOrganizationMembershipSettings,
+      {
+        organizationId: "arche-classical-academy",
+      },
+    )) as OrganizationMembershipSettings;
+    expect(
+      settings.members.some(
+        (listedMember) => listedMember.membershipId === member.membershipId,
+      ),
+    ).toBe(false);
+
+    const claimantUserId = await t.run(async (ctx) => {
+      const membership = await ctx.db.get(member.membershipId);
+      const personReferent = membership
+        ? await ctx.db.get(membership.personReferentId)
+        : null;
+      const personEntries = membership
+        ? await ctx.db
+            .query("knowledgeEntries")
+            .withIndex("by_representedReferentId", (q) =>
+              q.eq("representedReferentId", membership.personReferentId),
+            )
+            .take(10)
+        : [];
+      const userId = await ctx.db.insert("users", {
+        email: "withdraw.me@example.com",
+        emailVerificationTime: Date.now(),
+        isActive: false,
+        name: "Withdraw Me",
+      });
+
+      expect(membership).toMatchObject({
+        membershipStatus: "inactive",
+        targetKind: "organization",
+      });
+      expect(membership?.memberUserId).toBeUndefined();
+      expect(personReferent).toMatchObject({
+        canonicalKey: "contact-email:withdraw.me@example.com",
+        knowledgeType: "person",
+      });
+      expect(personEntries).toHaveLength(1);
+
+      return userId;
+    });
+
+    const claimResult = await t.run(async (ctx) => {
+      const user = await ctx.db.get(claimantUserId);
+      if (!user?.email) {
+        throw new Error("Missing claimant user.");
+      }
+
+      return await claimPendingOrganizationMembershipsForVerifiedEmail(
+        ctx,
+        user,
+        user.email,
+        Date.now(),
+      );
+    });
+
+    expect(claimResult).toEqual({
+      claimedMemberships: [],
+      personConsolidationRejections: [],
+      personConsolidationReviews: [],
+    });
+  });
+
+  test("rejects pending member withdrawal for unauthorized or active review states", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = (await t.action(
+      internal.seedOrganizationsAction.seedDefaultOrganizations,
+      {},
+    )) as SeedActionTestResult;
+    const gelbaugh = getSeededUser(seed.users, "gelbaughcm@gmail.com");
+    const corey = getSeededUser(seed.users, "corey@rulerofkingschurch.com");
+    const admin = t.withIdentity({
+      subject: `${gelbaugh.userId}|test-session`,
+    });
+
+    const pendingMember = await admin.mutation(
+      api.organizationAccounts.addOrganizationMember,
+      {
+        email: "withdraw.blocked@example.com",
+        organizationId: "arche-classical-academy",
+        role: "member",
+      },
+    );
+
+    await expect(
+      t
+        .withIdentity({ subject: `${corey.userId}|test-session` })
+        .mutation(api.organizationAccounts.withdrawPendingOrganizationMember, {
+          membershipId: pendingMember.membershipId,
+          organizationId: "arche-classical-academy",
+        }),
+    ).rejects.toThrow("Unauthorized");
+
+    const otherOrganizationMember = await admin.mutation(
+      api.organizationAccounts.addOrganizationMember,
+      {
+        email: "wrong.organization@example.com",
+        organizationId: "ruler-of-kings-church",
+        role: "member",
+      },
+    );
+    await expect(
+      admin.mutation(api.organizationAccounts.withdrawPendingOrganizationMember, {
+        membershipId: otherOrganizationMember.membershipId,
+        organizationId: "arche-classical-academy",
+      }),
+    ).rejects.toThrow("Pending membership not found for organization.");
+
+    const activeUserId = await t.run(async (ctx) => {
+      return await ctx.db.insert("users", {
+        email: "active.withdraw@example.com",
+        isActive: false,
+        name: "Active Withdraw",
+      });
+    });
+    const activeMember = await admin.mutation(
+      api.organizationAccounts.addOrganizationMember,
+      {
+        email: "active.withdraw@example.com",
+        organizationId: "arche-classical-academy",
+        role: "member",
+      },
+    );
+    expect(activeMember.status).toBe("active");
+    if (activeMember.status !== "active") {
+      throw new Error("Expected active member.");
+    }
+    expect(activeMember.userId).toBe(activeUserId);
+    await expect(
+      admin.mutation(api.organizationAccounts.withdrawPendingOrganizationMember, {
+        membershipId: activeMember.membershipId,
+        organizationId: "arche-classical-academy",
+      }),
+    ).rejects.toThrow("Only unclaimed pending memberships can be withdrawn.");
+
+    const reviewMember = await admin.mutation(
+      api.organizationAccounts.addOrganizationMember,
+      {
+        email: "withdraw.review@example.com",
+        organizationId: "arche-classical-academy",
+        role: "member",
+      },
+    );
+    const reviewId = await t.run(async (ctx) => {
+      const membership = await ctx.db.get(reviewMember.membershipId);
+      if (!membership?.organizationReferentId) {
+        throw new Error("Missing review membership.");
+      }
+      const claimantUserId = await ctx.db.insert("users", {
+        email: "withdraw.review.claimant@example.com",
+        emailVerificationTime: Date.now(),
+        isActive: false,
+        name: "Withdraw Review Claimant",
+      });
+
+      return await ctx.db.insert("personConsolidationReviews", {
+        candidatePersonReferentId: membership.personReferentId,
+        claimedContactKind: "email",
+        claimedContactValue: "withdraw.review@example.com",
+        claimSource: "verifiedPrimaryEmail",
+        createdAt: Date.now(),
+        membershipId: membership._id,
+        organizationReferentId: membership.organizationReferentId,
+        pendingPersonReferentId: membership.personReferentId,
+        requestedByUserId: claimantUserId,
+        reviewReason: "placeholderHasMeaningfulIdentity",
+        reviewStatus: "pending",
+        updatedAt: Date.now(),
+      });
+    });
+
+    await expect(
+      admin.mutation(api.organizationAccounts.withdrawPendingOrganizationMember, {
+        membershipId: reviewMember.membershipId,
+        organizationId: "arche-classical-academy",
+      }),
+    ).rejects.toThrow("Resolve identity review before withdrawing member.");
+
+    await t.run(async (ctx) => {
+      await ctx.db.patch(reviewId, {
+        resolvedAt: Date.now(),
+        resolvedByUserId: gelbaugh.userId,
+        reviewStatus: "rejected",
+        updatedAt: Date.now(),
+      });
+    });
+
+    await expect(
+      admin.mutation(api.organizationAccounts.withdrawPendingOrganizationMember, {
+        membershipId: reviewMember.membershipId,
+        organizationId: "arche-classical-academy",
+      }),
+    ).resolves.toEqual({
+      membershipId: reviewMember.membershipId,
+      membershipStatus: "inactive",
+    });
+  });
+
   test("allows organization admins to approve a pending Person Consolidation review", async () => {
     const t = convexTest({ schema, modules });
     const seed = (await t.action(
@@ -661,6 +904,14 @@ describe("App organization access", () => {
       expect.objectContaining({
         claimEvidence: expect.objectContaining({
           claimedContactValue: "review.settings@example.com",
+          personConsolidation: expect.objectContaining({
+            approvedAt: stored.review?.resolvedAt,
+            pendingPersonName: "Review Settings",
+            pendingPersonReferentId: stored.review?.pendingPersonReferentId,
+            resultingPersonName: "Settings Claimant",
+            resultingPersonReferentId: stored.review?.candidatePersonReferentId,
+            reviewId,
+          }),
         }),
         membershipId: pendingMember.membershipId,
         status: "active",
@@ -806,13 +1057,82 @@ describe("App organization access", () => {
     expect(refreshedSettings.members).toContainEqual(
       expect.objectContaining({
         membershipId: pendingMember.membershipId,
+        personConsolidationReview: expect.objectContaining({
+          claimedContactKind: "email",
+          claimedContactValue: "reject.review@example.com",
+          claimSource: "verifiedPrimaryEmail",
+          requestedByEmail: "reject.claimant@example.com",
+          reviewId,
+          reviewReason: "placeholderHasMeaningfulIdentity",
+          reviewStatus: "rejected",
+        }),
         status: "pending",
       }),
     );
     const refreshedMember = refreshedSettings.members.find(
       (member) => member.membershipId === pendingMember.membershipId,
     );
-    expect(refreshedMember?.personConsolidationReview).toBeUndefined();
+    expect(refreshedMember?.personConsolidationReview?.reviewStatus).toBe(
+      "rejected",
+    );
+
+    const reopened = await admin.mutation(
+      api.organizationAccounts.reopenPersonConsolidationReview,
+      {
+        organizationId: "arche-classical-academy",
+        personConsolidationReviewId: reviewId,
+      },
+    );
+
+    expect(reopened).toEqual({
+      membershipId: pendingMember.membershipId,
+      reviewStatus: "pending",
+    });
+
+    const reopenedStored = await t.run(async (ctx) => {
+      return {
+        membership: await ctx.db.get(pendingMember.membershipId),
+        membershipClaims: await ctx.db
+          .query("membershipClaims")
+          .withIndex("by_claimedByUserId_and_createdAt", (q) =>
+            q.eq("claimedByUserId", claimantUserId),
+          )
+          .take(10),
+        review: await ctx.db.get(reviewId),
+      };
+    });
+
+    expect(reopenedStored.membership).toMatchObject({
+      membershipStatus: "invited",
+      organizationReferentId: reopenedStored.review?.organizationReferentId,
+      personReferentId: reopenedStored.review?.pendingPersonReferentId,
+      targetKind: "organization",
+    });
+    expect(reopenedStored.membership?.memberUserId).toBeUndefined();
+    expect(reopenedStored.review).toMatchObject({
+      reviewStatus: "pending",
+      updatedAt: expect.any(Number),
+    });
+    expect(reopenedStored.review?.resolvedAt).toBeUndefined();
+    expect(reopenedStored.review?.resolvedByUserId).toBeUndefined();
+    expect(reopenedStored.membershipClaims).toEqual([]);
+
+    const reopenedSettings = (await admin.query(
+      api.organizationAccounts.getOrganizationMembershipSettings,
+      {
+        organizationId: "arche-classical-academy",
+      },
+    )) as OrganizationMembershipSettings;
+    expect(reopenedSettings.members).toContainEqual(
+      expect.objectContaining({
+        membershipId: pendingMember.membershipId,
+        personConsolidationReview: expect.objectContaining({
+          reviewId,
+          reviewStatus: "pending",
+        }),
+        status: "pending",
+      }),
+    );
 
     const access = (await t
       .withIdentity({ subject: `${claimantUserId}|test-session` })
@@ -880,6 +1200,24 @@ describe("App organization access", () => {
       t
         .withIdentity({ subject: `${corey.userId}|test-session` })
         .mutation(api.organizationAccounts.rejectPersonConsolidationReview, {
+          organizationId: "arche-classical-academy",
+          personConsolidationReviewId: reviewId,
+        }),
+    ).rejects.toThrow("Unauthorized");
+
+    await t.run(async (ctx) => {
+      await ctx.db.patch(reviewId, {
+        resolvedAt: Date.now(),
+        resolvedByUserId: gelbaugh.userId,
+        reviewStatus: "rejected",
+        updatedAt: Date.now(),
+      });
+    });
+
+    await expect(
+      t
+        .withIdentity({ subject: `${corey.userId}|test-session` })
+        .mutation(api.organizationAccounts.reopenPersonConsolidationReview, {
           organizationId: "arche-classical-academy",
           personConsolidationReviewId: reviewId,
         }),
@@ -1012,6 +1350,7 @@ describe("App organization access", () => {
           )
           .take(10),
         pendingMembership,
+        review: await ctx.db.get(reviewId),
         userMemberships,
       };
     });
@@ -1034,6 +1373,32 @@ describe("App organization access", () => {
         membershipId: existingMember.membershipId,
       }),
     ]);
+
+    const settings = (await admin.query(
+      api.organizationAccounts.getOrganizationMembershipSettings,
+      {
+        organizationId: "arche-classical-academy",
+      },
+    )) as OrganizationMembershipSettings;
+    expect(settings.members).toContainEqual(
+      expect.objectContaining({
+        claimEvidence: expect.objectContaining({
+          claimedContactValue: "duplicate.review@example.com",
+          personConsolidation: expect.objectContaining({
+            approvedAt: stored.review?.resolvedAt,
+            pendingPersonName: "Duplicate Review",
+            pendingPersonReferentId: stored.review?.pendingPersonReferentId,
+            resultingPersonName: "Duplicate Claimant",
+            resultingPersonReferentId:
+              stored.review?.candidatePersonReferentId,
+            reviewId,
+          }),
+        }),
+        membershipId: existingMember.membershipId,
+        status: "active",
+        userId: claimantUserId,
+      }),
+    );
   });
 
   test("activates an existing pending membership when its user account is later added", async () => {
@@ -1222,6 +1587,10 @@ describe("App organization access", () => {
         status: "active",
       }),
     );
+    const claimedMember = settings.members.find(
+      (member) => member.membershipId === pendingMember.membershipId,
+    );
+    expect(claimedMember?.claimEvidence?.personConsolidation).toBeUndefined();
 
     const access = (await t
       .withIdentity({ subject: `${userId}|test-session` })

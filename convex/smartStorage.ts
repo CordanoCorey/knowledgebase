@@ -19,6 +19,10 @@ import {
   type EntryKnowledgeType,
   type RepresentationRole,
 } from "./lib/typeBehavior";
+import {
+  getEntryContextTagIds,
+  recordContextExpertiseEvidence,
+} from "./lib/contextExpertiseEvidence";
 
 const MAX_TITLE_LENGTH = 240;
 const MAX_SOURCE_TEXT_LENGTH = 40_000;
@@ -59,7 +63,7 @@ const SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION =
 const SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT =
   "Preserve a durable Contribution Submission with child Sources and queue conservative scaffold proposal generation.";
 const TYPE_BEHAVIOR_SNAPSHOT_TEXT =
-  "Use the first-slice Type Behavior registry for identity, source citation, representation role, primary representation, and Human Weight defaults.";
+  "Use the Type Behavior registry for identity, source citation, representation role, primary representation, Human Weight defaults, and Human Weight credit basis.";
 const DETERMINISTIC_GENERATOR_VERSION = "mvp-deterministic-scaffold-v1";
 const OPENAI_RESPONSES_API_URL = "https://api.openai.com/v1/responses";
 const DEFAULT_OPENAI_SMART_STORAGE_MODEL = "gpt-5.4-mini";
@@ -1863,6 +1867,14 @@ export const acceptScaffoldProposal = mutation({
     const now = Date.now();
     const proposedEntry = proposal.currentProposal;
     const typeBehavior = getTypeBehavior(proposedEntry.knowledgeType);
+    const slotFulfillment = await resolveSlotFulfillment(ctx, {
+      knowledgeType: proposedEntry.knowledgeType,
+      slotId: run.slotId,
+    });
+    const slotContextTagIds =
+      slotFulfillment === undefined
+        ? undefined
+        : await getSlotContextTagIds(ctx, slotFulfillment._id);
     const represented = await resolveRepresentedIdentity(ctx, {
       knowledgeType: proposedEntry.knowledgeType,
       now,
@@ -1899,6 +1911,14 @@ export const acceptScaffoldProposal = mutation({
           now,
           proposedEntry,
           representationDecisions,
+        });
+        await recordContextExpertiseEvidence(ctx, {
+          contextTagIds: await getEntryContextTagIds(ctx, existingEntry._id),
+          entryId: existingEntry._id,
+          evidenceKind: "curation",
+          now,
+          smartStorageProposalId: proposal._id,
+          subjectUserId: access.userId,
         });
 
         await ctx.db.patch(existingEntry._id, { updatedAt: now });
@@ -1943,6 +1963,12 @@ export const acceptScaffoldProposal = mutation({
       normalizeContextTags(proposedEntry.contextTags),
       access.userId,
     );
+    if (slotFulfillment !== undefined) {
+      assertAcceptedEntryIncludesSlotTags(
+        slotContextTagIds ?? [],
+        contextTags.map((tag) => tag._id),
+      );
+    }
     const contextPreviewTagLabels = contextTags
       .map((tag) => tag.label)
       .slice(0, MAX_CONTEXT_PREVIEW_TAG_LABELS);
@@ -1999,11 +2025,49 @@ export const acceptScaffoldProposal = mutation({
         taggedByUserId: access.userId,
       });
     }
+    await recordContextExpertiseEvidence(ctx, {
+      contextTagIds: contextTags.map((tag) => tag._id),
+      entryId,
+      evidenceKind: "post",
+      now,
+      subjectUserId: access.userId,
+    });
+    if (slotFulfillment !== undefined) {
+      await ctx.db.patch(slotFulfillment._id, {
+        fulfilledEntryId: entryId,
+        status: "fulfilled",
+        updatedAt: now,
+      });
+      await recordContextExpertiseEvidence(ctx, {
+        contextTagIds: slotContextTagIds ?? [],
+        entryId,
+        evidenceKind: "slotFulfillment",
+        now,
+        slotId: slotFulfillment._id,
+        subjectUserId: access.userId,
+      });
+    }
     if (proposedEntry.knowledgeType === "question") {
       await ctx.db.insert("questionEntries", {
         entryId,
         questionText: proposedEntry.title,
       });
+    }
+    if (proposedEntry.knowledgeType === "quote") {
+      const quotedPersonReferentId = await insertQuoteEntry(ctx, {
+        contextTags,
+        entryId,
+        sourceText: proposedEntry.bodyPreview,
+      });
+      if (quotedPersonReferentId !== undefined) {
+        await recordContextExpertiseEvidence(ctx, {
+          contextTagIds: contextTags.map((tag) => tag._id),
+          entryId,
+          evidenceKind: "quoteAttribution",
+          now,
+          subjectPersonReferentId: quotedPersonReferentId,
+        });
+      }
     }
 
     const representationDecisions = await loadAcceptedRepresentationDecisions(ctx, {
@@ -2041,6 +2105,103 @@ export const acceptScaffoldProposal = mutation({
     };
   },
 });
+
+async function resolveSlotFulfillment(
+  ctx: MutationCtx,
+  {
+    knowledgeType,
+    slotId,
+  }: {
+    knowledgeType: EntryKnowledgeType;
+    slotId?: string;
+  },
+) {
+  if (slotId === undefined) {
+    return undefined;
+  }
+
+  const normalizedSlotId = ctx.db.normalizeId("knowledgeSlots", slotId);
+  const slot =
+    normalizedSlotId === null ? null : await ctx.db.get(normalizedSlotId);
+  if (!slot) {
+    throw new Error("Knowledge Slot could not be found.");
+  }
+
+  if (slot.requestedKnowledgeType !== knowledgeType) {
+    throw new Error("Contribution Knowledge Type must match the Knowledge Slot request.");
+  }
+
+  if (slot.fulfilledEntryId !== undefined || slot.status === "fulfilled") {
+    throw new Error("Knowledge Slot already has Fulfillment.");
+  }
+
+  if (slot.status !== "open" && slot.status !== "overdue") {
+    throw new Error("Knowledge Slot is not open for Fulfillment.");
+  }
+
+  return slot;
+}
+
+async function getSlotContextTagIds(
+  ctx: MutationCtx,
+  slotId: Id<"knowledgeSlots">,
+) {
+  const slotTags = await ctx.db
+    .query("slotTags")
+    .withIndex("by_slotId_and_tagId", (q) => q.eq("slotId", slotId))
+    .take(MAX_CONTEXT_TAGS + 1);
+
+  if (slotTags.length > MAX_CONTEXT_TAGS) {
+    throw new Error(`Knowledge Slot supports at most ${MAX_CONTEXT_TAGS} context Tags.`);
+  }
+
+  return slotTags.map((slotTag) => slotTag.tagId);
+}
+
+function assertAcceptedEntryIncludesSlotTags(
+  slotContextTagIds: Array<Id<"tags">>,
+  contextTagIds: Array<Id<"tags">>,
+) {
+  const contextTagIdSet = new Set(contextTagIds);
+  for (const tagId of slotContextTagIds) {
+    if (!contextTagIdSet.has(tagId)) {
+      throw new Error("Contribution must include the Knowledge Slot context Tags.");
+    }
+  }
+}
+
+async function insertQuoteEntry(
+  ctx: MutationCtx,
+  {
+    contextTags,
+    entryId,
+    sourceText,
+  }: {
+    contextTags: Doc<"tags">[];
+    entryId: Id<"knowledgeEntries">;
+    sourceText: string;
+  },
+) {
+  const quotedPersonReferentId = getUnambiguousQuotedPersonReferentId(
+    contextTags,
+  );
+  const trimmedSourceText = sourceText.trim();
+
+  await ctx.db.insert("quoteEntries", {
+    entryId,
+    ...(quotedPersonReferentId === undefined
+      ? {}
+      : { quotedPersonReferentId }),
+    ...(trimmedSourceText === "" ? {} : { sourceText: trimmedSourceText }),
+  });
+
+  return quotedPersonReferentId;
+}
+
+function getUnambiguousQuotedPersonReferentId(contextTags: Doc<"tags">[]) {
+  const personTags = contextTags.filter((tag) => tag.knowledgeType === "person");
+  return personTags.length === 1 ? personTags[0].referentId : undefined;
+}
 
 async function attachTemporaryUploadIfPresent(
   ctx: MutationCtx,

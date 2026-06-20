@@ -1,13 +1,28 @@
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
+import { requireAppAccess } from "./lib/appAccess";
+import {
+  applyContextExpertiseContextMatch,
+  getContextExpertiseAggregateScore,
+  getContextExpertiseCandidateContexts as getContextExpertiseCandidateContextsForTags,
+  getContextExpertiseContextKey,
+  getContextExpertiseContextMatchSortRank,
+  getContextExpertiseEvidenceCountScoreBonus,
+  getContextExpertiseMaturity,
+  getEstimatedContextExpertiseSignalScoreFromAggregate,
+  normalizeContextExpertiseTagIds,
+  type ContextExpertiseContextMatchKind,
+} from "./lib/contextExpertiseScoring";
 import { summarizeHumanWeightEvidence } from "./lib/humanWeightEvidence";
 import {
   getApplicableHumanWeight,
   getHumanWeightConcern,
   getHumanWeightFeedPriority,
+  getTypeBehavior,
   isWeightBearingEntryKnowledgeType,
   type HumanWeightConcernSummary,
+  type HumanWeightCreditBasis,
   type HumanWeightExpectation,
 } from "./lib/typeBehavior";
 
@@ -22,7 +37,9 @@ const MAX_CANDIDATE_ITEMS = 200;
 const MIN_CANDIDATE_ITEMS = 25;
 const CANDIDATE_MULTIPLIER = 5;
 const MAX_CONTEXT_PREVIEW_TAG_LABELS = 6;
-const EXPERT_CONTRIBUTION_BONUS = 12;
+const CONTEXT_EXPERTISE_AGGREGATE_CANDIDATE_LIMIT = 25;
+const DEFAULT_EXPERT_DETAIL_CONTRIBUTION_LIMIT = 5;
+const MAX_EXPERT_DETAIL_CONTRIBUTION_LIMIT = 10;
 
 const referentKnowledgeType = v.union(
   v.literal("words"),
@@ -87,6 +104,16 @@ const humanWeightConcernSummary = v.object({
   threshold: v.number(),
 });
 
+const humanWeightCreditSummary = v.object({
+  basis: v.union(v.literal("contributor"), v.literal("quotedPerson")),
+  label: v.string(),
+});
+
+const quoteAttributionSummary = v.object({
+  quotedPersonLabel: v.optional(v.string()),
+  quotedPersonReferentId: v.optional(v.id("referents")),
+});
+
 const activeTagSnapshot = v.object({
   canonicalKey: v.string(),
   href: v.string(),
@@ -111,17 +138,52 @@ const knowledgeEntrySummary = v.object({
   humanWeight: v.optional(v.number()),
   evidenceMaturity: v.optional(v.number()),
   humanWeightConcern: v.optional(humanWeightConcernSummary),
+  humanWeightCredit: v.optional(humanWeightCreditSummary),
+  quoteAttribution: v.optional(quoteAttributionSummary),
   href: v.string(),
   updatedAt: v.number(),
 });
+
+const contextExpertiseContextMatchKind = v.literal("broaderContext");
+const contextExpertSubjectKind = v.union(
+  v.literal("user"),
+  v.literal("person"),
+);
 
 const knowledgeContextExpert = v.object({
   id: v.string(),
   name: v.string(),
   href: v.optional(v.string()),
-  averageHumanWeight: v.number(),
-  contributionCount: v.number(),
+  subjectKind: v.optional(contextExpertSubjectKind),
+  subjectUserId: v.optional(v.id("users")),
+  subjectPersonReferentId: v.optional(v.id("referents")),
+  contextExpertiseMaturity: v.number(),
   contextExpertiseScore: v.number(),
+  contextMatchKind: v.optional(contextExpertiseContextMatchKind),
+  evidenceCount: v.number(),
+  feedbackCount: v.number(),
+  postCount: v.number(),
+});
+
+const knowledgeContextExpertScope = v.union(
+  v.literal("orbit"),
+  v.literal("global"),
+);
+
+const knowledgeContextExpertDetail = v.object({
+  id: v.string(),
+  name: v.string(),
+  href: v.optional(v.string()),
+  subjectKind: v.optional(contextExpertSubjectKind),
+  subjectUserId: v.optional(v.id("users")),
+  subjectPersonReferentId: v.optional(v.id("referents")),
+  contextExpertiseMaturity: v.number(),
+  contextExpertiseScore: v.number(),
+  contextMatchKind: v.optional(contextExpertiseContextMatchKind),
+  evidenceCount: v.number(),
+  feedbackCount: v.number(),
+  postCount: v.number(),
+  topSupportingEntries: v.array(knowledgeEntrySummary),
 });
 
 const knowledgeSlotSummary = v.object({
@@ -155,12 +217,88 @@ type ContributorSummary = {
   id: string;
   name: string;
   href?: string;
+  subjectKind?: ContextExpertSubjectKind;
+  subjectUserId?: Id<"users">;
+  subjectPersonReferentId?: Id<"referents">;
+};
+
+type HumanWeightCreditSummary = {
+  basis: HumanWeightCreditBasis;
+  label: string;
+};
+
+type QuoteAttributionSummary = {
+  quotedPersonLabel?: string;
+  quotedPersonReferentId?: Id<"referents">;
 };
 
 type KnowledgeContextExpert = ContributorSummary & {
-  averageHumanWeight: number;
-  contributionCount: number;
+  contextExpertiseMaturity: number;
   contextExpertiseScore: number;
+  contextMatchKind?: ContextExpertiseContextMatchKind;
+  evidenceCount: number;
+  feedbackCount: number;
+  postCount: number;
+};
+
+type ContextExpertSubjectKind = "user" | "person";
+type ContextExpertSubjectSelector =
+  | {
+      subjectKind: "user";
+      subjectUserId: Id<"users">;
+    }
+  | {
+      subjectKind: "person";
+      subjectPersonReferentId: Id<"referents">;
+    };
+
+type KnowledgeContextExpertScope = "orbit" | "global";
+
+type KnowledgeContextExpertAudience =
+  | {
+      kind: "orbit";
+      organizationReferentIds: Set<Id<"referents">>;
+      viewerUserId: Id<"users">;
+    }
+  | {
+      kind: "global";
+    };
+
+type ContextExpertiseAggregateRow = Pick<
+  Doc<"contextExpertiseAggregates">,
+  | "audienceScopeKind"
+  | "audienceScopeTargetKey"
+  | "contextExpertiseMaturity"
+  | "contextExpertiseScore"
+  | "contextKey"
+  | "contextTagIds"
+  | "evidenceCount"
+  | "feedbackCount"
+  | "latestEvidenceAt"
+  | "postCount"
+  | "subjectPersonReferentId"
+  | "subjectUserId"
+  | "topSupportingEntryIds"
+  | "visibilityKind"
+  | "visibilityTargetKey"
+>;
+
+type ContextExpertiseAggregateSummary = Omit<
+  ContextExpertiseAggregateRow,
+  "audienceScopeKind" | "audienceScopeTargetKey" | "visibilityKind" | "visibilityTargetKey"
+> & {
+  contextMatchKind?: ContextExpertiseContextMatchKind;
+};
+
+type ContextExpertiseAudienceScope = {
+  audienceScopeKind: NonNullable<
+    Doc<"contextExpertiseAggregates">["audienceScopeKind"]
+  >;
+  audienceScopeTargetKey: string;
+};
+
+type KnowledgeContextExpertDetail = KnowledgeContextExpert & {
+  topSupportingEntries: KnowledgeEntrySummary[];
 };
 
 type KnowledgeEntrySummary = {
@@ -174,6 +312,8 @@ type KnowledgeEntrySummary = {
   humanWeight?: number;
   evidenceMaturity?: number;
   humanWeightConcern?: HumanWeightConcernSummary;
+  humanWeightCredit?: HumanWeightCreditSummary;
+  quoteAttribution?: QuoteAttributionSummary;
   href: string;
   updatedAt: number;
 };
@@ -262,6 +402,7 @@ export const listExpertsForActiveTags = query({
   args: {
     activeTagIds: v.array(v.id("tags")),
     expertLimit: v.optional(v.number()),
+    expertScope: v.optional(knowledgeContextExpertScope),
   },
   returns: v.array(knowledgeContextExpert),
   handler: async (ctx, args): Promise<KnowledgeContextExpert[]> => {
@@ -275,6 +416,20 @@ export const listExpertsForActiveTags = query({
       return [];
     }
 
+    const audience = await getKnowledgeContextExpertAudience(
+      ctx,
+      args.expertScope,
+    );
+    const aggregateExperts = await listAggregateKnowledgeContextExperts(
+      ctx,
+      activeTagIds,
+      expertLimit,
+      audience,
+    );
+    if (aggregateExperts.length > 0 || audience !== null) {
+      return aggregateExperts;
+    }
+
     const entries = await getMatchingAnswerEntries(
       ctx,
       activeTagIds,
@@ -282,6 +437,119 @@ export const listExpertsForActiveTags = query({
     );
 
     return await summarizeKnowledgeContextExperts(ctx, entries, expertLimit);
+  },
+});
+
+export const listExpertsForActiveTagKeys = query({
+  args: {
+    activeTags: v.array(activeTagSnapshot),
+    expertLimit: v.optional(v.number()),
+    expertScope: v.optional(knowledgeContextExpertScope),
+  },
+  returns: v.array(knowledgeContextExpert),
+  handler: async (ctx, args): Promise<KnowledgeContextExpert[]> => {
+    const activeTagIds = await resolveActiveTagIds(ctx, args.activeTags);
+    if (activeTagIds === null) {
+      return [];
+    }
+
+    const expertLimit = normalizeLimit(
+      args.expertLimit,
+      DEFAULT_EXPERT_LIMIT,
+      MAX_EXPERT_LIMIT,
+    );
+    if (expertLimit < 1) {
+      return [];
+    }
+
+    const audience = await getKnowledgeContextExpertAudience(
+      ctx,
+      args.expertScope,
+    );
+    const aggregateExperts = await listAggregateKnowledgeContextExperts(
+      ctx,
+      activeTagIds,
+      expertLimit,
+      audience,
+    );
+    if (aggregateExperts.length > 0 || audience !== null) {
+      return aggregateExperts;
+    }
+
+    const entries = await getMatchingAnswerEntries(
+      ctx,
+      activeTagIds,
+      MAX_CANDIDATE_ITEMS,
+    );
+
+    return await summarizeKnowledgeContextExperts(ctx, entries, expertLimit);
+  },
+});
+
+export const getExpertDetailForActiveTags = query({
+  args: {
+    activeTagIds: v.array(v.id("tags")),
+    subjectUserId: v.optional(v.id("users")),
+    subjectPersonReferentId: v.optional(v.id("referents")),
+    contributionLimit: v.optional(v.number()),
+    expertScope: v.optional(knowledgeContextExpertScope),
+  },
+  returns: v.union(knowledgeContextExpertDetail, v.null()),
+  handler: async (
+    ctx,
+    args,
+  ): Promise<KnowledgeContextExpertDetail | null> => {
+    const audience = await getKnowledgeContextExpertAudience(
+      ctx,
+      args.expertScope,
+    );
+    const subject = getContextExpertSubjectSelector(args);
+    return await getAggregateKnowledgeContextExpertDetail(ctx, {
+      activeTagIds: normalizeActiveTagIds(args.activeTagIds),
+      audience,
+      contributionLimit: normalizeLimit(
+        args.contributionLimit,
+        DEFAULT_EXPERT_DETAIL_CONTRIBUTION_LIMIT,
+        MAX_EXPERT_DETAIL_CONTRIBUTION_LIMIT,
+      ),
+      subject,
+    });
+  },
+});
+
+export const getExpertDetailForActiveTagKeys = query({
+  args: {
+    activeTags: v.array(activeTagSnapshot),
+    subjectUserId: v.optional(v.id("users")),
+    subjectPersonReferentId: v.optional(v.id("referents")),
+    contributionLimit: v.optional(v.number()),
+    expertScope: v.optional(knowledgeContextExpertScope),
+  },
+  returns: v.union(knowledgeContextExpertDetail, v.null()),
+  handler: async (
+    ctx,
+    args,
+  ): Promise<KnowledgeContextExpertDetail | null> => {
+    const activeTagIds = await resolveActiveTagIds(ctx, args.activeTags);
+    if (activeTagIds === null) {
+      return null;
+    }
+
+    const audience = await getKnowledgeContextExpertAudience(
+      ctx,
+      args.expertScope,
+    );
+    const subject = getContextExpertSubjectSelector(args);
+    return await getAggregateKnowledgeContextExpertDetail(ctx, {
+      activeTagIds,
+      audience,
+      contributionLimit: normalizeLimit(
+        args.contributionLimit,
+        DEFAULT_EXPERT_DETAIL_CONTRIBUTION_LIMIT,
+        MAX_EXPERT_DETAIL_CONTRIBUTION_LIMIT,
+      ),
+      subject,
+    });
   },
 });
 
@@ -614,13 +882,20 @@ async function summarizeEntry(
     humanWeight: entry.humanWeight,
   });
   const evidenceSummary = await getHumanWeightEvidenceSummary(ctx, entry);
+  const contributor = await getUserContributorSummary(
+    ctx,
+    entry.createdByUserId,
+    contributorCache,
+  );
+  const humanWeightCredit = await getHumanWeightCreditSummary(
+    ctx,
+    entry,
+    contributor,
+  );
+  const quoteAttribution = await getQuoteAttributionSummary(ctx, entry);
 
   return {
-    contributor: await getContributorSummary(
-      ctx,
-      entry.createdByUserId,
-      contributorCache,
-    ),
+    contributor,
     id: entry._id,
     title: entry.title,
     knowledgeType: entry.knowledgeType,
@@ -632,8 +907,79 @@ async function summarizeEntry(
       ? {}
       : { evidenceMaturity: evidenceSummary.evidenceMaturity }),
     ...(humanWeightConcern === undefined ? {} : { humanWeightConcern }),
+    ...(humanWeightCredit === undefined ? {} : { humanWeightCredit }),
+    ...(quoteAttribution === undefined ? {} : { quoteAttribution }),
     href: `/entries/${entry._id}`,
     updatedAt: entry.updatedAt,
+  };
+}
+
+async function getQuoteAttributionSummary(
+  ctx: QueryCtx,
+  entry: Doc<"knowledgeEntries">,
+): Promise<QuoteAttributionSummary | undefined> {
+  if (entry.knowledgeType !== "quote") {
+    return undefined;
+  }
+
+  const quoteEntry = await ctx.db
+    .query("quoteEntries")
+    .withIndex("by_entryId", (q) => q.eq("entryId", entry._id))
+    .first();
+  if (quoteEntry?.quotedPersonReferentId === undefined) {
+    return {};
+  }
+
+  const quotedPersonReferent = await ctx.db.get(
+    quoteEntry.quotedPersonReferentId,
+  );
+
+  return {
+    quotedPersonReferentId: quoteEntry.quotedPersonReferentId,
+    quotedPersonLabel: quotedPersonReferent?.canonicalName ?? "Quoted person",
+  };
+}
+
+async function getHumanWeightCreditSummary(
+  ctx: QueryCtx,
+  entry: Doc<"knowledgeEntries">,
+  contributor: ContributorSummary,
+): Promise<HumanWeightCreditSummary | undefined> {
+  if (!isWeightBearingEntryKnowledgeType(entry.knowledgeType)) {
+    return undefined;
+  }
+
+  const creditBasis = getTypeBehavior(entry.knowledgeType).humanWeight.creditBasis;
+  if (creditBasis === "contributor") {
+    return {
+      basis: creditBasis,
+      label: contributor.name,
+    };
+  }
+
+  if (creditBasis === "quotedPerson") {
+    return await getQuoteHumanWeightCreditSummary(ctx, entry._id);
+  }
+
+  return undefined;
+}
+
+async function getQuoteHumanWeightCreditSummary(
+  ctx: QueryCtx,
+  entryId: Id<"knowledgeEntries">,
+): Promise<HumanWeightCreditSummary> {
+  const quoteEntry = await ctx.db
+    .query("quoteEntries")
+    .withIndex("by_entryId", (q) => q.eq("entryId", entryId))
+    .first();
+  const quotedPersonReferent =
+    quoteEntry?.quotedPersonReferentId === undefined
+      ? null
+      : await ctx.db.get(quoteEntry.quotedPersonReferentId);
+
+  return {
+    basis: "quotedPerson",
+    label: quotedPersonReferent?.canonicalName ?? "Quoted person",
   };
 }
 
@@ -698,8 +1044,15 @@ async function getHumanWeightEvidenceSummary(
     .query("humanWeightFeedback")
     .withIndex("by_entryId_and_createdAt", (q) => q.eq("entryId", entry._id))
     .collect();
+  const derivedEvidenceRows = await ctx.db
+    .query("humanWeightEvidence")
+    .withIndex("by_entryId_and_createdAt", (q) => q.eq("entryId", entry._id))
+    .collect();
 
-  return summarizeHumanWeightEvidence(entry.knowledgeType, feedbackRows);
+  return summarizeHumanWeightEvidence(entry.knowledgeType, [
+    ...feedbackRows,
+    ...derivedEvidenceRows,
+  ]);
 }
 
 async function summarizeKnowledgeContextExperts(
@@ -711,9 +1064,9 @@ async function summarizeKnowledgeContextExperts(
   const aggregates = new Map<
     string,
     ContributorSummary & {
-      contributionCount: number;
       latestUpdatedAt: number;
       maxHumanWeight: number;
+      postCount: number;
       totalHumanWeight: number;
     }
   >();
@@ -731,14 +1084,14 @@ async function summarizeKnowledgeContextExperts(
       continue;
     }
 
-    const contributor = await getContributorSummary(
+    const contributor = await getUserContributorSummary(
       ctx,
       entry.createdByUserId,
       contributorCache,
     );
     const aggregate = aggregates.get(contributor.id);
     if (aggregate) {
-      aggregate.contributionCount += 1;
+      aggregate.postCount += 1;
       aggregate.latestUpdatedAt = Math.max(aggregate.latestUpdatedAt, entry.updatedAt);
       aggregate.maxHumanWeight = Math.max(aggregate.maxHumanWeight, humanWeight);
       aggregate.totalHumanWeight += humanWeight;
@@ -747,9 +1100,9 @@ async function summarizeKnowledgeContextExperts(
 
     aggregates.set(contributor.id, {
       ...contributor,
-      contributionCount: 1,
       latestUpdatedAt: entry.updatedAt,
       maxHumanWeight: humanWeight,
+      postCount: 1,
       totalHumanWeight: humanWeight,
     });
   }
@@ -761,27 +1114,985 @@ async function summarizeKnowledgeContextExperts(
     .map(removeExpertSortFields);
 }
 
+async function listAggregateKnowledgeContextExperts(
+  ctx: QueryCtx,
+  activeTagIds: TagId[],
+  limit: number,
+  audience: KnowledgeContextExpertAudience | null,
+): Promise<KnowledgeContextExpert[]> {
+  const contributorCache = new Map<string, Promise<ContributorSummary>>();
+  const aggregateCandidates: ContextExpertiseAggregateSummary[] = [];
+
+  for (const candidateContext of getContextExpertiseCandidateContexts(activeTagIds)) {
+    const rows = await listAggregateRowsForAudience(
+      ctx,
+      candidateContext.contextKey,
+      limit,
+      audience,
+    );
+    aggregateCandidates.push(
+      ...combineAggregateRowsBySubject(rows).map((aggregate) =>
+        applyContextMatchToAggregate(
+          aggregate,
+          candidateContext.contextMatchKind,
+        ),
+      ),
+    );
+  }
+
+  const aggregates = selectBestAggregateCandidatesBySubject(aggregateCandidates);
+  const experts: Array<KnowledgeContextExpert & { latestEvidenceAt: number }> = [];
+
+  for (const aggregate of aggregates) {
+    const contributor = await getContributorSummary(
+      ctx,
+      aggregate,
+      contributorCache,
+    );
+    experts.push(toAggregateKnowledgeContextExpert(aggregate, contributor));
+  }
+
+  return experts
+    .sort(compareKnowledgeContextExperts)
+    .slice(0, limit)
+    .map(removeExpertSortFields);
+}
+
+async function getAggregateKnowledgeContextExpertDetail(
+  ctx: QueryCtx,
+  args: {
+    activeTagIds: TagId[];
+    audience: KnowledgeContextExpertAudience | null;
+    contributionLimit: number;
+    subject: ContextExpertSubjectSelector;
+  },
+): Promise<KnowledgeContextExpertDetail | null> {
+  const aggregateCandidates: ContextExpertiseAggregateSummary[] = [];
+  for (const candidateContext of getContextExpertiseCandidateContexts(
+    args.activeTagIds,
+  )) {
+    const rows = await listSubjectAggregateRowsForAudience(ctx, {
+      audience: args.audience,
+      contextKey: candidateContext.contextKey,
+      subject: args.subject,
+    });
+    aggregateCandidates.push(
+      ...combineAggregateRowsBySubject(rows).map((aggregate) =>
+        applyContextMatchToAggregate(
+          aggregate,
+          candidateContext.contextMatchKind,
+        ),
+      ),
+    );
+  }
+
+  const aggregate = selectBestAggregateCandidatesBySubject(aggregateCandidates)[0];
+  if (!aggregate) {
+    return null;
+  }
+
+  const contributor = await getContributorSummary(
+    ctx,
+    aggregate,
+    new Map(),
+  );
+  const expert = removeExpertSortFields(
+    toAggregateKnowledgeContextExpert(aggregate, contributor),
+  );
+
+  return {
+    ...expert,
+    topSupportingEntries: await summarizeTopSupportingEntries(
+      ctx,
+      aggregate.topSupportingEntryIds,
+      args.contributionLimit,
+      args.audience,
+    ),
+  };
+}
+
+async function summarizeTopSupportingEntries(
+  ctx: QueryCtx,
+  entryIds: Array<Id<"knowledgeEntries">>,
+  limit: number,
+  audience: KnowledgeContextExpertAudience | null,
+) {
+  if (limit < 1) {
+    return [];
+  }
+
+  const contributorCache = new Map<string, Promise<ContributorSummary>>();
+  const entries: KnowledgeEntrySummary[] = [];
+
+  for (const entryId of entryIds) {
+    if (entries.length >= limit) {
+      break;
+    }
+
+    const entry = await ctx.db.get(entryId);
+    if (!entry || !isEntryVisibleInContextExpertDetail(entry, audience)) {
+      continue;
+    }
+
+    entries.push(await summarizeEntry(ctx, entry, contributorCache));
+  }
+
+  return entries;
+}
+
+function getContextExpertiseCandidateContexts(activeTagIds: TagId[]) {
+  const contextTagIds = normalizeActiveTagIds(activeTagIds);
+  return getContextExpertiseCandidateContextsForTags(contextTagIds);
+}
+
+function applyContextMatchToAggregate(
+  aggregate: ContextExpertiseAggregateSummary,
+  contextMatchKind: ContextExpertiseContextMatchKind | undefined,
+): ContextExpertiseAggregateSummary {
+  return applyContextExpertiseContextMatch(aggregate, contextMatchKind);
+}
+
+function selectBestAggregateCandidatesBySubject(
+  aggregates: ContextExpertiseAggregateSummary[],
+) {
+  const selected = new Map<string, ContextExpertiseAggregateSummary>();
+
+  for (const aggregate of [...aggregates].sort(
+    compareAggregateCandidatesForSubject,
+  )) {
+    const subject = getAggregateSubjectSelector(aggregate);
+    if (subject === null) {
+      continue;
+    }
+
+    const subjectKey = getSubjectKey(subject);
+    if (!selected.has(subjectKey)) {
+      selected.set(subjectKey, aggregate);
+    }
+  }
+
+  return Array.from(selected.values());
+}
+
+function compareAggregateCandidatesForSubject(
+  first: ContextExpertiseAggregateSummary,
+  second: ContextExpertiseAggregateSummary,
+) {
+  return (
+    getContextExpertiseContextMatchSortRank(first) -
+      getContextExpertiseContextMatchSortRank(second) ||
+    second.contextExpertiseScore - first.contextExpertiseScore ||
+    second.contextExpertiseMaturity - first.contextExpertiseMaturity ||
+    second.evidenceCount - first.evidenceCount ||
+    second.postCount - first.postCount ||
+    second.feedbackCount - first.feedbackCount ||
+    second.latestEvidenceAt - first.latestEvidenceAt ||
+    compareStrings(getAggregateSubjectSortKey(first), getAggregateSubjectSortKey(second))
+  );
+}
+
+async function listAggregateRowsForAudience(
+  ctx: QueryCtx,
+  contextKey: string,
+  limit: number,
+  audience: KnowledgeContextExpertAudience | null,
+): Promise<ContextExpertiseAggregateRow[]> {
+  const candidateLimit = getAggregateExpertCandidateLimit(limit);
+  if (audience === null) {
+    return await ctx.db
+      .query("contextExpertiseAggregates")
+      .withIndex("by_contextKey_and_contextExpertiseScore", (q) =>
+        q.eq("contextKey", contextKey),
+      )
+      .order("desc")
+      .take(candidateLimit);
+  }
+
+  const visibilityCache = new Map<string, Promise<boolean>>();
+  const scopedRows = await listScopedAggregateRowsForAudience(ctx, {
+    audience,
+    contextKey,
+    limit: candidateLimit,
+    visibilityCache,
+  });
+  const legacyRows = await listLegacyAggregateRowsForAudience(ctx, {
+    audience,
+    contextKey,
+    limit: candidateLimit,
+    scopedRows,
+    visibilityCache,
+  });
+
+  return [...scopedRows, ...legacyRows];
+}
+
+async function listSubjectAggregateRowsForAudience(
+  ctx: QueryCtx,
+  {
+    audience,
+    contextKey,
+    subject,
+  }: {
+    audience: KnowledgeContextExpertAudience | null;
+    contextKey: string;
+    subject: ContextExpertSubjectSelector;
+  },
+): Promise<ContextExpertiseAggregateRow[]> {
+  if (audience === null) {
+    return await listAggregateRowsForSubject(ctx, subject, contextKey);
+  }
+
+  const visibilityCache = new Map<string, Promise<boolean>>();
+  if (
+    !(await isSubjectVisibleToExpertAudience(ctx, subject, audience, {
+      globalVisibilityCache: visibilityCache,
+      orbitEligibilityCache: visibilityCache,
+    }))
+  ) {
+    return [];
+  }
+
+  const scopedRows = await listScopedAggregateRowsForSubject(ctx, {
+    audience,
+    contextKey,
+    subject,
+  });
+  if (scopedRows.length > 0) {
+    return scopedRows;
+  }
+
+  if (await hasAnyScopedAggregateForSubject(ctx, subject, contextKey)) {
+    return [];
+  }
+
+  return await listLegacyAggregateRowsForSubject(ctx, {
+    audience,
+    contextKey,
+    subject,
+    visibilityCache,
+  });
+}
+
+async function listScopedAggregateRowsForAudience(
+  ctx: QueryCtx,
+  {
+    audience,
+    contextKey,
+    limit,
+    visibilityCache,
+  }: {
+    audience: KnowledgeContextExpertAudience;
+    contextKey: string;
+    limit: number;
+    visibilityCache: Map<string, Promise<boolean>>;
+  },
+) {
+  const rows: ContextExpertiseAggregateRow[] = [];
+  const seenAggregateKeys = new Set<string>();
+  const orbitEligibilityCache = new Map<string, Promise<boolean>>();
+
+  for (const scope of getAudienceScopes(audience)) {
+    const scopeRows = await ctx.db
+      .query("contextExpertiseAggregates")
+      .withIndex(
+        "by_context_audience_scope_expertise",
+        (q) =>
+          q
+            .eq("contextKey", contextKey)
+            .eq("audienceScopeKind", scope.audienceScopeKind)
+            .eq("audienceScopeTargetKey", scope.audienceScopeTargetKey),
+      )
+      .order("desc")
+      .take(limit);
+
+    for (const row of scopeRows) {
+      const aggregateKey = getAggregateAudienceScopedSubjectKey(row);
+      if (
+        aggregateKey === null ||
+        seenAggregateKeys.has(aggregateKey) ||
+        !(await isAggregateVisibleToExpertAudience(ctx, row, audience, {
+          globalVisibilityCache: visibilityCache,
+          orbitEligibilityCache,
+        }))
+      ) {
+        continue;
+      }
+
+      seenAggregateKeys.add(aggregateKey);
+      rows.push(row);
+    }
+  }
+
+  return rows;
+}
+
+async function listScopedAggregateRowsForSubject(
+  ctx: QueryCtx,
+  {
+    audience,
+    contextKey,
+    subject,
+  }: {
+    audience: KnowledgeContextExpertAudience;
+    contextKey: string;
+    subject: ContextExpertSubjectSelector;
+  },
+) {
+  const rows: ContextExpertiseAggregateRow[] = [];
+
+  for (const scope of getAudienceScopes(audience)) {
+    const row =
+      subject.subjectKind === "user"
+        ? await ctx.db
+            .query("contextExpertiseAggregates")
+            .withIndex(
+              "by_user_context_audience_scope",
+              (q) =>
+                q
+                  .eq("subjectUserId", subject.subjectUserId)
+                  .eq("contextKey", contextKey)
+                  .eq("audienceScopeKind", scope.audienceScopeKind)
+                  .eq("audienceScopeTargetKey", scope.audienceScopeTargetKey),
+            )
+            .first()
+        : await ctx.db
+            .query("contextExpertiseAggregates")
+            .withIndex(
+              "by_person_context_audience_scope",
+              (q) =>
+                q
+                  .eq(
+                    "subjectPersonReferentId",
+                    subject.subjectPersonReferentId,
+                  )
+                  .eq("contextKey", contextKey)
+                  .eq("audienceScopeKind", scope.audienceScopeKind)
+                  .eq("audienceScopeTargetKey", scope.audienceScopeTargetKey),
+            )
+            .first();
+
+    if (row) {
+      rows.push(row);
+    }
+  }
+
+  return rows;
+}
+
+async function listLegacyAggregateRowsForAudience(
+  ctx: QueryCtx,
+  {
+    audience,
+    contextKey,
+    limit,
+    scopedRows,
+    visibilityCache,
+  }: {
+    audience: KnowledgeContextExpertAudience;
+    contextKey: string;
+    limit: number;
+    scopedRows: ContextExpertiseAggregateRow[];
+    visibilityCache: Map<string, Promise<boolean>>;
+  },
+) {
+  const scopedSubjectKeys = new Set(
+    scopedRows
+      .map((row) => getAggregateSubjectSelector(row))
+      .filter((subject): subject is ContextExpertSubjectSelector => subject !== null)
+      .map(getSubjectKey),
+  );
+  const orbitEligibilityCache = new Map<string, Promise<boolean>>();
+  const legacyRows = await ctx.db
+    .query("contextExpertiseAggregates")
+    .withIndex("by_contextKey_and_contextExpertiseScore", (q) =>
+      q.eq("contextKey", contextKey),
+    )
+    .order("desc")
+    .take(limit);
+  const fallbackRows: ContextExpertiseAggregateRow[] = [];
+
+  for (const row of legacyRows) {
+    const subject = getAggregateSubjectSelector(row);
+    if (subject === null) {
+      continue;
+    }
+
+    const subjectKey = getSubjectKey(subject);
+    if (
+      isAudienceScopedAggregate(row) ||
+      scopedSubjectKeys.has(subjectKey) ||
+      (await hasAnyScopedAggregateForSubject(ctx, subject, contextKey)) ||
+      !(await isAggregateVisibleToExpertAudience(ctx, row, audience, {
+        globalVisibilityCache: visibilityCache,
+        orbitEligibilityCache,
+      }))
+    ) {
+      continue;
+    }
+
+    fallbackRows.push(row);
+  }
+
+  return fallbackRows;
+}
+
+async function listLegacyAggregateRowsForSubject(
+  ctx: QueryCtx,
+  {
+    audience,
+    contextKey,
+    subject,
+    visibilityCache,
+  }: {
+    audience: KnowledgeContextExpertAudience;
+    contextKey: string;
+    subject: ContextExpertSubjectSelector;
+    visibilityCache: Map<string, Promise<boolean>>;
+  },
+) {
+  const orbitEligibilityCache = new Map<string, Promise<boolean>>();
+  const rows = await listAggregateRowsForSubject(ctx, subject, contextKey);
+
+  const legacyRows: ContextExpertiseAggregateRow[] = [];
+  for (const row of rows) {
+    if (
+      !isAudienceScopedAggregate(row) &&
+      (await isAggregateVisibleToExpertAudience(ctx, row, audience, {
+        globalVisibilityCache: visibilityCache,
+        orbitEligibilityCache,
+      }))
+    ) {
+      legacyRows.push(row);
+    }
+  }
+
+  return legacyRows;
+}
+
+async function hasAnyScopedAggregateForSubject(
+  ctx: QueryCtx,
+  subject: ContextExpertSubjectSelector,
+  contextKey: string,
+) {
+  const rows = await listAggregateRowsForSubject(ctx, subject, contextKey);
+
+  return rows.some(isAudienceScopedAggregate);
+}
+
+async function listAggregateRowsForSubject(
+  ctx: QueryCtx,
+  subject: ContextExpertSubjectSelector,
+  contextKey: string,
+) {
+  if (subject.subjectKind === "user") {
+    return await ctx.db
+      .query("contextExpertiseAggregates")
+      .withIndex("by_subjectUserId_and_contextKey", (q) =>
+        q.eq("subjectUserId", subject.subjectUserId).eq("contextKey", contextKey),
+      )
+      .take(CONTEXT_EXPERTISE_AGGREGATE_CANDIDATE_LIMIT);
+  }
+
+  return await ctx.db
+    .query("contextExpertiseAggregates")
+    .withIndex("by_subjectPersonReferentId_and_contextKey", (q) =>
+      q
+        .eq("subjectPersonReferentId", subject.subjectPersonReferentId)
+        .eq("contextKey", contextKey),
+    )
+    .take(CONTEXT_EXPERTISE_AGGREGATE_CANDIDATE_LIMIT);
+}
+
+function getAudienceScopes(
+  audience: KnowledgeContextExpertAudience,
+): ContextExpertiseAudienceScope[] {
+  if (audience.kind === "global") {
+    return [{ audienceScopeKind: "public", audienceScopeTargetKey: "public" }];
+  }
+
+  return [
+    { audienceScopeKind: "public", audienceScopeTargetKey: "public" },
+    ...Array.from(audience.organizationReferentIds).map(
+      (organizationReferentId) => ({
+        audienceScopeKind: "organization" as const,
+        audienceScopeTargetKey: organizationReferentId,
+      }),
+    ),
+  ];
+}
+
+function isAudienceScopedAggregate(aggregate: ContextExpertiseAggregateRow) {
+  return (
+    aggregate.audienceScopeKind !== undefined &&
+    aggregate.audienceScopeTargetKey !== undefined
+  );
+}
+
+function getContextExpertSubjectSelector({
+  subjectPersonReferentId,
+  subjectUserId,
+}: {
+  subjectPersonReferentId?: Id<"referents">;
+  subjectUserId?: Id<"users">;
+}): ContextExpertSubjectSelector {
+  if (subjectUserId !== undefined && subjectPersonReferentId !== undefined) {
+    throw new Error("Context Expert detail can only be requested for one subject.");
+  }
+
+  if (subjectUserId !== undefined) {
+    return { subjectKind: "user", subjectUserId };
+  }
+
+  if (subjectPersonReferentId !== undefined) {
+    return { subjectKind: "person", subjectPersonReferentId };
+  }
+
+  throw new Error("Context Expert detail requires a subject.");
+}
+
+function getAggregateSubjectSelector(
+  aggregate: Pick<
+    ContextExpertiseAggregateRow,
+    "subjectPersonReferentId" | "subjectUserId"
+  >,
+): ContextExpertSubjectSelector | null {
+  if (aggregate.subjectUserId !== undefined) {
+    return {
+      subjectKind: "user",
+      subjectUserId: aggregate.subjectUserId,
+    };
+  }
+
+  if (aggregate.subjectPersonReferentId !== undefined) {
+    return {
+      subjectKind: "person",
+      subjectPersonReferentId: aggregate.subjectPersonReferentId,
+    };
+  }
+
+  return null;
+}
+
+function getSubjectKey(subject: ContextExpertSubjectSelector) {
+  return subject.subjectKind === "user"
+    ? `user:${subject.subjectUserId}`
+    : `person:${subject.subjectPersonReferentId}`;
+}
+
+function getAggregateSubjectSortKey(
+  aggregate: Pick<
+    ContextExpertiseAggregateRow,
+    "subjectPersonReferentId" | "subjectUserId"
+  >,
+) {
+  const subject = getAggregateSubjectSelector(aggregate);
+  return subject === null ? "" : getSubjectKey(subject);
+}
+
+function getAggregateAudienceScopedSubjectKey(
+  aggregate: ContextExpertiseAggregateRow,
+) {
+  const subject = getAggregateSubjectSelector(aggregate);
+  if (subject === null) {
+    return null;
+  }
+
+  return `${getSubjectKey(subject)}:${aggregate.audienceScopeKind ?? ""}:${
+    aggregate.audienceScopeTargetKey ?? ""
+  }`;
+}
+
+function combineAggregateRowsBySubject(
+  rows: ContextExpertiseAggregateRow[],
+): ContextExpertiseAggregateSummary[] {
+  const aggregates = new Map<
+    string,
+    ContextExpertiseAggregateSummary & { signalScore: number }
+  >();
+
+  for (const row of [...rows].sort(compareAggregateRowsForMerge)) {
+    const subject = getAggregateSubjectSelector(row);
+    if (subject === null) {
+      continue;
+    }
+
+    const subjectKey = getSubjectKey(subject);
+    const existing = aggregates.get(subjectKey);
+    if (!existing) {
+      aggregates.set(subjectKey, {
+        ...(row.subjectUserId === undefined
+          ? {}
+          : { subjectUserId: row.subjectUserId }),
+        ...(row.subjectPersonReferentId === undefined
+          ? {}
+          : { subjectPersonReferentId: row.subjectPersonReferentId }),
+        contextKey: row.contextKey,
+        contextTagIds: row.contextTagIds,
+        contextExpertiseScore: row.contextExpertiseScore,
+        contextExpertiseMaturity: row.contextExpertiseMaturity,
+        evidenceCount: row.evidenceCount,
+        feedbackCount: row.feedbackCount,
+        latestEvidenceAt: row.latestEvidenceAt,
+        postCount: row.postCount,
+        signalScore: getAggregateSignalScore(row),
+        topSupportingEntryIds: row.topSupportingEntryIds,
+      });
+      continue;
+    }
+
+    existing.evidenceCount += row.evidenceCount;
+    existing.feedbackCount += row.feedbackCount;
+    existing.postCount += row.postCount;
+    existing.latestEvidenceAt = Math.max(
+      existing.latestEvidenceAt,
+      row.latestEvidenceAt,
+    );
+    existing.signalScore = Math.max(
+      existing.signalScore,
+      getAggregateSignalScore(row),
+    );
+    existing.contextExpertiseMaturity = getContextExpertiseMaturity(
+      existing.evidenceCount,
+    );
+    existing.contextExpertiseScore = getAggregateContextExpertiseScore(
+      existing.signalScore,
+      existing.evidenceCount,
+    );
+    existing.topSupportingEntryIds = mergeTopSupportingEntryIds(
+      existing.topSupportingEntryIds,
+      row.topSupportingEntryIds,
+    );
+  }
+
+  return Array.from(aggregates.values()).map(({ signalScore: _signalScore, ...row }) => row);
+}
+
+function compareAggregateRowsForMerge(
+  first: ContextExpertiseAggregateRow,
+  second: ContextExpertiseAggregateRow,
+) {
+  return (
+    second.contextExpertiseScore - first.contextExpertiseScore ||
+    second.contextExpertiseMaturity - first.contextExpertiseMaturity ||
+    second.latestEvidenceAt - first.latestEvidenceAt ||
+    compareStrings(getAggregateSubjectSortKey(first), getAggregateSubjectSortKey(second))
+  );
+}
+
+function mergeTopSupportingEntryIds(
+  currentEntryIds: Array<Id<"knowledgeEntries">>,
+  nextEntryIds: Array<Id<"knowledgeEntries">>,
+) {
+  const merged: Array<Id<"knowledgeEntries">> = [];
+  for (const entryId of [...currentEntryIds, ...nextEntryIds]) {
+    if (!merged.includes(entryId)) {
+      merged.push(entryId);
+    }
+    if (merged.length >= MAX_EXPERT_DETAIL_CONTRIBUTION_LIMIT) {
+      break;
+    }
+  }
+
+  return merged;
+}
+
+async function getKnowledgeContextExpertAudience(
+  ctx: QueryCtx,
+  expertScope: KnowledgeContextExpertScope | undefined,
+): Promise<KnowledgeContextExpertAudience | null> {
+  if (expertScope === undefined) {
+    return null;
+  }
+
+  if (expertScope === "global") {
+    await requireAppAccess(ctx);
+    return { kind: "global" };
+  }
+
+  const access = await requireAppAccess(ctx);
+  return {
+    kind: "orbit",
+    organizationReferentIds: new Set(
+      access.organizations.map(
+        (organization) => organization.organizationReferentId,
+      ),
+    ),
+    viewerUserId: access.userId,
+  };
+}
+
+async function isAggregateVisibleToExpertAudience(
+  ctx: QueryCtx,
+  aggregate: ContextExpertiseAggregateRow,
+  audience: KnowledgeContextExpertAudience | null,
+  {
+    globalVisibilityCache,
+    orbitEligibilityCache,
+  }: {
+    globalVisibilityCache: Map<string, Promise<boolean>>;
+    orbitEligibilityCache: Map<string, Promise<boolean>>;
+  },
+) {
+  if (audience === null) {
+    return true;
+  }
+
+  if (audience.kind === "global") {
+    if (aggregate.visibilityKind !== "public") {
+      return false;
+    }
+
+    const subject = getAggregateSubjectSelector(aggregate);
+    if (subject === null) {
+      return false;
+    }
+
+    return await isSubjectVisibleToExpertAudience(ctx, subject, audience, {
+      globalVisibilityCache,
+      orbitEligibilityCache,
+    });
+  }
+
+  const subject = getAggregateSubjectSelector(aggregate);
+  if (subject === null) {
+    return false;
+  }
+
+  return (
+    isVisibilityScopeAccessibleToExpertAudience(
+      aggregate.visibilityKind,
+      aggregate.visibilityTargetKey,
+      audience,
+    ) &&
+    (await isSubjectVisibleToExpertAudience(ctx, subject, audience, {
+      globalVisibilityCache,
+      orbitEligibilityCache,
+    }))
+  );
+}
+
+async function isSubjectVisibleToExpertAudience(
+  ctx: QueryCtx,
+  subject: ContextExpertSubjectSelector,
+  audience: KnowledgeContextExpertAudience,
+  {
+    globalVisibilityCache,
+    orbitEligibilityCache,
+  }: {
+    globalVisibilityCache: Map<string, Promise<boolean>>;
+    orbitEligibilityCache: Map<string, Promise<boolean>>;
+  },
+) {
+  if (subject.subjectKind === "person") {
+    return (
+      audience.kind === "global" &&
+      (await isPersonGlobalExpertVisibilityAllowed(
+        ctx,
+        subject.subjectPersonReferentId,
+        globalVisibilityCache,
+      ))
+    );
+  }
+
+  if (audience.kind === "global") {
+    return await getGlobalExpertVisibilityEnabled(
+      ctx,
+      subject.subjectUserId,
+      globalVisibilityCache,
+    );
+  }
+
+  return await isSubjectInExpertOrbit(
+    ctx,
+    subject.subjectUserId,
+    audience,
+    orbitEligibilityCache,
+  );
+}
+
+async function isSubjectInExpertOrbit(
+  ctx: QueryCtx,
+  subjectUserId: Id<"users">,
+  audience: Extract<KnowledgeContextExpertAudience, { kind: "orbit" }>,
+  cache: Map<string, Promise<boolean>>,
+) {
+  if (subjectUserId === audience.viewerUserId) {
+    return true;
+  }
+
+  const cacheKey = subjectUserId;
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    return await cached;
+  }
+
+  const eligibility = (async () => {
+    const memberships = await ctx.db
+      .query("memberships")
+      .withIndex("by_memberUserId_and_membershipStatus", (q) =>
+        q.eq("memberUserId", subjectUserId).eq("membershipStatus", "active"),
+      )
+      .take(50);
+
+    return memberships.some(
+      (membership) =>
+        membership.targetKind === "organization" &&
+        membership.organizationReferentId !== undefined &&
+        audience.organizationReferentIds.has(membership.organizationReferentId),
+    );
+  })();
+  cache.set(cacheKey, eligibility);
+
+  return await eligibility;
+}
+
+async function getGlobalExpertVisibilityEnabled(
+  ctx: QueryCtx,
+  subjectUserId: Id<"users">,
+  cache: Map<string, Promise<boolean>>,
+) {
+  const cacheKey = `user:${subjectUserId}`;
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    return await cached;
+  }
+
+  const visibility = (async () => {
+    const settings = await ctx.db
+      .query("contextExpertiseVisibilitySettings")
+      .withIndex("by_userId", (q) => q.eq("userId", subjectUserId))
+      .unique();
+
+    return settings?.globalExpertVisibilityEnabled ?? false;
+  })();
+  cache.set(cacheKey, visibility);
+
+  return await visibility;
+}
+
+async function isPersonGlobalExpertVisibilityAllowed(
+  ctx: QueryCtx,
+  personReferentId: Id<"referents">,
+  cache: Map<string, Promise<boolean>>,
+) {
+  const cacheKey = `person:${personReferentId}`;
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    return await cached;
+  }
+
+  const visibility = (async () => {
+    const setting = await ctx.db
+      .query("personContextExpertiseVisibilitySettings")
+      .withIndex("by_personReferentId", (q) =>
+        q.eq("personReferentId", personReferentId),
+      )
+      .unique();
+
+    return setting === null;
+  })();
+  cache.set(cacheKey, visibility);
+
+  return await visibility;
+}
+
+function isEntryVisibleInContextExpertDetail(
+  entry: Doc<"knowledgeEntries">,
+  audience: KnowledgeContextExpertAudience | null,
+) {
+  return isVisibilityScopeAccessibleToExpertAudience(
+    entry.visibilityKind,
+    entry.visibilityTargetKey,
+    audience,
+  );
+}
+
+function isVisibilityScopeAccessibleToExpertAudience(
+  visibilityKind: Doc<"knowledgeEntries">["visibilityKind"],
+  visibilityTargetKey: string,
+  audience: KnowledgeContextExpertAudience | null,
+) {
+  if (visibilityKind === "public") {
+    return true;
+  }
+
+  if (audience?.kind === "orbit" && visibilityKind === "organization") {
+    return audience.organizationReferentIds.has(
+      visibilityTargetKey as Id<"referents">,
+    );
+  }
+
+  return false;
+}
+
+function toAggregateKnowledgeContextExpert(
+  aggregate: ContextExpertiseAggregateSummary,
+  contributor: ContributorSummary,
+): KnowledgeContextExpert & { latestEvidenceAt: number } {
+  const expert = {
+    id: contributor.id,
+    name: contributor.name,
+    ...(contributor.subjectKind === undefined
+      ? {}
+      : { subjectKind: contributor.subjectKind }),
+    ...(contributor.subjectUserId === undefined
+      ? {}
+      : { subjectUserId: contributor.subjectUserId }),
+    ...(contributor.subjectPersonReferentId === undefined
+      ? {}
+      : { subjectPersonReferentId: contributor.subjectPersonReferentId }),
+    contextExpertiseMaturity: aggregate.contextExpertiseMaturity,
+    contextExpertiseScore: aggregate.contextExpertiseScore,
+    ...(aggregate.contextMatchKind === undefined
+      ? {}
+      : { contextMatchKind: aggregate.contextMatchKind }),
+    evidenceCount: aggregate.evidenceCount,
+    feedbackCount: aggregate.feedbackCount,
+    latestEvidenceAt: aggregate.latestEvidenceAt,
+    postCount: aggregate.postCount,
+  };
+
+  return contributor.href === undefined
+    ? expert
+    : {
+        ...expert,
+        href: contributor.href,
+      };
+}
+
+function getAggregateSignalScore(aggregate: ContextExpertiseAggregateRow) {
+  return getEstimatedContextExpertiseSignalScoreFromAggregate(aggregate);
+}
+
+function getAggregateContextExpertiseScore(
+  signalScore: number,
+  evidenceCount: number,
+) {
+  return getContextExpertiseAggregateScore(signalScore, evidenceCount);
+}
+
 function toKnowledgeContextExpert(
   aggregate: ContributorSummary & {
-    contributionCount: number;
     latestUpdatedAt: number;
     maxHumanWeight: number;
+    postCount: number;
     totalHumanWeight: number;
   },
 ): KnowledgeContextExpert & { latestUpdatedAt: number } {
-  const averageHumanWeight =
-    aggregate.totalHumanWeight / aggregate.contributionCount;
+  const averageHumanWeight = aggregate.totalHumanWeight / aggregate.postCount;
   const expert = {
     id: aggregate.id,
     name: aggregate.name,
-    averageHumanWeight: Math.round(averageHumanWeight),
-    contributionCount: aggregate.contributionCount,
+    contextExpertiseMaturity: getContextExpertiseMaturity(aggregate.postCount),
     latestUpdatedAt: aggregate.latestUpdatedAt,
     contextExpertiseScore: getContextExpertiseScore(
       averageHumanWeight,
-      aggregate.contributionCount,
+      aggregate.postCount,
       aggregate.maxHumanWeight,
     ),
+    evidenceCount: aggregate.postCount,
+    feedbackCount: 0,
+    postCount: aggregate.postCount,
   };
 
   return aggregate.href === undefined
@@ -794,13 +2105,13 @@ function toKnowledgeContextExpert(
 
 function getContextExpertiseScore(
   averageHumanWeight: number,
-  contributionCount: number,
+  postCount: number,
   maxHumanWeight: number,
 ) {
   // Temporary heuristic until durable Context Expertise Evidence drives this score.
   return Math.round(
     averageHumanWeight +
-      Math.min(contributionCount, 5) * EXPERT_CONTRIBUTION_BONUS +
+      getContextExpertiseEvidenceCountScoreBonus(postCount) +
       Math.max(0, maxHumanWeight - averageHumanWeight) * 0.1,
   );
 }
@@ -859,28 +2170,62 @@ function compareEntryHumanWeight(
 }
 
 function compareKnowledgeContextExperts(
-  first: KnowledgeContextExpert & { latestUpdatedAt?: number },
-  second: KnowledgeContextExpert & { latestUpdatedAt?: number },
+  first: KnowledgeContextExpert & {
+    latestEvidenceAt?: number;
+    latestUpdatedAt?: number;
+  },
+  second: KnowledgeContextExpert & {
+    latestEvidenceAt?: number;
+    latestUpdatedAt?: number;
+  },
 ) {
   return (
     second.contextExpertiseScore - first.contextExpertiseScore ||
-    second.averageHumanWeight - first.averageHumanWeight ||
-    second.contributionCount - first.contributionCount ||
-    (second.latestUpdatedAt ?? 0) - (first.latestUpdatedAt ?? 0) ||
+    second.contextExpertiseMaturity - first.contextExpertiseMaturity ||
+    second.evidenceCount - first.evidenceCount ||
+    second.postCount - first.postCount ||
+    second.feedbackCount - first.feedbackCount ||
+    getExpertFreshness(second) - getExpertFreshness(first) ||
     compareStrings(first.name, second.name) ||
     compareStrings(first.id, second.id)
   );
 }
 
+function getExpertFreshness(
+  expert: KnowledgeContextExpert & {
+    latestEvidenceAt?: number;
+    latestUpdatedAt?: number;
+  },
+) {
+  return expert.latestEvidenceAt ?? expert.latestUpdatedAt ?? 0;
+}
+
 function removeExpertSortFields(
-  expert: KnowledgeContextExpert & { latestUpdatedAt?: number },
+  expert: KnowledgeContextExpert & {
+    latestEvidenceAt?: number;
+    latestUpdatedAt?: number;
+  },
 ): KnowledgeContextExpert {
   const cleanExpert: KnowledgeContextExpert = {
     id: expert.id,
     name: expert.name,
-    averageHumanWeight: expert.averageHumanWeight,
-    contributionCount: expert.contributionCount,
+    ...(expert.subjectKind === undefined
+      ? {}
+      : { subjectKind: expert.subjectKind }),
+    ...(expert.subjectUserId === undefined
+      ? {}
+      : { subjectUserId: expert.subjectUserId }),
+    ...(expert.subjectPersonReferentId === undefined
+      ? {}
+      : { subjectPersonReferentId: expert.subjectPersonReferentId }),
+    contextExpertiseMaturity: expert.contextExpertiseMaturity,
     contextExpertiseScore: expert.contextExpertiseScore,
+    ...(expert.contextMatchKind === undefined
+      ? {}
+      : { contextMatchKind: expert.contextMatchKind }),
+    evidenceCount: expert.evidenceCount,
+    feedbackCount: expert.feedbackCount,
+    postCount: expert.postCount,
   };
 
   return expert.href === undefined
@@ -893,6 +2238,36 @@ function removeExpertSortFields(
 
 async function getContributorSummary(
   ctx: QueryCtx,
+  aggregate: Pick<
+    ContextExpertiseAggregateSummary,
+    "subjectPersonReferentId" | "subjectUserId"
+  >,
+  contributorCache: Map<string, Promise<ContributorSummary>>,
+): Promise<ContributorSummary> {
+  const subject = getAggregateSubjectSelector(aggregate);
+  if (subject === null) {
+    return {
+      id: "unknown",
+      name: "Unknown Contributor",
+    };
+  }
+
+  const cacheKey = getSubjectKey(subject);
+  const cachedContributor = contributorCache.get(cacheKey);
+  if (cachedContributor) {
+    return await cachedContributor;
+  }
+
+  const contributor =
+    subject.subjectKind === "user"
+      ? loadUserContributorSummary(ctx, subject.subjectUserId)
+      : loadPersonContributorSummary(ctx, subject.subjectPersonReferentId);
+  contributorCache.set(cacheKey, contributor);
+  return await contributor;
+}
+
+async function getUserContributorSummary(
+  ctx: QueryCtx,
   userId: Id<"users"> | undefined,
   contributorCache: Map<string, Promise<ContributorSummary>>,
 ): Promise<ContributorSummary> {
@@ -903,18 +2278,18 @@ async function getContributorSummary(
     };
   }
 
-  const cacheKey = userId;
+  const cacheKey = `user:${userId}`;
   const cachedContributor = contributorCache.get(cacheKey);
   if (cachedContributor) {
     return await cachedContributor;
   }
 
-  const contributor = loadContributorSummary(ctx, userId);
+  const contributor = loadUserContributorSummary(ctx, userId);
   contributorCache.set(cacheKey, contributor);
   return await contributor;
 }
 
-async function loadContributorSummary(
+async function loadUserContributorSummary(
   ctx: QueryCtx,
   userId: Id<"users">,
 ): Promise<ContributorSummary> {
@@ -930,6 +2305,45 @@ async function loadContributorSummary(
     id: userId,
     name: getUserDisplayName(user),
   };
+}
+
+async function loadPersonContributorSummary(
+  ctx: QueryCtx,
+  personReferentId: Id<"referents">,
+): Promise<ContributorSummary> {
+  const referent = await ctx.db.get(personReferentId);
+  if (!referent || referent.knowledgeType !== "person") {
+    return {
+      id: getSubjectKey({
+        subjectKind: "person",
+        subjectPersonReferentId: personReferentId,
+      }),
+      name: "Unknown Person",
+      subjectKind: "person",
+      subjectPersonReferentId: personReferentId,
+    };
+  }
+
+  const tag = await ctx.db
+    .query("tags")
+    .withIndex("by_referentId", (q) => q.eq("referentId", personReferentId))
+    .first();
+  const summary = {
+    id: getSubjectKey({
+      subjectKind: "person",
+      subjectPersonReferentId: personReferentId,
+    }),
+    name: referent.canonicalName,
+    subjectKind: "person" as const,
+    subjectPersonReferentId: personReferentId,
+  };
+
+  return tag === null
+    ? summary
+    : {
+        ...summary,
+        href: `/goto/${encodeURIComponent(tag.lookupKey)}`,
+      };
 }
 
 async function summarizeSlot(
@@ -1056,12 +2470,16 @@ function getSlotStatusOrder(status: Doc<"knowledgeSlots">["status"]) {
 }
 
 function normalizeActiveTagIds(activeTagIds: TagId[]) {
-  const uniqueTagIds = Array.from(new Set(activeTagIds)).sort(compareStrings);
+  const uniqueTagIds = normalizeContextExpertiseTagIds(activeTagIds) as TagId[];
   if (uniqueTagIds.length > MAX_ACTIVE_TAGS) {
     throw new Error(`Answer Feed supports at most ${MAX_ACTIVE_TAGS} active Tags.`);
   }
 
   return uniqueTagIds;
+}
+
+function getContextKey(tagIds: TagId[]) {
+  return getContextExpertiseContextKey(tagIds);
 }
 
 function normalizeLimit(
@@ -1080,6 +2498,13 @@ function getCandidateLimit(limit: number) {
   return Math.min(
     MAX_CANDIDATE_ITEMS,
     Math.max(MIN_CANDIDATE_ITEMS, limit * CANDIDATE_MULTIPLIER),
+  );
+}
+
+function getAggregateExpertCandidateLimit(limit: number) {
+  return Math.min(
+    MAX_CANDIDATE_ITEMS,
+    Math.max(CONTEXT_EXPERTISE_AGGREGATE_CANDIDATE_LIMIT, limit),
   );
 }
 

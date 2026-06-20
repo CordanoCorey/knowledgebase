@@ -16,9 +16,17 @@ _Avoid_: Recognized Context, role, personal saved set
 The Knowledge Context available to every user and organization by default, containing the Referents all users and organizations must acknowledge as infallible Recognized Context. In this application, the Global Knowledge Context contains Scripture.
 _Avoid_: Global Scripture Context, public folder, Bible folder
 
-**Global Search**:
-Search across everything the current User can access, independent of the current Active Knowledge Context. Global Search is not limited to public or Global Knowledge Context material.
-_Avoid_: Context search, public search, Global Knowledge Context search
+**Root Knowledge Context**:
+The conceptual master Knowledge Context containing the union of all knowledge in the application before User-specific access limits are applied. When no Tags are selected in the Knowledge Navigator, the User is located at the root of the knowledgebase rather than in the Global Knowledge Context.
+_Avoid_: Global Knowledge Context, All Knowledge Context, empty context
+
+**Accessible Root Knowledge Context**:
+The current User's permission-filtered view of the Root Knowledge Context. Root-level searching and browsing operate within the Accessible Root Knowledge Context rather than within the Global Knowledge Context.
+_Avoid_: Global Knowledge Context, public knowledge, all private knowledge
+
+**Root Search**:
+The internal name for search across the current User's Accessible Root Knowledge Context, independent of the current Active Knowledge Context. User-facing copy may say Search Everything, but product and implementation language should avoid Global Search for this concept.
+_Avoid_: Global Search, Context search, public search, Global Knowledge Context search
 
 **Tag**:
 A named, typed pointer to a Referent and the intended set of all knowledge about it, including content already stored in the application and relevant knowledge that has not yet been stored or tagged. A Tag is canonical to its Referent rather than scoped separately per user or organization.
@@ -29,7 +37,7 @@ A typed shape of knowledge the application understands, such as a Bible Passage,
 _Avoid_: Schema, entity type, file type
 
 **Knowledge Entry**:
-A typed, contextualized unit of knowledge in the application, whether created directly by a user or produced through Smart Storage. A Knowledge Entry represents one Referent of the same Knowledge Type and its Knowledge Context is constituted by its Tags.
+A typed, contextualized unit of knowledge in the application, whether seeded by the system, created directly by a User, or produced through Smart Storage. A Knowledge Entry represents one Referent of the same Knowledge Type, and its Tags constitute its Knowledge Context.
 _Avoid_: File, document, source, post
 
 **Entry Representation**:
@@ -137,8 +145,16 @@ A usually transient user request for knowledge, help, or work that is answered f
 _Avoid_: Prompt, query, chat message
 
 **Knowledge Composer**:
-A user-facing input surface for asking, searching, contributing, or shaping the Active Knowledge Context from one place, with the user's submission determining whether it creates a Knowledge Request, a Contribution, or context changes.
-_Avoid_: Chat box, search box, Add Tags control
+An umbrella term for user-facing input surfaces that can create durable knowledge or contribution intent, usually by creating a Contribution Submission or another intentional creation workflow. Query-only controls that search or select Tags are not Knowledge Composers.
+_Avoid_: Chat box, search box, Add Tags control, query input
+
+**Contribution Editor**:
+The specific Knowledge Composer in the Knowledge Page Shell for contributing future Answers from the current Knowledge Context. It may create a Contribution Submission or a direct Knowledge Entry depending on the User's contribution intent.
+_Avoid_: Knowledge Composer when referring to the specific editor, contribution box, ask box
+
+**Allowed Contribution Types**:
+The workflow-specific subset of authorable Knowledge Types that a Contribution Editor instance may create in its current placement. Allowed Contribution Types constrain the editor without changing which Knowledge Types exist globally.
+_Avoid_: Allowed Knowledge Types, Knowledge Type filter
 
 **Question**:
 A Knowledge Type for a durable question mapped to a Knowledge Context, preserving useful information about what parts of that Knowledge Context need to be connected or answered. A Question may be selected as a Tag to define a narrower Knowledge Context for future Knowledge Requests and Answers.
@@ -181,7 +197,7 @@ A Pinned Knowledge Page automatically seeded from a User's affiliation with a Sc
 _Avoid_: Required page, role, permanent navigation
 
 **Dashboard**:
-The user-facing place for Explore and Contribute when the Knowledge Navigator has no active Tags and the user is located in the Global Knowledge Context.
+The user-facing place for Explore and Contribute when the Knowledge Navigator has no active Tags and the user is located in the Accessible Root Knowledge Context.
 _Avoid_: Home page, global context page
 
 **Topic**:
@@ -197,12 +213,20 @@ A user-facing place for Explore and Contribute within a Knowledge Context determ
 _Avoid_: Topic, channel, folder, Dashboard, Referent Page
 
 **Referent Page**:
-The user-facing place for Explore and Contribute focused on one active Tag and the Referent it points to. A Referent Page is reached by going to a Tag rather than by opening a Knowledge Entry.
+The user-facing place for Explore and Contribute focused on one active Tag and the Referent it points to. Selecting a Knowledge Entry normally opens the Knowledge Page for its Represented Referent; selecting that Referent's Tag reaches the same page. Type Behavior may define exceptions for Knowledge Types whose navigation should point somewhere else.
 _Avoid_: Knowledge Entry page, Tag page, Folder View
 
 **Knowledge Navigator**:
-The user-facing control for selecting active Tags and thereby determining the current Knowledge Context. When no Tags are active in the Knowledge Navigator, the current location is the Global Knowledge Context.
+The user-facing control for selecting active Tags and thereby determining the current Knowledge Context. When no Tags are active in the Knowledge Navigator, the current location is the Accessible Root Knowledge Context.
 _Avoid_: Sidebar, filter, breadcrumb
+
+**Knowledge Navigator Query Input**:
+The query-only input inside the Knowledge Navigator for finding existing Tags of any Knowledge Type to add to the Active Knowledge Context or searching within that context. It does not create Knowledge Entries, Knowledge Requests, Questions, Contributions, Sources, or Tags.
+_Avoid_: Knowledge Composer, contribution box, ask box
+
+**Root Search Input**:
+The query-only header input for searching the Accessible Root Knowledge Context independent of the Active Knowledge Context or navigating to an existing Tag's Referent Page. It does not create Knowledge Entries, Knowledge Requests, Questions, Contributions, Sources, or Tags.
+_Avoid_: Global Search Input, Knowledge Composer, Global Knowledge Context search, public search
 
 **Words**:
 The base Knowledge Type used for a Referent when no more specific Knowledge Type is recognized by the application.
@@ -273,12 +297,12 @@ The identity-review act of resolving two Person Referents as the same human bein
 _Avoid_: Membership Claim, account merge, email match
 
 **Role**:
-The relation of a Person to a Knowledge Type or Knowledge Entry, such as author, teacher, student, speaker, parent, or invitee.
+The capacity in which a Person relates to a Referent, Knowledge Entry, Knowledge Slot, Membership, Organization, Group, or other domain object, such as author of a Book, speaker for a Sermon, student in a Group, parent in a Family, invitee to an Event, or administrator through a Membership.
 _Avoid_: Knowledge Type, user type
 
 **Active Role**:
-The Role a User is currently acting in while using the application, such as teacher, student, parent, church member, or administrator. Active Role may be unset in global contexts; when set, there is only one Active Role at a time, and it remains distinct from the User's current Knowledge Page or Active Knowledge Context.
-_Avoid_: Knowledge Page, Active Knowledge Context, account
+The Role a User is currently acting in while using the application, often derived from a Membership Role, such as teacher, student, parent, church member, or administrator. Active Role may be unset by default, meaning no single Role is foregrounded even though the User may still be eligible to act through all their Roles; when set, there is only one Active Role at a time, and it remains distinct from the User's current Knowledge Page or Active Knowledge Context.
+_Avoid_: Knowledge Page, Active Knowledge Context, account, Membership
 
 **User**:
 A person with access to the application through an account. Every User is linked to one Person Knowledge Entry so the User can be tagged through that Person, but not every Person is a User.
@@ -297,8 +321,12 @@ A Knowledge Type for a collection of People, whether or not each Person is linke
 _Avoid_: User group, organization, audience
 
 **Membership**:
-The relationship between a Person and an Organization or Group, whether or not that Person is linked to a User account.
+The relationship between a Person and an Organization or Group, whether or not that Person is linked to a User account. A Membership may have a Membership Role, but the Membership itself is the durable relationship.
 _Avoid_: Invitation, account membership, user group
+
+**Membership Role**:
+The Role a Person has within a Membership, such as member, administrator, teacher, student, parent, or church member. A Membership Role qualifies the Person's relationship to the Organization or Group; it is distinct from the Membership itself and may inform the User's Active Role.
+_Avoid_: Membership, account type, permission
 
 **Pending Membership**:
 A Membership for a Person who has not yet been linked to a User account with proven identity.
@@ -388,8 +416,8 @@ _Avoid_: Knowledge Entry, evidence, Source
 A predefined request for one Knowledge Entry of a specified Knowledge Type within a specified Knowledge Context. A Knowledge Slot directs a user, group, organization, network, or open audience to Contribute a missing future Answer.
 _Avoid_: Todo, assignment, prompt, bounty, call to action
 
-**Fulfillment**:
-The state of a Knowledge Slot after it has received the requested Knowledge Entry.
+**Knowledge Slot Fulfillment**:
+The act or resulting state of satisfying a Knowledge Slot by contributing the requested Knowledge Entry. A fulfilled Knowledge Slot points to the Knowledge Entry that satisfies it.
 _Avoid_: Completion, submission, done
 
 **Subscription**:
@@ -417,11 +445,15 @@ The Smart Storage act of using external factual information to refine a Source w
 _Avoid_: AI authorship, generated answer, hallucination
 
 **Factual Provenance**:
-The evidence trail for an enriched fact in a Smart Storage Proposal or Knowledge Entry, identifying the external URL, Knowledge Entry, or model-only basis for the proposed fact. Factual Provenance may support the whole proposed entry or a specific factual field without changing who confirmed or owns the whole Knowledge Entry.
+The evidence trail for an enriched fact in a Smart Storage Proposal or Knowledge Entry, identifying the external URL, Knowledge Entry, or model-only basis for the proposed fact. Factual Provenance may support the whole proposed entry or a specific Factual Field without changing who confirmed or owns the whole Knowledge Entry.
 _Avoid_: Source, ownership, proof
 
+**Factual Field**:
+A type-specific factual part of a Smart Storage Proposal or Knowledge Entry whose value may be enriched, reviewed, and supported by Factual Provenance, such as a Book author, Event date, or Place location.
+_Avoid_: Source, representation, free-form note
+
 **Proposal Confidence**:
-A coarse Smart Storage review signal for how well a Smart Storage Proposal or enriched factual field appears supported by its type match, candidates, and Factual Provenance. Proposal Confidence guides review but is not Human Weight, truth, or Gold Layer confirmation.
+A coarse Smart Storage review signal for how well a Smart Storage Proposal or enriched Factual Field appears supported by its type match, candidates, and Factual Provenance. Proposal Confidence guides review but is not Human Weight, truth, or Gold Layer confirmation.
 _Avoid_: Human Weight, truth score, AI quality score
 
 **Smart Storage Proposal**:

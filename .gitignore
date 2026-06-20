@@ -9,5 +9,7 @@ issues/
 !docs/adr/*.md
 !docs/agents/
 !docs/agents/*.md
+!docs/handoffs/
+!docs/handoffs/*.md
 .vite/
 *.tsbuildinfo
