@@ -26,7 +26,7 @@ type SeedActionTestResult = {
 
 type InboxNotification = {
   id: Id<"userNotifications">;
-  kind: "answer" | "event" | "knowledgeSlot" | "subscription";
+  kind: "access" | "answer" | "event" | "knowledgeSlot" | "subscription";
   receivedAt: number;
   status: "read" | "unread";
   title: string;
@@ -46,6 +46,13 @@ type InboxResult = {
 describe("User Notifications", () => {
   test("lists current-user inbox notifications newest first with summary counts", async () => {
     const { authed, t, userId } = await seedAllowedUser();
+    await insertNotification(t, {
+      kind: "access",
+      receivedAt: 700,
+      status: "unread",
+      title: "Identity review needed",
+      userId,
+    });
     await insertNotification(t, {
       kind: "knowledgeSlot",
       receivedAt: 300,
@@ -71,16 +78,17 @@ describe("User Notifications", () => {
     const inbox = await authed.query(api.userNotifications.listForInbox, {}) as InboxResult;
 
     expect(inbox.notifications.map((notification) => notification.title)).toEqual([
+      "Identity review needed",
       "Event reminder",
       "Requested answer",
       "Subscription update",
     ]);
     expect(inbox.summary).toEqual({
-      allCount: 3,
+      allCount: 4,
       eventCount: 1,
       knowledgeSlotCount: 1,
-      latestReceivedAt: 500,
-      unreadCount: 2,
+      latestReceivedAt: 700,
+      unreadCount: 3,
     });
   });
 
@@ -299,7 +307,7 @@ function getSeededUser(
 async function insertNotification(
   t: ReturnType<typeof convexTest>,
   input: {
-    kind: "answer" | "event" | "knowledgeSlot" | "subscription";
+    kind: "access" | "answer" | "event" | "knowledgeSlot" | "subscription";
     receivedAt: number;
     status: "read" | "unread";
     title: string;

@@ -16,7 +16,10 @@ import {
 import { useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { ContributionEditor } from "./ContributionEditor";
-import { KnowledgeTypeBadge } from "./components/KnowledgeTypeIcon";
+import {
+  KnowledgeTypeBadge,
+  KnowledgeTypeIcon,
+} from "./components/KnowledgeTypeIcon";
 import { ReferentTagLink } from "./components/ReferentTagLink";
 import {
   AUTHORABLE_KNOWLEDGE_TYPES,
@@ -321,18 +324,32 @@ export function SmartStoragePlayground({
 
           <label className="kb-smart-feedback-field">
             <span>Intended Type</span>
-            <select
-              onChange={(event) =>
-                setIntendedKnowledgeType(event.currentTarget.value as AuthorableKnowledgeType)
-              }
-              value={intendedKnowledgeType}
+            <span
+              className="kb-knowledge-type-select-control"
+              data-knowledge-type={intendedKnowledgeType}
             >
-              {AUTHORABLE_KNOWLEDGE_TYPES.map((knowledgeType) => (
-                <option key={knowledgeType} value={knowledgeType}>
-                  {formatKnowledgeTypeLabel(knowledgeType)}
-                </option>
-              ))}
-            </select>
+              <KnowledgeTypeIcon
+                className="kb-knowledge-type-select-icon"
+                knowledgeType={intendedKnowledgeType}
+              />
+              <select
+                data-knowledge-type={intendedKnowledgeType}
+                onChange={(event) =>
+                  setIntendedKnowledgeType(event.currentTarget.value as AuthorableKnowledgeType)
+                }
+                value={intendedKnowledgeType}
+              >
+                {AUTHORABLE_KNOWLEDGE_TYPES.map((knowledgeType) => (
+                  <option
+                    data-knowledge-type={knowledgeType}
+                    key={knowledgeType}
+                    value={knowledgeType}
+                  >
+                    {formatKnowledgeTypeLabel(knowledgeType)}
+                  </option>
+                ))}
+              </select>
+            </span>
           </label>
 
           <label className="kb-smart-feedback-field">
@@ -348,7 +365,11 @@ export function SmartStoragePlayground({
             <p className="kb-smart-captured-entry" role="status">
               <FileText aria-hidden="true" />
               <span>
-                Captured {formatKnowledgeTypeLabel(submittedContribution.knowledgeType)}
+                Captured{" "}
+                <KnowledgeTypeBadge
+                  className="kb-smart-captured-type"
+                  knowledgeType={submittedContribution.knowledgeType}
+                />
               </span>
             </p>
           ) : null}
@@ -391,7 +412,7 @@ function SmartStorageContextHints({
       <span>Context Hints</span>
       <ul>
         {tags.map((tag) => (
-          <li key={tag.id}>
+          <li data-knowledge-type={tag.knowledgeType} key={tag.id}>
             <ReferentTagLink
               onNavigateToHref={onNavigateToHref}
               showIcon

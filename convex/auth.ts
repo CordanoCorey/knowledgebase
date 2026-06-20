@@ -66,6 +66,7 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
             user,
             normalizedEmail,
             Date.now(),
+            { claimSource: "verifiedPrimaryEmail" },
           );
         }
       }

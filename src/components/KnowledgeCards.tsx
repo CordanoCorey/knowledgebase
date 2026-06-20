@@ -2,17 +2,22 @@ import {
   BookOpen,
   CalendarDays,
   FolderPlus,
+  MessageSquare,
+  Send,
   Tag,
   UserCircle,
 } from "lucide-react";
-import type { MouseEvent } from "react";
+import { useId, useState, type FormEvent, type MouseEvent } from "react";
 import {
   formatKnowledgeTypeLabel,
   getApplicableHumanWeight,
   type ContributorSummary,
+  type HumanWeightFeedbackInput,
+  type HumanWeightFeedbackKind,
   type KnowledgeEntrySummary,
   type KnowledgeSlotStatus,
   type KnowledgeSlotSummary,
+  isWeightBearingKnowledgeType,
 } from "../knowledgeContracts";
 import { KnowledgeTypeBadge, KnowledgeTypeIcon } from "./KnowledgeTypeIcon";
 import { ReferentTagLink } from "./ReferentTagLink";
@@ -20,6 +25,9 @@ import { ReferentTagLink } from "./ReferentTagLink";
 type KnowledgeEntryCardProps = {
   className?: string;
   entry: KnowledgeEntrySummary;
+  onHumanWeightFeedback?: (
+    input: HumanWeightFeedbackInput,
+  ) => Promise<void> | void;
   onNavigateToHref?: (href: string) => void;
 };
 
@@ -44,12 +52,58 @@ const CARD_DATE_FORMATTER = new Intl.DateTimeFormat("en", {
   year: "numeric",
 });
 
+const HUMAN_WEIGHT_FEEDBACK_OPTIONS: Array<{
+  id: HumanWeightFeedbackKind;
+  label: string;
+}> = [
+  { id: "recognize", label: "Recognize" },
+  { id: "used", label: "Used" },
+  { id: "notHuman", label: "Not human" },
+  { id: "wrongContext", label: "Wrong context" },
+];
+
+type FeedbackStatus = "idle" | "saving" | "saved" | "error";
+
 export function KnowledgeEntryCard({
   className,
   entry,
+  onHumanWeightFeedback,
   onNavigateToHref,
 }: KnowledgeEntryCardProps) {
   const humanWeight = getApplicableHumanWeight(entry);
+  const humanWeightConcern = entry.humanWeightConcern;
+  const humanWeightCredit = entry.humanWeightCredit;
+  const feedbackPanelId = useId();
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [feedbackKind, setFeedbackKind] =
+    useState<HumanWeightFeedbackKind>("recognize");
+  const [feedbackNote, setFeedbackNote] = useState("");
+  const [feedbackStatus, setFeedbackStatus] = useState<FeedbackStatus>("idle");
+  const canRecordHumanWeightFeedback =
+    isWeightBearingKnowledgeType(entry.knowledgeType) &&
+    onHumanWeightFeedback !== undefined;
+
+  async function handleHumanWeightFeedbackSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    if (!onHumanWeightFeedback) {
+      return;
+    }
+
+    setFeedbackStatus("saving");
+    try {
+      const trimmedNote = feedbackNote.trim();
+      await onHumanWeightFeedback({
+        entry,
+        feedbackKind,
+        ...(trimmedNote === "" ? {} : { feedbackNote: trimmedNote }),
+      });
+      setFeedbackStatus("saved");
+    } catch {
+      setFeedbackStatus("error");
+    }
+  }
 
   return (
     <article
@@ -99,6 +153,18 @@ export function KnowledgeEntryCard({
             <dd>{humanWeight}/100</dd>
           </div>
         )}
+        {humanWeightConcern === undefined ? null : (
+          <div className="kb-human-weight-concern">
+            <dt>Human Weight Review</dt>
+            <dd>{formatHumanWeightConcern(humanWeightConcern)}</dd>
+          </div>
+        )}
+        {humanWeightCredit === undefined ? null : (
+          <div className="kb-human-weight-credit">
+            <dt>Human Weight Credits</dt>
+            <dd>{humanWeightCredit.label}</dd>
+          </div>
+        )}
       </dl>
 
       <TagList
@@ -109,13 +175,100 @@ export function KnowledgeEntryCard({
       />
 
       <footer className="kb-card-footer">
+        {canRecordHumanWeightFeedback ? (
+          <button
+            aria-controls={feedbackPanelId}
+            aria-expanded={isFeedbackOpen}
+            className="kb-card-action kb-human-weight-feedback-toggle"
+            onClick={() => setIsFeedbackOpen((isOpen) => !isOpen)}
+            type="button"
+          >
+            <MessageSquare aria-hidden="true" />
+            Feedback
+          </button>
+        ) : null}
         <a className="kb-card-action" href={entry.href}>
           <BookOpen aria-hidden="true" />
           Open Entry
         </a>
       </footer>
+
+      {isFeedbackOpen && onHumanWeightFeedback ? (
+        <form
+          aria-labelledby={`${feedbackPanelId}-heading`}
+          className="kb-human-weight-feedback"
+          id={feedbackPanelId}
+          onSubmit={handleHumanWeightFeedbackSubmit}
+          role="dialog"
+        >
+          <header>
+            <h4 id={`${feedbackPanelId}-heading`}>Human Weight Feedback</h4>
+          </header>
+          <div
+            aria-label="Human Weight Feedback kind"
+            className="kb-human-weight-feedback-options"
+            role="group"
+          >
+            {HUMAN_WEIGHT_FEEDBACK_OPTIONS.map((option) => (
+              <button
+                aria-pressed={feedbackKind === option.id}
+                data-active={feedbackKind === option.id ? "true" : undefined}
+                key={option.id}
+                onClick={() => {
+                  setFeedbackKind(option.id);
+                  setFeedbackStatus("idle");
+                }}
+                type="button"
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <label className="kb-human-weight-feedback-note">
+            <span>Note</span>
+            <textarea
+              maxLength={1000}
+              onChange={(event) => {
+                setFeedbackNote(event.target.value);
+                setFeedbackStatus("idle");
+              }}
+              rows={3}
+              value={feedbackNote}
+            />
+          </label>
+          <footer>
+            <button
+              className="kb-card-action kb-human-weight-feedback-submit"
+              disabled={feedbackStatus === "saving"}
+              type="submit"
+            >
+              <Send aria-hidden="true" />
+              {feedbackStatus === "saving" ? "Saving" : "Save"}
+            </button>
+            {feedbackStatus === "saved" ? (
+              <span className="kb-human-weight-feedback-status" role="status">
+                Feedback saved.
+              </span>
+            ) : null}
+            {feedbackStatus === "error" ? (
+              <span className="kb-human-weight-feedback-status" role="alert">
+                Feedback failed.
+              </span>
+            ) : null}
+          </footer>
+        </form>
+      ) : null}
     </article>
   );
+}
+
+function formatHumanWeightConcern(
+  concern: NonNullable<KnowledgeEntrySummary["humanWeightConcern"]>,
+) {
+  const expectationLabel =
+    concern.expectation === "required" ? "Required" : "Expected";
+
+  return `${expectationLabel} human substance below ${concern.threshold}/100.`;
 }
 
 function ContributorPanel({
@@ -185,7 +338,10 @@ export function KnowledgeSlotCard({
         className="kb-slot-missing-content"
       >
         <div className="kb-slot-missing-header">
-          <span className="kb-slot-missing-icon">
+          <span
+            className="kb-slot-missing-icon"
+            data-knowledge-type={slot.requestedKnowledgeType}
+          >
             <KnowledgeTypeIcon knowledgeType={slot.requestedKnowledgeType} />
           </span>
           <div className="kb-slot-missing-title">

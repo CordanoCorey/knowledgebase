@@ -14,8 +14,8 @@ import {
   organizationMembershipRole,
   type OrganizationMembershipRole,
 } from "./lib/organizationRoles";
+import { notifyPersonConsolidationReviewClaimant } from "./lib/userNotificationWrites";
 
-const BASE_HUMAN_WEIGHT = 0;
 const MAX_ORGANIZATION_ENTRIES_PER_REFERENT = 10;
 const MAX_ORGANIZATION_MEMBERS = 100;
 const organizationKind = v.union(
@@ -28,10 +28,55 @@ const organizationMemberStatus = v.union(
   v.literal("active"),
   v.literal("pending"),
 );
+const contactIdentityKind = v.union(v.literal("email"));
+const membershipClaimSource = v.union(
+  v.literal("verifiedContactIdentity"),
+  v.literal("verifiedPrimaryEmail"),
+);
+const personConsolidationReviewStatus = v.union(
+  v.literal("pending"),
+  v.literal("approved"),
+  v.literal("rejected"),
+);
+const personConsolidationReviewReason = v.union(
+  v.literal("placeholderHasMeaningfulIdentity"),
+);
+const organizationMembershipClaimPersonConsolidationEvidence = v.object({
+  approvedAt: v.number(),
+  pendingPersonName: v.string(),
+  pendingPersonReferentId: v.id("referents"),
+  resultingPersonName: v.string(),
+  resultingPersonReferentId: v.id("referents"),
+  reviewId: v.id("personConsolidationReviews"),
+});
+const organizationMembershipClaimEvidence = v.object({
+  claimedAt: v.number(),
+  claimedContactKind: contactIdentityKind,
+  claimedContactValue: v.string(),
+  claimSource: membershipClaimSource,
+  personConsolidation: v.optional(
+    organizationMembershipClaimPersonConsolidationEvidence,
+  ),
+});
+const organizationPersonConsolidationReviewEvidence = v.object({
+  claimedContactKind: contactIdentityKind,
+  claimedContactValue: v.string(),
+  claimSource: membershipClaimSource,
+  requestedAt: v.number(),
+  requestedByEmail: v.optional(v.string()),
+  reviewId: v.id("personConsolidationReviews"),
+  reviewReason: personConsolidationReviewReason,
+  reviewStatus: personConsolidationReviewStatus,
+  updatedAt: v.number(),
+});
 const organizationMember = v.object({
+  claimEvidence: v.optional(organizationMembershipClaimEvidence),
   email: v.optional(v.string()),
   membershipId: v.id("memberships"),
   name: v.string(),
+  personConsolidationReview: v.optional(
+    organizationPersonConsolidationReviewEvidence,
+  ),
   role: organizationMembershipRole,
   status: organizationMemberStatus,
   userId: v.optional(v.id("users")),
@@ -42,6 +87,22 @@ const organizationMembershipSettings = v.object({
   organizationEntryId: v.id("organizationEntries"),
   organizationKind,
   organizationReferentId: v.id("referents"),
+});
+const approvedPersonConsolidationReview = v.object({
+  membershipId: v.id("memberships"),
+  reviewStatus: v.literal("approved"),
+});
+const rejectedPersonConsolidationReview = v.object({
+  membershipId: v.id("memberships"),
+  reviewStatus: v.literal("rejected"),
+});
+const reopenedPersonConsolidationReview = v.object({
+  membershipId: v.id("memberships"),
+  reviewStatus: v.literal("pending"),
+});
+const withdrawnPendingOrganizationMember = v.object({
+  membershipId: v.id("memberships"),
+  membershipStatus: v.literal("inactive"),
 });
 
 type OrganizationKind = Doc<"organizationEntries">["organizationKind"];
@@ -98,7 +159,6 @@ export const createOrganizationAccount = mutation({
       createdByUserId: access.userId,
       discoverabilityKind: "public",
       discoverabilityTargetKey: "public",
-      humanWeight: BASE_HUMAN_WEIGHT,
       knowledgeType: "organization",
       previewText,
       primaryTagId,
@@ -233,6 +293,288 @@ export const addOrganizationMember = mutation({
   },
 });
 
+export const withdrawPendingOrganizationMember = mutation({
+  args: {
+    membershipId: v.id("memberships"),
+    organizationId: v.string(),
+  },
+  returns: withdrawnPendingOrganizationMember,
+  handler: async (ctx, args) => {
+    const organization = await getActiveOrganizationByRouteId(
+      ctx,
+      args.organizationId,
+    );
+    if (!organization) {
+      throw new Error("Organization account not found.");
+    }
+
+    await requireOrganizationAdmin(ctx, organization.organizationReferentId);
+    const membership = await ctx.db.get(args.membershipId);
+    if (
+      !membership ||
+      membership.organizationReferentId !== organization.organizationReferentId ||
+      membership.targetKind !== "organization"
+    ) {
+      throw new Error("Pending membership not found for organization.");
+    }
+    if (
+      membership.membershipStatus !== "invited" ||
+      membership.memberUserId !== undefined
+    ) {
+      throw new Error("Only unclaimed pending memberships can be withdrawn.");
+    }
+
+    const pendingReview = await getPersonConsolidationReviewForMembership(
+      ctx,
+      organization.organizationReferentId,
+      membership._id,
+      "pending",
+    );
+    if (pendingReview) {
+      throw new Error("Resolve identity review before withdrawing member.");
+    }
+
+    const now = Date.now();
+    await ctx.db.patch(membership._id, {
+      membershipStatus: "inactive",
+      updatedAt: now,
+    });
+
+    return {
+      membershipId: membership._id,
+      membershipStatus: "inactive" as const,
+    };
+  },
+});
+
+export const approvePersonConsolidationReview = mutation({
+  args: {
+    organizationId: v.string(),
+    personConsolidationReviewId: v.id("personConsolidationReviews"),
+  },
+  returns: approvedPersonConsolidationReview,
+  handler: async (ctx, args) => {
+    const organization = await getActiveOrganizationByRouteId(
+      ctx,
+      args.organizationId,
+    );
+    if (!organization) {
+      throw new Error("Organization account not found.");
+    }
+
+    const access = await requireOrganizationAdmin(
+      ctx,
+      organization.organizationReferentId,
+    );
+    const review = await ctx.db.get(args.personConsolidationReviewId);
+    if (!review) {
+      throw new Error("Person Consolidation review not found.");
+    }
+    if (review.organizationReferentId !== organization.organizationReferentId) {
+      throw new Error("Person Consolidation review not found for organization.");
+    }
+    if (review.reviewStatus !== "pending") {
+      throw new Error("Person Consolidation review is already resolved.");
+    }
+
+    const pendingMembership = await ctx.db.get(review.membershipId);
+    if (
+      !pendingMembership ||
+      pendingMembership.organizationReferentId !==
+        organization.organizationReferentId ||
+      pendingMembership.targetKind !== "organization" ||
+      pendingMembership.membershipStatus !== "invited" ||
+      pendingMembership.memberUserId !== undefined
+    ) {
+      throw new Error("Pending membership is no longer reviewable.");
+    }
+
+    const claimant = await ctx.db.get(review.requestedByUserId);
+    if (!claimant) {
+      throw new Error("Requesting user not found.");
+    }
+
+    const now = Date.now();
+    if (claimant.isActive !== true) {
+      await ctx.db.patch(claimant._id, { isActive: true });
+    }
+
+    const existingMembership = await getMembershipByUserAndOrganization(
+      ctx,
+      review.requestedByUserId,
+      organization.organizationReferentId,
+    );
+    const membershipId = existingMembership?._id ?? pendingMembership._id;
+    if (existingMembership) {
+      await ctx.db.patch(pendingMembership._id, {
+        membershipStatus: "inactive",
+        updatedAt: now,
+      });
+    } else {
+      await ctx.db.patch(pendingMembership._id, {
+        memberUserId: review.requestedByUserId,
+        membershipStatus: "active",
+        personReferentId: review.candidatePersonReferentId,
+        targetKind: "organization",
+        updatedAt: now,
+      });
+    }
+
+    await recordApprovedMembershipClaim(ctx, {
+      claimedByUserId: review.requestedByUserId,
+      claimedContactKind: review.claimedContactKind,
+      claimedContactValue: review.claimedContactValue,
+      claimSource: review.claimSource,
+      membershipId,
+      organizationReferentId: organization.organizationReferentId,
+      pendingPersonReferentId: review.pendingPersonReferentId,
+      resultingPersonReferentId: review.candidatePersonReferentId,
+      updatedAt: now,
+      verifiedContactIdentityId: review.verifiedContactIdentityId,
+    });
+
+    await ctx.db.patch(review._id, {
+      resolvedAt: now,
+      resolvedByUserId: access.userId,
+      reviewStatus: "approved",
+      updatedAt: now,
+    });
+    await notifyPersonConsolidationReviewClaimant(ctx, {
+      claimedContactValue: review.claimedContactValue,
+      organizationReferentId: organization.organizationReferentId,
+      personConsolidationReviewId: review._id,
+      requestedByUserId: review.requestedByUserId,
+      reviewStatus: "approved",
+      updatedAt: now,
+    });
+
+    return {
+      membershipId,
+      reviewStatus: "approved" as const,
+    };
+  },
+});
+
+export const rejectPersonConsolidationReview = mutation({
+  args: {
+    organizationId: v.string(),
+    personConsolidationReviewId: v.id("personConsolidationReviews"),
+  },
+  returns: rejectedPersonConsolidationReview,
+  handler: async (ctx, args) => {
+    const organization = await getActiveOrganizationByRouteId(
+      ctx,
+      args.organizationId,
+    );
+    if (!organization) {
+      throw new Error("Organization account not found.");
+    }
+
+    const access = await requireOrganizationAdmin(
+      ctx,
+      organization.organizationReferentId,
+    );
+    const review = await ctx.db.get(args.personConsolidationReviewId);
+    if (!review) {
+      throw new Error("Person Consolidation review not found.");
+    }
+    if (review.organizationReferentId !== organization.organizationReferentId) {
+      throw new Error("Person Consolidation review not found for organization.");
+    }
+    if (review.reviewStatus !== "pending") {
+      throw new Error("Person Consolidation review is already resolved.");
+    }
+
+    const pendingMembership = await ctx.db.get(review.membershipId);
+    if (
+      !pendingMembership ||
+      pendingMembership.organizationReferentId !==
+        organization.organizationReferentId ||
+      pendingMembership.targetKind !== "organization" ||
+      pendingMembership.membershipStatus !== "invited" ||
+      pendingMembership.memberUserId !== undefined
+    ) {
+      throw new Error("Pending membership is no longer reviewable.");
+    }
+
+    const now = Date.now();
+    await ctx.db.patch(review._id, {
+      resolvedAt: now,
+      resolvedByUserId: access.userId,
+      reviewStatus: "rejected",
+      updatedAt: now,
+    });
+    await notifyPersonConsolidationReviewClaimant(ctx, {
+      claimedContactValue: review.claimedContactValue,
+      organizationReferentId: organization.organizationReferentId,
+      personConsolidationReviewId: review._id,
+      requestedByUserId: review.requestedByUserId,
+      reviewStatus: "rejected",
+      updatedAt: now,
+    });
+
+    return {
+      membershipId: pendingMembership._id,
+      reviewStatus: "rejected" as const,
+    };
+  },
+});
+
+export const reopenPersonConsolidationReview = mutation({
+  args: {
+    organizationId: v.string(),
+    personConsolidationReviewId: v.id("personConsolidationReviews"),
+  },
+  returns: reopenedPersonConsolidationReview,
+  handler: async (ctx, args) => {
+    const organization = await getActiveOrganizationByRouteId(
+      ctx,
+      args.organizationId,
+    );
+    if (!organization) {
+      throw new Error("Organization account not found.");
+    }
+
+    await requireOrganizationAdmin(ctx, organization.organizationReferentId);
+    const review = await ctx.db.get(args.personConsolidationReviewId);
+    if (!review) {
+      throw new Error("Person Consolidation review not found.");
+    }
+    if (review.organizationReferentId !== organization.organizationReferentId) {
+      throw new Error("Person Consolidation review not found for organization.");
+    }
+    if (review.reviewStatus !== "rejected") {
+      throw new Error("Person Consolidation review is not rejected.");
+    }
+
+    const pendingMembership = await ctx.db.get(review.membershipId);
+    if (
+      !pendingMembership ||
+      pendingMembership.organizationReferentId !==
+        organization.organizationReferentId ||
+      pendingMembership.targetKind !== "organization" ||
+      pendingMembership.membershipStatus !== "invited" ||
+      pendingMembership.memberUserId !== undefined
+    ) {
+      throw new Error("Pending membership is no longer reviewable.");
+    }
+
+    const now = Date.now();
+    const { _creationTime, _id, resolvedAt, resolvedByUserId, ...replacement } =
+      review;
+    await ctx.db.replace(_id, {
+      ...replacement,
+      reviewStatus: "pending",
+      updatedAt: now,
+    });
+
+    return {
+      membershipId: pendingMembership._id,
+      reviewStatus: "pending" as const,
+    };
+  },
+});
+
 async function getOrganizationReferentByKey(
   ctx: OrganizationAccountCtx,
   canonicalKey: string,
@@ -313,6 +655,11 @@ async function listOrganizationMembers(
   ctx: QueryCtx,
   organizationReferentId: Id<"referents">,
 ) {
+  const visibleReviewsByMembership =
+    await getVisiblePersonConsolidationReviewsByMembership(
+      ctx,
+      organizationReferentId,
+    );
   const activeMemberships = await ctx.db
     .query("memberships")
     .withIndex("by_organizationReferentId_and_membershipStatus", (q) =>
@@ -333,7 +680,7 @@ async function listOrganizationMembers(
       continue;
     }
 
-    members.push(getOrganizationMemberSummary(user, membership));
+    members.push(await getOrganizationMemberSummaryWithEvidence(ctx, user, membership));
   }
 
   const pendingMemberships = await ctx.db
@@ -350,7 +697,13 @@ async function listOrganizationMembers(
       continue;
     }
 
-    members.push(await getPendingOrganizationMemberSummary(ctx, membership));
+    members.push(
+      await getPendingOrganizationMemberSummary(
+        ctx,
+        membership,
+        visibleReviewsByMembership.get(membership._id),
+      ),
+    );
   }
 
   return members;
@@ -475,15 +828,11 @@ async function upsertOrganizationMembership(
     updatedAt: number;
   },
 ) {
-  const existingMemberships = await ctx.db
-    .query("memberships")
-    .withIndex("by_memberUserId_and_organizationReferentId", (q) =>
-      q
-        .eq("memberUserId", membership.memberUserId)
-        .eq("organizationReferentId", membership.organizationReferentId),
-    )
-    .take(10);
-  const existingMembership = existingMemberships[0];
+  const existingMembership = await getMembershipByUserAndOrganization(
+    ctx,
+    membership.memberUserId,
+    membership.organizationReferentId,
+  );
 
   if (!existingMembership) {
     if (membership.pendingMembershipId) {
@@ -541,6 +890,24 @@ async function upsertOrganizationMembership(
   }
 
   return existingMembership._id;
+}
+
+async function getMembershipByUserAndOrganization(
+  ctx: OrganizationAccountCtx,
+  memberUserId: Id<"users">,
+  organizationReferentId: Id<"referents">,
+) {
+  const existingMemberships = await ctx.db
+    .query("memberships")
+    .withIndex("by_memberUserId_and_organizationReferentId", (q) =>
+      q
+        .eq("memberUserId", memberUserId)
+        .eq("organizationReferentId", organizationReferentId),
+    )
+    .take(10);
+  const existingMembership = existingMemberships[0];
+
+  return existingMembership ?? null;
 }
 
 async function getPendingOrganizationMembershipByContactEmail(
@@ -724,7 +1091,6 @@ async function upsertKnowledgeEntry(
     contextPreviewTagLabels: [],
     discoverabilityKind: "public" as const,
     discoverabilityTargetKey: "public",
-    humanWeight: BASE_HUMAN_WEIGHT,
     knowledgeType: entry.knowledgeType,
     previewText: entry.previewText,
     primaryTagId: entry.primaryTagId,
@@ -798,18 +1164,245 @@ function getOrganizationMemberSummary(
   };
 }
 
+async function getOrganizationMemberSummaryWithEvidence(
+  ctx: QueryCtx,
+  user: Doc<"users">,
+  membership: Doc<"memberships">,
+) {
+  const member = getOrganizationMemberSummary(user, membership);
+  const claimEvidence = await getMembershipClaimEvidence(ctx, membership._id);
+  return {
+    ...member,
+    ...(claimEvidence === null ? {} : { claimEvidence }),
+  };
+}
+
 async function getPendingOrganizationMemberSummary(
   ctx: OrganizationAccountCtx,
   membership: Doc<"memberships">,
+  personConsolidationReview?: Doc<"personConsolidationReviews">,
 ) {
   const person = await getPersonSummary(ctx, membership.personReferentId);
-  const email = person.email;
+  const reviewEvidence =
+    personConsolidationReview === undefined
+      ? null
+      : await getPersonConsolidationReviewEvidence(
+          ctx,
+          personConsolidationReview,
+        );
+  const email = person.email ?? reviewEvidence?.claimedContactValue;
   return {
     ...(email === undefined ? {} : { email }),
     membershipId: membership._id,
     name: person.name,
+    ...(reviewEvidence === null
+      ? {}
+      : { personConsolidationReview: reviewEvidence }),
     role: membership.memberRole ?? "member",
     status: "pending" as const,
+  };
+}
+
+async function getMembershipClaimEvidence(
+  ctx: QueryCtx,
+  membershipId: Id<"memberships">,
+) {
+  const claims = await ctx.db
+    .query("membershipClaims")
+    .withIndex("by_membershipId_and_createdAt", (q) =>
+      q.eq("membershipId", membershipId),
+    )
+    .order("desc")
+    .take(1);
+  const claim = claims[0];
+  if (!claim) {
+    return null;
+  }
+
+  const personConsolidation = await getApprovedPersonConsolidationEvidence(
+    ctx,
+    claim,
+  );
+
+  return {
+    claimedAt: claim.createdAt,
+    claimedContactKind: claim.claimedContactKind,
+    claimedContactValue: claim.claimedContactValue,
+    claimSource: claim.claimSource,
+    ...(personConsolidation === null ? {} : { personConsolidation }),
+  };
+}
+
+async function getApprovedPersonConsolidationEvidence(
+  ctx: QueryCtx,
+  claim: Doc<"membershipClaims">,
+) {
+  if (claim.pendingPersonReferentId === claim.resultingPersonReferentId) {
+    return null;
+  }
+
+  const approvedReviews = await ctx.db
+    .query("personConsolidationReviews")
+    .withIndex("by_pendingPersonReferentId_and_reviewStatus_and_createdAt", (q) =>
+      q
+        .eq("pendingPersonReferentId", claim.pendingPersonReferentId)
+        .eq("reviewStatus", "approved"),
+    )
+    .order("desc")
+    .take(MAX_ORGANIZATION_MEMBERS);
+  const review =
+    approvedReviews.find(
+      (candidate) =>
+        candidate.requestedByUserId === claim.claimedByUserId &&
+        candidate.organizationReferentId === claim.organizationReferentId &&
+        candidate.candidatePersonReferentId === claim.resultingPersonReferentId &&
+        candidate.claimedContactKind === claim.claimedContactKind &&
+        candidate.claimedContactValue === claim.claimedContactValue &&
+        candidate.claimSource === claim.claimSource,
+    ) ?? null;
+  if (review === null) {
+    return null;
+  }
+
+  const pendingPerson = await getPersonSummary(
+    ctx,
+    claim.pendingPersonReferentId,
+  );
+  const resultingPerson = await getPersonSummary(
+    ctx,
+    claim.resultingPersonReferentId,
+  );
+
+  return {
+    approvedAt: review.resolvedAt ?? review.updatedAt,
+    pendingPersonName: pendingPerson.name,
+    pendingPersonReferentId: claim.pendingPersonReferentId,
+    resultingPersonName: resultingPerson.name,
+    resultingPersonReferentId: claim.resultingPersonReferentId,
+    reviewId: review._id,
+  };
+}
+
+async function recordApprovedMembershipClaim(
+  ctx: MutationCtx,
+  claim: {
+    claimedByUserId: Id<"users">;
+    claimedContactKind: Doc<"personConsolidationReviews">["claimedContactKind"];
+    claimedContactValue: string;
+    claimSource: Doc<"personConsolidationReviews">["claimSource"];
+    membershipId: Id<"memberships">;
+    organizationReferentId: Id<"referents">;
+    pendingPersonReferentId: Id<"referents">;
+    resultingPersonReferentId: Id<"referents">;
+    updatedAt: number;
+    verifiedContactIdentityId?: Id<"contactIdentities">;
+  },
+) {
+  await ctx.db.insert("membershipClaims", {
+    claimedByUserId: claim.claimedByUserId,
+    claimedContactKind: claim.claimedContactKind,
+    claimedContactValue: claim.claimedContactValue,
+    claimSource: claim.claimSource,
+    createdAt: claim.updatedAt,
+    membershipId: claim.membershipId,
+    organizationReferentId: claim.organizationReferentId,
+    pendingPersonReferentId: claim.pendingPersonReferentId,
+    resultingPersonReferentId: claim.resultingPersonReferentId,
+    ...(claim.verifiedContactIdentityId === undefined
+      ? {}
+      : { verifiedContactIdentityId: claim.verifiedContactIdentityId }),
+  });
+}
+
+async function getVisiblePersonConsolidationReviewsByMembership(
+  ctx: QueryCtx,
+  organizationReferentId: Id<"referents">,
+) {
+  const pendingReviewsByMembership =
+    await getPersonConsolidationReviewsByMembership(
+      ctx,
+      organizationReferentId,
+      "pending",
+    );
+  const rejectedReviewsByMembership =
+    await getPersonConsolidationReviewsByMembership(
+      ctx,
+      organizationReferentId,
+      "rejected",
+    );
+
+  for (const [membershipId, review] of rejectedReviewsByMembership) {
+    if (!pendingReviewsByMembership.has(membershipId)) {
+      pendingReviewsByMembership.set(membershipId, review);
+    }
+  }
+
+  return pendingReviewsByMembership;
+}
+
+async function getPersonConsolidationReviewsByMembership(
+  ctx: QueryCtx,
+  organizationReferentId: Id<"referents">,
+  reviewStatus: "pending" | "rejected",
+) {
+  const reviews = await ctx.db
+    .query("personConsolidationReviews")
+    .withIndex("by_organizationReferentId_and_reviewStatus_and_createdAt", (q) =>
+      q
+        .eq("organizationReferentId", organizationReferentId)
+        .eq("reviewStatus", reviewStatus),
+    )
+    .order("desc")
+    .take(MAX_ORGANIZATION_MEMBERS);
+  const reviewsByMembership = new Map<
+    Id<"memberships">,
+    Doc<"personConsolidationReviews">
+  >();
+  for (const review of reviews) {
+    if (!reviewsByMembership.has(review.membershipId)) {
+      reviewsByMembership.set(review.membershipId, review);
+    }
+  }
+
+  return reviewsByMembership;
+}
+
+async function getPersonConsolidationReviewForMembership(
+  ctx: OrganizationAccountCtx,
+  organizationReferentId: Id<"referents">,
+  membershipId: Id<"memberships">,
+  reviewStatus: "pending" | "rejected",
+) {
+  const reviews = await ctx.db
+    .query("personConsolidationReviews")
+    .withIndex("by_organizationReferentId_and_reviewStatus_and_createdAt", (q) =>
+      q
+        .eq("organizationReferentId", organizationReferentId)
+        .eq("reviewStatus", reviewStatus),
+    )
+    .order("desc")
+    .take(MAX_ORGANIZATION_MEMBERS);
+
+  return reviews.find((review) => review.membershipId === membershipId) ?? null;
+}
+
+async function getPersonConsolidationReviewEvidence(
+  ctx: OrganizationAccountCtx,
+  review: Doc<"personConsolidationReviews">,
+) {
+  const requestedByUser = await ctx.db.get(review.requestedByUserId);
+  return {
+    claimedContactKind: review.claimedContactKind,
+    claimedContactValue: review.claimedContactValue,
+    claimSource: review.claimSource,
+    requestedAt: review.createdAt,
+    ...(requestedByUser?.email === undefined
+      ? {}
+      : { requestedByEmail: requestedByUser.email }),
+    reviewId: review._id,
+    reviewReason: review.reviewReason,
+    reviewStatus: review.reviewStatus,
+    updatedAt: review.updatedAt,
   };
 }
 

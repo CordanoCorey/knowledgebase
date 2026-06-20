@@ -89,6 +89,33 @@ export const HUMAN_WEIGHT_EXPECTATION_LEVELS = [
 export type HumanWeightExpectation =
   (typeof HUMAN_WEIGHT_EXPECTATION_LEVELS)[number];
 
+export const HUMAN_WEIGHT_CONCERN_LEVELS = [
+  "possibleConcern",
+  "reviewRecommended",
+] as const;
+
+export type HumanWeightConcernLevel =
+  (typeof HUMAN_WEIGHT_CONCERN_LEVELS)[number];
+
+export type HumanWeightConcernSummary = {
+  level: HumanWeightConcernLevel;
+  expectation: Extract<HumanWeightExpectation, "expected" | "required">;
+  threshold: number;
+};
+
+export const HUMAN_WEIGHT_CREDIT_BASES = [
+  "contributor",
+  "quotedPerson",
+] as const;
+
+export type HumanWeightCreditBasis =
+  (typeof HUMAN_WEIGHT_CREDIT_BASES)[number];
+
+export type HumanWeightCreditSummary = {
+  basis: HumanWeightCreditBasis;
+  label: string;
+};
+
 export const HUMAN_WEIGHT_BANDS = [
   { id: "slop", label: "Slop", min: 0, max: 19 },
   { id: "assisted", label: "Assisted", min: 20, max: 39 },
@@ -99,6 +126,26 @@ export const HUMAN_WEIGHT_BANDS = [
 ] as const;
 
 export type HumanWeightBand = (typeof HUMAN_WEIGHT_BANDS)[number];
+
+const HUMAN_WEIGHT_FEEDBACK_NEEDED_PRIORITY = 55;
+const NON_WEIGHT_BEARING_FEED_PRIORITY = -1;
+const EVIDENCE_MATURITY_MAX_PRIORITY_BOOST = 0.5;
+
+export const CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION = {
+  version: "mvp-human-weight-feedback-v1",
+  expectedConcernThreshold: 40,
+  requiredConcernThreshold: 60,
+} as const;
+
+export const HUMAN_WEIGHT_FEEDBACK_KINDS = [
+  "recognize",
+  "used",
+  "notHuman",
+  "wrongContext",
+] as const;
+
+export type HumanWeightFeedbackKind =
+  (typeof HUMAN_WEIGHT_FEEDBACK_KINDS)[number];
 
 export type GenericContributionKnowledgeType = Exclude<
   AuthorableKnowledgeType,
@@ -141,8 +188,36 @@ export type KnowledgeEntrySummary = {
   primaryTagLabel: string;
   contextPreviewTagLabels: string[];
   humanWeight?: number;
+  evidenceMaturity?: number;
+  humanWeightConcern?: HumanWeightConcernSummary;
+  humanWeightCredit?: HumanWeightCreditSummary;
+  quoteAttribution?: QuoteAttributionSummary;
   href: string;
   updatedAt: number;
+};
+
+export type QuoteAttributionSummary = {
+  quotedPersonLabel?: string;
+  quotedPersonReferentId?: string;
+};
+
+export type QuoteAttributionPersonOption = {
+  label: string;
+  referentId: string;
+  tagId: string;
+};
+
+export type HumanWeightEvidenceSummary = {
+  evidenceCount: number;
+  positiveEvidenceCount: number;
+  negativeEvidenceCount: number;
+  evidenceMaturity: number;
+};
+
+export type HumanWeightFeedbackInput = {
+  entry: KnowledgeEntrySummary;
+  feedbackKind: HumanWeightFeedbackKind;
+  feedbackNote?: string;
 };
 
 export type ContributorSummary = {
@@ -152,9 +227,21 @@ export type ContributorSummary = {
 };
 
 export type KnowledgeContextExpert = ContributorSummary & {
-  averageHumanWeight: number;
-  contributionCount: number;
-  reliabilityScore: number;
+  subjectKind?: "user" | "person";
+  subjectUserId?: string;
+  subjectPersonReferentId?: string;
+  contextExpertiseMaturity: number;
+  contextExpertiseScore: number;
+  contextMatchKind?: "broaderContext";
+  evidenceCount: number;
+  feedbackCount: number;
+  postCount: number;
+};
+
+export type KnowledgeContextExpertScope = "orbit" | "global";
+
+export type KnowledgeContextExpertDetail = KnowledgeContextExpert & {
+  topSupportingEntries: KnowledgeEntrySummary[];
 };
 
 export type KnowledgeContextTrendKind =
@@ -372,7 +459,21 @@ export function isNonWeightBearingKnowledgeType(
 export function getDefaultHumanWeightExpectation(
   knowledgeType: KnowledgeType,
 ): HumanWeightExpectation {
+  if (knowledgeType === "essay") {
+    return "expected";
+  }
+
   return isWeightBearingKnowledgeType(knowledgeType) ? "informative" : "none";
+}
+
+export function getDefaultHumanWeightCreditBasis(
+  knowledgeType: KnowledgeType,
+): HumanWeightCreditBasis | undefined {
+  if (!isWeightBearingKnowledgeType(knowledgeType)) {
+    return undefined;
+  }
+
+  return knowledgeType === "quote" ? "quotedPerson" : "contributor";
 }
 
 export function getHumanWeightBand(
@@ -394,4 +495,92 @@ export function getApplicableHumanWeight(entry: {
   return isWeightBearingKnowledgeType(entry.knowledgeType)
     ? entry.humanWeight
     : undefined;
+}
+
+export function needsHumanWeightFeedback(entry: {
+  humanWeight?: number;
+  knowledgeType: KnowledgeType;
+}) {
+  return (
+    entry.humanWeight === undefined &&
+    isWeightBearingKnowledgeType(entry.knowledgeType)
+  );
+}
+
+export function getHumanWeightConcern({
+  expectation,
+  humanWeight,
+  knowledgeType,
+}: {
+  expectation?: HumanWeightExpectation;
+  humanWeight?: number;
+  knowledgeType: KnowledgeType;
+}): HumanWeightConcernSummary | undefined {
+  const applicableHumanWeight = getApplicableHumanWeight({
+    humanWeight,
+    knowledgeType,
+  });
+  if (applicableHumanWeight === undefined) {
+    return undefined;
+  }
+
+  const humanWeightExpectation =
+    expectation ?? getDefaultHumanWeightExpectation(knowledgeType);
+
+  if (
+    humanWeightExpectation === "required" &&
+    applicableHumanWeight <
+      CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION.requiredConcernThreshold
+  ) {
+    return {
+      level: "reviewRecommended",
+      expectation: humanWeightExpectation,
+      threshold:
+        CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION.requiredConcernThreshold,
+    };
+  }
+
+  if (
+    humanWeightExpectation === "expected" &&
+    applicableHumanWeight <
+      CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION.expectedConcernThreshold
+  ) {
+    return {
+      level: "possibleConcern",
+      expectation: humanWeightExpectation,
+      threshold:
+        CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION.expectedConcernThreshold,
+    };
+  }
+
+  return undefined;
+}
+
+export function getHumanWeightFeedPriority(entry: {
+  evidenceMaturity?: number;
+  humanWeight?: number;
+  knowledgeType: KnowledgeType;
+}) {
+  const humanWeight = getApplicableHumanWeight(entry);
+  if (humanWeight !== undefined) {
+    return humanWeight + getEvidenceMaturityPriorityBoost(entry.evidenceMaturity);
+  }
+
+  if (needsHumanWeightFeedback(entry)) {
+    return (
+      HUMAN_WEIGHT_FEEDBACK_NEEDED_PRIORITY +
+      getEvidenceMaturityPriorityBoost(entry.evidenceMaturity)
+    );
+  }
+
+  return NON_WEIGHT_BEARING_FEED_PRIORITY;
+}
+
+function getEvidenceMaturityPriorityBoost(evidenceMaturity: number | undefined) {
+  if (evidenceMaturity === undefined) {
+    return 0;
+  }
+
+  const boundedMaturity = Math.min(100, Math.max(0, evidenceMaturity));
+  return (boundedMaturity / 100) * EVIDENCE_MATURITY_MAX_PRIORITY_BOOST;
 }

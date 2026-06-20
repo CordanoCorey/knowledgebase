@@ -1,3 +1,5 @@
+import { CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION } from "./humanWeightCalculationDefinition";
+
 export const ENTRY_KNOWLEDGE_TYPES = [
   "words",
   "topic",
@@ -65,6 +67,28 @@ export const HUMAN_WEIGHT_EXPECTATION_LEVELS = [
 export type HumanWeightExpectation =
   (typeof HUMAN_WEIGHT_EXPECTATION_LEVELS)[number];
 
+export const HUMAN_WEIGHT_CONCERN_LEVELS = [
+  "possibleConcern",
+  "reviewRecommended",
+] as const;
+
+export type HumanWeightConcernLevel =
+  (typeof HUMAN_WEIGHT_CONCERN_LEVELS)[number];
+
+export type HumanWeightConcernSummary = {
+  level: HumanWeightConcernLevel;
+  expectation: Extract<HumanWeightExpectation, "expected" | "required">;
+  threshold: number;
+};
+
+export const HUMAN_WEIGHT_CREDIT_BASES = [
+  "contributor",
+  "quotedPerson",
+] as const;
+
+export type HumanWeightCreditBasis =
+  (typeof HUMAN_WEIGHT_CREDIT_BASES)[number];
+
 export const HUMAN_WEIGHT_BANDS = [
   { id: "slop", label: "Slop", min: 0, max: 19 },
   { id: "assisted", label: "Assisted", min: 20, max: 39 },
@@ -75,6 +99,10 @@ export const HUMAN_WEIGHT_BANDS = [
 ] as const;
 
 export type HumanWeightBand = (typeof HUMAN_WEIGHT_BANDS)[number];
+
+const HUMAN_WEIGHT_FEEDBACK_NEEDED_PRIORITY = 55;
+const NON_WEIGHT_BEARING_FEED_PRIORITY = -1;
+const EVIDENCE_MATURITY_MAX_PRIORITY_BOOST = 0.5;
 
 export const REPRESENTATION_ROLES = [
   "unspecified",
@@ -112,6 +140,7 @@ export type TypeBehavior = {
     defaultRole: RepresentationRole;
   };
   humanWeight: {
+    creditBasis?: HumanWeightCreditBasis;
     defaultEstimate: number;
     expectation: HumanWeightExpectation;
   };
@@ -120,7 +149,7 @@ export type TypeBehavior = {
   };
 };
 
-const DEFAULT_TYPE_BEHAVIOR_VERSION = "mvp-type-behavior-v1";
+const DEFAULT_TYPE_BEHAVIOR_VERSION = "mvp-type-behavior-v2";
 
 const DEFAULT_TYPE_BEHAVIOR: Omit<TypeBehavior, "knowledgeType"> = {
   version: DEFAULT_TYPE_BEHAVIOR_VERSION,
@@ -144,6 +173,7 @@ const DEFAULT_TYPE_BEHAVIOR: Omit<TypeBehavior, "knowledgeType"> = {
     defaultRole: "primaryContent",
   },
   humanWeight: {
+    creditBasis: "contributor",
     defaultEstimate: 60,
     expectation: "informative",
   },
@@ -155,6 +185,19 @@ const DEFAULT_TYPE_BEHAVIOR: Omit<TypeBehavior, "knowledgeType"> = {
 const TYPE_BEHAVIOR_OVERRIDES: Partial<
   Record<EntryKnowledgeType, Partial<Omit<TypeBehavior, "knowledgeType">>>
 > = {
+  quote: {
+    humanWeight: {
+      creditBasis: "quotedPerson",
+      defaultEstimate: 60,
+      expectation: "informative",
+    },
+  },
+  essay: {
+    humanWeight: {
+      defaultEstimate: 60,
+      expectation: "expected",
+    },
+  },
   rsvp: {
     humanWeight: {
       defaultEstimate: 0,
@@ -234,18 +277,114 @@ export function getApplicableHumanWeight(
     : undefined;
 }
 
+export function needsHumanWeightFeedback(
+  knowledgeType: EntryKnowledgeType,
+  humanWeight: number | undefined,
+) {
+  return (
+    humanWeight === undefined &&
+    isWeightBearingEntryKnowledgeType(knowledgeType)
+  );
+}
+
+export function getHumanWeightConcern({
+  expectation,
+  humanWeight,
+  knowledgeType,
+}: {
+  expectation?: HumanWeightExpectation;
+  humanWeight: number | undefined;
+  knowledgeType: EntryKnowledgeType;
+}): HumanWeightConcernSummary | undefined {
+  const applicableHumanWeight = getApplicableHumanWeight(
+    knowledgeType,
+    humanWeight,
+  );
+  if (applicableHumanWeight === undefined) {
+    return undefined;
+  }
+
+  const humanWeightExpectation =
+    expectation ?? getTypeBehavior(knowledgeType).humanWeight.expectation;
+
+  if (
+    humanWeightExpectation === "required" &&
+    applicableHumanWeight <
+      CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION.requiredConcernThreshold
+  ) {
+    return {
+      level: "reviewRecommended",
+      expectation: humanWeightExpectation,
+      threshold:
+        CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION.requiredConcernThreshold,
+    };
+  }
+
+  if (
+    humanWeightExpectation === "expected" &&
+    applicableHumanWeight <
+      CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION.expectedConcernThreshold
+  ) {
+    return {
+      level: "possibleConcern",
+      expectation: humanWeightExpectation,
+      threshold:
+        CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION.expectedConcernThreshold,
+    };
+  }
+
+  return undefined;
+}
+
+export function getHumanWeightFeedPriority(
+  knowledgeType: EntryKnowledgeType,
+  humanWeight: number | undefined,
+  evidenceMaturity?: number,
+) {
+  const applicableHumanWeight = getApplicableHumanWeight(
+    knowledgeType,
+    humanWeight,
+  );
+  if (applicableHumanWeight !== undefined) {
+    return (
+      applicableHumanWeight + getEvidenceMaturityPriorityBoost(evidenceMaturity)
+    );
+  }
+
+  if (needsHumanWeightFeedback(knowledgeType, humanWeight)) {
+    return (
+      HUMAN_WEIGHT_FEEDBACK_NEEDED_PRIORITY +
+      getEvidenceMaturityPriorityBoost(evidenceMaturity)
+    );
+  }
+
+  return NON_WEIGHT_BEARING_FEED_PRIORITY;
+}
+
+function getEvidenceMaturityPriorityBoost(evidenceMaturity: number | undefined) {
+  if (evidenceMaturity === undefined) {
+    return 0;
+  }
+
+  const boundedMaturity = Math.min(100, Math.max(0, evidenceMaturity));
+  return (boundedMaturity / 100) * EVIDENCE_MATURITY_MAX_PRIORITY_BOOST;
+}
+
 export function getTypeBehavior(
   knowledgeType: EntryKnowledgeType,
 ): TypeBehavior {
   const override = TYPE_BEHAVIOR_OVERRIDES[knowledgeType] ?? {};
+  const mergedHumanWeight = {
+    ...DEFAULT_TYPE_BEHAVIOR.humanWeight,
+    ...override.humanWeight,
+  };
 
   return {
     ...DEFAULT_TYPE_BEHAVIOR,
     ...override,
-    humanWeight: {
-      ...DEFAULT_TYPE_BEHAVIOR.humanWeight,
-      ...override.humanWeight,
-    },
+    humanWeight: isWeightBearingEntryKnowledgeType(knowledgeType)
+      ? mergedHumanWeight
+      : withoutHumanWeightCreditBasis(mergedHumanWeight),
     knowledgeType,
     provenance: {
       ...DEFAULT_TYPE_BEHAVIOR.provenance,
@@ -255,6 +394,15 @@ export function getTypeBehavior(
       ...DEFAULT_TYPE_BEHAVIOR.representationRoles,
       ...override.representationRoles,
     },
+  };
+}
+
+function withoutHumanWeightCreditBasis(
+  humanWeight: TypeBehavior["humanWeight"],
+): TypeBehavior["humanWeight"] {
+  return {
+    defaultEstimate: humanWeight.defaultEstimate,
+    expectation: humanWeight.expectation,
   };
 }
 

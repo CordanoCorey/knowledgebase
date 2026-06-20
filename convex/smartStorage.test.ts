@@ -11,8 +11,30 @@ import schema from "./schema";
 
 const modules = {
   ...import.meta.glob("./_generated/*.*s"),
+  "./contextExpertise.ts": () => import("./contextExpertise"),
+  "./lib/appAccess.ts": () => import("./lib/appAccess"),
+  "./lib/contextExpertiseEvidence.ts": () =>
+    import("./lib/contextExpertiseEvidence"),
   "./lib/typeBehavior.ts": () => import("./lib/typeBehavior"),
   "./smartStorage.ts": () => import("./smartStorage"),
+};
+
+type TestContextTagSnapshot = {
+  canonicalKey: string;
+  href: string;
+  id: string;
+  knowledgeType: Doc<"referents">["knowledgeType"];
+  label: string;
+  passageString?: string;
+};
+
+type SmartStorageContributionInput = {
+  body: string;
+  contextTags: TestContextTagSnapshot[];
+  externalUrls?: Array<{ url: string }>;
+  knowledgeType: Doc<"knowledgeEntries">["knowledgeType"];
+  slotId?: string;
+  title: string;
 };
 
 const legacyEntryRepresentationKind = v.union(
@@ -181,7 +203,7 @@ describe("Smart Storage contribution spine", () => {
         sourceId: result.sourceId,
         status: "queued",
         typeBehaviorSnapshotId: expect.any(String),
-        typeBehaviorSnapshotVersion: "mvp-type-behavior-v1",
+        typeBehaviorSnapshotVersion: "mvp-type-behavior-v2",
       }),
     );
     expect(rowState.contractVersion).toEqual(
@@ -199,8 +221,8 @@ describe("Smart Storage contribution spine", () => {
         ),
         knowledgeType: "lesson",
         snapshotText:
-          "Use the first-slice Type Behavior registry for identity, source citation, representation role, primary representation, and Human Weight defaults.",
-        version: "mvp-type-behavior-v1",
+          "Use the Type Behavior registry for identity, source citation, representation role, primary representation, Human Weight defaults, and Human Weight credit basis.",
+        version: "mvp-type-behavior-v2",
       }),
     );
   });
@@ -283,7 +305,7 @@ describe("Smart Storage contribution spine", () => {
       });
       await ctx.db.insert("typeBehaviorSnapshots", {
         knowledgeType: "lesson",
-        version: "mvp-type-behavior-v1",
+        version: "mvp-type-behavior-v2",
         snapshotText: "Conflicting Type Behavior summary.",
         behaviorSnapshotJson: "{}",
         createdAt: now,
@@ -795,9 +817,9 @@ describe("Smart Storage contribution spine", () => {
         sourceId: startResult.sourceId,
         status: "drafted",
         typeBehaviorSnapshotId: rowState.run?.typeBehaviorSnapshotId,
-        typeBehaviorSnapshotVersion: "mvp-type-behavior-v1",
+        typeBehaviorSnapshotVersion: "mvp-type-behavior-v2",
         typeBehaviorSnapshotText:
-          "Use the first-slice Type Behavior registry for identity, source citation, representation role, primary representation, and Human Weight defaults.",
+          "Use the Type Behavior registry for identity, source citation, representation role, primary representation, Human Weight defaults, and Human Weight credit basis.",
       }),
     );
     expect(rowState.contractVersion?._id).toBe(
@@ -1256,16 +1278,48 @@ describe("Smart Storage contribution spine", () => {
           q.eq("entryId", accepted.entryId!),
         )
         .collect();
+      const quoteRows = await ctx.db
+        .query("quoteEntries")
+        .withIndex("by_entryId", (q) => q.eq("entryId", accepted.entryId!))
+        .collect();
       const proposal = await ctx.db.get(proposalResult.smartStorageProposalId);
       const contributionSubmission = await ctx.db.get(
         startResult.contributionSubmissionId,
       );
+      const contextTagIds = (
+        await ctx.db
+          .query("entryTags")
+          .withIndex("by_entryId_and_tagPurpose", (q) =>
+            q.eq("entryId", accepted.entryId!).eq("tagPurpose", "context"),
+          )
+          .collect()
+      )
+        .map((entryTag) => entryTag.tagId)
+        .sort();
+      const contextKey = getContextKey(contextTagIds);
+      const contextExpertiseEvidence = await ctx.db
+        .query("contextExpertiseEvidence")
+        .withIndex("by_entryId_and_createdAt", (q) =>
+          q.eq("entryId", accepted.entryId!),
+        )
+        .collect();
+      const contextExpertiseAggregate = await ctx.db
+        .query("contextExpertiseAggregates")
+        .withIndex("by_subjectUserId_and_contextKey", (q) =>
+          q.eq("subjectUserId", userId).eq("contextKey", contextKey),
+        )
+        .unique();
 
       return {
         contributionSubmission,
+        contextExpertiseAggregate,
+        contextExpertiseEvidence,
+        contextKey,
+        contextTagIds,
         entry,
         outputs,
         proposal,
+        quoteRows,
         representations,
       };
     });
@@ -1297,6 +1351,7 @@ describe("Smart Storage contribution spine", () => {
         sourceId: startResult.sourceId,
       }),
     ]);
+    expect(rowState.quoteRows).toEqual([]);
     expect(rowState.proposal).toEqual(
       expect.objectContaining({
         status: "accepted",
@@ -1307,6 +1362,541 @@ describe("Smart Storage contribution spine", () => {
         submissionStatus: "accepted",
       }),
     );
+    expect(rowState.contextExpertiseEvidence).toEqual([
+      expect.objectContaining({
+        contextKey: rowState.contextKey,
+        contextTagIds: rowState.contextTagIds,
+        entryId: accepted.entryId,
+        evidenceKind: "post",
+        subjectUserId: userId,
+        visibilityKind: "public",
+        visibilityTargetKey: "public",
+      }),
+    ]);
+    expect(rowState.contextExpertiseAggregate).toEqual(
+      expect.objectContaining({
+        contextExpertiseMaturity: 20,
+        contextExpertiseScore: 72,
+        contextKey: rowState.contextKey,
+        contextTagIds: rowState.contextTagIds,
+        evidenceCount: 1,
+        feedbackCount: 0,
+        postCount: 1,
+        subjectUserId: userId,
+        topSupportingEntryIds: [accepted.entryId],
+        visibilityKind: "public",
+        visibilityTargetKey: "public",
+        audienceScopeKind: "public",
+        audienceScopeTargetKey: "public",
+      }),
+    );
+
+    const rankedAggregates = await authed.query(
+      api.contextExpertise.listForActiveTags,
+      {
+        activeTagIds: rowState.contextTagIds,
+        limit: 5,
+      },
+    );
+    expect(rankedAggregates).toEqual([
+      expect.objectContaining({
+        aggregateId: rowState.contextExpertiseAggregate!._id,
+        contextExpertiseScore: 72,
+        evidenceCount: 1,
+        subjectUserId: userId,
+        topSupportingEntryIds: [accepted.entryId],
+      }),
+    ]);
+  });
+
+  test("accepts a scaffold Proposal as Smart Storage Slot Fulfillment", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const slotSeed = await t.run(
+      async (ctx) =>
+        await insertJoshuaSlot(ctx, {
+          createdByUserId: userId,
+          requestedKnowledgeType: "lesson",
+          title: "Required Joshua lesson",
+        }),
+    );
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const [joshuaContextTag] = getJoshuaContextTags();
+    if (joshuaContextTag === undefined) {
+      throw new Error("Missing Joshua context tag fixture.");
+    }
+    const proposalResult = await createDraftProposal(
+      authed,
+      getLessonSmartStorageInput({
+        contextTags: [joshuaContextTag],
+        slotId: slotSeed.slotId,
+      }),
+    );
+
+    const accepted = await authed.mutation(api.smartStorage.acceptScaffoldProposal, {
+      smartStorageProposalId: proposalResult.smartStorageProposalId,
+    });
+
+    const slotContextKey = getContextKey(slotSeed.contextTagIds);
+    const rowState = await t.run(async (ctx) => ({
+      contextExpertiseAggregate: await ctx.db
+        .query("contextExpertiseAggregates")
+        .withIndex("by_subjectUserId_and_contextKey", (q) =>
+          q.eq("subjectUserId", userId).eq("contextKey", slotContextKey),
+        )
+        .unique(),
+      contextExpertiseEvidenceRows: await ctx.db
+        .query("contextExpertiseEvidence")
+        .withIndex("by_entryId_and_createdAt", (q) =>
+          q.eq("entryId", accepted.entryId!),
+        )
+        .collect(),
+      slotEvidenceRows: await ctx.db
+        .query("contextExpertiseEvidence")
+        .withIndex("by_slotId", (q) => q.eq("slotId", slotSeed.slotId))
+        .collect(),
+      fulfilledSlot: await ctx.db.get(slotSeed.slotId),
+    }));
+
+    expect(rowState.fulfilledSlot).toEqual(
+      expect.objectContaining({
+        fulfilledEntryId: accepted.entryId,
+        requestedKnowledgeType: "lesson",
+        status: "fulfilled",
+      }),
+    );
+    expect(rowState.contextExpertiseEvidenceRows).toHaveLength(2);
+    const postEvidence = rowState.contextExpertiseEvidenceRows.find(
+      (row) => row.evidenceKind === "post",
+    );
+    const slotFulfillmentEvidence = rowState.contextExpertiseEvidenceRows.find(
+      (row) => row.evidenceKind === "slotFulfillment",
+    );
+    expect(postEvidence).toEqual(
+      expect.objectContaining({
+        contextKey: slotContextKey,
+        contextTagIds: slotSeed.contextTagIds,
+        entryId: accepted.entryId,
+        evidenceKind: "post",
+        subjectUserId: userId,
+      }),
+    );
+    expect(postEvidence).not.toHaveProperty("slotId");
+    expect(slotFulfillmentEvidence).toEqual(
+      expect.objectContaining({
+        contextKey: slotContextKey,
+        contextTagIds: slotSeed.contextTagIds,
+        entryId: accepted.entryId,
+        evidenceKind: "slotFulfillment",
+        slotId: slotSeed.slotId,
+        subjectUserId: userId,
+      }),
+    );
+    expect(rowState.slotEvidenceRows).toEqual([slotFulfillmentEvidence]);
+    expect(rowState.contextExpertiseAggregate).toEqual(
+      expect.objectContaining({
+        contextExpertiseMaturity: 40,
+        contextExpertiseScore: 84,
+        contextKey: slotContextKey,
+        contextTagIds: slotSeed.contextTagIds,
+        evidenceCount: 2,
+        feedbackCount: 0,
+        postCount: 1,
+        subjectUserId: userId,
+        topSupportingEntryIds: [accepted.entryId],
+      }),
+    );
+
+    const rankedAggregates = await authed.query(
+      api.contextExpertise.listForActiveTags,
+      {
+        activeTagIds: slotSeed.contextTagIds,
+        limit: 5,
+      },
+    );
+    expect(rankedAggregates).toEqual([
+      expect.objectContaining({
+        aggregateId: rowState.contextExpertiseAggregate!._id,
+        contextExpertiseScore: 84,
+        evidenceCount: 2,
+        postCount: 1,
+        subjectUserId: userId,
+        topSupportingEntryIds: [accepted.entryId],
+      }),
+    ]);
+  });
+
+  test("rejects Smart Storage Slot Fulfillment when the Knowledge Type does not match", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const slotSeed = await t.run(
+      async (ctx) =>
+        await insertJoshuaSlot(ctx, {
+          createdByUserId: userId,
+          requestedKnowledgeType: "lesson",
+          title: "Lesson-only Smart Storage Slot",
+        }),
+    );
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const [joshuaContextTag] = getJoshuaContextTags();
+    if (joshuaContextTag === undefined) {
+      throw new Error("Missing Joshua context tag fixture.");
+    }
+    const proposalResult = await createDraftProposal(authed, {
+      body: "How does Joshua connect courage and obedience?",
+      contextTags: [joshuaContextTag],
+      knowledgeType: "question",
+      slotId: slotSeed.slotId,
+      title: "How does Joshua define courage?",
+    });
+
+    await expect(
+      authed.mutation(api.smartStorage.acceptScaffoldProposal, {
+        smartStorageProposalId: proposalResult.smartStorageProposalId,
+      }),
+    ).rejects.toThrow("must match the Knowledge Slot request");
+
+    const rowState = await t.run(async (ctx) => ({
+      contextExpertiseEvidenceRows: await ctx.db
+        .query("contextExpertiseEvidence")
+        .withIndex("by_slotId", (q) => q.eq("slotId", slotSeed.slotId))
+        .collect(),
+      entries: await ctx.db
+        .query("knowledgeEntries")
+        .withIndex("by_createdByUserId", (q) => q.eq("createdByUserId", userId))
+        .collect(),
+      slot: await ctx.db.get(slotSeed.slotId),
+    }));
+    expect(
+      rowState.entries.some((entry) => entry.title === "How does Joshua define courage?"),
+    ).toBe(false);
+    expect(rowState.contextExpertiseEvidenceRows).toEqual([]);
+    expect(rowState.slot).toEqual(expect.objectContaining({ status: "open" }));
+    expect(rowState.slot).not.toHaveProperty("fulfilledEntryId");
+  });
+
+  test("rejects Smart Storage Slot Fulfillment when the Slot is not open", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const slotSeed = await t.run(
+      async (ctx) =>
+        await insertJoshuaSlot(ctx, {
+          createdByUserId: userId,
+          requestedKnowledgeType: "lesson",
+          status: "cancelled",
+          title: "Cancelled Joshua lesson",
+        }),
+    );
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const [joshuaContextTag] = getJoshuaContextTags();
+    if (joshuaContextTag === undefined) {
+      throw new Error("Missing Joshua context tag fixture.");
+    }
+    const proposalResult = await createDraftProposal(
+      authed,
+      getLessonSmartStorageInput({
+        contextTags: [joshuaContextTag],
+        slotId: slotSeed.slotId,
+      }),
+    );
+
+    await expect(
+      authed.mutation(api.smartStorage.acceptScaffoldProposal, {
+        smartStorageProposalId: proposalResult.smartStorageProposalId,
+      }),
+    ).rejects.toThrow("Knowledge Slot is not open for Fulfillment.");
+
+    const rowState = await t.run(async (ctx) => ({
+      contextExpertiseEvidenceRows: await ctx.db
+        .query("contextExpertiseEvidence")
+        .withIndex("by_slotId", (q) => q.eq("slotId", slotSeed.slotId))
+        .collect(),
+      slot: await ctx.db.get(slotSeed.slotId),
+    }));
+    expect(rowState.contextExpertiseEvidenceRows).toEqual([]);
+    expect(rowState.slot).toEqual(expect.objectContaining({ status: "cancelled" }));
+    expect(rowState.slot).not.toHaveProperty("fulfilledEntryId");
+  });
+
+  test("accepts a Quote Proposal into a Quote detail row with one Person attribution", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const body = "Courage is every virtue at the testing point.";
+    const proposalResult = await createDraftProposal(
+      authed,
+      getQuoteSmartStorageInput({
+        body,
+        contextTags: getQuoteContextTags([
+          {
+            canonicalKey: "cs-lewis",
+            href: "/goto/cs-lewis",
+            id: "cs-lewis",
+            knowledgeType: "person" as const,
+            label: "C.S. Lewis",
+          },
+        ]),
+        title: "Courage at the testing point",
+      }),
+    );
+
+    const accepted = await authed.mutation(api.smartStorage.acceptScaffoldProposal, {
+      smartStorageProposalId: proposalResult.smartStorageProposalId,
+    });
+
+    const rowState = await t.run(async (ctx) => {
+      const lewis = await ctx.db
+        .query("referents")
+        .withIndex("by_knowledgeType_and_canonicalKey", (q) =>
+          q.eq("knowledgeType", "person").eq("canonicalKey", "cs-lewis"),
+        )
+        .first();
+      const quoteRows = await ctx.db
+        .query("quoteEntries")
+        .withIndex("by_entryId", (q) => q.eq("entryId", accepted.entryId!))
+        .collect();
+      const contextTagIds = (
+        await ctx.db
+          .query("entryTags")
+          .withIndex("by_entryId_and_tagPurpose", (q) =>
+            q.eq("entryId", accepted.entryId!).eq("tagPurpose", "context"),
+          )
+          .collect()
+      )
+        .map((entryTag) => entryTag.tagId)
+        .sort();
+      const contextKey = getContextKey(contextTagIds);
+      const contextExpertiseEvidence = await ctx.db
+        .query("contextExpertiseEvidence")
+        .withIndex("by_entryId_and_createdAt", (q) =>
+          q.eq("entryId", accepted.entryId!),
+        )
+        .collect();
+      const userAggregate = await ctx.db
+        .query("contextExpertiseAggregates")
+        .withIndex("by_subjectUserId_and_contextKey", (q) =>
+          q.eq("subjectUserId", userId).eq("contextKey", contextKey),
+        )
+        .unique();
+      const personAggregate =
+        lewis === null
+          ? null
+          : await ctx.db
+              .query("contextExpertiseAggregates")
+              .withIndex("by_subjectPersonReferentId_and_contextKey", (q) =>
+                q
+                  .eq("subjectPersonReferentId", lewis._id)
+                  .eq("contextKey", contextKey),
+              )
+              .unique();
+
+      return {
+        contextExpertiseEvidence,
+        contextKey,
+        contextTagIds,
+        lewis,
+        personAggregate,
+        quoteRows,
+        userAggregate,
+      };
+    });
+
+    expect(rowState.lewis).toEqual(
+      expect.objectContaining({
+        canonicalName: "C.S. Lewis",
+      }),
+    );
+    expect(rowState.quoteRows).toEqual([
+      expect.objectContaining({
+        entryId: accepted.entryId,
+        quotedPersonReferentId: rowState.lewis!._id,
+        sourceText: body,
+      }),
+    ]);
+    expect(rowState.contextExpertiseEvidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          contextKey: rowState.contextKey,
+          contextTagIds: rowState.contextTagIds,
+          entryId: accepted.entryId,
+          evidenceKind: "post",
+          subjectUserId: userId,
+          visibilityKind: "public",
+          visibilityTargetKey: "public",
+        }),
+        expect.objectContaining({
+          contextKey: rowState.contextKey,
+          contextTagIds: rowState.contextTagIds,
+          entryId: accepted.entryId,
+          evidenceKind: "quoteAttribution",
+          subjectPersonReferentId: rowState.lewis!._id,
+          visibilityKind: "public",
+          visibilityTargetKey: "public",
+        }),
+      ]),
+    );
+    expect(rowState.contextExpertiseEvidence).toHaveLength(2);
+    const quoteAttributionEvidence = rowState.contextExpertiseEvidence.find(
+      (evidence) => evidence.evidenceKind === "quoteAttribution",
+    );
+    expect(quoteAttributionEvidence).not.toHaveProperty("subjectUserId");
+    expect(rowState.userAggregate).toEqual(
+      expect.objectContaining({
+        contextKey: rowState.contextKey,
+        evidenceCount: 1,
+        feedbackCount: 0,
+        postCount: 1,
+        subjectUserId: userId,
+        topSupportingEntryIds: [accepted.entryId],
+      }),
+    );
+    expect(rowState.personAggregate).toEqual(
+      expect.objectContaining({
+        contextKey: rowState.contextKey,
+        evidenceCount: 1,
+        feedbackCount: 0,
+        postCount: 0,
+        subjectPersonReferentId: rowState.lewis!._id,
+        topSupportingEntryIds: [accepted.entryId],
+      }),
+    );
+    expect(rowState.personAggregate).not.toHaveProperty("subjectUserId");
+  });
+
+  test("accepts Quote Proposals without attribution when Person context is absent or ambiguous", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const noPersonBody = "An unattributed quote.";
+    const multiPersonBody = "An ambiguously attributed quote.";
+    const noPersonProposal = await createDraftProposal(
+      authed,
+      getQuoteSmartStorageInput({
+        body: noPersonBody,
+        title: "Quote without a Person context",
+      }),
+    );
+    const multiPersonProposal = await createDraftProposal(
+      authed,
+      getQuoteSmartStorageInput({
+        body: multiPersonBody,
+        contextTags: getQuoteContextTags([
+          {
+            canonicalKey: "cs-lewis",
+            href: "/goto/cs-lewis",
+            id: "cs-lewis",
+            knowledgeType: "person" as const,
+            label: "C.S. Lewis",
+          },
+          {
+            canonicalKey: "gk-chesterton",
+            href: "/goto/gk-chesterton",
+            id: "gk-chesterton",
+            knowledgeType: "person" as const,
+            label: "G.K. Chesterton",
+          },
+        ]),
+        title: "Quote with ambiguous Person context",
+      }),
+    );
+
+    const noPersonAccepted = await authed.mutation(
+      api.smartStorage.acceptScaffoldProposal,
+      {
+        smartStorageProposalId: noPersonProposal.smartStorageProposalId,
+      },
+    );
+    const multiPersonAccepted = await authed.mutation(
+      api.smartStorage.acceptScaffoldProposal,
+      {
+        smartStorageProposalId: multiPersonProposal.smartStorageProposalId,
+      },
+    );
+
+    const rowState = await t.run(async (ctx) => ({
+      multiPersonEvidence: await ctx.db
+        .query("contextExpertiseEvidence")
+        .withIndex("by_entryId_and_createdAt", (q) =>
+          q.eq("entryId", multiPersonAccepted.entryId!),
+        )
+        .collect(),
+      multiPersonQuoteRows: await ctx.db
+        .query("quoteEntries")
+        .withIndex("by_entryId", (q) =>
+          q.eq("entryId", multiPersonAccepted.entryId!),
+        )
+        .collect(),
+      noPersonEvidence: await ctx.db
+        .query("contextExpertiseEvidence")
+        .withIndex("by_entryId_and_createdAt", (q) =>
+          q.eq("entryId", noPersonAccepted.entryId!),
+        )
+        .collect(),
+      noPersonQuoteRows: await ctx.db
+        .query("quoteEntries")
+        .withIndex("by_entryId", (q) =>
+          q.eq("entryId", noPersonAccepted.entryId!),
+        )
+        .collect(),
+    }));
+    expect(rowState.noPersonQuoteRows).toEqual([
+      expect.objectContaining({
+        entryId: noPersonAccepted.entryId,
+        sourceText: noPersonBody,
+      }),
+    ]);
+    expect(rowState.noPersonQuoteRows[0]).not.toHaveProperty(
+      "quotedPersonReferentId",
+    );
+    expect(rowState.multiPersonQuoteRows).toEqual([
+      expect.objectContaining({
+        entryId: multiPersonAccepted.entryId,
+        sourceText: multiPersonBody,
+      }),
+    ]);
+    expect(rowState.multiPersonQuoteRows[0]).not.toHaveProperty(
+      "quotedPersonReferentId",
+    );
+    expect(
+      rowState.noPersonEvidence.filter(
+        (evidence) => evidence.evidenceKind === "quoteAttribution",
+      ),
+    ).toEqual([]);
+    expect(
+      rowState.multiPersonEvidence.filter(
+        (evidence) => evidence.evidenceKind === "quoteAttribution",
+      ),
+    ).toEqual([]);
+  });
+
+  test("still creates Question detail rows when accepting a Question Proposal", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const proposalResult = await createDraftProposal(authed, {
+      body: "How does Joshua connect courage and obedience?",
+      contextTags: getJoshuaContextTags(),
+      knowledgeType: "question" as const,
+      title: "How does Joshua define courage?",
+    });
+
+    const accepted = await authed.mutation(api.smartStorage.acceptScaffoldProposal, {
+      smartStorageProposalId: proposalResult.smartStorageProposalId,
+    });
+
+    const questionRows = await t.run(
+      async (ctx) =>
+        await ctx.db
+          .query("questionEntries")
+          .withIndex("by_entryId", (q) => q.eq("entryId", accepted.entryId!))
+          .collect(),
+    );
+    expect(questionRows).toEqual([
+      expect.objectContaining({
+        entryId: accepted.entryId,
+        questionText: "How does Joshua define courage?",
+      }),
+    ]);
   });
 
   test("persists explicit Representation decisions when accepting a scaffold Proposal", async () => {
@@ -1321,7 +1911,6 @@ describe("Smart Storage contribution spine", () => {
         contextTags: getJoshuaContextTags(),
         externalUrls: [{ url: "https://example.com/courage" }],
         knowledgeType: "lesson",
-        slotId: "slot-joshua-courage-lesson",
         title: "  Courage in Joshua  ",
         uploadedFiles: [
           {
@@ -1537,6 +2126,15 @@ describe("Smart Storage contribution spine", () => {
       status: "needsResolution",
     });
     const rowState = await t.run(async (ctx) => ({
+      contextExpertiseEvidenceCount: (
+        await ctx.db.query("contextExpertiseEvidence").collect()
+      ).length,
+      proposalCurationEvidenceRows: await ctx.db
+        .query("contextExpertiseEvidence")
+        .withIndex("by_smartStorageProposalId", (q) =>
+          q.eq("smartStorageProposalId", secondProposal.smartStorageProposalId),
+        )
+        .collect(),
       entries: await ctx.db
         .query("knowledgeEntries")
         .withIndex("by_createdByUserId", (q) => q.eq("createdByUserId", userId))
@@ -1546,6 +2144,8 @@ describe("Smart Storage contribution spine", () => {
     expect(
       rowState.entries.filter((entry) => entry.title === "Courage in Joshua"),
     ).toHaveLength(1);
+    expect(rowState.contextExpertiseEvidenceCount).toBe(1);
+    expect(rowState.proposalCurationEvidenceRows).toEqual([]);
     expect(rowState.proposal).toEqual(
       expect.objectContaining({
         status: "needsResolution",
@@ -1618,9 +2218,45 @@ describe("Smart Storage contribution spine", () => {
       const contributionSubmission = await ctx.db.get(
         secondProposal.contributionSubmissionId!,
       );
+      const contextTagIds = (
+        await ctx.db
+          .query("entryTags")
+          .withIndex("by_entryId_and_tagPurpose", (q) =>
+            q.eq("entryId", firstAccepted.entryId!).eq("tagPurpose", "context"),
+          )
+          .collect()
+      )
+        .map((entryTag) => entryTag.tagId)
+        .sort();
+      const contextKey = getContextKey(contextTagIds);
+      const contextExpertiseEvidenceRows = await ctx.db
+        .query("contextExpertiseEvidence")
+        .withIndex("by_entryId_and_createdAt", (q) =>
+          q.eq("entryId", firstAccepted.entryId!),
+        )
+        .collect();
+      const contextExpertiseAggregate = await ctx.db
+        .query("contextExpertiseAggregates")
+        .withIndex("by_subjectUserId_and_contextKey", (q) =>
+          q.eq("subjectUserId", userId).eq("contextKey", contextKey),
+        )
+        .unique();
 
       return {
         contributionSubmission,
+        contextExpertiseAggregate,
+        contextExpertiseEvidenceRows,
+        contextKey,
+        contextTagIds,
+        curationEvidenceRows: await ctx.db
+          .query("contextExpertiseEvidence")
+          .withIndex("by_smartStorageProposalId", (q) =>
+            q.eq(
+              "smartStorageProposalId",
+              secondProposal.smartStorageProposalId,
+            ),
+          )
+          .collect(),
         entries,
         outputs,
         proposal,
@@ -1664,6 +2300,69 @@ describe("Smart Storage contribution spine", () => {
         submissionStatus: "accepted",
       }),
     );
+    expect(rowState.contextExpertiseEvidenceRows).toHaveLength(2);
+    const postEvidence = rowState.contextExpertiseEvidenceRows.find(
+      (row) => row.evidenceKind === "post",
+    );
+    const curationEvidence = rowState.contextExpertiseEvidenceRows.find(
+      (row) => row.evidenceKind === "curation",
+    );
+    expect(postEvidence).toEqual(
+      expect.objectContaining({
+        contextKey: rowState.contextKey,
+        contextTagIds: rowState.contextTagIds,
+        entryId: firstAccepted.entryId,
+        evidenceKind: "post",
+        subjectUserId: userId,
+      }),
+    );
+    expect(curationEvidence).toEqual(
+      expect.objectContaining({
+        contextKey: rowState.contextKey,
+        contextTagIds: rowState.contextTagIds,
+        entryId: firstAccepted.entryId,
+        evidenceKind: "curation",
+        smartStorageProposalId: secondProposal.smartStorageProposalId,
+        subjectUserId: userId,
+        visibilityKind: "public",
+        visibilityTargetKey: "public",
+      }),
+    );
+    expect(curationEvidence).not.toHaveProperty("feedbackId");
+    expect(curationEvidence).not.toHaveProperty("slotId");
+    expect(rowState.curationEvidenceRows).toEqual([curationEvidence]);
+    expect(rowState.contextExpertiseAggregate).toEqual(
+      expect.objectContaining({
+        contextExpertiseMaturity: 40,
+        contextExpertiseScore: 84,
+        contextKey: rowState.contextKey,
+        contextTagIds: rowState.contextTagIds,
+        evidenceCount: 2,
+        feedbackCount: 0,
+        postCount: 1,
+        subjectUserId: userId,
+        topSupportingEntryIds: [firstAccepted.entryId],
+      }),
+    );
+
+    const rankedAggregates = await authed.query(
+      api.contextExpertise.listForActiveTags,
+      {
+        activeTagIds: rowState.contextTagIds,
+        limit: 5,
+      },
+    );
+    expect(rankedAggregates).toEqual([
+      expect.objectContaining({
+        aggregateId: rowState.contextExpertiseAggregate!._id,
+        contextExpertiseScore: 84,
+        evidenceCount: 2,
+        feedbackCount: 0,
+        postCount: 1,
+        subjectUserId: userId,
+        topSupportingEntryIds: [firstAccepted.entryId],
+      }),
+    ]);
   });
 
   test("rejects confirmed existing-entry updates for the wrong target", async () => {
@@ -1726,6 +2425,15 @@ describe("Smart Storage contribution spine", () => {
         targetExistingEntryId: seededEntryId,
       }),
     ).rejects.toThrow("Unauthorized");
+    const rowState = await t.run(async (ctx) => ({
+      curationEvidenceRows: await ctx.db
+        .query("contextExpertiseEvidence")
+        .withIndex("by_smartStorageProposalId", (q) =>
+          q.eq("smartStorageProposalId", proposal.smartStorageProposalId),
+        )
+        .collect(),
+    }));
+    expect(rowState.curationEvidenceRows).toEqual([]);
   });
 
   test("backfills missing Representation Roles for legacy Entry Representations", async () => {
@@ -2061,7 +2769,7 @@ describe("Smart Storage contribution spine", () => {
 
 async function createDraftProposal(
   authed: ReturnType<ReturnType<typeof convexTest>["withIdentity"]>,
-  input = getLessonSmartStorageInput(),
+  input: SmartStorageContributionInput = getLessonSmartStorageInput(),
 ) {
   const startResult = await authed.mutation(
     api.smartStorage.startFromContribution,
@@ -2129,22 +2837,36 @@ function getModelProposedEntry(
 }
 
 function getLessonSmartStorageInput(
-  overrides: Partial<{
-    externalUrls: Array<{ url: string }>;
-    title: string;
-  }> = {},
-) {
+  overrides: Partial<SmartStorageContributionInput> = {},
+): SmartStorageContributionInput {
   return {
     body: "  Objective: students will distinguish courage from presumption.  ",
     contextTags: getJoshuaContextTags(),
     knowledgeType: "lesson" as const,
-    slotId: "slot-joshua-courage-lesson",
     title: "  Courage in Joshua  ",
     ...overrides,
   };
 }
 
-function getJoshuaContextTags() {
+function getQuoteSmartStorageInput(
+  overrides: Partial<SmartStorageContributionInput> = {},
+): SmartStorageContributionInput {
+  return {
+    body: "Courage is every virtue at the testing point.",
+    contextTags: getQuoteContextTags(),
+    knowledgeType: "quote" as const,
+    title: "Courage quote",
+    ...overrides,
+  };
+}
+
+function getQuoteContextTags(
+  personTags: TestContextTagSnapshot[] = [],
+): TestContextTagSnapshot[] {
+  return [...getJoshuaContextTags(), ...personTags];
+}
+
+function getJoshuaContextTags(): TestContextTagSnapshot[] {
   return [
     {
       canonicalKey: "joshua-1-6-9",
@@ -2162,6 +2884,57 @@ function getJoshuaContextTags() {
       label: "Courage",
     },
   ];
+}
+
+function getContextKey(tagIds: Array<Id<"tags">>) {
+  return `tags:${[...tagIds].sort().join(",")}`;
+}
+
+async function insertJoshuaSlot(
+  ctx: MutationCtx,
+  {
+    createdByUserId,
+    requestedKnowledgeType,
+    status = "open",
+    title,
+  }: {
+    createdByUserId: Id<"users">;
+    requestedKnowledgeType: Doc<"knowledgeSlots">["requestedKnowledgeType"];
+    status?: Doc<"knowledgeSlots">["status"];
+    title: string;
+  },
+) {
+  const now = Date.now();
+  const referentId = await ctx.db.insert("referents", {
+    canonicalKey: "joshua-1-6-9",
+    canonicalName: "Joshua 1:6-9",
+    knowledgeType: "biblePassage",
+  });
+  const tagId = await ctx.db.insert("tags", {
+    referentId,
+    knowledgeType: "biblePassage",
+    label: "Joshua 1:6-9",
+    lookupKey: "joshua-1-6-9",
+    createdByUserId,
+  });
+  const contextTagIds = [tagId];
+  const slotId = await ctx.db.insert("knowledgeSlots", {
+    requestedKnowledgeType,
+    status,
+    title,
+    contextKey: getContextKey(contextTagIds),
+    targetKind: "public",
+    createdByUserId,
+    createdAt: now,
+    updatedAt: now,
+  });
+  await ctx.db.insert("slotTags", {
+    slotId,
+    tagId,
+    addedAt: now,
+  });
+
+  return { contextTagIds, slotId };
 }
 
 async function storeTestFile(
@@ -2427,7 +3200,6 @@ async function insertAllowedUser(ctx: MutationCtx, suffix: unknown = "") {
       normalizedSuffix ? ` ${normalizedSuffix}` : ""
     }`,
     contextPreviewTagLabels: [],
-    humanWeight: 0,
     visibilityKind: "public",
     visibilityTargetKey: "public",
     discoverabilityKind: "public",

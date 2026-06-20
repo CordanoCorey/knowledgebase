@@ -6,15 +6,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test } from "vitest";
 import {
   ContributionEditor,
-  createContributionPreview,
   createContributionInput,
-  resolveContributionMode,
+  createContributionPreview,
+  extractExternalUrlsFromText,
   resolveContributionKnowledgeType,
+  resolveContributionMode,
 } from "./ContributionEditor";
-import type {
-  ActiveTag,
-  KnowledgeSlotSummary,
-} from "./knowledgeContracts";
+import type { ActiveTag, ContributionInput, KnowledgeSlotSummary } from "./knowledgeContracts";
 
 const romansTag: ActiveTag = {
   canonicalKey: "romans-8-28",
@@ -32,6 +30,22 @@ const holySpiritTag: ActiveTag = {
   label: "Holy Spirit",
 };
 
+const csLewisTag: ActiveTag = {
+  canonicalKey: "cs-lewis",
+  href: "/goto/cs-lewis",
+  id: "cs-lewis",
+  knowledgeType: "person",
+  label: "C.S. Lewis",
+};
+
+const gkChestertonTag: ActiveTag = {
+  canonicalKey: "gk-chesterton",
+  href: "/goto/gk-chesterton",
+  id: "gk-chesterton",
+  knowledgeType: "person",
+  label: "G.K. Chesterton",
+};
+
 const lessonSlot: KnowledgeSlotSummary = {
   contextPreviewTagLabels: ["Romans 8:28", "Holy Spirit"],
   href: "/slots/slot-romans-8-spirit-lesson",
@@ -42,8 +56,8 @@ const lessonSlot: KnowledgeSlotSummary = {
   title: "Lesson on Romans 8 and the Holy Spirit",
 };
 
-describe("Contribution Editor type resolution", () => {
-  test("defaults to words", () => {
+describe("Contribution Editor type and mode resolution", () => {
+  test("defaults to Words", () => {
     expect(resolveContributionKnowledgeType({})).toBe("words");
   });
 
@@ -67,10 +81,12 @@ describe("Contribution Editor type resolution", () => {
     );
 
     expect(markup).toContain("Lesson on Romans 8 and the Holy Spirit");
-    expect(markup).toContain("Post Lesson");
+    expect(markup).toContain("Lesson");
+    expect(markup).toContain("Smart Storage");
+    expect(markup).toContain("Store");
+    expect(markup).not.toContain("<select");
     expect(markup).toContain('href="/scripture/romans-8-28"');
     expect(markup).toContain('href="/goto/holy-spirit"');
-    expect(markup).toContain("disabled");
   });
 
   test("user-selected type wins when no Slot type exists", () => {
@@ -90,49 +106,49 @@ describe("Contribution Editor type resolution", () => {
     ).toBe("words");
   });
 
-  test("global context defaults to Smart Storage mode", () => {
-    expect(resolveContributionMode({ context: [] })).toBe("smartStorage");
+  test("Question inference is live only outside Comment defaults and allowed types", () => {
+    expect(
+      resolveContributionKnowledgeType({
+        body: "How should we read Romans 8?",
+      }),
+    ).toBe("question");
 
-    const preview = createContributionPreview({
-      body: "An unclassified source that may become something richer.",
-      context: [],
-      knowledgeType: "words",
-      title: "Raw contribution",
-    });
+    expect(
+      resolveContributionKnowledgeType({
+        body: "How should we read Romans 8?",
+        parentEntryTitle: "Trial by Fire",
+      }),
+    ).toBe("comment");
 
-    expect(preview).toMatchObject({
-      knowledgeType: "words",
-      mode: "smartStorage",
-      submitLabel: "Store Smartly",
-    });
-    expect(preview.attributes).toContainEqual({
-      label: "Knowledge Context",
-      value: "Global Knowledge Context",
-    });
+    expect(
+      resolveContributionKnowledgeType({
+        allowedContributionTypes: ["words"],
+        body: "How should we read Romans 8?",
+      }),
+    ).toBe("words");
   });
 
-  test("tagged contexts default to direct posting mode", () => {
-    expect(resolveContributionMode({ context: [romansTag] })).toBe("direct");
+  test("Allowed Contribution Types constrain the editor", () => {
+    expect(
+      resolveContributionKnowledgeType({
+        allowedContributionTypes: ["lesson"],
+        body: "How should we read Romans 8?",
+      }),
+    ).toBe("lesson");
 
-    const preview = createContributionPreview({
-      body: "Comfort in suffering belongs here.",
-      context: [romansTag, holySpiritTag],
-      knowledgeType: "words",
-      title: "Hope in suffering",
-    });
+    const markup = renderToStaticMarkup(
+      <ContributionEditor
+        allowedContributionTypes={["lesson"]}
+        context={[romansTag]}
+        onSubmitSource={() => ({ status: "submitted" })}
+      />,
+    );
 
-    expect(preview).toMatchObject({
-      context: [romansTag, holySpiritTag],
-      mode: "direct",
-      submitLabel: "Post Words",
-    });
-    expect(preview.attributes).toContainEqual({
-      label: "Knowledge Context",
-      value: "Romans 8:28, Holy Spirit",
-    });
+    expect(markup).toContain("Lesson");
+    expect(markup).not.toContain("<select");
   });
 
-  test("biblePassage is unavailable as a contribution type", () => {
+  test("Bible Passage and RSVP are unavailable as generic contribution types", () => {
     expect(
       resolveContributionKnowledgeType({
         selectedKnowledgeType: "biblePassage",
@@ -151,38 +167,136 @@ describe("Contribution Editor type resolution", () => {
     expect(markup).not.toContain('value="rsvp"');
   });
 
-  test("global editor renders Smart Storage primary and direct secondary actions", () => {
+  test("root context defaults to Smart Storage while tagged Words defaults direct", () => {
+    expect(resolveContributionMode({ context: [] })).toBe("smartStorage");
+    expect(
+      resolveContributionMode({
+        context: [romansTag],
+        knowledgeType: "words",
+      }),
+    ).toBe("direct");
+
+    const rootPreview = createContributionPreview({
+      body: "An unclassified source that may become something richer.",
+      context: [],
+      knowledgeType: "words",
+      title: "",
+    });
+    expect(rootPreview).toMatchObject({
+      knowledgeType: "words",
+      mode: "smartStorage",
+      submitLabel: "Store",
+    });
+
+    const taggedPreview = createContributionPreview({
+      body: "Comfort in suffering belongs here.",
+      context: [romansTag, holySpiritTag],
+      knowledgeType: "words",
+      title: "",
+    });
+    expect(taggedPreview).toMatchObject({
+      context: [romansTag, holySpiritTag],
+      mode: "direct",
+      submitLabel: "Post",
+    });
+  });
+
+  test("staged Sources, non-Words types, and explicit Words titles force Smart Storage", () => {
+    expect(
+      resolveContributionMode({
+        context: [romansTag],
+        hasSupplementalSources: true,
+        knowledgeType: "words",
+      }),
+    ).toBe("smartStorage");
+
+    expect(
+      resolveContributionMode({
+        context: [romansTag],
+        knowledgeType: "lesson",
+      }),
+    ).toBe("smartStorage");
+
+    expect(
+      resolveContributionMode({
+        context: [romansTag],
+        hasExplicitWordsTitle: true,
+        knowledgeType: "words",
+      }),
+    ).toBe("smartStorage");
+  });
+
+  test("quote preview shows a quoted Person when context has exactly one Person Tag", () => {
+    const preview = createContributionPreview({
+      body: "Courage is every virtue at the testing point.",
+      context: [romansTag, csLewisTag],
+      knowledgeType: "quote",
+      title: "Courage at the testing point",
+    });
+
+    expect(preview.attributes).toContainEqual({
+      label: "Quoted Person",
+      value: "C.S. Lewis",
+    });
+
+    const noPersonPreview = createContributionPreview({
+      body: "A quote without an attributed person in context.",
+      context: [romansTag, holySpiritTag],
+      knowledgeType: "quote",
+      title: "Unattributed quote",
+    });
+    expect(noPersonPreview.attributes).not.toContainEqual(
+      expect.objectContaining({ label: "Quoted Person" }),
+    );
+
+    const ambiguousPersonPreview = createContributionPreview({
+      body: "A quote in an ambiguous person context.",
+      context: [csLewisTag, gkChestertonTag],
+      knowledgeType: "quote",
+      title: "Ambiguous quote",
+    });
+    expect(ambiguousPersonPreview.attributes).not.toContainEqual(
+      expect.objectContaining({ label: "Quoted Person" }),
+    );
+  });
+});
+
+describe("Contribution Editor rendering", () => {
+  test("root editor keeps slim controls and removes bulky expanded panels", () => {
     const markup = renderToStaticMarkup(
       <ContributionEditor
         context={[]}
+        initialBody="A scanned program and https://example.com/chapel should stay attached."
         onSubmitSource={() => ({ status: "submitted" })}
       />,
     );
 
-    expect(markup).toContain("Contribution Preview");
-    expect(markup).toContain("Store Smartly");
-    expect(markup).toContain("Post Words");
-    expect(markup).toContain("Global Knowledge Context");
+    expect(markup).not.toContain("Contribution Preview");
+    expect(markup).not.toContain("Contribution Note");
+    expect(markup).not.toContain("External URL");
+    expect(markup).not.toContain("Source Inventory");
+    expect(markup).not.toContain("No Sources staged");
+    expect(markup).toContain("Attach file");
+    expect(markup).toContain("Link preview pending");
+    expect(markup).toContain("https://example.com/chapel");
+    expect(markup).toContain("Store");
+    expect(markup).toContain("All Accessible Knowledge");
   });
 
-  test("generic editor renders Smart Storage Source controls", () => {
+  test("plain Words keeps a compact direct or Smart Storage choice", () => {
     const markup = renderToStaticMarkup(
       <ContributionEditor
-        context={[]}
-        initialBody="A scanned program and link should stay attached."
+        context={[romansTag]}
+        initialBody="A plain answer without extra Sources."
         onSubmitSource={() => ({ status: "submitted" })}
       />,
     );
 
-    expect(markup).toContain("Contribution Note");
-    expect(markup).toContain("External URL");
-    expect(markup).toContain("Upload File");
-    expect(markup).toContain("Source Inventory");
-    expect(markup).toContain("Authored Text");
-    expect(markup).toContain("A scanned program and link should stay attached.");
+    expect(markup).toContain("Post");
+    expect(markup).toContain("Store");
   });
 
-  test("renders the primary input before contribution preview metadata", () => {
+  test("renders the primary input before compact metadata", () => {
     const markup = renderToStaticMarkup(
       <ContributionEditor
         context={[]}
@@ -194,54 +308,15 @@ describe("Contribution Editor type resolution", () => {
     const primaryInputIndex = markup.indexOf(
       'class="kb-contribution-field kb-contribution-body-field kb-contribution-primary-field"',
     );
-    const previewIndex = markup.indexOf('class="kb-contribution-preview"');
+    const metadataIndex = markup.indexOf('class="kb-contribution-metadata-row"');
 
     expect(formIndex).toBeGreaterThan(-1);
     expect(primaryInputIndex).toBeGreaterThan(formIndex);
-    expect(primaryInputIndex).toBeLessThan(markup.indexOf(">Knowledge Type<"));
-    expect(previewIndex).toBeGreaterThan(primaryInputIndex);
-    expect(markup.indexOf("<textarea")).toBeLessThan(
-      markup.indexOf("Contribution Preview"),
-    );
+    expect(metadataIndex).toBeGreaterThan(primaryInputIndex);
+    expect(markup.indexOf("<textarea")).toBeLessThan(metadataIndex);
   });
 
-  test("supplemental Sources route tagged contributions through Smart Storage", () => {
-    expect(
-      resolveContributionMode({
-        context: [romansTag],
-        hasSupplementalSources: true,
-      }),
-    ).toBe("smartStorage");
-
-    const preview = createContributionPreview({
-      body: "A source with attachment context.",
-      context: [romansTag],
-      hasSupplementalSources: true,
-      knowledgeType: "words",
-      title: "Attached source",
-    });
-
-    expect(preview).toMatchObject({
-      mode: "smartStorage",
-      submitLabel: "Store Smartly",
-    });
-  });
-
-  test("guided Group creation does not render Smart Storage Source controls", () => {
-    const markup = renderToStaticMarkup(
-      <ContributionEditor
-        context={[romansTag]}
-        guidedContributionType="group"
-        onSubmitSource={() => ({ status: "submitted" })}
-        selectedKnowledgeType="group"
-      />,
-    );
-
-    expect(markup).not.toContain("Source Inventory");
-    expect(markup).not.toContain("Upload File");
-  });
-
-  test("comment editor is titleless and keeps body as visible substance", () => {
+  test("Comment editor is titleless and keeps body as visible substance", () => {
     const markup = renderToStaticMarkup(
       <ContributionEditor
         context={[romansTag]}
@@ -251,30 +326,41 @@ describe("Contribution Editor type resolution", () => {
       />,
     );
 
-    expect(markup).toContain("Post Comment");
-    expect(markup).toContain(">Comment<");
+    expect(markup).toContain("Comment");
     expect(markup).not.toContain(">Title<");
     expect(markup).not.toContain('type="text"');
     expect(markup).toMatch(/<textarea[^>]*required/);
-
-    const preview = createContributionPreview({
-      body: "This is the comment body.",
-      context: [romansTag],
-      knowledgeType: "comment",
-      parentEntryTitle: "Trial by Fire",
-    });
-
-    expect(preview.attributes).not.toContainEqual({
-      label: "Title",
-      value: "Comment on Trial by Fire",
-    });
-    expect(preview.attributes).toContainEqual({
-      label: "Preview",
-      value: "This is the comment body.",
-    });
   });
 
-  test("question editor uses question text as identity and allows optional details", () => {
+  test("Words is titleless by default but can reveal an optional Title", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    try {
+      await act(async () => {
+        root.render(
+          <ContributionEditor
+            context={[romansTag]}
+            onSubmitSource={() => ({ status: "submitted" })}
+          />,
+        );
+      });
+
+      expect(container.querySelector('input[type="text"]')).toBeNull();
+      await click(getButton(container, "Add title"));
+
+      const input = container.querySelector('input[type="text"]');
+      expect(input).toBeInstanceOf(HTMLInputElement);
+    } finally {
+      await act(async () => {
+        root.unmount();
+      });
+      container.remove();
+    }
+  });
+
+  test("Question editor uses question text as identity and optional details as body", () => {
     const markup = renderToStaticMarkup(
       <ContributionEditor
         context={[romansTag]}
@@ -287,26 +373,24 @@ describe("Contribution Editor type resolution", () => {
     expect(markup).toContain(">Details<");
     expect(markup).toMatch(/<input[^>]*required/);
     expect(markup).not.toMatch(/<textarea[^>]*required/);
+    expect(markup).toContain("Smart Storage");
+  });
 
-    const preview = createContributionPreview({
-      body: "I need this for seventh grade Bible class.",
-      context: [romansTag],
-      knowledgeType: "question",
-      title: "How does Romans 8 comfort grieving families?",
-    });
+  test("guided Group creation asks only for the Group name in direct mode", () => {
+    const markup = renderToStaticMarkup(
+      <ContributionEditor
+        context={[romansTag]}
+        guidedContributionType="group"
+        onSubmitSource={() => ({ status: "submitted" })}
+        selectedKnowledgeType="group"
+      />,
+    );
 
-    expect(preview.attributes).toContainEqual({
-      label: "Question",
-      value: "How does Romans 8 comfort grieving families?",
-    });
-    expect(preview.attributes).toContainEqual({
-      label: "Details",
-      value: "I need this for seventh grade Bible class.",
-    });
-    expect(preview.attributes).not.toContainEqual({
-      label: "Title",
-      value: "How does Romans 8 comfort grieving families?",
-    });
+    expect(markup).toContain("What is the group called?");
+    expect(markup).toContain("Create Group");
+    expect(markup).not.toContain("Store");
+    expect(markup).not.toContain("<textarea");
+    expect(markup).not.toContain("Attach file");
   });
 
   test("world-modeling types remain available after content-oriented types", () => {
@@ -342,14 +426,8 @@ describe("Contribution Editor type resolution", () => {
         );
       });
 
-      const editor = container.querySelector(".kb-contribution-editor");
-      const textarea = container.querySelector("textarea");
-      if (!(editor instanceof HTMLElement)) {
-        throw new Error("Missing Contribution Editor");
-      }
-      if (!(textarea instanceof HTMLTextAreaElement)) {
-        throw new Error("Missing Contribution Editor textarea");
-      }
+      const editor = getContributionEditor(container);
+      const textarea = getTextarea(editor);
 
       expect(editor.getAttribute("data-expanded")).toBe("false");
 
@@ -367,23 +445,11 @@ describe("Contribution Editor type resolution", () => {
 
       expect(editor.getAttribute("data-expanded")).toBe("true");
 
-      const collapseButton = container.querySelector(
-        'button[aria-label="Collapse contribution editor"]',
-      );
-      if (!(collapseButton instanceof HTMLButtonElement)) {
-        throw new Error("Missing contribution collapse button");
-      }
-
-      await act(async () => {
-        collapseButton.dispatchEvent(
-          new MouseEvent("click", { bubbles: true, cancelable: true }),
-        );
-        await Promise.resolve();
-      });
+      await click(getButton(editor, "Collapse contribution editor"));
 
       expect(editor.getAttribute("data-expanded")).toBe("false");
       expect(
-        container.querySelector('button[aria-label="Collapse contribution editor"]'),
+        editor.querySelector('button[aria-label="Collapse contribution editor"]'),
       ).toBeNull();
     } finally {
       await act(async () => {
@@ -392,48 +458,9 @@ describe("Contribution Editor type resolution", () => {
       container.remove();
     }
   });
-
-  test("guided Group creation asks only for the Group name in direct mode", () => {
-    const markup = renderToStaticMarkup(
-      <ContributionEditor
-        context={[romansTag]}
-        guidedContributionType="group"
-        onSubmitSource={() => ({ status: "submitted" })}
-        selectedKnowledgeType="group"
-      />,
-    );
-
-    expect(markup).toContain("Direct Post");
-    expect(markup).toContain("What is the group called?");
-    expect(markup).toContain("Create Group");
-    expect(markup).not.toContain("Store Smartly");
-    expect(markup).not.toContain("<textarea");
-
-    const preview = createContributionPreview({
-      body: "This stale body should not be previewed.",
-      context: [romansTag],
-      guidedContributionType: "group",
-      knowledgeType: "group",
-      title: "Basketball Club",
-    });
-
-    expect(preview).toMatchObject({
-      knowledgeType: "group",
-      mode: "direct",
-      submitLabel: "Create Group",
-    });
-    expect(preview.attributes).toContainEqual({
-      label: "Group",
-      value: "Basketball Club",
-    });
-    expect(preview.attributes).not.toContainEqual({
-      label: "Preview",
-      value: "This stale body should not be previewed.",
-    });
-  });
 });
 
-describe("Contribution Editor payload", () => {
+describe("Contribution Editor payload and sources", () => {
   test("submitted payload includes context Tags and active Knowledge Type", () => {
     const input = createContributionInput({
       body: "A youth-ready lesson on comfort in suffering.",
@@ -475,6 +502,20 @@ describe("Contribution Editor payload", () => {
     expect(fallbackInput.title).toBe("Comment");
   });
 
+  test("direct Words payload receives a quiet title from the body preview", () => {
+    const input = createContributionInput({
+      body: "Raw chapel notes\nSecond line should stay in the body.",
+      context: [],
+      knowledgeType: "words",
+    });
+
+    expect(input).toMatchObject({
+      body: "Raw chapel notes\nSecond line should stay in the body.",
+      knowledgeType: "words",
+      title: "Raw chapel notes",
+    });
+  });
+
   test("question payload uses question text as title and optional details as body", () => {
     const input = createContributionInput({
       body: "",
@@ -507,7 +548,7 @@ describe("Contribution Editor payload", () => {
     expect(input.contextTags).toEqual([romansTag, holySpiritTag]);
   });
 
-  test("Smart Storage payload includes note, external URLs, and uploaded files", () => {
+  test("payload still supports externally provided notes, URLs, and uploaded files", () => {
     const externalUrls = [
       {
         title: "School handbook",
@@ -542,4 +583,222 @@ describe("Contribution Editor payload", () => {
       uploadedFiles,
     });
   });
+
+  test("extracts one external URL Source per unique normalized URL", () => {
+    expect(
+      extractExternalUrlsFromText(
+        "Read https://example.com/chapel, then https://example.com/chapel.",
+      ),
+    ).toEqual([{ url: "https://example.com/chapel" }]);
+  });
+
+  test("auto-detected URL Sources route submission through Smart Storage", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    let submittedInput: ContributionInput | undefined;
+
+    try {
+      await act(async () => {
+        root.render(
+          <ContributionEditor
+            context={[romansTag]}
+            onPostDirect={() => {
+              throw new Error("Direct post should not be used.");
+            }}
+            onStoreSmartly={(input) => {
+              submittedInput = input;
+              return { status: "submitted" };
+            }}
+          />,
+        );
+      });
+
+      const editor = getContributionEditor(container);
+      await setTextareaValue(
+        getTextarea(editor),
+        "Raw chapel notes\nSee https://example.com/chapel and https://example.com/chapel.",
+      );
+
+      expect(editor.textContent).toContain("Link preview pending");
+      expect(editor.querySelectorAll(".kb-contribution-source-chips li")).toHaveLength(1);
+
+      await click(getButton(editor, "Store"));
+
+      expect(submittedInput).toMatchObject({
+        body:
+          "Raw chapel notes\nSee https://example.com/chapel and https://example.com/chapel.",
+        externalUrls: [{ url: "https://example.com/chapel" }],
+        knowledgeType: "words",
+        title: "Raw chapel notes",
+      });
+    } finally {
+      await act(async () => {
+        root.unmount();
+      });
+      container.remove();
+    }
+  });
+
+  test("removing a derived URL Source edits the body and removes the chip", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    try {
+      await act(async () => {
+        root.render(
+          <ContributionEditor
+            context={[romansTag]}
+            onSubmitSource={() => ({ status: "submitted" })}
+          />,
+        );
+      });
+
+      const editor = getContributionEditor(container);
+      const textarea = getTextarea(editor);
+      await setTextareaValue(textarea, "See https://example.com/chapel for the program.");
+
+      expect(editor.querySelectorAll(".kb-contribution-source-chips li")).toHaveLength(1);
+      await click(getButton(editor, "Remove external URL Source 1"));
+
+      expect(editor.querySelectorAll(".kb-contribution-source-chips li")).toHaveLength(0);
+      expect(textarea.value).toBe("See  for the program.");
+    } finally {
+      await act(async () => {
+        root.unmount();
+      });
+      container.remove();
+    }
+  });
+
+  test("file selection stages uploaded file Sources", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const uploadedFile = new File(["chapel"], "chapel-program.pdf", {
+      type: "application/pdf",
+    });
+    let submittedInput: ContributionInput | undefined;
+
+    try {
+      await act(async () => {
+        root.render(
+          <ContributionEditor
+            context={[romansTag]}
+            onStoreSmartly={(input) => {
+              submittedInput = input;
+              return { status: "submitted" };
+            }}
+            onUploadFile={async (file) => ({
+              contentType: file.type,
+              fileName: file.name,
+              fileSizeBytes: file.size,
+              storageId: "storage-chapel-program",
+              temporaryUploadId: "temporary-upload-chapel-program",
+            })}
+          />,
+        );
+      });
+
+      const editor = getContributionEditor(container);
+      await setTextareaValue(getTextarea(editor), "Raw chapel notes");
+      await setFileInputFiles(getFileInput(editor), [uploadedFile]);
+
+      expect(editor.textContent).toContain("chapel-program.pdf");
+      await click(getButton(editor, "Store"));
+
+      expect(submittedInput).toMatchObject({
+        body: "Raw chapel notes",
+        knowledgeType: "words",
+        title: "Raw chapel notes",
+        uploadedFiles: [
+          expect.objectContaining({
+            fileName: "chapel-program.pdf",
+            storageId: "storage-chapel-program",
+            temporaryUploadId: "temporary-upload-chapel-program",
+          }),
+        ],
+      });
+    } finally {
+      await act(async () => {
+        root.unmount();
+      });
+      container.remove();
+    }
+  });
 });
+
+function getContributionEditor(container: Element) {
+  const editor = container.querySelector(".kb-contribution-editor");
+  if (!(editor instanceof HTMLElement)) {
+    throw new Error("Missing Contribution Editor");
+  }
+
+  return editor;
+}
+
+function getTextarea(container: Element) {
+  const textarea = container.querySelector("textarea");
+  if (!(textarea instanceof HTMLTextAreaElement)) {
+    throw new Error("Missing textarea");
+  }
+
+  return textarea;
+}
+
+function getFileInput(container: Element) {
+  const input = container.querySelector('input[type="file"]');
+  if (!(input instanceof HTMLInputElement)) {
+    throw new Error("Missing file input");
+  }
+
+  return input;
+}
+
+function getButton(container: Element, label: string) {
+  const button = Array.from(container.querySelectorAll("button")).find(
+    (candidate) =>
+      candidate.textContent?.trim() === label ||
+      candidate.getAttribute("aria-label") === label,
+  );
+  if (!(button instanceof HTMLButtonElement)) {
+    throw new Error(`Missing button: ${label}`);
+  }
+
+  return button;
+}
+
+async function click(element: Element) {
+  await act(async () => {
+    element.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
+async function setTextareaValue(textarea: HTMLTextAreaElement, value: string) {
+  await act(async () => {
+    const valueSetter = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value",
+    )?.set;
+    valueSetter?.call(textarea, value);
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    await Promise.resolve();
+  });
+}
+
+async function setFileInputFiles(input: HTMLInputElement, files: File[]) {
+  await act(async () => {
+    Object.defineProperty(input, "files", {
+      configurable: true,
+      value: files,
+    });
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
