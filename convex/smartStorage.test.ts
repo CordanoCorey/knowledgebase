@@ -30,12 +30,16 @@ type TestContextTagSnapshot = {
 
 type SmartStorageContributionInput = {
   body: string;
+  contributionNote?: string;
   contextTags: TestContextTagSnapshot[];
   externalUrls?: Array<{ url: string }>;
   knowledgeType: Doc<"knowledgeEntries">["knowledgeType"];
   slotId?: string;
   title: string;
 };
+
+const SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT =
+  "Preserve a durable Contribution Submission with child Sources, interpret guidance-like text inside Authored Text Sources without synthesizing stored Contribution Notes, and queue conservative scaffold proposal generation.";
 
 const legacyEntryRepresentationKind = v.union(
   v.literal("prosemirror"),
@@ -195,7 +199,7 @@ describe("Smart Storage contribution spine", () => {
           "Objective: students will distinguish courage from presumption.",
         contributionTitle: "Courage in Joshua",
         smartStorageContractVersionId: expect.any(String),
-        contractSnapshotVersion: "mvp-smart-storage-contract-v1",
+        contractSnapshotVersion: "mvp-smart-storage-contract-v2",
         createdByUserId: userId,
         primarySourceId: result.sourceId,
         requestedKnowledgeType: "lesson",
@@ -203,15 +207,14 @@ describe("Smart Storage contribution spine", () => {
         sourceId: result.sourceId,
         status: "queued",
         typeBehaviorSnapshotId: expect.any(String),
-        typeBehaviorSnapshotVersion: "mvp-type-behavior-v2",
+        typeBehaviorSnapshotVersion: "mvp-type-behavior-v3",
       }),
     );
     expect(rowState.contractVersion).toEqual(
       expect.objectContaining({
         contractKey: "mvp-smart-storage-contract",
-        snapshotText:
-          "Preserve a durable Contribution Submission with child Sources and queue conservative scaffold proposal generation.",
-        version: "mvp-smart-storage-contract-v1",
+        snapshotText: SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT,
+        version: "mvp-smart-storage-contract-v2",
       }),
     );
     expect(rowState.typeBehaviorSnapshot).toEqual(
@@ -222,8 +225,57 @@ describe("Smart Storage contribution spine", () => {
         knowledgeType: "lesson",
         snapshotText:
           "Use the Type Behavior registry for identity, source citation, representation role, primary representation, Human Weight defaults, and Human Weight credit basis.",
-        version: "mvp-type-behavior-v2",
+        version: "mvp-type-behavior-v3",
       }),
+    );
+  });
+
+  test("keeps guidance-like editor text as Authored Text Source without synthesizing a Contribution Note", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const body = [
+      "Objective: students will distinguish courage from presumption.",
+      "Guidance: keep the attached handout as supporting material only.",
+    ].join("\n");
+
+    const result = await authed.mutation(
+      api.smartStorage.startFromContribution,
+      getLessonSmartStorageInput({
+        body,
+        title: "Guided Courage Lesson",
+      }),
+    );
+
+    const rowState = await t.run(async (ctx) => {
+      const contributionSubmission = await ctx.db.get(
+        result.contributionSubmissionId,
+      );
+      const sources = await ctx.db
+        .query("sources")
+        .withIndex("by_contributionSubmissionId_and_submittedAt", (q) =>
+          q.eq("contributionSubmissionId", result.contributionSubmissionId),
+        )
+        .collect();
+
+      return { contributionSubmission, sources };
+    });
+
+    expect(rowState.contributionSubmission?.contributionNote).toBeUndefined();
+    expect(rowState.contributionSubmission).toEqual(
+      expect.objectContaining({
+        primaryIntendedBodyPreview: body,
+        primaryIntendedTitle: "Guided Courage Lesson",
+      }),
+    );
+    expect(rowState.sources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rawText: body,
+          sourceKind: "pastedText",
+          title: "Guided Courage Lesson",
+        }),
+      ]),
     );
   });
 
@@ -274,7 +326,7 @@ describe("Smart Storage contribution spine", () => {
       const now = Date.now();
       await ctx.db.insert("smartStorageContractVersions", {
         contractKey: "mvp-smart-storage-contract",
-        version: "mvp-smart-storage-contract-v1",
+        version: "mvp-smart-storage-contract-v2",
         snapshotText: "Conflicting contract text.",
         createdAt: now,
         updatedAt: now,
@@ -297,15 +349,14 @@ describe("Smart Storage contribution spine", () => {
       const now = Date.now();
       await ctx.db.insert("smartStorageContractVersions", {
         contractKey: "mvp-smart-storage-contract",
-        version: "mvp-smart-storage-contract-v1",
-        snapshotText:
-          "Preserve a durable Contribution Submission with child Sources and queue conservative scaffold proposal generation.",
+        version: "mvp-smart-storage-contract-v2",
+        snapshotText: SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT,
         createdAt: now,
         updatedAt: now,
       });
       await ctx.db.insert("typeBehaviorSnapshots", {
         knowledgeType: "lesson",
-        version: "mvp-type-behavior-v2",
+        version: "mvp-type-behavior-v3",
         snapshotText: "Conflicting Type Behavior summary.",
         behaviorSnapshotJson: "{}",
         createdAt: now,
@@ -480,6 +531,120 @@ describe("Smart Storage contribution spine", () => {
         linkPreviewStatus: "failed",
       }),
     );
+  });
+
+  test("previews draft Link Preview metadata without creating Smart Storage rows", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        [
+          "<html><head>",
+          '<title>Fallback title</title>',
+          '<meta property="og:title" content="Draft Courage">',
+          '<meta property="og:description" content="Draft preview description.">',
+          '<meta property="og:image" content="/images/draft-courage.png">',
+          '<meta property="og:site_name" content="Draft Library">',
+          "</head></html>",
+        ].join(""),
+        {
+          headers: {
+            "content-type": "text/html; charset=utf-8",
+          },
+        },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await authed.action(api.smartStorage.previewDraftExternalUrl, {
+      url: "https://example.com/courage",
+    });
+
+    const rowCounts = await t.run(async (ctx) => ({
+      contributionSubmissions: (
+        await ctx.db.query("contributionSubmissions").collect()
+      ).length,
+      proposals: (await ctx.db.query("smartStorageProposals").collect()).length,
+      runs: (await ctx.db.query("smartStorageRuns").collect()).length,
+      sources: (await ctx.db.query("sources").collect()).length,
+    }));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({
+      description: "Draft preview description.",
+      imageUrl: "https://example.com/images/draft-courage.png",
+      siteName: "Draft Library",
+      status: "fetched",
+      title: "Draft Courage",
+      url: "https://example.com/courage",
+    });
+    expect(rowCounts).toEqual({
+      contributionSubmissions: 0,
+      proposals: 0,
+      runs: 0,
+      sources: 0,
+    });
+  });
+
+  test("draft Link Preview rejects unsafe URLs without fetching", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await authed.action(api.smartStorage.previewDraftExternalUrl, {
+      url: "http://127.0.0.1/admin",
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      error: "Link Preview URL host is not allowed.",
+      status: "failed",
+      url: "http://127.0.0.1/admin",
+    });
+  });
+
+  test("draft Link Preview returns bounded failure for non-HTML responses", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const fetchMock = vi.fn(async () =>
+      new Response('{"ok":true}', {
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await authed.action(api.smartStorage.previewDraftExternalUrl, {
+      url: "https://example.com/api",
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({
+      error: "Link Preview response is not HTML.",
+      status: "failed",
+      url: "https://example.com/api",
+    });
+  });
+
+  test("draft Link Preview requires app access before fetching", async () => {
+    const t = convexTest({ schema, modules });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await t.action(api.smartStorage.previewDraftExternalUrl, {
+      url: "https://example.com/courage",
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      error: "Unauthorized",
+      status: "failed",
+      url: "https://example.com/courage",
+    });
   });
 
   test("marks temporary uploads attached when they become Sources", async () => {
@@ -809,15 +974,14 @@ describe("Smart Storage contribution spine", () => {
         contributionSubmissionId: startResult.contributionSubmissionId,
         smartStorageContractVersionId:
           rowState.run?.smartStorageContractVersionId,
-        contractSnapshotVersion: "mvp-smart-storage-contract-v1",
-        contractSnapshotText:
-          "Preserve a durable Contribution Submission with child Sources and queue conservative scaffold proposal generation.",
+        contractSnapshotVersion: "mvp-smart-storage-contract-v2",
+        contractSnapshotText: SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT,
         createdByUserId: userId,
         smartStorageRunId: startResult.smartStorageRunId,
         sourceId: startResult.sourceId,
         status: "drafted",
         typeBehaviorSnapshotId: rowState.run?.typeBehaviorSnapshotId,
-        typeBehaviorSnapshotVersion: "mvp-type-behavior-v2",
+        typeBehaviorSnapshotVersion: "mvp-type-behavior-v3",
         typeBehaviorSnapshotText:
           "Use the Type Behavior registry for identity, source citation, representation role, primary representation, Human Weight defaults, and Human Weight credit basis.",
       }),
@@ -882,9 +1046,18 @@ describe("Smart Storage contribution spine", () => {
     const t = convexTest({ schema, modules });
     const userId = await t.run(insertAllowedUser);
     const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const modelSourceText = [
+      "Objective: students will distinguish courage from presumption.",
+      "Guidance: use the second line to steer the proposal, not as student-facing text.",
+    ].join("\n");
+    const explicitContributionNote =
+      "Prefer a concise proposal for teacher review.";
     const startResult = await authed.mutation(
       api.smartStorage.startFromContribution,
-      getLessonSmartStorageInput(),
+      getLessonSmartStorageInput({
+        body: modelSourceText,
+        contributionNote: explicitContributionNote,
+      }),
     );
     const modelProposal = getModelProposedEntry({
       bodyPreview: "Model-shaped courage lesson preview.",
@@ -941,6 +1114,36 @@ describe("Smart Storage contribution spine", () => {
       },
     });
     expect(requestBody.input).toContain("Courage in Joshua");
+    expect(requestBody.instructions).toContain("Authored Text Source");
+    expect(requestBody.instructions).toContain(
+      "Guidance-like text inside an Authored Text Source",
+    );
+    expect(requestBody.instructions).toContain(
+      "Do not synthesize Contribution Notes from Source text",
+    );
+    const modelInput = JSON.parse(String(requestBody.input));
+    expect(modelInput).toMatchObject({
+      contributionSubmission: {
+        contributionNote: explicitContributionNote,
+      },
+      run: {
+        contractSnapshotText: SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT,
+        contractSnapshotVersion: "mvp-smart-storage-contract-v2",
+      },
+      sourceInterpretationPolicy: {
+        authoredTextSource: expect.stringContaining("Authored Text Source"),
+        editorGuidance: expect.stringContaining("slim Contribution Editor"),
+        storedContributionNote: expect.stringContaining(
+          "Do not synthesize contributionSubmission.contributionNote",
+        ),
+      },
+      sources: [
+        expect.objectContaining({
+          rawText: modelSourceText,
+          sourceKind: "pastedText",
+        }),
+      ],
+    });
 
     const rowState = await t.run(async (ctx) => {
       const run = await ctx.db.get(startResult.smartStorageRunId);
