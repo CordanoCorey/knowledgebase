@@ -18,6 +18,7 @@ import type * as bookmarkedKnowledgePages from "../bookmarkedKnowledgePages.js";
 import type * as contactIdentities from "../contactIdentities.js";
 import type * as contextExpertise from "../contextExpertise.js";
 import type * as contextExpertiseSettings from "../contextExpertiseSettings.js";
+import type * as contributionDrafts from "../contributionDrafts.js";
 import type * as crons from "../crons.js";
 import type * as directContributions from "../directContributions.js";
 import type * as editor from "../editor.js";
@@ -66,6 +67,7 @@ declare const fullApi: ApiFromModules<{
   contactIdentities: typeof contactIdentities;
   contextExpertise: typeof contextExpertise;
   contextExpertiseSettings: typeof contextExpertiseSettings;
+  contributionDrafts: typeof contributionDrafts;
   crons: typeof crons;
   directContributions: typeof directContributions;
   editor: typeof editor;

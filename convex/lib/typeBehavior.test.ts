@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION } from "./humanWeightCalculationDefinition";
 import {
+  getComposerTitleBehavior,
   getHumanWeightConcern,
   getTypeBehavior,
   getTypeBehaviorSnapshot,
@@ -118,7 +119,7 @@ describe("Human Weight Concern", () => {
   });
 
   test("defines the credited human role by Knowledge Type", () => {
-    expect(getTypeBehavior("words").version).toBe("mvp-type-behavior-v2");
+    expect(getTypeBehavior("words").version).toBe("mvp-type-behavior-v3");
     expect(getTypeBehavior("words").humanWeight.creditBasis).toBe("contributor");
     expect(getTypeBehavior("lesson").humanWeight.creditBasis).toBe(
       "contributor",
@@ -133,7 +134,62 @@ describe("Human Weight Concern", () => {
       "creditBasis",
     );
     expect(getTypeBehaviorSnapshot("quote").version).toBe(
-      "mvp-type-behavior-v2",
+      "mvp-type-behavior-v3",
     );
+  });
+});
+
+describe("Type Behavior title input contract", () => {
+  test("defines generated, addable, and required title-like composer inputs", () => {
+    expect(getComposerTitleBehavior("words")).toMatchObject({
+      generatedTitleKind: "bodyPreview",
+      input: "addable",
+      label: "Title",
+      smartStorageTriggerWhenProvided: true,
+    });
+    expect(getTypeBehavior("words")).toMatchObject({
+      composerDefaults: { titleRequired: false },
+      identity: { strategy: "generated" },
+    });
+
+    expect(getComposerTitleBehavior("comment")).toMatchObject({
+      generatedTitleKind: "parentComment",
+      input: "hidden",
+      smartStorageTriggerWhenProvided: false,
+    });
+    expect(getTypeBehavior("comment")).toMatchObject({
+      composerDefaults: { titleRequired: false },
+      identity: { strategy: "generated" },
+    });
+
+    expect(getComposerTitleBehavior("question")).toMatchObject({
+      generatedTitleKind: "none",
+      input: "required",
+      label: "Question",
+      primaryInput: true,
+    });
+    expect(getTypeBehavior("question").composerDefaults.titleRequired).toBe(
+      true,
+    );
+
+    expect(getComposerTitleBehavior("lesson")).toMatchObject({
+      generatedTitleKind: "none",
+      input: "required",
+      label: "Title",
+      primaryInput: false,
+    });
+    expect(getTypeBehavior("lesson").composerDefaults.titleRequired).toBe(true);
+  });
+
+  test("includes the title input contract in immutable Type Behavior snapshots", () => {
+    const snapshot = getTypeBehaviorSnapshot("words");
+    const behavior = JSON.parse(snapshot.behaviorSnapshotJson);
+
+    expect(snapshot.version).toBe("mvp-type-behavior-v3");
+    expect(behavior.composerDefaults.title).toMatchObject({
+      generatedTitleKind: "bodyPreview",
+      input: "addable",
+      smartStorageTriggerWhenProvided: true,
+    });
   });
 });

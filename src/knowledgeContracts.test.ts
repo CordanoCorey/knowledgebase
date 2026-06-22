@@ -3,7 +3,10 @@ import {
   CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION,
   getDefaultHumanWeightCreditBasis,
   getDefaultHumanWeightExpectation,
+  getComposerTitleBehavior,
   getHumanWeightConcern,
+  isComposerTitleAddable,
+  isComposerTitleRequired,
 } from "./knowledgeContracts";
 
 describe("Human Weight Concern contract", () => {
@@ -122,5 +125,44 @@ describe("Human Weight Concern contract", () => {
     expect(getDefaultHumanWeightCreditBasis("quote")).toBe("quotedPerson");
     expect(getDefaultHumanWeightCreditBasis("topic")).toBeUndefined();
     expect(getDefaultHumanWeightCreditBasis("rsvp")).toBeUndefined();
+  });
+});
+
+describe("Type Behavior title input contract", () => {
+  test("mirrors generated, addable, and required title-like composer inputs", () => {
+    expect(getComposerTitleBehavior("words")).toMatchObject({
+      generatedTitleKind: "bodyPreview",
+      input: "addable",
+      label: "Title",
+      placeholder: "Optional title",
+      smartStorageTriggerWhenProvided: true,
+    });
+    expect(isComposerTitleAddable("words")).toBe(true);
+    expect(isComposerTitleRequired("words")).toBe(false);
+
+    expect(getComposerTitleBehavior("comment")).toMatchObject({
+      generatedTitleKind: "parentComment",
+      input: "hidden",
+      smartStorageTriggerWhenProvided: false,
+    });
+    expect(isComposerTitleAddable("comment")).toBe(false);
+    expect(isComposerTitleRequired("comment")).toBe(false);
+
+    expect(getComposerTitleBehavior("question")).toMatchObject({
+      generatedTitleKind: "none",
+      input: "required",
+      label: "Question",
+      placeholder: "Ask a question...",
+      primaryInput: true,
+    });
+    expect(isComposerTitleRequired("question")).toBe(true);
+
+    expect(getComposerTitleBehavior("lesson")).toMatchObject({
+      generatedTitleKind: "none",
+      input: "required",
+      label: "Title",
+      primaryInput: false,
+    });
+    expect(isComposerTitleRequired("lesson")).toBe(true);
   });
 });

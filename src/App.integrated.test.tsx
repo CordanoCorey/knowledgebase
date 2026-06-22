@@ -175,11 +175,20 @@ const mockState = vi.hoisted(() => ({
   personGlobalExpertVisibilityModerationHistory: [] as unknown[],
   mutationCalls: [] as unknown[],
   actionCalls: [] as unknown[],
+  contributionDrafts: new Map<string, Record<string, unknown>>(),
   smartStorageModelRunResult: {
     executionStatus: "proposalCreated",
     smartStorageProposalId: "smart-storage-proposal-raw-chapel-notes",
     smartStorageRunId: "smart-storage-run-raw-chapel-notes",
     status: "drafted",
+  } as Record<string, unknown>,
+  draftLinkPreviewResult: {
+    description: "Friday chapel program.",
+    imageUrl: "https://example.com/chapel-program.png",
+    siteName: "Example Chapel",
+    status: "fetched",
+    title: "Chapel Program",
+    url: "https://example.com/chapel-program",
   } as Record<string, unknown>,
   smartStorageAcceptReturnsTargetExists: false,
   smartStorageSourceIds: ["source-raw-chapel-notes"] as string[],
@@ -531,6 +540,19 @@ vi.mock("convex/react", () => ({
     }
 
     if (
+      functionName === "smartStorage:previewDraftExternalUrl" &&
+      args &&
+      typeof args === "object" &&
+      "url" in args
+    ) {
+      const url = String(args.url);
+      return {
+        ...mockState.draftLinkPreviewResult,
+        url,
+      };
+    }
+
+    if (
       functionName === "contactIdentities:sendEmailVerificationCode" &&
       args &&
       typeof args === "object" &&
@@ -583,6 +605,29 @@ vi.mock("convex/react", () => ({
       mockState.contextExpertiseVisibilitySettings = {
         globalExpertVisibilityEnabled: Boolean(args.enabled),
       };
+    }
+    if (
+      functionName === "contributionDrafts:save" &&
+      args &&
+      typeof args === "object" &&
+      "draftKey" in args
+    ) {
+      const draftKey = String(args.draftKey);
+      mockState.contributionDrafts.set(draftKey, {
+        ...(args as Record<string, unknown>),
+        draftKey,
+      });
+
+      return { draftId: `draft:${draftKey}` };
+    }
+    if (
+      functionName === "contributionDrafts:clear" &&
+      args &&
+      typeof args === "object" &&
+      "draftKey" in args
+    ) {
+      mockState.contributionDrafts.delete(String(args.draftKey));
+      return { cleared: true };
     }
     if (
       functionName ===
@@ -1329,6 +1374,15 @@ vi.mock("convex/react", () => ({
 
     if (functionName === "appAccess:getCurrentUserAccess") {
       return mockState.appAccess;
+    }
+
+    if (
+      functionName === "contributionDrafts:getForDraftKey" &&
+      args &&
+      typeof args === "object" &&
+      "draftKey" in args
+    ) {
+      return mockState.contributionDrafts.get(String(args.draftKey)) ?? null;
     }
 
     if (functionName === "pinnedKnowledgePages:listForSidebar") {
@@ -2308,6 +2362,7 @@ describe("MVP Explore/Contribute loop", () => {
     mockState.organizationMembershipMembers = [];
     mockState.contextExperts = [];
     mockState.contextExpertDetail = null;
+    mockState.contributionDrafts = new Map();
     mockState.quoteAttributionPersonOptions = [];
     mockState.publicFigureExpertPersonOptions = [];
     mockState.personGlobalExpertVisibilityModeration = null;
@@ -2320,6 +2375,14 @@ describe("MVP Explore/Contribute loop", () => {
       smartStorageProposalId: "smart-storage-proposal-raw-chapel-notes",
       smartStorageRunId: "smart-storage-run-raw-chapel-notes",
       status: "drafted",
+    };
+    mockState.draftLinkPreviewResult = {
+      description: "Friday chapel program.",
+      imageUrl: "https://example.com/chapel-program.png",
+      siteName: "Example Chapel",
+      status: "fetched",
+      title: "Chapel Program",
+      url: "https://example.com/chapel-program",
     };
     mockState.smartStorageAcceptReturnsTargetExists = false;
     mockState.userNotifications = [
@@ -2487,6 +2550,101 @@ describe("MVP Explore/Contribute loop", () => {
     expect(getFeedItems("answer").map(getCardTitle)).toContain("Comment");
   });
 
+  test("posts tagged Words attachments directly without starting Smart Storage", async () => {
+    const uploadedFile = new File(["Friday chapel program"], "chapel-program.pdf", {
+      type: "application/pdf",
+    });
+    const fetchMock = vi.fn(async () => ({
+      json: async () => ({ storageId: "storage-chapel-program" }),
+      ok: true,
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await renderApp();
+
+    const editor = getContributionEditor();
+    expect(editor.textContent).toContain("Post");
+    await setFieldValue(
+      getTextareaIn(editor),
+      ["Raw chapel notes", "https://example.com/chapel-program"].join("\n"),
+    );
+    await setFileInputFiles(getFileInputIn(editor), [uploadedFile]);
+    await flushAsyncWork();
+
+    expect(editor.textContent).toContain("Chapel Program");
+    expect(editor.textContent).toContain("chapel-program.pdf");
+
+    await click(getButtonIn(editor, "Post"));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://upload.example/convex-storage",
+      expect.objectContaining({
+        body: uploadedFile,
+        headers: {
+          "Content-Type": "application/pdf",
+        },
+        method: "POST",
+      }),
+    );
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        fileName: "chapel-program.pdf",
+        fileSizeBytes: uploadedFile.size,
+        functionName: "smartStorage:createTemporaryUploadRecord",
+        storageId: "storage-chapel-program",
+      }),
+    );
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        body: ["Raw chapel notes", "https://example.com/chapel-program"].join(
+          "\n",
+        ),
+        externalUrls: [
+          {
+            linkPreviewDescription: "Friday chapel program.",
+            linkPreviewImageUrl: "https://example.com/chapel-program.png",
+            linkPreviewSiteName: "Example Chapel",
+            linkPreviewTitle: "Chapel Program",
+            url: "https://example.com/chapel-program",
+          },
+        ],
+        functionName: "directContributions:postDirectContribution",
+        knowledgeType: "words",
+        title: "Raw chapel notes",
+        uploadedFiles: [
+          expect.objectContaining({
+            contentType: "application/pdf",
+            fileName: "chapel-program.pdf",
+            fileSizeBytes: uploadedFile.size,
+            storageId: "storage-chapel-program",
+            temporaryUploadId: "temporary-upload-chapel-program",
+          }),
+        ],
+      }),
+    );
+    expect(
+      mockState.mutationCalls.some(
+        (call) =>
+          call &&
+          typeof call === "object" &&
+          "functionName" in call &&
+          call.functionName === "smartStorage:startFromContribution",
+      ),
+    ).toBe(false);
+    expect(
+      mockState.actionCalls.some(
+        (call) =>
+          call &&
+          typeof call === "object" &&
+          "functionName" in call &&
+          call.functionName === "smartStorage:executeModelRun",
+      ),
+    ).toBe(false);
+    expect(getFeedItems("answer").map(getCardTitle)).toContain(
+      "Raw chapel notes",
+    );
+  });
+
   test("records Human Weight Feedback from an Answer card", async () => {
     await renderApp();
     await click(getButton("Add First Crusade"));
@@ -2614,8 +2772,10 @@ describe("MVP Explore/Contribute loop", () => {
       ].join("\n"),
     );
     await setFileInputFiles(getFileInputIn(editor), [uploadedFile]);
+    await flushAsyncWork();
 
     expect(editor.textContent).not.toContain("Source Inventory");
+    expect(editor.textContent).toContain("Chapel Program");
     expect(editor.textContent).toContain("https://example.com/chapel-program");
     expect(editor.textContent).toContain("chapel-program.pdf");
 
@@ -2647,7 +2807,15 @@ describe("MVP Explore/Contribute loop", () => {
           "https://example.com/chapel-program",
         ].join("\n"),
         contextTags: [],
-        externalUrls: [{ url: "https://example.com/chapel-program" }],
+        externalUrls: [
+          {
+            linkPreviewDescription: "Friday chapel program.",
+            linkPreviewImageUrl: "https://example.com/chapel-program.png",
+            linkPreviewSiteName: "Example Chapel",
+            linkPreviewTitle: "Chapel Program",
+            url: "https://example.com/chapel-program",
+          },
+        ],
         functionName: "smartStorage:startFromContribution",
         knowledgeType: "words",
         title: "Raw chapel notes",
@@ -2660,6 +2828,12 @@ describe("MVP Explore/Contribute loop", () => {
             temporaryUploadId: "temporary-upload-chapel-program",
           }),
         ],
+      }),
+    );
+    expect(mockState.actionCalls).toContainEqual(
+      expect.objectContaining({
+        functionName: "smartStorage:previewDraftExternalUrl",
+        url: "https://example.com/chapel-program",
       }),
     );
     expect(mockState.actionCalls).toContainEqual(
@@ -2766,6 +2940,45 @@ describe("MVP Explore/Contribute loop", () => {
     expect(getFeedItems("answer").map(getCardTitle)).toContain(
       "Raw chapel notes",
     );
+  });
+
+  test("stores dashboard Smart Storage contributions when draft Link Preview fails", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/");
+    mockState.draftLinkPreviewResult = {
+      error: "Link Preview response is not HTML.",
+      status: "failed",
+      url: "https://example.com/chapel-program",
+    };
+
+    await renderApp();
+
+    const editor = getContributionEditor();
+    await setFieldValue(
+      getTextareaIn(editor),
+      [
+        "Raw chapel notes",
+        "A source that should be preserved before enrichment.",
+        "https://example.com/chapel-program",
+      ].join("\n"),
+    );
+    await flushAsyncWork();
+
+    expect(editor.textContent).toContain("Link preview unavailable");
+    await click(getButtonIn(editor, "Store"));
+
+    expect(mockState.actionCalls).toContainEqual(
+      expect.objectContaining({
+        functionName: "smartStorage:previewDraftExternalUrl",
+        url: "https://example.com/chapel-program",
+      }),
+    );
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        externalUrls: [{ url: "https://example.com/chapel-program" }],
+        functionName: "smartStorage:startFromContribution",
+      }),
+    );
+    expect(editor.textContent).toContain("Stored");
   });
 
   test("confirms Smart Storage updates into an existing Gold entry", async () => {
@@ -3203,10 +3416,8 @@ describe("MVP Explore/Contribute loop", () => {
     );
 
     const editor = getContributionEditor();
-    const knowledgeTypeSelect = editor.querySelector("select");
-    expect(knowledgeTypeSelect?.getAttribute("value") ?? knowledgeTypeSelect?.value).toBe(
-      "group",
-    );
+    expect(editor.querySelector("select")).toBeNull();
+    expect(editor.textContent).toContain("Group");
     expect(editor.textContent).toContain("What is the group called?");
     expect(editor.querySelector("textarea")).toBeNull();
     expect(getContributionContextLabels(editor)).toEqual([
@@ -5230,6 +5441,14 @@ describe("MVP Explore/Contribute loop", () => {
       });
       element.dispatchEvent(new Event("change", { bubbles: true }));
       await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  }
+
+  async function flushAsyncWork() {
+    await act(async () => {
       await Promise.resolve();
       await Promise.resolve();
       await Promise.resolve();

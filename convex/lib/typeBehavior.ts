@@ -117,6 +117,22 @@ export const REPRESENTATION_ROLES = [
 
 export type RepresentationRole = (typeof REPRESENTATION_ROLES)[number];
 
+export type ComposerTitleInput = "required" | "hidden" | "addable";
+export type ComposerGeneratedTitleKind =
+  | "none"
+  | "bodyPreview"
+  | "parentComment";
+
+export type ComposerTitleBehavior = {
+  generatedTitleKind: ComposerGeneratedTitleKind;
+  input: ComposerTitleInput;
+  label: string;
+  placeholder?: string;
+  previewLabel: string;
+  primaryInput: boolean;
+  smartStorageTriggerWhenProvided: boolean;
+};
+
 export type TypeBehavior = {
   knowledgeType: EntryKnowledgeType;
   version: string;
@@ -127,6 +143,7 @@ export type TypeBehavior = {
     defaultScope: "private" | "organization" | "group" | "public";
   };
   composerDefaults: {
+    title: ComposerTitleBehavior;
     titleRequired: boolean;
   };
   smartStorageChallenge: {
@@ -149,7 +166,52 @@ export type TypeBehavior = {
   };
 };
 
-const DEFAULT_TYPE_BEHAVIOR_VERSION = "mvp-type-behavior-v2";
+const DEFAULT_TYPE_BEHAVIOR_VERSION = "mvp-type-behavior-v3";
+
+const DEFAULT_COMPOSER_TITLE_BEHAVIOR: ComposerTitleBehavior = {
+  generatedTitleKind: "none",
+  input: "required",
+  label: "Title",
+  previewLabel: "Title",
+  primaryInput: false,
+  smartStorageTriggerWhenProvided: false,
+};
+
+const WORDS_COMPOSER_TITLE_BEHAVIOR: ComposerTitleBehavior = {
+  generatedTitleKind: "bodyPreview",
+  input: "addable",
+  label: "Title",
+  placeholder: "Optional title",
+  previewLabel: "Title",
+  primaryInput: false,
+  smartStorageTriggerWhenProvided: true,
+};
+
+const COMMENT_COMPOSER_TITLE_BEHAVIOR: ComposerTitleBehavior = {
+  generatedTitleKind: "parentComment",
+  input: "hidden",
+  label: "Title",
+  previewLabel: "Title",
+  primaryInput: false,
+  smartStorageTriggerWhenProvided: false,
+};
+
+const QUESTION_COMPOSER_TITLE_BEHAVIOR: ComposerTitleBehavior = {
+  generatedTitleKind: "none",
+  input: "required",
+  label: "Question",
+  placeholder: "Ask a question...",
+  previewLabel: "Question",
+  primaryInput: true,
+  smartStorageTriggerWhenProvided: false,
+};
+
+function createComposerDefaults(title: ComposerTitleBehavior) {
+  return {
+    title,
+    titleRequired: title.input === "required",
+  };
+}
 
 const DEFAULT_TYPE_BEHAVIOR: Omit<TypeBehavior, "knowledgeType"> = {
   version: DEFAULT_TYPE_BEHAVIOR_VERSION,
@@ -159,9 +221,7 @@ const DEFAULT_TYPE_BEHAVIOR: Omit<TypeBehavior, "knowledgeType"> = {
   referentIdentityScope: {
     defaultScope: "private",
   },
-  composerDefaults: {
-    titleRequired: true,
-  },
+  composerDefaults: createComposerDefaults(DEFAULT_COMPOSER_TITLE_BEHAVIOR),
   smartStorageChallenge: {
     canChallengeSelectedType: true,
   },
@@ -185,6 +245,15 @@ const DEFAULT_TYPE_BEHAVIOR: Omit<TypeBehavior, "knowledgeType"> = {
 const TYPE_BEHAVIOR_OVERRIDES: Partial<
   Record<EntryKnowledgeType, Partial<Omit<TypeBehavior, "knowledgeType">>>
 > = {
+  words: {
+    identity: {
+      strategy: "generated",
+    },
+    composerDefaults: createComposerDefaults(WORDS_COMPOSER_TITLE_BEHAVIOR),
+  },
+  question: {
+    composerDefaults: createComposerDefaults(QUESTION_COMPOSER_TITLE_BEHAVIOR),
+  },
   quote: {
     humanWeight: {
       creditBasis: "quotedPerson",
@@ -197,6 +266,12 @@ const TYPE_BEHAVIOR_OVERRIDES: Partial<
       defaultEstimate: 60,
       expectation: "expected",
     },
+  },
+  comment: {
+    identity: {
+      strategy: "generated",
+    },
+    composerDefaults: createComposerDefaults(COMMENT_COMPOSER_TITLE_BEHAVIOR),
   },
   rsvp: {
     humanWeight: {
@@ -374,6 +449,10 @@ export function getTypeBehavior(
   knowledgeType: EntryKnowledgeType,
 ): TypeBehavior {
   const override = TYPE_BEHAVIOR_OVERRIDES[knowledgeType] ?? {};
+  const mergedComposerTitle = {
+    ...DEFAULT_TYPE_BEHAVIOR.composerDefaults.title,
+    ...override.composerDefaults?.title,
+  };
   const mergedHumanWeight = {
     ...DEFAULT_TYPE_BEHAVIOR.humanWeight,
     ...override.humanWeight,
@@ -386,6 +465,12 @@ export function getTypeBehavior(
       ? mergedHumanWeight
       : withoutHumanWeightCreditBasis(mergedHumanWeight),
     knowledgeType,
+    composerDefaults: {
+      ...DEFAULT_TYPE_BEHAVIOR.composerDefaults,
+      ...override.composerDefaults,
+      title: mergedComposerTitle,
+      titleRequired: mergedComposerTitle.input === "required",
+    },
     provenance: {
       ...DEFAULT_TYPE_BEHAVIOR.provenance,
       ...override.provenance,
@@ -395,6 +480,12 @@ export function getTypeBehavior(
       ...override.representationRoles,
     },
   };
+}
+
+export function getComposerTitleBehavior(
+  knowledgeType: EntryKnowledgeType,
+): ComposerTitleBehavior {
+  return getTypeBehavior(knowledgeType).composerDefaults.title;
 }
 
 function withoutHumanWeightCreditBasis(

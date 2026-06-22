@@ -59,11 +59,25 @@ const MAX_MODEL_ERROR_LENGTH = 500;
 
 const SMART_STORAGE_CONTRACT_KEY = "mvp-smart-storage-contract";
 const SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION =
-  "mvp-smart-storage-contract-v1";
+  "mvp-smart-storage-contract-v2";
 const SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT =
-  "Preserve a durable Contribution Submission with child Sources and queue conservative scaffold proposal generation.";
+  "Preserve a durable Contribution Submission with child Sources, interpret guidance-like text inside Authored Text Sources without synthesizing stored Contribution Notes, and queue conservative scaffold proposal generation.";
 const TYPE_BEHAVIOR_SNAPSHOT_TEXT =
   "Use the Type Behavior registry for identity, source citation, representation role, primary representation, Human Weight defaults, and Human Weight credit basis.";
+const SMART_STORAGE_SOURCE_INTERPRETATION_POLICY = {
+  authoredTextSource:
+    "sources[].rawText is Authored Text Source and must remain preserved as raw Source material.",
+  editorGuidance:
+    "The slim Contribution Editor does not ask the User to classify Contribution Notes, so guidance-like text may appear inside Authored Text Sources.",
+  guidanceUse:
+    "Use guidance-like text to steer proposal choices, source citations, proposalConfidence, and rationale when appropriate.",
+  representedKnowledge:
+    "Do not treat guidance-like text as represented knowledge by default.",
+  storedContributionNote:
+    "Do not synthesize contributionSubmission.contributionNote from source text; only separately supplied contributionSubmission.contributionNote is an explicit Contribution Note.",
+  ambiguity:
+    "If guidance and substantive material are ambiguous, lower proposalConfidence and explain the ambiguity in rationale.",
+} as const;
 const DETERMINISTIC_GENERATOR_VERSION = "mvp-deterministic-scaffold-v1";
 const OPENAI_RESPONSES_API_URL = "https://api.openai.com/v1/responses";
 const DEFAULT_OPENAI_SMART_STORAGE_MODEL = "gpt-5.4-mini";
@@ -326,6 +340,37 @@ const contributionExternalUrl = v.object({
   linkPreviewImageUrl: v.optional(v.string()),
   linkPreviewSiteName: v.optional(v.string()),
 });
+
+const draftLinkPreviewResult = v.union(
+  v.object({
+    status: v.literal("fetched"),
+    url: v.string(),
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+    siteName: v.optional(v.string()),
+  }),
+  v.object({
+    status: v.literal("failed"),
+    url: v.string(),
+    error: v.string(),
+  }),
+);
+
+type DraftLinkPreviewResult =
+  | {
+      status: "fetched";
+      url: string;
+      title?: string;
+      description?: string;
+      imageUrl?: string;
+      siteName?: string;
+    }
+  | {
+      status: "failed";
+      url: string;
+      error: string;
+    };
 
 const proposalSourceCitationKind = v.union(
   v.literal("wholeSource"),
@@ -623,6 +668,68 @@ export const executeModelRun = action({
         smartStorageRunId: args.smartStorageRunId,
       });
     }
+  },
+});
+
+export const previewDraftExternalUrl = action({
+  args: {
+    url: v.string(),
+  },
+  returns: draftLinkPreviewResult,
+  handler: async (ctx, args): Promise<DraftLinkPreviewResult> => {
+    const requestedUrl = limitString(args.url, MAX_URL_LENGTH);
+    try {
+      const accessResult: null = await ctx.runQuery(
+        internal.smartStorage.verifyDraftLinkPreviewAccess,
+        {},
+      );
+      if (accessResult !== null) {
+        return {
+          status: "failed",
+          url: requestedUrl,
+          error: "Unauthorized",
+        };
+      }
+    } catch {
+      return {
+        status: "failed",
+        url: requestedUrl,
+        error: "Unauthorized",
+      };
+    }
+
+    const safeUrl = getSafeLinkPreviewUrl(args.url);
+    if (safeUrl.kind === "error") {
+      return {
+        status: "failed",
+        url: requestedUrl,
+        error: safeUrl.message,
+      };
+    }
+
+    try {
+      const metadata = await fetchLinkPreviewMetadata(safeUrl.url);
+      return {
+        ...metadata,
+        status: "fetched" as const,
+        url: safeUrl.url,
+      };
+    } catch (error) {
+      return {
+        status: "failed",
+        url: safeUrl.url,
+        error: getPreviewErrorMessage(error),
+      };
+    }
+  },
+});
+
+export const verifyDraftLinkPreviewAccess = internalQuery({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx): Promise<null> => {
+    await requireAppAccess(ctx);
+    return null;
   },
 });
 
@@ -2732,6 +2839,9 @@ function buildOpenAiSmartStorageRequest(input: ModelRunExecutionInput) {
       "Return only the structured JSON shape requested by the schema.",
       "Do not create Gold Layer Knowledge Entries. The user must confirm proposals.",
       "Use the provided Smart Storage Contract and Type Behavior snapshots as authoritative rules.",
+      "Editor text arrives as Authored Text Source. Preserve it as raw Source material.",
+      "Guidance-like text inside an Authored Text Source may guide proposal choices, citations, proposalConfidence, and rationale, but it is not represented knowledge by default.",
+      "Do not synthesize Contribution Notes from Source text. Separately supplied contributionSubmission.contributionNote is explicit guidance and remains distinct from Sources.",
       "If evidence is weak, keep proposalConfidence low and explain the concern in rationale.",
     ].join("\n"),
     input: limitString(
@@ -2762,6 +2872,7 @@ function buildModelRunRequestInput(input: ModelRunExecutionInput) {
       typeBehaviorSnapshotVersion: input.run.typeBehaviorSnapshotVersion ?? null,
       typeBehaviorSnapshotText: input.run.typeBehaviorSnapshotText ?? null,
     },
+    sourceInterpretationPolicy: SMART_STORAGE_SOURCE_INTERPRETATION_POLICY,
     sources: input.sources.map((source) => ({
       id: source.id,
       sourceKind: source.sourceKind,

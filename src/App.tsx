@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -62,7 +63,10 @@ import {
   type QuoteAttributionCorrectionInput,
   type QuoteAttributionPersonSearchInput,
 } from "./AnswerFeed";
-import { ContributionEditor as ContributionEditorSurface } from "./ContributionEditor";
+import {
+  ContributionEditor as ContributionEditorSurface,
+  type ContributionEditorDraftInput,
+} from "./ContributionEditor";
 import {
   KnowledgeNavigatorQueryInput,
   type KnowledgeNavigatorQuerySuggestion,
@@ -104,6 +108,7 @@ import type {
   AuthorableKnowledgeType,
   ContributionInput,
   ContributionResult,
+  DraftLinkPreviewResult,
   GuidedContributionType,
   HumanWeightFeedbackInput,
   KnowledgeContextExpert,
@@ -186,6 +191,7 @@ type CoreComponentId =
   | "knowledge-slot-card";
 
 type RouteDefinition = {
+  allowedContributionTypes?: readonly AuthorableKnowledgeType[];
   components: CoreComponentId[];
   href: string;
   icon: ElementType<{ "aria-hidden"?: "true" }>;
@@ -2565,6 +2571,7 @@ function PageScaffold({
       {hasWorkingLayout ? (
         <ComponentScaffold
           activeTags={activeTags}
+          allowedContributionTypes={route.allowedContributionTypes}
           appAccess={appAccess}
           components={route.components}
           label={route.label}
@@ -3262,6 +3269,7 @@ function OrganizationPage({
 
       <ComponentScaffold
         activeTags={activeTags}
+        allowedContributionTypes={getRoute("organization-home").allowedContributionTypes}
         appAccess={appAccess}
         components={getRoute("organization-home").components}
         label={profile.name}
@@ -3522,6 +3530,7 @@ function OrganizationSubrouteLinks({
 
 function ComponentScaffold({
   activeTags,
+  allowedContributionTypes,
   appAccess,
   components,
   label,
@@ -3535,6 +3544,7 @@ function ComponentScaffold({
   showSlotRail = true,
 }: {
   activeTags: ActiveTag[];
+  allowedContributionTypes?: readonly AuthorableKnowledgeType[];
   appAccess: AllowedAppAccess;
   components: CoreComponentId[];
   label: string;
@@ -3588,6 +3598,11 @@ function ComponentScaffold({
     api.contextExpertise.correctQuoteAttribution,
   );
   const executeSmartStorageModelRun = useAction(api.smartStorage.executeModelRun);
+  const previewDraftExternalUrl = useAction(
+    api.smartStorage.previewDraftExternalUrl,
+  );
+  const saveContributionDraft = useMutation(api.contributionDrafts.save);
+  const clearContributionDraft = useMutation(api.contributionDrafts.clear);
   const activeContextKey = getKnowledgeContextKey(activeTags);
   const routeRootSearchQuery = getRootSearchQueryFromRoute(routeState);
   const contextSearchQuery =
@@ -3611,9 +3626,6 @@ function ComponentScaffold({
     getRouteContributionKnowledgeType(routeState.search);
   const routeGuidedContributionType =
     getRouteGuidedContributionType(routeState.search);
-  const activeSelectedContributionKnowledgeType = focusedCreatedEntry
-    ? selectedContributionKnowledgeType
-    : selectedContributionKnowledgeType ?? routeContributionKnowledgeType;
   const activeGuidedContributionType =
     focusedCreatedEntry || selectedContributionSlotId
       ? null
@@ -3697,6 +3709,65 @@ function ComponentScaffold({
   const contributionContext = selectedSlotItem
     ? getSlotContributionContext(selectedSlotItem, activeTags)
     : activeTags;
+  const activeAllowedContributionTypes = getAllowedContributionTypesForPlacement(
+    {
+      guidedContributionType: activeGuidedContributionType,
+      routeAllowedContributionTypes: allowedContributionTypes,
+      slot: selectedSlot,
+    },
+  );
+  const activeAllowedContributionTypeKey = getAllowedContributionTypeKey(
+    activeAllowedContributionTypes,
+  );
+  const activeSelectedContributionKnowledgeType =
+    getSelectedContributionKnowledgeTypeWithinAllowedTypes({
+      allowedContributionTypes: activeAllowedContributionTypes,
+      focusedCreatedEntry,
+      routeContributionKnowledgeType,
+      selectedContributionKnowledgeType,
+    });
+  const contributionDraftKey = useMemo(
+    () =>
+      getContributionDraftKey({
+        allowedContributionTypeKey: activeAllowedContributionTypeKey,
+        contextKey: activeContextKey,
+        focusedEntryId: focusedCreatedEntry?.id,
+        guidedContributionType: activeGuidedContributionType,
+        routeId,
+        slotId: selectedSlot?.id ?? selectedContributionSlotId,
+      }),
+    [
+      activeAllowedContributionTypeKey,
+      activeContextKey,
+      activeGuidedContributionType,
+      focusedCreatedEntry?.id,
+      routeId,
+      selectedContributionSlotId,
+      selectedSlot?.id,
+    ],
+  );
+  const contributionDraft = useQuery(api.contributionDrafts.getForDraftKey, {
+    draftKey: contributionDraftKey,
+  });
+  const handleSaveContributionDraft = useCallback(
+    async (draft: ContributionEditorDraftInput) => {
+      await saveContributionDraft({
+        bodyDocumentJson: draft.bodyDocumentJson,
+        bodyPlainText: draft.bodyPlainText,
+        draftKey: contributionDraftKey,
+        placementLabel: label,
+        ...(draft.selectedKnowledgeType === undefined
+          ? {}
+          : { selectedKnowledgeType: draft.selectedKnowledgeType }),
+        ...(selectedSlot?.id === undefined ? {} : { slotId: selectedSlot.id }),
+        title: draft.title,
+      });
+    },
+    [contributionDraftKey, label, saveContributionDraft, selectedSlot?.id],
+  );
+  const handleClearContributionDraft = useCallback(async () => {
+    await clearContributionDraft({ draftKey: contributionDraftKey });
+  }, [clearContributionDraft, contributionDraftKey]);
 
   useEffect(() => {
     setSelectedContributionSlotId(null);
@@ -3711,6 +3782,16 @@ function ComponentScaffold({
     setNavigatorQueryText("");
   }, [activeContextKey]);
 
+  useEffect(() => {
+    if (
+      selectedContributionKnowledgeType &&
+      activeAllowedContributionTypes &&
+      !activeAllowedContributionTypes.includes(selectedContributionKnowledgeType)
+    ) {
+      setSelectedContributionKnowledgeType(null);
+    }
+  }, [activeAllowedContributionTypeKey, selectedContributionKnowledgeType]);
+
   async function handleSubmitContribution(
     input: ContributionInput,
   ): Promise<ContributionResult> {
@@ -3718,9 +3799,15 @@ function ComponentScaffold({
     const result = await postDirectContribution({
       body: input.body,
       contextTags: input.contextTags,
+      ...(input.externalUrls === undefined
+        ? {}
+        : { externalUrls: input.externalUrls }),
       knowledgeType: input.knowledgeType,
       ...(input.slotId === undefined ? {} : { slotId: input.slotId }),
       title: input.title,
+      ...(input.uploadedFiles === undefined
+        ? {}
+        : { uploadedFiles: toConvexUploadedFiles(input.uploadedFiles) }),
     });
 
     setSmartStorageProposalReview(null);
@@ -3933,6 +4020,12 @@ function ComponentScaffold({
     };
   }
 
+  async function handlePreviewDraftExternalUrl(
+    url: string,
+  ): Promise<DraftLinkPreviewResult> {
+    return await previewDraftExternalUrl({ url });
+  }
+
   function handleApplyMappedTags(mappedTags: ActiveTag[]) {
     setLocalContextSearchQuery("");
     recordNavigatorUsageEvent("select", mappedTags);
@@ -4098,11 +4191,17 @@ function ComponentScaffold({
         ) : null}
         {components.includes("contribution-editor") ? (
           <ContributionEditorSurface
+            allowedContributionTypes={activeAllowedContributionTypes}
             context={contributionContext}
+            draft={contributionDraft}
+            draftKey={contributionDraftKey}
             guidedContributionType={activeGuidedContributionType}
+            onClearDraft={handleClearContributionDraft}
+            onDraftChange={handleSaveContributionDraft}
             onKnowledgeTypeChange={setSelectedContributionKnowledgeType}
             onNavigateToHref={onNavigateToHref}
             onPostDirect={handleSubmitContribution}
+            onPreviewExternalUrl={handlePreviewDraftExternalUrl}
             onStoreSmartly={handleStoreSmartlyContribution}
             onUploadFile={handleUploadSmartStorageFile}
             selectedKnowledgeType={activeSelectedContributionKnowledgeType}
@@ -4837,6 +4936,95 @@ function CreatedEntryFocusPanel({ entry }: { entry: KnowledgeEntrySummary }) {
       </a>
     </section>
   );
+}
+
+function getAllowedContributionTypesForPlacement({
+  guidedContributionType,
+  routeAllowedContributionTypes,
+  slot,
+}: {
+  guidedContributionType?: GuidedContributionType | null;
+  routeAllowedContributionTypes?: readonly AuthorableKnowledgeType[];
+  slot?: KnowledgeSlotSummary;
+}): readonly AuthorableKnowledgeType[] | undefined {
+  if (slot) {
+    return [slot.requestedKnowledgeType];
+  }
+
+  if (guidedContributionType) {
+    return [guidedContributionType];
+  }
+
+  return routeAllowedContributionTypes;
+}
+
+function getSelectedContributionKnowledgeTypeWithinAllowedTypes({
+  allowedContributionTypes,
+  focusedCreatedEntry,
+  routeContributionKnowledgeType,
+  selectedContributionKnowledgeType,
+}: {
+  allowedContributionTypes?: readonly AuthorableKnowledgeType[];
+  focusedCreatedEntry: KnowledgeEntrySummary | null;
+  routeContributionKnowledgeType: AuthorableKnowledgeType | null;
+  selectedContributionKnowledgeType: AuthorableKnowledgeType | null;
+}): AuthorableKnowledgeType | null {
+  const selectedKnowledgeType = focusedCreatedEntry
+    ? selectedContributionKnowledgeType
+    : selectedContributionKnowledgeType ?? routeContributionKnowledgeType;
+
+  if (!selectedKnowledgeType) {
+    return null;
+  }
+
+  if (
+    allowedContributionTypes &&
+    !allowedContributionTypes.includes(selectedKnowledgeType)
+  ) {
+    return null;
+  }
+
+  return selectedKnowledgeType;
+}
+
+function getAllowedContributionTypeKey(
+  allowedContributionTypes?: readonly AuthorableKnowledgeType[],
+) {
+  return allowedContributionTypes === undefined
+    ? "generic"
+    : allowedContributionTypes.join("\n");
+}
+
+function getContributionDraftKey({
+  allowedContributionTypeKey,
+  contextKey,
+  focusedEntryId,
+  guidedContributionType,
+  routeId,
+  slotId,
+}: {
+  allowedContributionTypeKey: string;
+  contextKey: string;
+  focusedEntryId?: string;
+  guidedContributionType?: GuidedContributionType | null;
+  routeId: PageId;
+  slotId?: string | null;
+}) {
+  return [
+    "contribution-editor",
+    routeId,
+    contextKey,
+    slotId ? `slot:${slotId}` : "slot:none",
+    focusedEntryId ? `entry:${focusedEntryId}` : "entry:none",
+    guidedContributionType ? `guided:${guidedContributionType}` : "guided:none",
+    `types:${allowedContributionTypeKey}`,
+  ]
+    .map(encodeContributionDraftKeyPart)
+    .join("|");
+}
+
+function encodeContributionDraftKeyPart(value: string) {
+  return value.replaceAll("|", "%7C").replaceAll("\n", ",");
 }
 
 function getRouteContributionKnowledgeType(
@@ -8194,6 +8382,7 @@ function BiblePassagePage({
 
       <ComponentScaffold
         activeTags={activeTags}
+        allowedContributionTypes={getRoute("scripture").allowedContributionTypes}
         appAccess={appAccess}
         components={getRoute("scripture").components}
         label={passage.label}

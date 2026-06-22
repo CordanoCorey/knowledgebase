@@ -396,6 +396,10 @@ _Avoid_: Upload, post, store, work
 A single user intent to Contribute, collecting the material and choices submitted from a composer before it is posted directly or processed through Smart Storage. A Contribution Submission may include multiple Sources and contribution guidance, but it is not itself a Knowledge Entry.
 _Avoid_: Source, Knowledge Entry, upload bundle
 
+**Composer Draft**:
+Pre-submit state for a Knowledge Composer, such as Contribution Editor body text, rich-text document JSON, selected Knowledge Type, title, and placement key. A Composer Draft preserves in-progress authoring, but it is not a Contribution Submission, Source, Smart Storage Run, Smart Storage Proposal, or Knowledge Entry.
+_Avoid_: Draft entry, draft Source, draft Contribution Submission
+
 **Primary Intended Entry**:
 The one Knowledge Entry a Contribution Submission is primarily meant to create or update. Smart Storage may propose additional derived Knowledge Entries from the same Contribution Submission without changing the Primary Intended Entry.
 _Avoid_: Parent entry, main Source, bundle entry

@@ -812,6 +812,21 @@ export default defineSchema({
       "createdAt",
     ]),
 
+  contributionDrafts: defineTable({
+    userId: v.id("users"),
+    draftKey: v.string(),
+    bodyPlainText: v.string(),
+    bodyDocumentJson: v.string(),
+    title: v.string(),
+    selectedKnowledgeType: v.optional(entryKnowledgeType),
+    placementLabel: v.optional(v.string()),
+    slotId: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId_and_draftKey", ["userId", "draftKey"])
+    .index("by_userId_and_updatedAt", ["userId", "updatedAt"]),
+
   temporaryUploads: defineTable({
     storageId: v.id("_storage"),
     uploadedByUserId: v.id("users"),
