@@ -166,7 +166,7 @@ export type TypeBehavior = {
   };
 };
 
-const DEFAULT_TYPE_BEHAVIOR_VERSION = "mvp-type-behavior-v3";
+const DEFAULT_TYPE_BEHAVIOR_VERSION = "mvp-type-behavior-v4";
 
 const DEFAULT_COMPOSER_TITLE_BEHAVIOR: ComposerTitleBehavior = {
   generatedTitleKind: "none",
@@ -250,6 +250,10 @@ const TYPE_BEHAVIOR_OVERRIDES: Partial<
       strategy: "generated",
     },
     composerDefaults: createComposerDefaults(WORDS_COMPOSER_TITLE_BEHAVIOR),
+    humanWeight: {
+      defaultEstimate: 60,
+      expectation: "expected",
+    },
   },
   question: {
     composerDefaults: createComposerDefaults(QUESTION_COMPOSER_TITLE_BEHAVIOR),

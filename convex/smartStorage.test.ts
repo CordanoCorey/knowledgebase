@@ -38,8 +38,78 @@ type SmartStorageContributionInput = {
   title: string;
 };
 
-const SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT =
-  "Preserve a durable Contribution Submission with child Sources, interpret guidance-like text inside Authored Text Sources without synthesizing stored Contribution Notes, and queue conservative scaffold proposal generation.";
+const SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION =
+  "mvp-smart-storage-contract-v3";
+const SMART_STORAGE_CONTRACT_SNAPSHOT = {
+  contractKind: "contributionSubmissionToSmartStorageProposal",
+  version: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
+  purpose:
+    "Answer what information the User intends to contribute, given the Knowledge Types currently understood by the app.",
+  layerMapping: {
+    bronze:
+      "Contribution Submissions preserve submitted Sources as close as possible to their original form.",
+    silver:
+      "Smart Storage Proposals are reviewable probability judgments about how Bronze Sources map to one proposed Knowledge Entry.",
+    gold:
+      "Knowledge Entries are confirmed typed knowledge created or updated only after user review.",
+  },
+  process: [
+    "Create a durable Contribution Submission and child Sources before model execution.",
+    "Queue one Smart Storage Run using the current Smart Storage Contract and Type Behavior snapshots.",
+    "Build request-specific input from the Contribution Submission, Sources, current Knowledge Context, and snapshots.",
+    "Ask the current model adapter for one structured Smart Storage Proposal.",
+    "Store a Silver Layer Proposal only after returned JSON is parsed and validated.",
+    "Keep failed, invalid, or no-proposal outcomes on the Smart Storage Run without creating a Proposal.",
+    "Require user confirmation before any Gold Layer Knowledge Entry is created or updated.",
+  ],
+  modelProviderStrategy: {
+    localFirst:
+      "Use deterministic application logic for previews, cheap scaffolds, and fallback behavior before relying on model output.",
+    currentAdapter:
+      "Call OpenAI's Responses API for the first LLM-backed Smart Storage implementation.",
+    futureAdapter:
+      "Keep the contract provider-neutral so a self-hosted proprietary model can replace the OpenAI adapter later.",
+  },
+  proposalShape: {
+    knowledgeType:
+      "One authorable Knowledge Type from the app's current Entry Knowledge Type set.",
+    title: "A bounded proposed Knowledge Entry title.",
+    bodyPreview:
+      "A bounded preview of the represented knowledge, not raw internal reasoning.",
+    contextTags:
+      "A bounded set of proposed Knowledge Context Tag snapshots for review.",
+    proposalConfidence:
+      "A coarse low, medium, or high review signal; not truth, Human Weight, or approval.",
+    rationale:
+      "A bounded explanation of why this Source appears to map to the proposed Knowledge Entry.",
+  },
+  sourceInterpretationPolicy: {
+    authoredTextSource:
+      "sources[].rawText is Authored Text Source and must remain preserved as raw Source material.",
+    editorGuidance:
+      "The slim Contribution Editor does not ask the User to classify Contribution Notes, so guidance-like text may appear inside Authored Text Sources.",
+    guidanceUse:
+      "Use guidance-like text to steer proposal choices, source citations, proposalConfidence, and rationale when appropriate.",
+    representedKnowledge:
+      "Do not treat guidance-like text as represented knowledge by default.",
+    storedContributionNote:
+      "Do not synthesize contributionSubmission.contributionNote from source text; only separately supplied contributionSubmission.contributionNote is an explicit Contribution Note.",
+    ambiguity:
+      "If guidance and substantive material are ambiguous, lower proposalConfidence and explain the ambiguity in rationale.",
+  },
+  boundaries: [
+    "Do not expose or rely on the raw Convex persistence schema as the model contract.",
+    "Do not synthesize Contribution Notes from Authored Text Sources.",
+    "Do not treat guidance-like Source text as represented knowledge by default.",
+    "Do not create Gold Layer Knowledge Entries from model output without user confirmation.",
+    "Do not invent extracted file, media, or URL facts when advanced extraction has not supplied them.",
+  ],
+};
+const SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT = JSON.stringify(
+  SMART_STORAGE_CONTRACT_SNAPSHOT,
+  null,
+  2,
+);
 
 const legacyEntryRepresentationKind = v.union(
   v.literal("prosemirror"),
@@ -199,7 +269,7 @@ describe("Smart Storage contribution spine", () => {
           "Objective: students will distinguish courage from presumption.",
         contributionTitle: "Courage in Joshua",
         smartStorageContractVersionId: expect.any(String),
-        contractSnapshotVersion: "mvp-smart-storage-contract-v2",
+        contractSnapshotVersion: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
         createdByUserId: userId,
         primarySourceId: result.sourceId,
         requestedKnowledgeType: "lesson",
@@ -207,14 +277,14 @@ describe("Smart Storage contribution spine", () => {
         sourceId: result.sourceId,
         status: "queued",
         typeBehaviorSnapshotId: expect.any(String),
-        typeBehaviorSnapshotVersion: "mvp-type-behavior-v3",
+        typeBehaviorSnapshotVersion: "mvp-type-behavior-v4",
       }),
     );
     expect(rowState.contractVersion).toEqual(
       expect.objectContaining({
         contractKey: "mvp-smart-storage-contract",
         snapshotText: SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT,
-        version: "mvp-smart-storage-contract-v2",
+        version: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
       }),
     );
     expect(rowState.typeBehaviorSnapshot).toEqual(
@@ -225,7 +295,7 @@ describe("Smart Storage contribution spine", () => {
         knowledgeType: "lesson",
         snapshotText:
           "Use the Type Behavior registry for identity, source citation, representation role, primary representation, Human Weight defaults, and Human Weight credit basis.",
-        version: "mvp-type-behavior-v3",
+        version: "mvp-type-behavior-v4",
       }),
     );
   });
@@ -326,7 +396,7 @@ describe("Smart Storage contribution spine", () => {
       const now = Date.now();
       await ctx.db.insert("smartStorageContractVersions", {
         contractKey: "mvp-smart-storage-contract",
-        version: "mvp-smart-storage-contract-v2",
+        version: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
         snapshotText: "Conflicting contract text.",
         createdAt: now,
         updatedAt: now,
@@ -349,14 +419,14 @@ describe("Smart Storage contribution spine", () => {
       const now = Date.now();
       await ctx.db.insert("smartStorageContractVersions", {
         contractKey: "mvp-smart-storage-contract",
-        version: "mvp-smart-storage-contract-v2",
+        version: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
         snapshotText: SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT,
         createdAt: now,
         updatedAt: now,
       });
       await ctx.db.insert("typeBehaviorSnapshots", {
         knowledgeType: "lesson",
-        version: "mvp-type-behavior-v3",
+        version: "mvp-type-behavior-v4",
         snapshotText: "Conflicting Type Behavior summary.",
         behaviorSnapshotJson: "{}",
         createdAt: now,
@@ -974,14 +1044,14 @@ describe("Smart Storage contribution spine", () => {
         contributionSubmissionId: startResult.contributionSubmissionId,
         smartStorageContractVersionId:
           rowState.run?.smartStorageContractVersionId,
-        contractSnapshotVersion: "mvp-smart-storage-contract-v2",
+        contractSnapshotVersion: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
         contractSnapshotText: SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT,
         createdByUserId: userId,
         smartStorageRunId: startResult.smartStorageRunId,
         sourceId: startResult.sourceId,
         status: "drafted",
         typeBehaviorSnapshotId: rowState.run?.typeBehaviorSnapshotId,
-        typeBehaviorSnapshotVersion: "mvp-type-behavior-v3",
+        typeBehaviorSnapshotVersion: "mvp-type-behavior-v4",
         typeBehaviorSnapshotText:
           "Use the Type Behavior registry for identity, source citation, representation role, primary representation, Human Weight defaults, and Human Weight credit basis.",
       }),
@@ -1104,13 +1174,16 @@ describe("Smart Storage contribution spine", () => {
     );
     const requestBody = JSON.parse(String(requestInit?.body));
     expect(requestBody).toMatchObject({
+      max_output_tokens: 1_000,
       model: "gpt-test-smart-storage",
+      reasoning: { effort: "low" },
       text: {
         format: {
           name: "smart_storage_proposal",
           strict: true,
           type: "json_schema",
         },
+        verbosity: "low",
       },
     });
     expect(requestBody.input).toContain("Courage in Joshua");
@@ -1128,7 +1201,21 @@ describe("Smart Storage contribution spine", () => {
       },
       run: {
         contractSnapshotText: SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT,
-        contractSnapshotVersion: "mvp-smart-storage-contract-v2",
+        contractSnapshotVersion: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
+      },
+      smartStorageContract: {
+        contractKind: "contributionSubmissionToSmartStorageProposal",
+        layerMapping: {
+          bronze: expect.stringContaining("Sources"),
+          gold: expect.stringContaining("Knowledge Entries"),
+          silver: expect.stringContaining("Smart Storage Proposals"),
+        },
+        modelProviderStrategy: {
+          currentAdapter: expect.stringContaining("OpenAI"),
+          futureAdapter: expect.stringContaining("self-hosted"),
+          localFirst: expect.stringContaining("deterministic"),
+        },
+        version: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
       },
       sourceInterpretationPolicy: {
         authoredTextSource: expect.stringContaining("Authored Text Source"),
@@ -1195,6 +1282,36 @@ describe("Smart Storage contribution spine", () => {
         submissionStatus: "reviewReady",
       }),
     );
+  });
+
+  test("defaults model Runs to the low-cost Smart Storage model", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-openai-key");
+    vi.stubEnv("OPENAI_SMART_STORAGE_MODEL", "");
+    const fetchMock = vi.fn(
+      async (_url: string | URL | Request, _init?: RequestInit) =>
+        new Response(JSON.stringify({ output: [] }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const startResult = await authed.mutation(
+      api.smartStorage.startFromContribution,
+      getLessonSmartStorageInput(),
+    );
+
+    await authed.action(api.smartStorage.executeModelRun, {
+      smartStorageRunId: startResult.smartStorageRunId,
+    });
+
+    const requestInit = fetchMock.mock.calls[0]?.[1];
+    const requestBody = JSON.parse(String(requestInit?.body));
+    expect(requestBody).toMatchObject({
+      max_output_tokens: 1_000,
+      model: "gpt-5.4-nano",
+      reasoning: { effort: "low" },
+      text: { verbosity: "low" },
+    });
   });
 
   test("marks a model Run failed when OPENAI_API_KEY is missing", async () => {

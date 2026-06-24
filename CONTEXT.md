@@ -68,6 +68,10 @@ _Avoid_: Visibility Scope, audience, permission, send to page
 The versioned domain behavior the application applies to a Knowledge Type, including how entries of that type are recognized, enriched, related, displayed, stored, reviewed, scored, or scoped.
 _Avoid_: Implementation, schema behavior
 
+**Export Behavior**:
+The Type Behavior axis that determines whether and how Knowledge Entries of a Knowledge Type can be exported, including the default export shape, representation handling, and permission boundaries.
+_Avoid_: File format, download button, backup
+
 **Answer**:
 A Knowledge Entry considered as something that can help satisfy future Knowledge Requests in whole or in part.
 _Avoid_: AI response, chat reply

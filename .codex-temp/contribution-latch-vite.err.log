@@ -40,3 +40,5 @@
       at async loadAndTransform (file:///C:/Users/gelba/Project/knowledgebase/node_modules/vite/dist/node/chunks/node.js:24646:26)
       at async viteTransformMiddleware (file:///C:/Users/gelba/Project/knowledgebase/node_modules/vite/dist/node/chunks/node.js:24440:20)
 [2m10:01:43 PM[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/AnswerFeed.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m9:30:41 AM[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [31merror while updating dependencies:
+Error: EPERM: operation not permitted, rename 'C:\Users\gelba\Project\knowledgebase\node_modules\.vite\deps_temp_aa0f4529' -> 'C:\Users\gelba\Project\knowledgebase\node_modules\.vite\deps'[39m

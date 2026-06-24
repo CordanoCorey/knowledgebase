@@ -97,6 +97,7 @@ describe("Human Weight Concern contract", () => {
   });
 
   test("uses default expectations when no override is supplied", () => {
+    expect(getDefaultHumanWeightExpectation("words")).toBe("expected");
     expect(getDefaultHumanWeightExpectation("essay")).toBe("expected");
     expect(getDefaultHumanWeightExpectation("lesson")).toBe("informative");
 
@@ -104,6 +105,17 @@ describe("Human Weight Concern contract", () => {
       getHumanWeightConcern({
         humanWeight: 35,
         knowledgeType: "essay",
+      }),
+    ).toEqual({
+      level: "possibleConcern",
+      expectation: "expected",
+      threshold:
+        CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION.expectedConcernThreshold,
+    });
+    expect(
+      getHumanWeightConcern({
+        humanWeight: 35,
+        knowledgeType: "words",
       }),
     ).toEqual({
       level: "possibleConcern",
