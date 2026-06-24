@@ -74,8 +74,25 @@ const SMART_STORAGE_SOURCE_INTERPRETATION_POLICY = {
   ambiguity:
     "If guidance and substantive material are ambiguous, lower proposalConfidence and explain the ambiguity in rationale.",
 } as const;
+const SMART_STORAGE_MODEL_INSTRUCTIONS_VERSION =
+  "mvp-smart-storage-openai-instructions-v1";
+const SMART_STORAGE_MODEL_INSTRUCTIONS = [
+  "Outcome: decide whether the Bronze Sources support exactly one reviewable Silver Smart Storage Proposal for the user's primary intended Knowledge Entry.",
+  "Return only the structured JSON run outcome requested by the schema.",
+  "Use decision=\"proposal\" only when the supplied Sources and request context support a reviewable proposal.",
+  "Use decision=\"noProposal\" when the Sources are empty, unsupported, extraction-limited, only guidance, or too ambiguous to review as one Knowledge Entry.",
+  "Do not create Gold Layer Knowledge Entries. The user must confirm proposals.",
+  "Use the provided Smart Storage Contract and Type Behavior snapshots as authoritative rules, not the persistence schema.",
+  "Prefer the requested Knowledge Type unless the Source clearly maps better to another authorable Knowledge Type. When slotId is present, keep the requested Knowledge Type fixed.",
+  "Editor text arrives as Authored Text Source. Preserve it as raw Source material.",
+  "Guidance-like text inside an Authored Text Source may guide proposal choices, context tags, proposalConfidence, and rationale, but it is not represented knowledge by default.",
+  "Do not synthesize Contribution Notes from Source text. Separately supplied contributionSubmission.contributionNote is explicit guidance and remains distinct from Sources.",
+  "Use only supplied Source text, file metadata, URL metadata, link preview fields, current Knowledge Context, Smart Storage Contract, and Type Behavior snapshots. Do not invent extracted file, media, URL, or web-page facts that were not supplied.",
+  "For proposalConfidence, judge confidence in the mapping from Sources to the proposed Knowledge Entry, not truth, Human Weight, or approval readiness.",
+  "If evidence is weak but still reviewable, return a low-confidence proposal and explain the concern in rationale.",
+].join("\n");
 const SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION =
-  "mvp-smart-storage-contract-v3";
+  "mvp-smart-storage-contract-v4";
 const SMART_STORAGE_CONTRACT_SNAPSHOT = {
   contractKind: "contributionSubmissionToSmartStorageProposal",
   version: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
@@ -107,6 +124,8 @@ const SMART_STORAGE_CONTRACT_SNAPSHOT = {
       "Keep the contract provider-neutral so a self-hosted proprietary model can replace the OpenAI adapter later.",
   },
   proposalShape: {
+    decision:
+      "A model Run returns either one reviewable proposal or an explicit noProposal outcome.",
     knowledgeType:
       "One authorable Knowledge Type from the app's current Entry Knowledge Type set.",
     title: "A bounded proposed Knowledge Entry title.",
@@ -118,6 +137,18 @@ const SMART_STORAGE_CONTRACT_SNAPSHOT = {
       "A coarse low, medium, or high review signal; not truth, Human Weight, or approval.",
     rationale:
       "A bounded explanation of why this Source appears to map to the proposed Knowledge Entry.",
+  },
+  modelRunOutcome: {
+    proposal:
+      "Use decision=proposal when the supplied Bronze Sources support one reviewable Silver Layer proposal for the User's primary intended entry.",
+    noProposal:
+      "Use decision=noProposal when the Sources are empty, unsupported, extraction-limited, only guidance, or too ambiguous to review as one Knowledge Entry.",
+    probabilityJudgment:
+      "proposalConfidence estimates the mapping from Source to proposed Knowledge Entry; it is not truth, Human Weight, or approval.",
+  },
+  modelPrompt: {
+    instructionsVersion: SMART_STORAGE_MODEL_INSTRUCTIONS_VERSION,
+    staticInstructions: SMART_STORAGE_MODEL_INSTRUCTIONS,
   },
   sourceInterpretationPolicy: SMART_STORAGE_SOURCE_INTERPRETATION_POLICY,
   boundaries: [
@@ -136,7 +167,7 @@ const SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT = JSON.stringify(
 const DETERMINISTIC_GENERATOR_VERSION = "mvp-deterministic-scaffold-v1";
 const OPENAI_RESPONSES_API_URL = "https://api.openai.com/v1/responses";
 const DEFAULT_OPENAI_SMART_STORAGE_MODEL = "gpt-5.4-nano";
-const SMART_STORAGE_MODEL_SCHEMA_NAME = "smart_storage_proposal";
+const SMART_STORAGE_MODEL_SCHEMA_NAME = "smart_storage_run_outcome";
 const SMART_STORAGE_PROPOSAL_JSON_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -180,6 +211,19 @@ const SMART_STORAGE_PROPOSAL_JSON_SCHEMA = {
     },
     proposalConfidence: { type: "string", enum: ["low", "medium", "high"] },
     rationale: { type: "string" },
+  },
+} as const;
+const SMART_STORAGE_MODEL_RUN_OUTCOME_JSON_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["decision", "proposal", "noProposalReason"],
+  properties: {
+    decision: { type: "string", enum: ["proposal", "noProposal"] },
+    proposal: {
+      ...SMART_STORAGE_PROPOSAL_JSON_SCHEMA,
+      type: ["object", "null"],
+    },
+    noProposalReason: { type: ["string", "null"] },
   },
 } as const;
 
@@ -284,6 +328,10 @@ type ModelRunExecutionResult = {
   smartStorageRunId: Id<"smartStorageRuns">;
   status: "drafted" | "failed" | "noProposal";
 };
+type ParsedModelRunOutcome =
+  | { kind: "proposal"; proposal: SmartStorageProposedEntryDoc }
+  | { kind: "noProposal"; reason: string }
+  | { kind: "error"; message: string };
 
 const referentKnowledgeType = v.union(
   v.literal("words"),
@@ -694,16 +742,23 @@ export const executeModelRun = action({
       const modelText = extractOpenAiResponseText(rawResponseText);
       if (!modelText) {
         return await ctx.runMutation(internal.smartStorage.completeModelRunNoProposal, {
-          errorMessage: "OpenAI response did not include proposal content.",
+          errorMessage: "OpenAI response did not include run outcome content.",
           rawModelOutput: rawResponseText,
           smartStorageRunId: args.smartStorageRunId,
         });
       }
 
-      const proposal = parseModelProposal(modelText);
-      if (proposal.kind === "error") {
+      const modelOutcome = parseModelRunOutcome(modelText);
+      if (modelOutcome.kind === "error") {
         return await ctx.runMutation(internal.smartStorage.failModelRun, {
-          errorMessage: proposal.message,
+          errorMessage: modelOutcome.message,
+          rawModelOutput: rawResponseText,
+          smartStorageRunId: args.smartStorageRunId,
+        });
+      }
+      if (modelOutcome.kind === "noProposal") {
+        return await ctx.runMutation(internal.smartStorage.completeModelRunNoProposal, {
+          errorMessage: modelOutcome.reason,
           rawModelOutput: rawResponseText,
           smartStorageRunId: args.smartStorageRunId,
         });
@@ -712,7 +767,7 @@ export const executeModelRun = action({
       return await ctx.runMutation(
         internal.smartStorage.completeModelRunWithProposal,
         {
-          proposal: proposal.proposal,
+          proposal: modelOutcome.proposal,
           rawModelOutput: rawResponseText,
           smartStorageRunId: args.smartStorageRunId,
         },
@@ -2891,16 +2946,7 @@ function buildOpenAiSmartStorageRequest(input: ModelRunExecutionInput) {
     model: getOpenAiSmartStorageModel(),
     max_output_tokens: 1_000,
     reasoning: { effort: "low" },
-    instructions: [
-      "You are helping prepare one Smart Storage Proposal for human review.",
-      "Return only the structured JSON shape requested by the schema.",
-      "Do not create Gold Layer Knowledge Entries. The user must confirm proposals.",
-      "Use the provided Smart Storage Contract and Type Behavior snapshots as authoritative rules, not the persistence schema.",
-      "Editor text arrives as Authored Text Source. Preserve it as raw Source material.",
-      "Guidance-like text inside an Authored Text Source may guide proposal choices, citations, proposalConfidence, and rationale, but it is not represented knowledge by default.",
-      "Do not synthesize Contribution Notes from Source text. Separately supplied contributionSubmission.contributionNote is explicit guidance and remains distinct from Sources.",
-      "If evidence is weak, keep proposalConfidence low and explain the concern in rationale.",
-    ].join("\n"),
+    instructions: SMART_STORAGE_MODEL_INSTRUCTIONS,
     input: limitString(
       JSON.stringify(buildModelRunRequestInput(input)),
       MAX_MODEL_INPUT_LENGTH,
@@ -2910,7 +2956,7 @@ function buildOpenAiSmartStorageRequest(input: ModelRunExecutionInput) {
         type: "json_schema",
         name: SMART_STORAGE_MODEL_SCHEMA_NAME,
         strict: true,
-        schema: SMART_STORAGE_PROPOSAL_JSON_SCHEMA,
+        schema: SMART_STORAGE_MODEL_RUN_OUTCOME_JSON_SCHEMA,
       },
       verbosity: "low",
     },
@@ -2985,9 +3031,7 @@ function extractOpenAiResponseText(rawResponseText: string) {
   return textParts.join("\n").trim();
 }
 
-function parseModelProposal(modelText: string):
-  | { kind: "success"; proposal: SmartStorageProposedEntryDoc }
-  | { kind: "error"; message: string } {
+function parseModelRunOutcome(modelText: string): ParsedModelRunOutcome {
   let parsed: unknown;
   try {
     parsed = JSON.parse(modelText);
@@ -2996,14 +3040,46 @@ function parseModelProposal(modelText: string):
   }
 
   const proposal = toValidatedModelProposal(parsed);
-  if (!proposal) {
+  if (proposal) {
+    return { kind: "proposal", proposal };
+  }
+
+  if (!isRecord(parsed)) {
     return {
       kind: "error",
-      message: "OpenAI response did not match the Smart Storage Proposal shape.",
+      message: "OpenAI response did not match the Smart Storage Run outcome shape.",
+    };
+  }
+  if (parsed.decision === "noProposal") {
+    return {
+      kind: "noProposal",
+      reason: getNoProposalReason(parsed.noProposalReason),
+    };
+  }
+  if (parsed.decision !== "proposal") {
+    return {
+      kind: "error",
+      message: "OpenAI response did not match the Smart Storage Run outcome shape.",
     };
   }
 
-  return { kind: "success", proposal };
+  const outcomeProposal = toValidatedModelProposal(parsed.proposal);
+  if (!outcomeProposal) {
+    return {
+      kind: "error",
+      message: "OpenAI response did not match the Smart Storage Run outcome shape.",
+    };
+  }
+
+  return { kind: "proposal", proposal: outcomeProposal };
+}
+
+function getNoProposalReason(value: unknown) {
+  if (typeof value === "string" && value.trim()) {
+    return limitString(value, MAX_MODEL_ERROR_LENGTH);
+  }
+
+  return "Model did not find a reviewable Smart Storage Proposal.";
 }
 
 function toValidatedModelProposal(value: unknown): SmartStorageProposedEntryDoc | null {

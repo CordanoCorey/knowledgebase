@@ -38,8 +38,25 @@ type SmartStorageContributionInput = {
   title: string;
 };
 
+const SMART_STORAGE_MODEL_INSTRUCTIONS_VERSION =
+  "mvp-smart-storage-openai-instructions-v1";
+const SMART_STORAGE_MODEL_INSTRUCTIONS = [
+  "Outcome: decide whether the Bronze Sources support exactly one reviewable Silver Smart Storage Proposal for the user's primary intended Knowledge Entry.",
+  "Return only the structured JSON run outcome requested by the schema.",
+  "Use decision=\"proposal\" only when the supplied Sources and request context support a reviewable proposal.",
+  "Use decision=\"noProposal\" when the Sources are empty, unsupported, extraction-limited, only guidance, or too ambiguous to review as one Knowledge Entry.",
+  "Do not create Gold Layer Knowledge Entries. The user must confirm proposals.",
+  "Use the provided Smart Storage Contract and Type Behavior snapshots as authoritative rules, not the persistence schema.",
+  "Prefer the requested Knowledge Type unless the Source clearly maps better to another authorable Knowledge Type. When slotId is present, keep the requested Knowledge Type fixed.",
+  "Editor text arrives as Authored Text Source. Preserve it as raw Source material.",
+  "Guidance-like text inside an Authored Text Source may guide proposal choices, context tags, proposalConfidence, and rationale, but it is not represented knowledge by default.",
+  "Do not synthesize Contribution Notes from Source text. Separately supplied contributionSubmission.contributionNote is explicit guidance and remains distinct from Sources.",
+  "Use only supplied Source text, file metadata, URL metadata, link preview fields, current Knowledge Context, Smart Storage Contract, and Type Behavior snapshots. Do not invent extracted file, media, URL, or web-page facts that were not supplied.",
+  "For proposalConfidence, judge confidence in the mapping from Sources to the proposed Knowledge Entry, not truth, Human Weight, or approval readiness.",
+  "If evidence is weak but still reviewable, return a low-confidence proposal and explain the concern in rationale.",
+].join("\n");
 const SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION =
-  "mvp-smart-storage-contract-v3";
+  "mvp-smart-storage-contract-v4";
 const SMART_STORAGE_CONTRACT_SNAPSHOT = {
   contractKind: "contributionSubmissionToSmartStorageProposal",
   version: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
@@ -71,6 +88,8 @@ const SMART_STORAGE_CONTRACT_SNAPSHOT = {
       "Keep the contract provider-neutral so a self-hosted proprietary model can replace the OpenAI adapter later.",
   },
   proposalShape: {
+    decision:
+      "A model Run returns either one reviewable proposal or an explicit noProposal outcome.",
     knowledgeType:
       "One authorable Knowledge Type from the app's current Entry Knowledge Type set.",
     title: "A bounded proposed Knowledge Entry title.",
@@ -82,6 +101,18 @@ const SMART_STORAGE_CONTRACT_SNAPSHOT = {
       "A coarse low, medium, or high review signal; not truth, Human Weight, or approval.",
     rationale:
       "A bounded explanation of why this Source appears to map to the proposed Knowledge Entry.",
+  },
+  modelRunOutcome: {
+    proposal:
+      "Use decision=proposal when the supplied Bronze Sources support one reviewable Silver Layer proposal for the User's primary intended entry.",
+    noProposal:
+      "Use decision=noProposal when the Sources are empty, unsupported, extraction-limited, only guidance, or too ambiguous to review as one Knowledge Entry.",
+    probabilityJudgment:
+      "proposalConfidence estimates the mapping from Source to proposed Knowledge Entry; it is not truth, Human Weight, or approval.",
+  },
+  modelPrompt: {
+    instructionsVersion: SMART_STORAGE_MODEL_INSTRUCTIONS_VERSION,
+    staticInstructions: SMART_STORAGE_MODEL_INSTRUCTIONS,
   },
   sourceInterpretationPolicy: {
     authoredTextSource:
@@ -1139,7 +1170,11 @@ describe("Smart Storage contribution spine", () => {
       new Response(
         JSON.stringify({
           id: "resp_smart_storage_test",
-          output_text: JSON.stringify(modelProposal),
+          output_text: JSON.stringify({
+            decision: "proposal",
+            proposal: modelProposal,
+            noProposalReason: null,
+          }),
         }),
         { status: 200 },
       ),
@@ -1179,7 +1214,7 @@ describe("Smart Storage contribution spine", () => {
       reasoning: { effort: "low" },
       text: {
         format: {
-          name: "smart_storage_proposal",
+          name: "smart_storage_run_outcome",
           strict: true,
           type: "json_schema",
         },
@@ -1187,6 +1222,7 @@ describe("Smart Storage contribution spine", () => {
       },
     });
     expect(requestBody.input).toContain("Courage in Joshua");
+    expect(requestBody.instructions).toContain("run outcome");
     expect(requestBody.instructions).toContain("Authored Text Source");
     expect(requestBody.instructions).toContain(
       "Guidance-like text inside an Authored Text Source",
@@ -1214,6 +1250,14 @@ describe("Smart Storage contribution spine", () => {
           currentAdapter: expect.stringContaining("OpenAI"),
           futureAdapter: expect.stringContaining("self-hosted"),
           localFirst: expect.stringContaining("deterministic"),
+        },
+        modelRunOutcome: {
+          noProposal: expect.stringContaining("decision=noProposal"),
+          proposal: expect.stringContaining("decision=proposal"),
+        },
+        modelPrompt: {
+          instructionsVersion: SMART_STORAGE_MODEL_INSTRUCTIONS_VERSION,
+          staticInstructions: SMART_STORAGE_MODEL_INSTRUCTIONS,
         },
         version: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
       },
@@ -1421,7 +1465,7 @@ describe("Smart Storage contribution spine", () => {
 
     expect(result).toMatchObject({
       errorMessage:
-        "OpenAI response did not match the Smart Storage Proposal shape.",
+        "OpenAI response did not match the Smart Storage Run outcome shape.",
       executionStatus: "failed",
       status: "failed",
     });
@@ -1429,8 +1473,55 @@ describe("Smart Storage contribution spine", () => {
     expect(rowState.run).toEqual(
       expect.objectContaining({
         errorMessage:
-          "OpenAI response did not match the Smart Storage Proposal shape.",
+          "OpenAI response did not match the Smart Storage Run outcome shape.",
         status: "failed",
+      }),
+    );
+    expect(rowState.proposalCount).toBe(0);
+  });
+
+  test("marks a model Run no-proposal when OpenAI returns an explicit noProposal decision", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-openai-key");
+    const noProposalReason =
+      "The supplied Source is only upload metadata and has no extracted text yet.";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            output_text: JSON.stringify({
+              decision: "noProposal",
+              proposal: null,
+              noProposalReason,
+            }),
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const startResult = await authed.mutation(
+      api.smartStorage.startFromContribution,
+      getLessonSmartStorageInput({ body: "", title: "Upload-only lesson" }),
+    );
+
+    const result = await authed.action(api.smartStorage.executeModelRun, {
+      smartStorageRunId: startResult.smartStorageRunId,
+    });
+
+    expect(result).toMatchObject({
+      errorMessage: noProposalReason,
+      executionStatus: "noProposal",
+      status: "noProposal",
+    });
+    const rowState = await getRunFailureState(t, startResult.smartStorageRunId);
+    expect(rowState.run).toEqual(
+      expect.objectContaining({
+        errorMessage: noProposalReason,
+        rawModelOutput: expect.stringContaining("noProposal"),
+        status: "noProposal",
       }),
     );
     expect(rowState.proposalCount).toBe(0);
@@ -1455,14 +1546,14 @@ describe("Smart Storage contribution spine", () => {
     });
 
     expect(result).toMatchObject({
-      errorMessage: "OpenAI response did not include proposal content.",
+      errorMessage: "OpenAI response did not include run outcome content.",
       executionStatus: "noProposal",
       status: "noProposal",
     });
     const rowState = await getRunFailureState(t, startResult.smartStorageRunId);
     expect(rowState.run).toEqual(
       expect.objectContaining({
-        errorMessage: "OpenAI response did not include proposal content.",
+        errorMessage: "OpenAI response did not include run outcome content.",
         status: "noProposal",
       }),
     );

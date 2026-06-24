@@ -3686,9 +3686,9 @@ describe("MVP Explore/Contribute loop", () => {
     await renderApp();
 
     expect(getSelect("Active Role").value).toBe("system:systemAdmin");
-    expect(getLabelledLinkIn(getLabelledElement("User Views"), "System Admin")).toBeTruthy();
+    expect(getLabelledLinkIn(getLabelledElement("Administration"), "System Admin")).toBeTruthy();
 
-    await click(getLabelledLinkIn(getLabelledElement("User Views"), "System Admin"));
+    await click(getLabelledLinkIn(getLabelledElement("Administration"), "System Admin"));
 
     expect(window.location.pathname).toBe("/system-admin");
     expect(container.textContent).toContain("Organization Accounts");
@@ -3911,13 +3911,12 @@ describe("MVP Explore/Contribute loop", () => {
     expect(container.textContent).not.toContain(
       "This account needs an active organization membership before continuing.",
     );
-    expect(getLabelledLinkIn(getLabelledElement("User Views"), "System Admin")).toBeTruthy();
+    expect(getLabelledLinkIn(getLabelledElement("Administration"), "System Admin")).toBeTruthy();
   });
 
   test("opens the user profile page from the avatar route", async () => {
     await renderApp();
 
-    await click(getButton("Open account menu"));
     await click(getLinkIn(getLabelledElement("Account menu"), "Profile"));
 
     expect(window.location.pathname).toBe("/profile");
@@ -4069,8 +4068,6 @@ describe("MVP Explore/Contribute loop", () => {
     ]);
     expect(userViews.textContent).not.toContain("Settings");
     expect(getLabelledElement("Unread notifications").textContent).toBe("3");
-
-    await click(getButton("Open account menu"));
 
     const accountMenu = getLabelledElement("Account menu");
     expect(getLinkIn(accountMenu, "Profile").getAttribute("href")).toBe("/profile");
@@ -4689,9 +4686,11 @@ describe("MVP Explore/Contribute loop", () => {
       expect(container.querySelector(".kb-organization-main")).toBeTruthy();
       expect(container.textContent).toContain(typedPage.expectedHeading);
       expect(container.textContent).toContain(typedPage.expectedDetail);
-      expect(getLinkIn(container, "Settings").getAttribute("href")).toBe(
-        `${typedPage.path}/settings`,
-      );
+      expect(
+        getLinkIn(getLabelledElement("Organization subroutes"), "Settings").getAttribute(
+          "href",
+        ),
+      ).toBe(`${typedPage.path}/settings`);
 
       if (root) {
         await act(async () => {

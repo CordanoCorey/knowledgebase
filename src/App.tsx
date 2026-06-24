@@ -23,6 +23,7 @@ import {
   BookOpen,
   CalendarDays,
   Check,
+  ChevronDown,
   Clock,
   Compass,
   Database,
@@ -38,6 +39,7 @@ import {
   RotateCcw,
   Search,
   Settings,
+  Shield,
   Sparkles,
   Sun,
   Tag,
@@ -1893,9 +1895,17 @@ function KnowledgebaseShell({
           onNavigateToHref={onNavigateToHref}
           onRootSearchSubmit={onRootSearchSubmit}
         />
-        <div className="kb-host-content" onScroll={handleContentScroll}>
-          <div className={`kb-route-transition ${routeMotionClassName}`}>
-            {children}
+        <div className="kb-host-workspace">
+          <KnowledgePageDrawer
+            activePageId={activePageId}
+            onNavigate={onNavigate}
+            pinnedKnowledgePages={pinnedKnowledgePages}
+            routeState={routeState}
+          />
+          <div className="kb-host-content" onScroll={handleContentScroll}>
+            <div className={`kb-route-transition ${routeMotionClassName}`}>
+              {children}
+            </div>
           </div>
         </div>
       </div>
@@ -1922,7 +1932,7 @@ function wouldHidingTopbarClampScroll(scrollHost: HTMLElement, scrollTop: number
 }
 
 function getTopbarHeight(scrollHost: HTMLElement) {
-  const hostColumn = scrollHost.parentElement;
+  const hostColumn = scrollHost.closest<HTMLElement>(".kb-host-column");
   if (!hostColumn) {
     return 0;
   }
@@ -1973,15 +1983,16 @@ function Sidebar({
         onClick={(event) => onNavigate(event, "/")}
         title="Logeion dashboard"
       >
-        <BrandMark />
+        <LogeionBrand density="compact" />
       </a>
 
-      <nav className="kb-nav-stack kb-route-nav" aria-label="Knowledge Page destinations">
+      <nav className="kb-rail-group kb-route-nav" aria-label="Knowledge">
+        <span className="kb-rail-group-label">Knowledge</span>
         {PRIMARY_ROUTE_IDS.map((pageId) => {
           const route = getRoute(pageId);
 
           return (
-            <SidebarNavLink
+            <RailNavLink
               active={pageId === activePageId}
               href={route.href}
               icon={route.icon}
@@ -1993,42 +2004,29 @@ function Sidebar({
           );
         })}
 
-        {visiblePinnedKnowledgePages.length > 0 ? (
-          <div className="kb-sidebar-pin-group" aria-label="Pinned Knowledge Pages">
-            <p className="kb-sidebar-section-label">Pinned Knowledge Pages</p>
-            {visiblePinnedKnowledgePages.map((pin) => (
-              <SidebarNavLink
-                active={isPinnedKnowledgePageActive(pin, activePageId, routeState)}
-                href={pin.href}
-                icon={pin.icon}
-                key={pin.id}
-                label={pin.label}
-                onNavigate={onNavigate}
-                secondaryLabel={pin.secondaryLabel}
-              />
-            ))}
-            {overflowPinnedKnowledgePages.length > 0 ? (
-              <button
-                aria-label={`${overflowPinnedKnowledgePages.length} more pinned Knowledge Pages`}
-                className="kb-sidebar-overflow"
-                title={overflowPinnedKnowledgePages
-                  .map((pin) => pin.organizationName)
-                  .join(", ")}
-                type="button"
-              >
-                +{overflowPinnedKnowledgePages.length} more
-              </button>
-            ) : null}
-          </div>
+        {visiblePinnedKnowledgePages.map((pin) => (
+          <RailNavLink
+            active={isPinnedKnowledgePageActive(pin, activePageId, routeState)}
+            href={pin.href}
+            icon={pin.icon}
+            key={pin.id}
+            label={pin.label}
+            onNavigate={onNavigate}
+            secondaryLabel={pin.secondaryLabel}
+          />
+        ))}
+        {overflowPinnedKnowledgePages.length > 0 ? (
+          <RailOverflowButton pins={overflowPinnedKnowledgePages} short />
         ) : null}
       </nav>
 
-      <nav className="kb-nav-stack kb-user-route-nav" aria-label="User Views">
+      <nav className="kb-rail-group kb-rail-group-push kb-user-route-nav" aria-label="User Views">
+        <span className="kb-rail-group-label">User</span>
         {USER_ROUTE_IDS.map((pageId) => {
           const route = getRoute(pageId);
 
           return (
-            <SidebarNavLink
+            <RailNavLink
               active={pageId === activePageId}
               badge={
                 pageId === "notifications" && notificationUnreadCount > 0
@@ -2043,35 +2041,95 @@ function Sidebar({
             />
           );
         })}
-        {showSystemAdminRoute
-          ? SYSTEM_ADMIN_ROUTE_IDS.map((pageId) => {
-              const route = getRoute(pageId);
-
-              return (
-                <SidebarNavLink
-                  active={pageId === activePageId}
-                  href={route.href}
-                  icon={route.icon}
-                  key={pageId}
-                  label={route.label}
-                  onNavigate={onNavigate}
-                />
-              );
-            })
-          : null}
-        <span className="kb-nav-divider" aria-hidden="true" />
-        <AvatarAccountMenu
-          active={activePageId === "profile" || activePageId === "settings"}
-          onNavigate={onNavigate}
-          onToggleTheme={onToggleTheme}
-          theme={theme}
-        />
       </nav>
+
+      {showSystemAdminRoute ? (
+        <nav className="kb-rail-group kb-admin-route-nav" aria-label="Administration">
+          <span className="kb-rail-group-label">Admin</span>
+          {SYSTEM_ADMIN_ROUTE_IDS.map((pageId) => {
+            const route = getRoute(pageId);
+
+            return (
+              <RailNavLink
+                active={pageId === activePageId}
+                href={route.href}
+                icon={route.icon}
+                key={pageId}
+                label={route.label}
+                onNavigate={onNavigate}
+              />
+            );
+          })}
+        </nav>
+      ) : null}
+
+      <AccountRailControls
+        activePageId={activePageId}
+        onNavigate={onNavigate}
+        onToggleTheme={onToggleTheme}
+        theme={theme}
+      />
     </aside>
   );
 }
 
-function SidebarNavLink({
+function KnowledgePageDrawer({
+  activePageId,
+  onNavigate,
+  pinnedKnowledgePages,
+  routeState,
+}: {
+  activePageId: PageId;
+  onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+  pinnedKnowledgePages: SidebarPinnedKnowledgePage[];
+  routeState: RouteState;
+}) {
+  const dashboardRoute = getRoute("dashboard");
+  const visiblePinnedKnowledgePages = pinnedKnowledgePages.slice(
+    0,
+    SIDEBAR_VISIBLE_PIN_LIMIT,
+  );
+  const overflowPinnedKnowledgePages = pinnedKnowledgePages.slice(
+    SIDEBAR_VISIBLE_PIN_LIMIT,
+  );
+
+  return (
+    <aside className="kb-knowledge-page-drawer" aria-label="Knowledge Page destinations">
+      <div className="kb-knowledge-page-drawer-card">
+        <header>
+          <span>Knowledge Pages</span>
+          <strong>Pinned</strong>
+        </header>
+        <nav className="kb-knowledge-page-list" aria-label="Pinned Knowledge Pages">
+          <KnowledgeDrawerLink
+            active={activePageId === "dashboard"}
+            href={dashboardRoute.href}
+            icon={dashboardRoute.icon}
+            label={dashboardRoute.label}
+            onNavigate={onNavigate}
+            secondaryLabel="All Accessible Knowledge"
+          />
+          {visiblePinnedKnowledgePages.map((pin) => (
+            <KnowledgeDrawerLink
+              active={isPinnedKnowledgePageActive(pin, activePageId, routeState)}
+              href={pin.href}
+              icon={pin.icon}
+              key={pin.id}
+              label={pin.label}
+              onNavigate={onNavigate}
+              secondaryLabel={pin.secondaryLabel}
+            />
+          ))}
+          {overflowPinnedKnowledgePages.length > 0 ? (
+            <RailOverflowButton pins={overflowPinnedKnowledgePages} />
+          ) : null}
+        </nav>
+      </div>
+    </aside>
+  );
+}
+
+function RailNavLink({
   active,
   badge,
   href,
@@ -2092,20 +2150,14 @@ function SidebarNavLink({
     <a
       aria-current={active ? "page" : undefined}
       aria-label={label}
-      className={active ? "kb-nav-button kb-nav-button-active" : "kb-nav-button"}
+      className={active ? "kb-rail-item kb-rail-item-active" : "kb-rail-item"}
       href={href}
       onClick={(event) => onNavigate(event, href)}
       title={secondaryLabel ? `${label} - ${secondaryLabel}` : label}
     >
       <Icon aria-hidden="true" />
-      <span className="kb-nav-label">
-        <span className="kb-nav-primary-label">{label}</span>
-        {secondaryLabel ? (
-          <span className="kb-nav-secondary-label">{secondaryLabel}</span>
-        ) : null}
-      </span>
       {badge ? (
-        <span className="kb-nav-badge" aria-label="Unread notifications">
+        <span className="kb-rail-badge" aria-label="Unread notifications">
           {badge}
         </span>
       ) : null}
@@ -2113,101 +2165,154 @@ function SidebarNavLink({
   );
 }
 
-function AvatarAccountMenu({
+function KnowledgeDrawerLink({
   active,
+  href,
+  icon: Icon,
+  label,
+  onNavigate,
+  secondaryLabel,
+}: {
+  active: boolean;
+  href: string;
+  icon: ElementType<{ "aria-hidden"?: "true" }>;
+  label: string;
+  onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+  secondaryLabel?: string;
+}) {
+  return (
+    <a
+      aria-current={active ? "page" : undefined}
+      aria-label={label}
+      className={
+        active
+          ? "kb-knowledge-page-link kb-knowledge-page-link-active"
+          : "kb-knowledge-page-link"
+      }
+      href={href}
+      onClick={(event) => onNavigate(event, href)}
+      title={secondaryLabel ? `${label} - ${secondaryLabel}` : label}
+    >
+      <Icon aria-hidden="true" />
+      <span>
+        <strong>{label}</strong>
+        {secondaryLabel ? <small>{secondaryLabel}</small> : null}
+      </span>
+    </a>
+  );
+}
+
+function RailOverflowButton({
+  pins,
+  short = false,
+}: {
+  pins: SidebarPinnedKnowledgePage[];
+  short?: boolean;
+}) {
+  return (
+    <button
+      aria-label={`${pins.length} more pinned Knowledge Pages`}
+      className={short ? "kb-rail-more" : "kb-knowledge-page-more"}
+      title={pins.map((pin) => pin.organizationName).join(", ")}
+      type="button"
+    >
+      {short ? null : <Compass aria-hidden="true" />}
+      <span>+{pins.length}{short ? "" : " more"}</span>
+    </button>
+  );
+}
+
+function AccountRailControls({
+  activePageId,
   onNavigate,
   onToggleTheme,
   theme,
 }: {
-  active: boolean;
+  activePageId: PageId;
   onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
   onToggleTheme: () => void;
   theme: ThemePreference;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
   const nextTheme = theme === "dark" ? "light" : "dark";
   const ThemeIcon = theme === "dark" ? Sun : Moon;
 
-  function handleBlur(event: FocusEvent<HTMLDivElement>) {
-    const nextTarget = event.relatedTarget;
-    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) {
-      return;
-    }
-
-    setIsOpen(false);
-  }
-
-  function handleNavigate(event: MouseEvent<HTMLAnchorElement>, href: string) {
-    onNavigate(event, href);
-    setIsOpen(false);
-  }
-
   return (
-    <div className="kb-account-menu-wrap" onBlur={handleBlur}>
-      <button
-        aria-current={active ? "page" : undefined}
-        aria-expanded={isOpen}
-        aria-haspopup="menu"
-        aria-label="Open account menu"
+    <nav className="kb-account-icons" aria-label="Account menu">
+      <a
+        aria-current={activePageId === "profile" ? "page" : undefined}
+        aria-label="Profile"
         className={
-          active
-            ? "kb-avatar-link kb-avatar-link-active kb-avatar-menu-button"
-            : "kb-avatar-link kb-avatar-menu-button"
+          activePageId === "profile"
+            ? "kb-avatar-link kb-avatar-link-active"
+            : "kb-avatar-link"
         }
-        onClick={() => setIsOpen((current) => !current)}
-        title="Account menu"
-        type="button"
+        href="/profile"
+        onClick={(event) => onNavigate(event, "/profile")}
+        title="Profile"
       >
         <img className="kb-avatar-photo" src={profilePlaceholderUrl} alt="" aria-hidden="true" />
         <span className="kb-avatar-status" aria-hidden="true" />
+        <span className="kb-account-icon-label">Profile</span>
+      </a>
+      <AccountRailLink
+        href="/profile?section=bookmarks"
+        icon={Bookmark}
+        label="Bookmarks"
+        onNavigate={onNavigate}
+      />
+      <AccountRailLink
+        active={activePageId === "settings"}
+        href="/settings"
+        icon={Settings}
+        label="Settings"
+        onNavigate={onNavigate}
+      />
+      <button
+        aria-label={`Switch to ${nextTheme} theme`}
+        className="kb-account-icon-button"
+        onClick={onToggleTheme}
+        title={theme === "dark" ? "Light theme" : "Dark theme"}
+        type="button"
+      >
+        <ThemeIcon aria-hidden="true" />
+        <span className="kb-account-icon-label">
+          {theme === "dark" ? "Light theme" : "Dark theme"}
+        </span>
       </button>
+      <SignOutButton />
+    </nav>
+  );
+}
 
-      <Presence present={isOpen}>
-        {(presenceState) => (
-          <div
-            aria-label="Account menu"
-            className="kb-account-menu"
-            data-presence={presenceState}
-            role="menu"
-          >
-            <a
-              href="/profile"
-              onClick={(event) => handleNavigate(event, "/profile")}
-              role="menuitem"
-            >
-              <UserCircle aria-hidden="true" />
-              <span>Profile</span>
-            </a>
-            <a
-              href="/profile?section=bookmarks"
-              onClick={(event) => handleNavigate(event, "/profile?section=bookmarks")}
-              role="menuitem"
-            >
-              <Bookmark aria-hidden="true" />
-              <span>Bookmarks</span>
-            </a>
-            <a
-              href="/settings"
-              onClick={(event) => handleNavigate(event, "/settings")}
-              role="menuitem"
-            >
-              <Settings aria-hidden="true" />
-              <span>Settings</span>
-            </a>
-            <button
-              aria-label={`Switch to ${nextTheme} theme`}
-              onClick={onToggleTheme}
-              role="menuitem"
-              type="button"
-            >
-              <ThemeIcon aria-hidden="true" />
-              <span>{theme === "dark" ? "Light theme" : "Dark theme"}</span>
-            </button>
-            <SignOutButton />
-          </div>
-        )}
-      </Presence>
-    </div>
+function AccountRailLink({
+  active = false,
+  href,
+  icon: Icon,
+  label,
+  onNavigate,
+}: {
+  active?: boolean;
+  href: string;
+  icon: ElementType<{ "aria-hidden"?: "true" }>;
+  label: string;
+  onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+}) {
+  return (
+    <a
+      aria-current={active ? "page" : undefined}
+      aria-label={label}
+      className={
+        active
+          ? "kb-account-icon-button kb-account-icon-button-active"
+          : "kb-account-icon-button"
+      }
+      href={href}
+      onClick={(event) => onNavigate(event, href)}
+      title={label}
+    >
+      <Icon aria-hidden="true" />
+      <span className="kb-account-icon-label">{label}</span>
+    </a>
   );
 }
 
@@ -2353,18 +2458,22 @@ function TopBar({
       </a>
       <div className="kb-topbar-actions">
         <label className="kb-active-role-switcher">
-          <span>Active Role</span>
-          <select
-            aria-label="Active Role"
-            onChange={(event) => onActiveRoleChange(event.currentTarget.value)}
-            value={activeRoleOptionId}
-          >
-            {activeRoleOptions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label} - {option.detail}
-              </option>
-            ))}
-          </select>
+          <Shield aria-hidden="true" />
+          <span className="kb-active-role-copy">
+            <small>Active Role</small>
+            <select
+              aria-label="Active Role"
+              onChange={(event) => onActiveRoleChange(event.currentTarget.value)}
+              value={activeRoleOptionId}
+            >
+              {activeRoleOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label} - {option.detail}
+                </option>
+              ))}
+            </select>
+          </span>
+          <ChevronDown aria-hidden="true" />
         </label>
         <div className="kb-search-wrap" onBlur={handleRootSearchBlur}>
           <span className="kb-search-label">Search Everything</span>

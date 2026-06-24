@@ -1,4 +1,4 @@
-// PROTOTYPE: Five header/sidebar variants, switchable via ?prototype=header-sidebar&variant=, on a throwaway shell.
+// PROTOTYPE: Header/sidebar variants, switchable via ?prototype=header-sidebar&variant=, on a throwaway shell.
 import {
   useCallback,
   useEffect,
@@ -32,7 +32,7 @@ import profilePlaceholderUrl from "../assets/profile-placeholder.png";
 import { LogeionBrand } from "../components/LogeionBrand";
 import "./headerSidebarPrototype.css";
 
-const VARIANT_ORDER = ["A", "B", "C", "D", "E"] as const;
+const VARIANT_ORDER = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"] as const;
 type VariantKey = (typeof VARIANT_ORDER)[number];
 type ThemePreference = "light" | "dark";
 type IconComponent = ComponentType<{ "aria-hidden"?: "true"; className?: string }>;
@@ -117,6 +117,11 @@ const VARIANTS: Record<VariantKey, VariantDefinition> = {
   C: { component: ThreeStackRailVariant, label: "Three stack rail" },
   D: { component: KnowledgeShelfVariant, label: "Knowledge shelf header" },
   E: { component: CommandBarVariant, label: "Command bar shell" },
+  F: { component: FixedBalancedHeaderVariant, label: "Fixed pieces, balanced header" },
+  G: { component: FixedKnowledgeDrawerVariant, label: "Fixed pieces, knowledge drawer" },
+  H: { component: FixedUtilityHeaderVariant, label: "Fixed pieces, utility header" },
+  I: { component: FixedTwoRowHeaderVariant, label: "Fixed pieces, two-row header" },
+  J: { component: FixedWorkspaceRailVariant, label: "Fixed pieces, workspace rail" },
 };
 
 export function HeaderSidebarPrototype({
@@ -181,6 +186,8 @@ export function HeaderSidebarPrototype({
         onNext={() => cycleVariant(1)}
         onPrevious={() => cycleVariant(-1)}
       />
+      <PrototypeArrowButton direction="previous" onClick={() => cycleVariant(-1)} />
+      <PrototypeArrowButton direction="next" onClick={() => cycleVariant(1)} />
     </>
   );
 }
@@ -191,7 +198,18 @@ function readVariantFromUrl(): VariantKey {
 }
 
 function isVariantKey(value: string | null): value is VariantKey {
-  return value === "A" || value === "B" || value === "C" || value === "D" || value === "E";
+  return (
+    value === "A" ||
+    value === "B" ||
+    value === "C" ||
+    value === "D" ||
+    value === "E" ||
+    value === "F" ||
+    value === "G" ||
+    value === "H" ||
+    value === "I" ||
+    value === "J"
+  );
 }
 
 function isTextEntryTarget(target: EventTarget | null) {
@@ -230,6 +248,36 @@ function PrototypeSwitcher({
         <ChevronRight aria-hidden="true" />
       </button>
     </div>
+  );
+}
+
+function PrototypeArrowButton({
+  direction,
+  onClick,
+}: {
+  direction: "next" | "previous";
+  onClick: () => void;
+}) {
+  const isNext = direction === "next";
+
+  if (import.meta.env.PROD) {
+    return null;
+  }
+
+  return (
+    <button
+      aria-label={isNext ? "Next header and sidebar option" : "Previous header and sidebar option"}
+      className={
+        isNext
+          ? "hsp-option-arrow hsp-option-arrow-next"
+          : "hsp-option-arrow hsp-option-arrow-previous"
+      }
+      onClick={onClick}
+      title={isNext ? "Next option" : "Previous option"}
+      type="button"
+    >
+      {isNext ? <ChevronRight aria-hidden="true" /> : <ChevronLeft aria-hidden="true" />}
+    </button>
   );
 }
 
@@ -447,6 +495,114 @@ function CommandBarVariant({ onToggleTheme, theme }: HeaderSidebarPrototypeProps
   );
 }
 
+function FixedBalancedHeaderVariant({ onToggleTheme, theme }: HeaderSidebarPrototypeProps) {
+  return (
+    <PrototypeFrame className="hsp-variant-f hsp-fixed-set" theme={theme}>
+      <FixedReferenceRail onToggleTheme={onToggleTheme} theme={theme} />
+
+      <main className="hsp-stage">
+        <HeaderBar className="hsp-fixed-header hsp-fixed-header-balanced">
+          <a className="hsp-fixed-brand" href="/" aria-label="Logeion dashboard">
+            <LogeionBrand />
+          </a>
+          <RolePill />
+          <SearchBox />
+        </HeaderBar>
+        <DemoWorkspace eyebrow="Fixed Set F" title="Balanced header with the thin sidebar preserved" />
+      </main>
+    </PrototypeFrame>
+  );
+}
+
+function FixedKnowledgeDrawerVariant({ onToggleTheme, theme }: HeaderSidebarPrototypeProps) {
+  return (
+    <PrototypeFrame className="hsp-variant-g hsp-fixed-set" theme={theme}>
+      <FixedReferenceRail onToggleTheme={onToggleTheme} theme={theme} />
+
+      <main className="hsp-stage">
+        <HeaderBar className="hsp-fixed-header hsp-fixed-header-search-first">
+          <a className="hsp-fixed-brand" href="/" aria-label="Logeion dashboard">
+            <LogeionBrand />
+          </a>
+          <SearchBox />
+          <RolePill />
+        </HeaderBar>
+        <FixedKnowledgeStrip title="Knowledge Pages" />
+        <DemoWorkspace eyebrow="Fixed Set G" title="Pinned knowledge gets a readable drawer below the header" />
+      </main>
+    </PrototypeFrame>
+  );
+}
+
+function FixedUtilityHeaderVariant({ onToggleTheme, theme }: HeaderSidebarPrototypeProps) {
+  return (
+    <PrototypeFrame className="hsp-variant-h hsp-fixed-set" theme={theme}>
+      <FixedReferenceRail onToggleTheme={onToggleTheme} theme={theme} />
+
+      <main className="hsp-stage">
+        <HeaderBar className="hsp-fixed-header hsp-fixed-header-utility">
+          <a className="hsp-fixed-brand" href="/" aria-label="Logeion dashboard">
+            <LogeionBrand />
+          </a>
+          <div className="hsp-fixed-utility-cluster" aria-label="Current app scope">
+            <span>All Accessible Knowledge</span>
+            <strong>Dashboard</strong>
+          </div>
+          <RolePill />
+          <SearchBox compact />
+        </HeaderBar>
+        <DemoWorkspace eyebrow="Fixed Set H" title="Current page context sits between brand and tools" />
+      </main>
+    </PrototypeFrame>
+  );
+}
+
+function FixedTwoRowHeaderVariant({ onToggleTheme, theme }: HeaderSidebarPrototypeProps) {
+  return (
+    <PrototypeFrame className="hsp-variant-i hsp-fixed-set" theme={theme}>
+      <FixedReferenceRail onToggleTheme={onToggleTheme} theme={theme} />
+
+      <main className="hsp-stage">
+        <HeaderBar className="hsp-fixed-header hsp-fixed-header-topline">
+          <a className="hsp-fixed-brand" href="/" aria-label="Logeion dashboard">
+            <LogeionBrand />
+          </a>
+          <RolePill />
+        </HeaderBar>
+        <section className="hsp-fixed-second-row" aria-label="Search and page shortcuts">
+          <SearchBox />
+          <FixedShortcutRow />
+        </section>
+        <DemoWorkspace eyebrow="Fixed Set I" title="Two-row header keeps role calm and gives search more room" />
+      </main>
+    </PrototypeFrame>
+  );
+}
+
+function FixedWorkspaceRailVariant({ onToggleTheme, theme }: HeaderSidebarPrototypeProps) {
+  return (
+    <PrototypeFrame className="hsp-variant-j hsp-fixed-set" theme={theme}>
+      <FixedReferenceRail onToggleTheme={onToggleTheme} theme={theme} />
+
+      <main className="hsp-stage">
+        <HeaderBar className="hsp-fixed-header hsp-fixed-header-compact">
+          <a className="hsp-fixed-brand" href="/" aria-label="Logeion dashboard">
+            <LogeionBrand />
+          </a>
+          <RolePill />
+          <SearchBox compact />
+        </HeaderBar>
+        <section className="hsp-workspace-with-drawer" aria-label="Knowledge workspace">
+          <aside className="hsp-context-drawer" aria-label="Knowledge Pages">
+            <FixedKnowledgeList />
+          </aside>
+          <DemoWorkspace eyebrow="Fixed Set J" title="Thin app sidebar plus a local knowledge drawer" />
+        </section>
+      </main>
+    </PrototypeFrame>
+  );
+}
+
 function PrototypeFrame({
   children,
   className,
@@ -460,6 +616,88 @@ function PrototypeFrame({
     <div className={`hsp-shell ${className}`} data-theme={theme}>
       {children}
     </div>
+  );
+}
+
+function FixedReferenceRail({ onToggleTheme, theme }: HeaderSidebarPrototypeProps) {
+  return (
+    <ThinRail ariaLabel="Primary navigation">
+      <RailBrand />
+      <RailGroup label="Knowledge">
+        <RailItem active item={KNOWLEDGE_ITEMS[0]} />
+        {KNOWLEDGE_ITEMS.slice(1, 4).map((item) => (
+          <RailItem item={item} key={item.id} />
+        ))}
+        <RailMore count={1} title="Westminster Study Circle" />
+      </RailGroup>
+      <RailGroup label="User" push>
+        {WORK_ITEMS.map((item) => (
+          <RailItem item={item} key={item.id} />
+        ))}
+      </RailGroup>
+      <RailGroup label="Admin">
+        {ADMIN_ITEMS.map((item) => (
+          <RailItem item={item} key={item.id} />
+        ))}
+      </RailGroup>
+      <AccountIconStack onToggleTheme={onToggleTheme} theme={theme} />
+    </ThinRail>
+  );
+}
+
+function FixedKnowledgeStrip({ title }: { title: string }) {
+  return (
+    <section className="hsp-fixed-knowledge-strip" aria-label="Pinned Knowledge Pages">
+      <div>
+        <span>{title}</span>
+        <strong>Dashboard plus pinned contexts</strong>
+      </div>
+      <div className="hsp-fixed-strip-items">
+        {KNOWLEDGE_ITEMS.slice(0, 4).map((item, index) => (
+          <WideNavChip active={index === 0} item={item} key={item.id} />
+        ))}
+        <FixedWideMore count={1} title="Westminster Study Circle" />
+      </div>
+    </section>
+  );
+}
+
+function FixedKnowledgeList() {
+  return (
+    <div className="hsp-fixed-knowledge-list">
+      <header>
+        <span>Knowledge Pages</span>
+        <strong>Pinned</strong>
+      </header>
+      {KNOWLEDGE_ITEMS.slice(0, 4).map((item, index) => (
+        <WideNavChip active={index === 0} item={item} key={item.id} />
+      ))}
+      <FixedWideMore count={1} title="Westminster Study Circle" />
+    </div>
+  );
+}
+
+function FixedShortcutRow() {
+  return (
+    <nav className="hsp-fixed-shortcuts" aria-label="User and administration shortcuts">
+      {[...WORK_ITEMS, ...ADMIN_ITEMS].map((item) => (
+        <WideNavChip item={item} key={item.id} />
+      ))}
+    </nav>
+  );
+}
+
+function FixedWideMore({ count, title }: { count: number; title: string }) {
+  return (
+    <button
+      aria-label={`${count} more pinned Knowledge Pages`}
+      className="hsp-wide-chip hsp-wide-more-chip"
+      title={title}
+      type="button"
+    >
+      <Compass aria-hidden="true" />
+      <span>+{count} more</span>
+    </button>
   );
 }
 
