@@ -58,10 +58,6 @@ const MAX_MODEL_INPUT_LENGTH = 24_000;
 const MAX_MODEL_ERROR_LENGTH = 500;
 
 const SMART_STORAGE_CONTRACT_KEY = "mvp-smart-storage-contract";
-const SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION =
-  "mvp-smart-storage-contract-v2";
-const SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT =
-  "Preserve a durable Contribution Submission with child Sources, interpret guidance-like text inside Authored Text Sources without synthesizing stored Contribution Notes, and queue conservative scaffold proposal generation.";
 const TYPE_BEHAVIOR_SNAPSHOT_TEXT =
   "Use the Type Behavior registry for identity, source citation, representation role, primary representation, Human Weight defaults, and Human Weight credit basis.";
 const SMART_STORAGE_SOURCE_INTERPRETATION_POLICY = {
@@ -78,9 +74,68 @@ const SMART_STORAGE_SOURCE_INTERPRETATION_POLICY = {
   ambiguity:
     "If guidance and substantive material are ambiguous, lower proposalConfidence and explain the ambiguity in rationale.",
 } as const;
+const SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION =
+  "mvp-smart-storage-contract-v3";
+const SMART_STORAGE_CONTRACT_SNAPSHOT = {
+  contractKind: "contributionSubmissionToSmartStorageProposal",
+  version: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
+  purpose:
+    "Answer what information the User intends to contribute, given the Knowledge Types currently understood by the app.",
+  layerMapping: {
+    bronze:
+      "Contribution Submissions preserve submitted Sources as close as possible to their original form.",
+    silver:
+      "Smart Storage Proposals are reviewable probability judgments about how Bronze Sources map to one proposed Knowledge Entry.",
+    gold:
+      "Knowledge Entries are confirmed typed knowledge created or updated only after user review.",
+  },
+  process: [
+    "Create a durable Contribution Submission and child Sources before model execution.",
+    "Queue one Smart Storage Run using the current Smart Storage Contract and Type Behavior snapshots.",
+    "Build request-specific input from the Contribution Submission, Sources, current Knowledge Context, and snapshots.",
+    "Ask the current model adapter for one structured Smart Storage Proposal.",
+    "Store a Silver Layer Proposal only after returned JSON is parsed and validated.",
+    "Keep failed, invalid, or no-proposal outcomes on the Smart Storage Run without creating a Proposal.",
+    "Require user confirmation before any Gold Layer Knowledge Entry is created or updated.",
+  ],
+  modelProviderStrategy: {
+    localFirst:
+      "Use deterministic application logic for previews, cheap scaffolds, and fallback behavior before relying on model output.",
+    currentAdapter:
+      "Call OpenAI's Responses API for the first LLM-backed Smart Storage implementation.",
+    futureAdapter:
+      "Keep the contract provider-neutral so a self-hosted proprietary model can replace the OpenAI adapter later.",
+  },
+  proposalShape: {
+    knowledgeType:
+      "One authorable Knowledge Type from the app's current Entry Knowledge Type set.",
+    title: "A bounded proposed Knowledge Entry title.",
+    bodyPreview:
+      "A bounded preview of the represented knowledge, not raw internal reasoning.",
+    contextTags:
+      "A bounded set of proposed Knowledge Context Tag snapshots for review.",
+    proposalConfidence:
+      "A coarse low, medium, or high review signal; not truth, Human Weight, or approval.",
+    rationale:
+      "A bounded explanation of why this Source appears to map to the proposed Knowledge Entry.",
+  },
+  sourceInterpretationPolicy: SMART_STORAGE_SOURCE_INTERPRETATION_POLICY,
+  boundaries: [
+    "Do not expose or rely on the raw Convex persistence schema as the model contract.",
+    "Do not synthesize Contribution Notes from Authored Text Sources.",
+    "Do not treat guidance-like Source text as represented knowledge by default.",
+    "Do not create Gold Layer Knowledge Entries from model output without user confirmation.",
+    "Do not invent extracted file, media, or URL facts when advanced extraction has not supplied them.",
+  ],
+} as const;
+const SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT = JSON.stringify(
+  SMART_STORAGE_CONTRACT_SNAPSHOT,
+  null,
+  2,
+);
 const DETERMINISTIC_GENERATOR_VERSION = "mvp-deterministic-scaffold-v1";
 const OPENAI_RESPONSES_API_URL = "https://api.openai.com/v1/responses";
-const DEFAULT_OPENAI_SMART_STORAGE_MODEL = "gpt-5.4-mini";
+const DEFAULT_OPENAI_SMART_STORAGE_MODEL = "gpt-5.4-nano";
 const SMART_STORAGE_MODEL_SCHEMA_NAME = "smart_storage_proposal";
 const SMART_STORAGE_PROPOSAL_JSON_SCHEMA = {
   type: "object",
@@ -2834,11 +2889,13 @@ function getOpenAiSmartStorageModel() {
 function buildOpenAiSmartStorageRequest(input: ModelRunExecutionInput) {
   return {
     model: getOpenAiSmartStorageModel(),
+    max_output_tokens: 1_000,
+    reasoning: { effort: "low" },
     instructions: [
       "You are helping prepare one Smart Storage Proposal for human review.",
       "Return only the structured JSON shape requested by the schema.",
       "Do not create Gold Layer Knowledge Entries. The user must confirm proposals.",
-      "Use the provided Smart Storage Contract and Type Behavior snapshots as authoritative rules.",
+      "Use the provided Smart Storage Contract and Type Behavior snapshots as authoritative rules, not the persistence schema.",
       "Editor text arrives as Authored Text Source. Preserve it as raw Source material.",
       "Guidance-like text inside an Authored Text Source may guide proposal choices, citations, proposalConfidence, and rationale, but it is not represented knowledge by default.",
       "Do not synthesize Contribution Notes from Source text. Separately supplied contributionSubmission.contributionNote is explicit guidance and remains distinct from Sources.",
@@ -2855,6 +2912,7 @@ function buildOpenAiSmartStorageRequest(input: ModelRunExecutionInput) {
         strict: true,
         schema: SMART_STORAGE_PROPOSAL_JSON_SCHEMA,
       },
+      verbosity: "low",
     },
   };
 }
@@ -2862,6 +2920,7 @@ function buildOpenAiSmartStorageRequest(input: ModelRunExecutionInput) {
 function buildModelRunRequestInput(input: ModelRunExecutionInput) {
   return {
     contributionSubmission: input.contributionSubmission ?? null,
+    smartStorageContract: SMART_STORAGE_CONTRACT_SNAPSHOT,
     run: {
       requestedKnowledgeType: input.run.requestedKnowledgeType,
       contributionTitle: input.run.contributionTitle,

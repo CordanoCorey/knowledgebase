@@ -24,10 +24,15 @@ npx convex env set AUTH_GOOGLE_ID your-google-client-id
 npx convex env set AUTH_GOOGLE_SECRET your-google-client-secret
 npx convex env set AUTH_RESEND_KEY your-resend-api-key
 npx convex env set AUTH_EMAIL_FROM "Logeion <signin@your-domain.com>"
+npx convex env set OPENAI_API_KEY your-openai-api-key
+npx convex env set OPENAI_SMART_STORAGE_MODEL gpt-5.4-nano
 ```
 
 For local development, set `SITE_URL` to your Vite origin, for example
 `http://localhost:5173`.
+
+`OPENAI_SMART_STORAGE_MODEL` is optional; when omitted, Smart Storage defaults
+to the low-cost `gpt-5.4-nano` model for structured proposal generation.
 
 In Google Cloud Console, add this Authorized redirect URI:
 

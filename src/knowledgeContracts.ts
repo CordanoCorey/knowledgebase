@@ -541,7 +541,7 @@ export function isNonWeightBearingKnowledgeType(
 export function getDefaultHumanWeightExpectation(
   knowledgeType: KnowledgeType,
 ): HumanWeightExpectation {
-  if (knowledgeType === "essay") {
+  if (knowledgeType === "words" || knowledgeType === "essay") {
     return "expected";
   }
 

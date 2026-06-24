@@ -96,6 +96,7 @@ describe("Human Weight Concern", () => {
   });
 
   test("uses Type Behavior defaults when no expectation override is supplied", () => {
+    expect(getTypeBehavior("words").humanWeight.expectation).toBe("expected");
     expect(getTypeBehavior("essay").humanWeight.expectation).toBe("expected");
     expect(getTypeBehavior("lesson").humanWeight.expectation).toBe("informative");
 
@@ -113,13 +114,24 @@ describe("Human Weight Concern", () => {
     expect(
       getHumanWeightConcern({
         humanWeight: 35,
+        knowledgeType: "words",
+      }),
+    ).toEqual({
+      level: "possibleConcern",
+      expectation: "expected",
+      threshold:
+        CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION.expectedConcernThreshold,
+    });
+    expect(
+      getHumanWeightConcern({
+        humanWeight: 35,
         knowledgeType: "lesson",
       }),
     ).toBeUndefined();
   });
 
   test("defines the credited human role by Knowledge Type", () => {
-    expect(getTypeBehavior("words").version).toBe("mvp-type-behavior-v3");
+    expect(getTypeBehavior("words").version).toBe("mvp-type-behavior-v4");
     expect(getTypeBehavior("words").humanWeight.creditBasis).toBe("contributor");
     expect(getTypeBehavior("lesson").humanWeight.creditBasis).toBe(
       "contributor",
@@ -134,7 +146,7 @@ describe("Human Weight Concern", () => {
       "creditBasis",
     );
     expect(getTypeBehaviorSnapshot("quote").version).toBe(
-      "mvp-type-behavior-v3",
+      "mvp-type-behavior-v4",
     );
   });
 });
@@ -185,7 +197,7 @@ describe("Type Behavior title input contract", () => {
     const snapshot = getTypeBehaviorSnapshot("words");
     const behavior = JSON.parse(snapshot.behaviorSnapshotJson);
 
-    expect(snapshot.version).toBe("mvp-type-behavior-v3");
+    expect(snapshot.version).toBe("mvp-type-behavior-v4");
     expect(behavior.composerDefaults.title).toMatchObject({
       generatedTitleKind: "bodyPreview",
       input: "addable",

@@ -129,6 +129,7 @@ import {
   isAuthorableKnowledgeType,
   REPRESENTATION_ROLE_OPTIONS,
 } from "./knowledgeContracts";
+import { HeaderSidebarPrototype } from "./prototypes/HeaderSidebarPrototype";
 import { LayoutPrototype } from "./prototypes/LayoutPrototype";
 
 const THEME_STORAGE_KEY = "knowledgebase-theme";
@@ -1574,6 +1575,10 @@ export default function App() {
     });
   }
 
+  if (isHeaderSidebarPrototypeRoute()) {
+    return <HeaderSidebarPrototype onToggleTheme={toggleTheme} theme={theme} />;
+  }
+
   if (isLayoutPrototypeRoute()) {
     return <LayoutPrototype onToggleTheme={toggleTheme} theme={theme} />;
   }
@@ -1774,6 +1779,13 @@ function isLayoutPrototypeRoute() {
   return (
     !import.meta.env.PROD &&
     new URLSearchParams(window.location.search).get("prototype") === "layout"
+  );
+}
+
+function isHeaderSidebarPrototypeRoute() {
+  return (
+    !import.meta.env.PROD &&
+    new URLSearchParams(window.location.search).get("prototype") === "header-sidebar"
   );
 }
 
