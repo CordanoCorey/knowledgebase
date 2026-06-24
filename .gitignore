@@ -3,6 +3,7 @@ node_modules/
 .env.local
 .env.*.local
 dist/
+output/
 docs/*
 issues/
 !docs/product-core.md
