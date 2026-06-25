@@ -27,6 +27,7 @@ import type * as humanWeightFeedback from "../humanWeightFeedback.js";
 import type * as humanWeightRecalculation from "../humanWeightRecalculation.js";
 import type * as knowledgeSubscriptions from "../knowledgeSubscriptions.js";
 import type * as lib_appAccess from "../lib/appAccess.js";
+import type * as lib_automaticContextTags from "../lib/automaticContextTags.js";
 import type * as lib_contextExpertiseEvidence from "../lib/contextExpertiseEvidence.js";
 import type * as lib_contextExpertiseScoring from "../lib/contextExpertiseScoring.js";
 import type * as lib_humanWeightCalculationDefinition from "../lib/humanWeightCalculationDefinition.js";
@@ -76,6 +77,7 @@ declare const fullApi: ApiFromModules<{
   humanWeightRecalculation: typeof humanWeightRecalculation;
   knowledgeSubscriptions: typeof knowledgeSubscriptions;
   "lib/appAccess": typeof lib_appAccess;
+  "lib/automaticContextTags": typeof lib_automaticContextTags;
   "lib/contextExpertiseEvidence": typeof lib_contextExpertiseEvidence;
   "lib/contextExpertiseScoring": typeof lib_contextExpertiseScoring;
   "lib/humanWeightCalculationDefinition": typeof lib_humanWeightCalculationDefinition;

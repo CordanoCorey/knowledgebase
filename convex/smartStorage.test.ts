@@ -1606,7 +1606,7 @@ describe("Smart Storage contribution spine", () => {
       const contributionSubmission = await ctx.db.get(
         startResult.contributionSubmissionId,
       );
-      const contextTagIds = (
+      const entryContextTagIds = (
         await ctx.db
           .query("entryTags")
           .withIndex("by_entryId_and_tagPurpose", (q) =>
@@ -1616,7 +1616,17 @@ describe("Smart Storage contribution spine", () => {
       )
         .map((entryTag) => entryTag.tagId)
         .sort();
+      const contextTagIds = await getContextTagIdsForSnapshots(
+        ctx,
+        getJoshuaContextTags(),
+      );
       const contextKey = getContextKey(contextTagIds);
+      const organizationTag = await getTagByLookup(
+        ctx,
+        "organization",
+        "arche-classical-academy",
+      );
+      const personTag = await getTagByLookup(ctx, "person", "smart-storage-user");
       const contextExpertiseEvidence = await ctx.db
         .query("contextExpertiseEvidence")
         .withIndex("by_entryId_and_createdAt", (q) =>
@@ -1636,8 +1646,11 @@ describe("Smart Storage contribution spine", () => {
         contextExpertiseEvidence,
         contextKey,
         contextTagIds,
+        entryContextTagIds,
         entry,
+        organizationTag,
         outputs,
+        personTag,
         proposal,
         quoteRows,
         representations,
@@ -1671,6 +1684,13 @@ describe("Smart Storage contribution spine", () => {
         sourceId: startResult.sourceId,
       }),
     ]);
+    expect(rowState.entryContextTagIds).toEqual(
+      expect.arrayContaining([
+        ...rowState.contextTagIds,
+        rowState.organizationTag._id,
+        rowState.personTag._id,
+      ]),
+    );
     expect(rowState.quoteRows).toEqual([]);
     expect(rowState.proposal).toEqual(
       expect.objectContaining({
@@ -1975,7 +1995,7 @@ describe("Smart Storage contribution spine", () => {
         .query("quoteEntries")
         .withIndex("by_entryId", (q) => q.eq("entryId", accepted.entryId!))
         .collect();
-      const contextTagIds = (
+      const entryContextTagIds = (
         await ctx.db
           .query("entryTags")
           .withIndex("by_entryId_and_tagPurpose", (q) =>
@@ -1985,6 +2005,18 @@ describe("Smart Storage contribution spine", () => {
       )
         .map((entryTag) => entryTag.tagId)
         .sort();
+      const contextTagIds = await getContextTagIdsForSnapshots(
+        ctx,
+        getQuoteContextTags([
+          {
+            canonicalKey: "cs-lewis",
+            href: "/goto/cs-lewis",
+            id: "cs-lewis",
+            knowledgeType: "person" as const,
+            label: "C.S. Lewis",
+          },
+        ]),
+      );
       const contextKey = getContextKey(contextTagIds);
       const contextExpertiseEvidence = await ctx.db
         .query("contextExpertiseEvidence")
@@ -2014,6 +2046,7 @@ describe("Smart Storage contribution spine", () => {
         contextExpertiseEvidence,
         contextKey,
         contextTagIds,
+        entryContextTagIds,
         lewis,
         personAggregate,
         quoteRows,
@@ -2033,6 +2066,9 @@ describe("Smart Storage contribution spine", () => {
         sourceText: body,
       }),
     ]);
+    expect(rowState.entryContextTagIds).toEqual(
+      expect.arrayContaining(rowState.contextTagIds),
+    );
     expect(rowState.contextExpertiseEvidence).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -2538,7 +2574,7 @@ describe("Smart Storage contribution spine", () => {
       const contributionSubmission = await ctx.db.get(
         secondProposal.contributionSubmissionId!,
       );
-      const contextTagIds = (
+      const entryContextTagIds = (
         await ctx.db
           .query("entryTags")
           .withIndex("by_entryId_and_tagPurpose", (q) =>
@@ -2548,7 +2584,12 @@ describe("Smart Storage contribution spine", () => {
       )
         .map((entryTag) => entryTag.tagId)
         .sort();
-      const contextKey = getContextKey(contextTagIds);
+      const entryContextKey = getContextKey(entryContextTagIds);
+      const postContextTagIds = await getContextTagIdsForSnapshots(
+        ctx,
+        getJoshuaContextTags(),
+      );
+      const postContextKey = getContextKey(postContextTagIds);
       const contextExpertiseEvidenceRows = await ctx.db
         .query("contextExpertiseEvidence")
         .withIndex("by_entryId_and_createdAt", (q) =>
@@ -2558,7 +2599,7 @@ describe("Smart Storage contribution spine", () => {
       const contextExpertiseAggregate = await ctx.db
         .query("contextExpertiseAggregates")
         .withIndex("by_subjectUserId_and_contextKey", (q) =>
-          q.eq("subjectUserId", userId).eq("contextKey", contextKey),
+          q.eq("subjectUserId", userId).eq("contextKey", postContextKey),
         )
         .unique();
 
@@ -2566,8 +2607,10 @@ describe("Smart Storage contribution spine", () => {
         contributionSubmission,
         contextExpertiseAggregate,
         contextExpertiseEvidenceRows,
-        contextKey,
-        contextTagIds,
+        entryContextKey,
+        entryContextTagIds,
+        postContextKey,
+        postContextTagIds,
         curationEvidenceRows: await ctx.db
           .query("contextExpertiseEvidence")
           .withIndex("by_smartStorageProposalId", (q) =>
@@ -2629,8 +2672,8 @@ describe("Smart Storage contribution spine", () => {
     );
     expect(postEvidence).toEqual(
       expect.objectContaining({
-        contextKey: rowState.contextKey,
-        contextTagIds: rowState.contextTagIds,
+        contextKey: rowState.postContextKey,
+        contextTagIds: rowState.postContextTagIds,
         entryId: firstAccepted.entryId,
         evidenceKind: "post",
         subjectUserId: userId,
@@ -2638,8 +2681,8 @@ describe("Smart Storage contribution spine", () => {
     );
     expect(curationEvidence).toEqual(
       expect.objectContaining({
-        contextKey: rowState.contextKey,
-        contextTagIds: rowState.contextTagIds,
+        contextKey: rowState.entryContextKey,
+        contextTagIds: rowState.entryContextTagIds,
         entryId: firstAccepted.entryId,
         evidenceKind: "curation",
         smartStorageProposalId: secondProposal.smartStorageProposalId,
@@ -2653,11 +2696,11 @@ describe("Smart Storage contribution spine", () => {
     expect(rowState.curationEvidenceRows).toEqual([curationEvidence]);
     expect(rowState.contextExpertiseAggregate).toEqual(
       expect.objectContaining({
-        contextExpertiseMaturity: 40,
-        contextExpertiseScore: 84,
-        contextKey: rowState.contextKey,
-        contextTagIds: rowState.contextTagIds,
-        evidenceCount: 2,
+        contextExpertiseMaturity: 20,
+        contextExpertiseScore: 72,
+        contextKey: rowState.postContextKey,
+        contextTagIds: rowState.postContextTagIds,
+        evidenceCount: 1,
         feedbackCount: 0,
         postCount: 1,
         subjectUserId: userId,
@@ -2668,15 +2711,15 @@ describe("Smart Storage contribution spine", () => {
     const rankedAggregates = await authed.query(
       api.contextExpertise.listForActiveTags,
       {
-        activeTagIds: rowState.contextTagIds,
+        activeTagIds: rowState.postContextTagIds,
         limit: 5,
       },
     );
     expect(rankedAggregates).toEqual([
       expect.objectContaining({
         aggregateId: rowState.contextExpertiseAggregate!._id,
-        contextExpertiseScore: 84,
-        evidenceCount: 2,
+        contextExpertiseScore: 72,
+        evidenceCount: 1,
         feedbackCount: 0,
         postCount: 1,
         subjectUserId: userId,
@@ -3208,6 +3251,58 @@ function getJoshuaContextTags(): TestContextTagSnapshot[] {
 
 function getContextKey(tagIds: Array<Id<"tags">>) {
   return `tags:${[...tagIds].sort().join(",")}`;
+}
+
+async function getContextTagIdsForSnapshots(
+  ctx: MutationCtx,
+  snapshots: TestContextTagSnapshot[],
+) {
+  const tagIds: Array<Id<"tags">> = [];
+  for (const snapshot of snapshots) {
+    tagIds.push(
+      (
+        await getTagByLookup(
+          ctx,
+          snapshot.knowledgeType,
+          getSnapshotLookupKey(snapshot),
+        )
+      )._id,
+    );
+  }
+
+  return tagIds.sort();
+}
+
+async function getTagByLookup(
+  ctx: MutationCtx,
+  knowledgeType: Doc<"referents">["knowledgeType"],
+  lookupKey: string,
+) {
+  const tag = await ctx.db
+    .query("tags")
+    .withIndex("by_knowledgeType_and_lookupKey", (q) =>
+      q.eq("knowledgeType", knowledgeType).eq("lookupKey", lookupKey),
+    )
+    .unique();
+  if (!tag) {
+    throw new Error(`Missing ${knowledgeType} Tag "${lookupKey}".`);
+  }
+
+  return tag;
+}
+
+function getSnapshotLookupKey(snapshot: TestContextTagSnapshot) {
+  return normalizeLookupKey(snapshot.canonicalKey || snapshot.id || snapshot.label);
+}
+
+function normalizeLookupKey(value: string) {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return slug || "untitled";
 }
 
 async function insertJoshuaSlot(
