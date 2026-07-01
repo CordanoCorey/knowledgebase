@@ -12,33 +12,15 @@ const modules = {
 };
 
 describe("Smart Storage playground feedback", () => {
-  test("stores bounded prediction feedback for the authenticated user", async () => {
+  test("stores bounded prediction feedback for system admins", async () => {
     const t = convexTest({ schema, modules });
-    const userId = await t.run(insertActiveUser);
+    const userId = await t.run(insertSystemAdminUser);
     const authed = t.withIdentity({ subject: `${userId}|test-session` });
 
-    const result = await authed.mutation(api.smartStoragePlayground.recordFeedback, {
-      feedbackRating: "close",
-      feedbackNote: "It should have treated the source as a lesson, not words.",
-      intendedKnowledgeType: "lesson",
-      predictedEntries: [
-        {
-          confidence: 0.44,
-          knowledgeType: "words",
-          reason: "fallback type",
-          sourceExcerpt: "Objective: students will compare Joshua 1.",
-          title: "Courage Lesson",
-        },
-      ],
-      sourceKind: "pastedText",
-      sourceSizeBytes: 48,
-      sourceText: "Objective: students will compare Joshua 1.",
-      submittedEntry: {
-        bodyPreview: "Objective: students will compare Joshua 1.",
-        knowledgeType: "lesson",
-        title: "Courage Lesson",
-      },
-    });
+    const result = await authed.mutation(
+      api.smartStoragePlayground.recordFeedback,
+      getFeedbackInput(),
+    );
 
     expect(result.predictionCount).toBe(1);
 
@@ -55,12 +37,61 @@ describe("Smart Storage playground feedback", () => {
       }),
     ]);
   });
+
+  test("rejects playground feedback from non-system admins", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertActiveUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+
+    await expect(
+      authed.mutation(
+        api.smartStoragePlayground.recordFeedback,
+        getFeedbackInput(),
+      ),
+    ).rejects.toThrow("Unauthorized");
+  });
 });
 
-async function insertActiveUser(ctx: MutationCtx) {
+function getFeedbackInput() {
+  return {
+    feedbackRating: "close" as const,
+    feedbackNote: "It should have treated the source as a lesson, not words.",
+    intendedKnowledgeType: "lesson" as const,
+    predictedEntries: [
+      {
+        confidence: 0.44,
+        knowledgeType: "words" as const,
+        reason: "fallback type",
+        sourceExcerpt: "Objective: students will compare Joshua 1.",
+        title: "Courage Lesson",
+      },
+    ],
+    sourceKind: "pastedText" as const,
+    sourceSizeBytes: 48,
+    sourceText: "Objective: students will compare Joshua 1.",
+    submittedEntry: {
+      bodyPreview: "Objective: students will compare Joshua 1.",
+      knowledgeType: "lesson" as const,
+      title: "Courage Lesson",
+    },
+  };
+}
+
+async function insertActiveUser(
+  ctx: MutationCtx,
+) {
   return await ctx.db.insert("users", {
     email: "smart-storage@example.com",
     isActive: true,
     name: "Smart Storage User",
+  });
+}
+
+async function insertSystemAdminUser(ctx: MutationCtx) {
+  return await ctx.db.insert("users", {
+    email: "smart-storage-admin@example.com",
+    isActive: true,
+    name: "Smart Storage Admin",
+    systemRole: "systemAdmin",
   });
 }

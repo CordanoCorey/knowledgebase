@@ -6,6 +6,8 @@ import {
 } from "../knowledgeContracts";
 import { KnowledgeTypeIcon } from "./KnowledgeTypeIcon";
 
+// Overview copy is keyed by Knowledge Type and kept outside page components so
+// referent pages render consistent domain descriptions.
 export type KnowledgeTypeOverviewProps = {
   referent: ActiveTag;
 };

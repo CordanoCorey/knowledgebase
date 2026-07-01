@@ -88,3 +88,43 @@ function handleButtonPress() {
 Use the Convex CLI to push your functions to a deployment. See everything
 the Convex CLI can do by running `npx convex -h` in your project root
 directory. To learn more, launch the docs with `npx convex docs`.
+
+## Emailer
+
+Application email is routed through `convex/emailer.ts`, which wraps the
+official Convex Resend component. Use internal functions only; public functions
+should first write durable product state, then enqueue email from an internal
+mutation or scheduled internal mutation.
+
+```ts
+import { internal } from "./_generated/api";
+
+await ctx.runMutation(internal.emailer.enqueueEmail, {
+  sourceKey: "membership-reminder:123",
+  subject: "Membership reminder",
+  text: "Please finish setting up your Logeion account.",
+  to: "person@example.com",
+});
+
+await ctx.runMutation(internal.emailer.enqueueNotificationEmail, {
+  notificationId,
+});
+```
+
+Pass a stable `sourceKey` for idempotency. Reusing the same key returns the
+existing `emailDeliveries` row instead of enqueueing a duplicate. Notification
+emails read the `userNotifications` row, use the recipient user's email, and
+render a simple text and HTML message.
+
+Required deployment env:
+
+```bash
+npx convex env set SITE_URL https://your-app.example.com
+npx convex env set RESEND_API_KEY your-resend-api-key
+npx convex env set EMAIL_FROM "Logeion <notifications@your-domain.com>"
+```
+
+`RESEND_TEST_MODE` defaults to safe test mode. Set
+`npx convex env set RESEND_TEST_MODE false` for production delivery, and
+configure Resend's webhook to POST to `/resend-webhook` with
+`RESEND_WEBHOOK_SECRET` set for delivery status updates.

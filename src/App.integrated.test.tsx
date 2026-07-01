@@ -467,6 +467,30 @@ const mockState = vi.hoisted(() => ({
       },
     },
   ] as unknown[],
+  assignedTodoSlots: [
+    {
+      id: "slot-assigned-chapel-follow-up",
+      title: "Draft chapel follow-up",
+      requestedKnowledgeType: "comment",
+      promptText: "Write the follow-up note from Friday chapel before the family email goes out.",
+      status: "overdue",
+      contextPreviewTagLabels: ["Joshua 1:6-9", "Friday Chapel"],
+      targetLabel: "Caleb Gelbaugh",
+      dueAt: Date.UTC(2026, 5, 12, 10),
+      href: "/slots/slot-assigned-chapel-follow-up",
+    },
+    {
+      id: "slot-assigned-boethius-lesson",
+      title: "Prepare Boethius providence lesson",
+      requestedKnowledgeType: "lesson",
+      promptText: "Add the missing lesson plan for providence and ordered loves.",
+      status: "open",
+      contextPreviewTagLabels: ["Boethius", "Romans 8:28"],
+      targetLabel: "Caleb Gelbaugh",
+      dueAt: Date.UTC(2026, 5, 13, 14),
+      href: "/slots/slot-assigned-boethius-lesson",
+    },
+  ] as unknown[],
   userNotifications: [
     {
       id: "notice-slot-student-crusades-question",
@@ -1263,6 +1287,16 @@ vi.mock("convex/react", () => ({
         uploadStatus: "uploaded",
       };
     }
+    if (functionName === "smartStorage:addKnowledgePageThumbnail") {
+      return {
+        entryId:
+          args && typeof args === "object" && "entryId" in args
+            ? args.entryId
+            : "entry-raw-chapel-notes",
+        status: "added",
+        thumbnailUrl: "https://images.example/knowledge-page-thumbnail.jpg",
+      };
+    }
     if (functionName === "smartStorage:generateDraftProposalForRun") {
       const startInput = mockState.smartStorageStartInput ?? {};
       const body = String(
@@ -1430,6 +1464,10 @@ vi.mock("convex/react", () => ({
         .sort(compareMockAnswerFeedItems);
     }
 
+    if (functionName === "answerFeed:listAssignedSlotsForCurrentUser") {
+      return mockState.assignedTodoSlots;
+    }
+
     if (functionName === "answerFeed:listExpertsForActiveTagKeys") {
       return mockState.contextExperts;
     }
@@ -1446,8 +1484,16 @@ vi.mock("convex/react", () => ({
       return getMockTagSuggestions(args, { excludeActiveTags: true });
     }
 
+    if (functionName === "tagSuggestions:listKnowledgeNavigatorRecommendedTags") {
+      return getMockRecommendedTagSuggestions(args);
+    }
+
     if (functionName === "rootSearch:listRootSearchResults") {
       return getMockRootSearchResults(args);
+    }
+
+    if (functionName === "rootSearch:getKnowledgePageThumbnailState") {
+      return getMockKnowledgePageThumbnailState(args);
     }
 
     if (functionName === "contextExpertise:searchQuoteAttributionPeople") {
@@ -1739,6 +1785,26 @@ function getMockTagSuggestions(
     }));
 }
 
+function getMockRecommendedTagSuggestions(args: unknown) {
+  const activeTagIds = new Set(getMockActiveTagIds(args));
+  const limit =
+    args && typeof args === "object" && "limit" in args && typeof args.limit === "number"
+      ? Math.max(0, Math.floor(args.limit))
+      : 5;
+
+  return mockState.tagSuggestions
+    .filter(
+      (suggestion): suggestion is Record<string, unknown> =>
+        suggestion !== null && typeof suggestion === "object",
+    )
+    .filter((suggestion) => !activeTagIds.has(String(suggestion.id)))
+    .slice(0, limit)
+    .map(({ matchTerms: _matchTerms, ...suggestion }) => ({
+      matchKind: "label",
+      ...suggestion,
+    }));
+}
+
 function getMockRootSearchResults(args: unknown) {
   if (!args || typeof args !== "object" || !("query" in args)) {
     return [];
@@ -1780,6 +1846,47 @@ function getMockRootSearchResults(args: unknown) {
     })
     .slice(0, limit)
     .map(({ matchTerms: _matchTerms, ...result }) => result);
+}
+
+function getMockKnowledgePageThumbnailState(args: unknown) {
+  if (
+    !args ||
+    typeof args !== "object" ||
+    !("canonicalKey" in args) ||
+    !("knowledgeType" in args)
+  ) {
+    return null;
+  }
+
+  const result = mockState.rootSearchResults.find(
+    (candidate) =>
+      candidate &&
+      typeof candidate === "object" &&
+      "canonicalKey" in candidate &&
+      "knowledgeType" in candidate &&
+      candidate.canonicalKey === args.canonicalKey &&
+      candidate.knowledgeType === args.knowledgeType,
+  );
+  if (
+    !result ||
+    typeof result !== "object" ||
+    !("matchedEntryPreview" in result) ||
+    !result.matchedEntryPreview ||
+    typeof result.matchedEntryPreview !== "object"
+  ) {
+    return null;
+  }
+
+  const preview = result.matchedEntryPreview as Record<string, unknown>;
+  const resultRecord = result as Record<string, unknown>;
+
+  return {
+    entryId: String(preview.id ?? ""),
+    entryTitle: String(preview.title ?? resultRecord.label ?? ""),
+    ...("thumbnailUrl" in result && typeof result.thumbnailUrl === "string"
+      ? { thumbnailUrl: result.thumbnailUrl }
+      : {}),
+  };
 }
 
 function getNotificationSummary(notifications: unknown[]) {
@@ -3917,8 +4024,7 @@ describe("MVP Explore/Contribute loop", () => {
   test("opens the user profile page from the avatar route", async () => {
     await renderApp();
 
-    await click(getButton("Open account menu"));
-    await click(getLinkIn(getLabelledElement("Account menu"), "Profile"));
+    await click(getLabelledLinkIn(getLabelledElement("Account controls"), "Profile"));
 
     expect(window.location.pathname).toBe("/profile");
     expect(container.querySelector(".kb-profile-main")).toBeTruthy();
@@ -4056,7 +4162,7 @@ describe("MVP Explore/Contribute loop", () => {
     expect(getLabelledLinkIn(knowledgePageDestinations, "Ruler of Kings Church")).toBeTruthy();
     expect(getLabelledLinkIn(knowledgePageDestinations, "My Family")).toBeTruthy();
     expect(knowledgePageDestinations.textContent).not.toContain("Explore Context");
-    expect(knowledgePageDestinations.textContent).toContain("+1 more");
+    expect(knowledgePageDestinations.textContent).toContain("+1");
 
     const userViews = getLabelledElement("User Views");
     expect(
@@ -4064,22 +4170,25 @@ describe("MVP Explore/Contribute loop", () => {
         link.getAttribute("aria-label"),
       ),
     ).toEqual([
+      "TODO List",
       "Calendar",
       "Notifications",
     ]);
     expect(userViews.textContent).not.toContain("Settings");
     expect(getLabelledElement("Unread notifications").textContent).toBe("3");
 
-    await click(getButton("Open account menu"));
-
-    const accountMenu = getLabelledElement("Account menu");
-    expect(getLinkIn(accountMenu, "Profile").getAttribute("href")).toBe("/profile");
-    expect(getLinkIn(accountMenu, "Bookmarks").getAttribute("href")).toBe(
+    const accountControls = getLabelledElement("Account controls");
+    expect(getLabelledLinkIn(accountControls, "Profile").getAttribute("href")).toBe(
+      "/profile",
+    );
+    expect(getLabelledLinkIn(accountControls, "Bookmarks").getAttribute("href")).toBe(
       "/profile?section=bookmarks",
     );
-    expect(getLinkIn(accountMenu, "Settings").getAttribute("href")).toBe("/settings");
-    expect(getButtonIn(accountMenu, "Switch to dark theme")).toBeTruthy();
-    expect(getButtonIn(accountMenu, "Sign out")).toBeTruthy();
+    expect(getLabelledLinkIn(accountControls, "Settings").getAttribute("href")).toBe(
+      "/settings",
+    );
+    expect(getButtonIn(accountControls, "Switch to dark theme")).toBeTruthy();
+    expect(getButtonIn(accountControls, "Sign out")).toBeTruthy();
   });
 
   test("toggles a durable Organization pin from the Organization page", async () => {
@@ -4876,6 +4985,26 @@ describe("MVP Explore/Contribute loop", () => {
     ).toBeTruthy();
   });
 
+  test("renders the TODO List route with only assigned Knowledge Slots", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/todo");
+
+    await renderApp();
+
+    expect(container.querySelector(".kb-todo-main")).toBeTruthy();
+    expect(container.textContent).toContain("TODO List");
+    expect(container.textContent).toContain("Draft chapel follow-up");
+    expect(container.textContent).toContain("Prepare Boethius providence lesson");
+    expect(container.textContent).toContain("2 slots");
+    expect(container.textContent).not.toContain(
+      "Augustine, Ordered Loves, and the First Crusade",
+    );
+    expect(container.textContent).not.toContain("Answer Micah's Crusades question");
+    expect(
+      container.querySelector('[aria-current="page"][aria-label="TODO List"]'),
+    ).toBeTruthy();
+    expect(getFeedItems("answer")).toHaveLength(0);
+  });
+
   test("renders the typed overview on referent pages", async () => {
     window.history.replaceState({}, "", "http://localhost:3000/goto/first-crusade");
 
@@ -4891,6 +5020,7 @@ describe("MVP Explore/Contribute loop", () => {
     expect(rail.querySelector(".kb-knowledge-navigator")).toBeTruthy();
     expect(rail.querySelector(".kb-request-composer")).toBeTruthy();
     expect(rail.textContent).toContain("First Crusade");
+    expect(getButton("Add The City of God")).toBeTruthy();
     expect(rail.querySelector(".kb-slot-card")).toBeNull();
     expect(rail.querySelector(".kb-placeholder-block")).toBeNull();
     expect(rail.textContent).not.toContain(
@@ -4971,7 +5101,7 @@ describe("MVP Explore/Contribute loop", () => {
     );
   });
 
-  test("renders the Smart Storage playground with predictions and feedback capture", async () => {
+  test("blocks the Smart Storage playground from non-system admins", async () => {
     window.history.replaceState(
       {},
       "",
@@ -4980,10 +5110,31 @@ describe("MVP Explore/Contribute loop", () => {
 
     await renderApp();
 
+    expect(container.querySelector(".kb-smart-playground-main")).toBeNull();
+    expect(container.textContent).toContain("Unavailable");
+    expect(getLabelledElement("User Views").textContent).not.toContain(
+      "Smart Storage",
+    );
+  });
+
+  test("renders the Smart Storage playground for system admins with predictions and feedback capture", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "http://localhost:3000/playground/smart-storage",
+    );
+    mockState.appAccess = {
+      ...(mockState.appAccess as Record<string, unknown>),
+      systemRole: "systemAdmin",
+    };
+
+    await renderApp();
+
     expect(container.querySelector(".kb-smart-playground-main")).toBeTruthy();
     expect(getLabelledElement("Knowledge Page destinations").textContent).not.toContain(
       "Smart Storage",
     );
+    expect(getLabelledLinkIn(getLabelledElement("User Views"), "Smart Storage")).toBeTruthy();
 
     const sourceInput = container.querySelector('textarea[aria-label="Raw input"]');
     if (!(sourceInput instanceof HTMLTextAreaElement)) {

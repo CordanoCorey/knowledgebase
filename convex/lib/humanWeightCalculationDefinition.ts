@@ -1,3 +1,5 @@
+// Versioned definition for Human Weight calculations persisted with estimates
+// so future scoring changes remain auditable.
 export const HUMAN_WEIGHT_CALCULATION_DEFINITION_KEY =
   "mvp-human-weight-calculation";
 

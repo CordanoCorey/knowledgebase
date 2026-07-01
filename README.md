@@ -24,6 +24,8 @@ npx convex env set AUTH_GOOGLE_ID your-google-client-id
 npx convex env set AUTH_GOOGLE_SECRET your-google-client-secret
 npx convex env set AUTH_RESEND_KEY your-resend-api-key
 npx convex env set AUTH_EMAIL_FROM "Logeion <signin@your-domain.com>"
+npx convex env set RESEND_API_KEY your-resend-api-key
+npx convex env set EMAIL_FROM "Logeion <notifications@your-domain.com>"
 npx convex env set OPENAI_API_KEY your-openai-api-key
 npx convex env set OPENAI_SMART_STORAGE_MODEL gpt-5.4-nano
 ```
@@ -43,6 +45,10 @@ https://your-deployment.convex.site/api/auth/callback/google
 Use the production Convex site URL for production and the dev Convex site URL
 for local development. The Resend sender domain used by `AUTH_EMAIL_FROM` must
 be verified in Resend before production email links will deliver reliably.
+
+Application email delivery uses the Convex Resend component through
+`convex/emailer.ts`. See `docs/emailer.md` for notification email usage,
+`RESEND_TEST_MODE`, and the `/resend-webhook` setup.
 
 ## Production Deployment
 

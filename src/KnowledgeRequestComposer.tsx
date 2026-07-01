@@ -20,6 +20,8 @@ import {
 } from "./knowledgeContracts";
 import { KnowledgeTypeBadge } from "./components/KnowledgeTypeIcon";
 
+// The navigator composer models "ask/search/map to tags" as plain draft state
+// so UI interactions and pure mapping helpers can evolve independently.
 type KnowledgeNavigatorQueryInputProps = {
   activeTags: ActiveTag[];
   initialDraft?: KnowledgeRequestDraft;
@@ -45,6 +47,8 @@ export type KnowledgeRequestSuggestion = KnowledgeNavigatorQuerySuggestion;
 const KNOWLEDGE_REQUEST_SUGGESTION_LIMIT = 5;
 const KNOWLEDGE_NAVIGATOR_QUERY_PLACEHOLDER = "Search or add tag";
 
+// Rules are intentionally small and deterministic; live search can supplement
+// them, while these preserve useful offline/local suggestions.
 const KNOWLEDGE_REQUEST_TAG_RULES: KnowledgeRequestTagRule[] = [
   {
     tagId: "matthew-5-9",

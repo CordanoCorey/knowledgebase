@@ -6,6 +6,8 @@ import {
   type AllowedOrganization,
 } from "./lib/appAccess";
 
+// Pinned pages drive sidebar personalization and keep labels/hrefs snapshotted
+// so navigation remains stable if the underlying entry title changes.
 const MAX_USER_PIN_RECORDS = 100;
 const SORT_ORDER_STEP = 1000;
 

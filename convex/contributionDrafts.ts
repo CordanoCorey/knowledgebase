@@ -3,6 +3,8 @@ import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { requireAppAccess } from "./lib/appAccess";
 
+// Contribution drafts persist editor state per user and placement so route
+// changes do not drop in-progress work.
 const MAX_DRAFT_KEY_LENGTH = 600;
 const MAX_DRAFT_BODY_LENGTH = 40_000;
 const MAX_DRAFT_DOCUMENT_JSON_LENGTH = 160_000;

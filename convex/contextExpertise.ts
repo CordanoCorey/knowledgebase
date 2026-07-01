@@ -30,6 +30,8 @@ import {
   type ContextExpertiseContextMatchKind,
 } from "./lib/contextExpertiseScoring";
 
+// Public Context Expertise functions expose ranked experts, profile summaries,
+// and bounded admin maintenance tools over evidence aggregates.
 const MAX_CONTEXT_TAGS = 20;
 const DEFAULT_AGGREGATE_LIMIT = 10;
 const MAX_AGGREGATE_LIMIT = 50;

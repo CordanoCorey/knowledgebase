@@ -7,8 +7,11 @@ import {
   insertEntryContextTags,
 } from "./lib/automaticContextTags";
 import { recordContextExpertiseEvidence } from "./lib/contextExpertiseEvidence";
+import { inferFileRepresentationRoleFromMetadata } from "./lib/fileRepresentationRoles";
 import { getApplicableHumanWeight } from "./lib/typeBehavior";
 
+// Direct contributions bypass model proposal generation and write reviewed
+// Knowledge Entries immediately from explicit user input.
 const MAX_TITLE_LENGTH = 240;
 const MAX_BODY_LENGTH = 40_000;
 const MAX_PREVIEW_TEXT_LENGTH = 500;
@@ -390,11 +393,15 @@ async function insertDirectEntryRepresentations(
   }
 
   for (const uploadedFile of normalizedUploadedFiles) {
-    await attachDirectTemporaryUpload(ctx, {
+    const temporaryUpload = await attachDirectTemporaryUpload(ctx, {
       now,
       uploadedByUserId,
       uploadedFile,
     });
+    const attachedUploadedFile = normalizeAttachedDirectUploadedFile(
+      uploadedFile,
+      temporaryUpload,
+    );
 
     const isPrimary = !hasPrimaryRepresentation;
     await ctx.db.insert("entryRepresentations", {
@@ -402,18 +409,18 @@ async function insertDirectEntryRepresentations(
       representationKind: "storageFile",
       representationRole: isPrimary
         ? "primaryContent"
-        : inferStorageFileRepresentationRole(uploadedFile),
-      storageId: uploadedFile.storageId,
-      fileName: uploadedFile.fileName,
-      ...(uploadedFile.contentType === undefined
+        : inferStorageFileRepresentationRole(attachedUploadedFile),
+      storageId: attachedUploadedFile.storageId,
+      fileName: attachedUploadedFile.fileName,
+      ...(attachedUploadedFile.contentType === undefined
         ? {}
-        : { contentType: uploadedFile.contentType }),
-      ...(uploadedFile.fileSizeBytes === undefined
+        : { contentType: attachedUploadedFile.contentType }),
+      ...(attachedUploadedFile.fileSizeBytes === undefined
         ? {}
-        : { fileSizeBytes: uploadedFile.fileSizeBytes }),
-      ...(uploadedFile.languageCode === undefined
+        : { fileSizeBytes: attachedUploadedFile.fileSizeBytes }),
+      ...(attachedUploadedFile.languageCode === undefined
         ? {}
-        : { languageCode: uploadedFile.languageCode }),
+        : { languageCode: attachedUploadedFile.languageCode }),
       isPrimary,
       createdAt: now,
       updatedAt: now,
@@ -498,7 +505,7 @@ async function attachDirectTemporaryUpload(
     uploadedByUserId: Id<"users">;
     uploadedFile: DirectUploadedFileInput;
   },
-) {
+): Promise<Doc<"temporaryUploads">> {
   if (uploadedFile.temporaryUploadId === undefined) {
     throw new Error("Direct file attachment requires a temporary upload record.");
   }
@@ -521,31 +528,39 @@ async function attachDirectTemporaryUpload(
     uploadStatus: "attached",
     updatedAt: now,
   });
+
+  return temporaryUpload;
+}
+
+function normalizeAttachedDirectUploadedFile(
+  uploadedFile: DirectUploadedFileInput,
+  temporaryUpload: Doc<"temporaryUploads">,
+): DirectUploadedFileInput {
+  const temporaryFileName = limitString(
+    temporaryUpload.fileName,
+    MAX_DIRECT_FILE_NAME_LENGTH,
+  );
+
+  return {
+    ...uploadedFile,
+    contentType: limitOptionalString(
+      temporaryUpload.contentType ?? uploadedFile.contentType,
+      MAX_DIRECT_CONTENT_TYPE_LENGTH,
+    ),
+    fileName: temporaryFileName || uploadedFile.fileName,
+    fileSizeBytes: normalizeOptionalFileSize(
+      temporaryUpload.fileSizeBytes ?? uploadedFile.fileSizeBytes,
+    ),
+  };
 }
 
 function inferStorageFileRepresentationRole(
   uploadedFile: DirectUploadedFileInput,
 ): EntryRepresentationRole {
-  const contentType = uploadedFile.contentType?.toLowerCase() ?? "";
-  const fileName = uploadedFile.fileName.toLowerCase();
-
-  if (contentType.startsWith("audio/") || contentType.startsWith("video/")) {
-    return "recording";
-  }
-
-  if (
-    contentType.includes("presentation") ||
-    contentType.includes("powerpoint") ||
-    /\.(ppt|pptx|key)$/i.test(fileName)
-  ) {
-    return "slides";
-  }
-
-  if (fileName.includes("transcript")) {
-    return "transcript";
-  }
-
-  return "supportingMaterial";
+  return inferFileRepresentationRoleFromMetadata(
+    uploadedFile.contentType,
+    uploadedFile.fileName,
+  );
 }
 
 async function insertQuoteEntry(

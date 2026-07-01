@@ -2,6 +2,7 @@ import {
   Bold,
   CheckCircle2,
   Italic,
+  ImagePlus,
   Link,
   List,
   ListOrdered,
@@ -33,6 +34,7 @@ import {
   isComposerTitleAddable,
   isComposerTitleRequired,
   isAuthorableKnowledgeType,
+  supportsRepresentativeThumbnail,
   type ActiveTag,
   type ComposerTitleBehavior,
   type AuthorableKnowledgeType,
@@ -51,6 +53,9 @@ import { KnowledgeTypeIcon } from "./components/KnowledgeTypeIcon";
 import { ReferentTagLink } from "./components/ReferentTagLink";
 import { Presence } from "./Presence";
 
+// ContributionEditor keeps rich-text editing, file/link collection, and
+// contribution shaping in one controlled surface while exporting pure helpers
+// for tests and future non-React entry points.
 export type ContributionKnowledgeTypeSources = {
   allowedContributionTypes?: readonly AuthorableKnowledgeType[];
   body?: string;
@@ -653,6 +658,7 @@ export function ContributionEditor({
   const sourceTools =
     supportsSmartStorageSources ? (
       <ContributionSourceTools
+        activeKnowledgeType={activeKnowledgeType}
         externalUrls={externalUrlChips}
         onFileInputChange={(event) => void handleFileInputChange(event)}
         onRemoveExternalUrl={handleRemoveExternalUrl}
@@ -969,6 +975,8 @@ function ContributionRichTextButton({
   );
 }
 
+// Persist editor content as ProseMirror JSON, but keep plain text available for
+// search, previews, and Smart Storage source interpretation.
 export function createRichTextDocumentJsonFromText(text: string) {
   return JSON.stringify(createRichTextDocumentFromText(text));
 }
@@ -1029,6 +1037,7 @@ function getEditorPlainText(editor: Editor) {
 }
 
 function ContributionSourceTools({
+  activeKnowledgeType,
   externalUrls,
   onFileInputChange,
   onRemoveExternalUrl,
@@ -1036,6 +1045,7 @@ function ContributionSourceTools({
   uploadedFiles,
   uploadState,
 }: {
+  activeKnowledgeType: AuthorableKnowledgeType;
   externalUrls: ContributionExternalUrlChip[];
   onFileInputChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onRemoveExternalUrl: (url: string) => void;
@@ -1044,12 +1054,34 @@ function ContributionSourceTools({
   uploadState: UploadState;
 }) {
   const hasInventory = externalUrls.length > 0 || uploadedFiles.length > 0;
+  const showsThumbnailUpload =
+    supportsRepresentativeThumbnail(activeKnowledgeType);
 
   return (
     <section
       aria-label="Staged Attachments"
       className="kb-contribution-source-tools"
     >
+      {showsThumbnailUpload ? (
+        <div className="kb-contribution-thumbnail-prompt">
+          <ImagePlus aria-hidden="true" />
+          <span>
+            <strong>Representative thumbnail</strong>
+            <small>Shown on Knowledge Pages and search results.</small>
+          </span>
+          <label className="kb-contribution-thumbnail-picker">
+            <span>Upload image</span>
+            <input
+              accept="image/*"
+              aria-label="Upload representative thumbnail"
+              disabled={uploadState.kind === "uploading"}
+              onChange={onFileInputChange}
+              type="file"
+            />
+          </label>
+        </div>
+      ) : null}
+
       <label className="kb-contribution-file-picker">
         <UploadCloud aria-hidden="true" />
         <span>
@@ -1172,6 +1204,8 @@ function formatFileSize(sizeBytes: number) {
   return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// Knowledge Type resolution combines explicit user choice, targeted slots, and
+// Smart Storage suggestions without letting suggestions override a valid choice.
 export function resolveContributionKnowledgeType({
   allowedContributionTypes,
   body = "",
@@ -1404,6 +1438,8 @@ function getUrlsFromKey(urlKey: string) {
   return urlKey ? urlKey.split("\n") : [];
 }
 
+// Convert transient editor state into the backend-safe contribution contract.
+// Optional fields are omitted instead of passed as undefined Convex values.
 export function createContributionInput({
   body,
   contributionNote,

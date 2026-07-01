@@ -1,4 +1,5 @@
 // PROTOTYPE: Five header/sidebar variants, switchable via ?prototype=header-sidebar&variant=, on a throwaway shell.
+// This file is intentionally isolated from production route logic.
 import {
   useCallback,
   useEffect,

@@ -2,6 +2,8 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAppAccess } from "./lib/appAccess";
 
+// User-level Context Expertise settings control whether a person's aggregate
+// evidence can appear in broader/global expert surfaces.
 const contextExpertiseVisibilitySettings = v.object({
   globalExpertVisibilityEnabled: v.boolean(),
 });

@@ -6,6 +6,8 @@ import {
   type ParsedPassageRange,
 } from "./lib/scriptureReferences";
 
+// Scripture queries resolve user-facing passage strings into ordinal ranges and
+// translation-specific verse rows.
 const DEFAULT_TRANSLATION_CODE = "KJV";
 const MAX_PASSAGE_VERSES = 300;
 

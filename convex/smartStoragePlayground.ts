@@ -1,7 +1,9 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
+import { requireSystemAdmin } from "./lib/appAccess";
 
+// Playground feedback records local classifier results separately from durable
+// Smart Storage proposals so experiments do not pollute production workflows.
 const MAX_SOURCE_TEXT_LENGTH = 40_000;
 const MAX_SOURCE_NAME_LENGTH = 240;
 const MAX_FEEDBACK_NOTE_LENGTH = 4_000;
@@ -78,10 +80,7 @@ export const recordFeedback = mutation({
     predictionCount: v.number(),
   }),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("Unauthorized");
-    }
+    const access = await requireSystemAdmin(ctx);
 
     const predictedEntries = args.predictedEntries
       .slice(0, MAX_PREDICTED_ENTRIES)
@@ -115,7 +114,7 @@ export const recordFeedback = mutation({
           };
 
     const feedbackId = await ctx.db.insert("smartStoragePlaygroundFeedback", {
-      userId,
+      userId: access.userId,
       sourceKind: args.sourceKind,
       ...(sourceName === undefined ? {} : { sourceName }),
       sourceText,

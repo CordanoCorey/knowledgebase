@@ -27,6 +27,7 @@ const firstCrusadeResult: RootSearchResult = {
     knowledgeType: "topic",
     label: "First Crusade",
   },
+  thumbnailUrl: "https://images.example/first-crusade.jpg",
 };
 
 describe("RootSearchResults", () => {
@@ -73,6 +74,11 @@ describe("RootSearchResults", () => {
     expect(text()).toContain("Organization");
     expect(text()).toContain("Augustine and the First Crusade");
     expect(text()).toContain("A lesson plan about Augustine and ordered loves.");
+    expect(
+      container.querySelector(
+        'img[src="https://images.example/first-crusade.jpg"]',
+      ),
+    ).toBeTruthy();
 
     await click(getLink("First Crusade"));
     expect(navigateToHref).toHaveBeenCalledWith("/goto/first-crusade");

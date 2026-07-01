@@ -6,6 +6,8 @@ import {
   type AllowedOrganization,
 } from "./lib/appAccess";
 
+// Knowledge subscriptions are user-scoped notification preferences for durable
+// knowledge pages such as organizations.
 const DEFAULT_NOTIFICATION_SUBSCRIPTION_LIMIT = 50;
 const MAX_NOTIFICATION_SUBSCRIPTION_LIMIT = 100;
 const MAX_TAGS_PER_REFERENT = 5;

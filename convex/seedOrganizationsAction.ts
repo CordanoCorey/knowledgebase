@@ -9,6 +9,8 @@ import type { Id } from "./_generated/dataModel";
 import { internalAction, type ActionCtx } from "./_generated/server";
 import { DEFAULT_USER_SEEDS } from "./seedOrganizations";
 
+// Thin action wrapper lets scripts invoke organization seeding through Convex's
+// action runtime while persistence remains in internal mutations.
 type SeededUserResult = {
   email: string;
   tempPassword: string;

@@ -2,6 +2,8 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import type { AllowedOrganization } from "./appAccess";
 
+// Automatic context tags attach organizational oversight context to entries
+// without asking every contribution flow to duplicate membership logic.
 const MAX_ACTIVE_MEMBERSHIPS_TO_CHECK = 50;
 const OVERSIGHT_ORGANIZATION_KINDS = new Set(["school", "church", "family"]);
 

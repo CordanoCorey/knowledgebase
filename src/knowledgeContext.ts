@@ -8,6 +8,8 @@ import type {
   KnowledgeType,
 } from "./knowledgeContracts";
 
+// Route and tag helpers are framework-agnostic on purpose: React components can
+// swap out while Knowledge Context URLs, keys, and fixtures keep the same shape.
 export type {
   ActiveTag,
   KnowledgeLocationKind,
@@ -30,6 +32,8 @@ export type RootSearchTagSuggestion = {
   tag: ActiveTag;
 };
 
+// Fixtures provide a deterministic local knowledge map until live Convex tag
+// search has enough seeded data to fully replace them.
 export const NAVIGATOR_TAG_FIXTURES: ActiveTag[] = [
   biblePassageTag("matthew-5-9", "Matthew 5:9"),
   biblePassageTag("joshua-1-6-9", "Joshua 1:6-9"),

@@ -27,7 +27,11 @@ import {
   getEntryContextTagIds,
   recordContextExpertiseEvidence,
 } from "./lib/contextExpertiseEvidence";
+import { inferFileRepresentationRoleFromMetadata } from "./lib/fileRepresentationRoles";
 
+// Smart Storage is a staged pipeline: preserve submitted sources, run bounded
+// proposal generation, then require explicit user acceptance before gold entries
+// or representations are written.
 const MAX_TITLE_LENGTH = 240;
 const MAX_SOURCE_TEXT_LENGTH = 40_000;
 const MAX_BODY_PREVIEW_LENGTH = 500;
@@ -80,6 +84,8 @@ const SMART_STORAGE_SOURCE_INTERPRETATION_POLICY = {
 } as const;
 const SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION =
   "mvp-smart-storage-contract-v3";
+// The snapshot is persisted with each run/proposal so future model or schema
+// changes do not erase the contract used for an existing decision.
 const SMART_STORAGE_CONTRACT_SNAPSHOT = {
   contractKind: "contributionSubmissionToSmartStorageProposal",
   version: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
@@ -229,6 +235,27 @@ type RepresentationDecisionInput = {
   isPrimary: boolean;
   representationRole: RepresentationRole;
   sourceId: Id<"sources">;
+};
+type ContributionUploadedFileInput = {
+  temporaryUploadId?: Id<"temporaryUploads">;
+  storageId: Id<"_storage">;
+  fileName: string;
+  contentType?: string;
+  fileSizeBytes?: number;
+  languageCode?: string;
+  title?: string;
+};
+type StoredFileMetadata = {
+  contentType?: string;
+  size: number;
+};
+type NormalizedUploadedFile = {
+  storageId: Id<"_storage">;
+  fileName: string;
+  contentType?: string;
+  fileSizeBytes?: number;
+  languageCode?: string;
+  title?: string;
 };
 type AcceptedRepresentationDecision = {
   isPrimary: boolean;
@@ -614,16 +641,17 @@ export const createTemporaryUploadRecord = mutation({
     const access = await requireAppAccess(ctx);
     const now = Date.now();
     const expiresAt = args.expiresAt ?? now + MAX_TEMPORARY_UPLOAD_AGE_MS;
+    const uploadedFile = await normalizeUploadedFileFromStorage(ctx, args);
     const temporaryUploadId = await ctx.db.insert("temporaryUploads", {
       storageId: args.storageId,
       uploadedByUserId: access.userId,
-      fileName: limitString(args.fileName, MAX_FILE_NAME_LENGTH),
-      ...(args.contentType === undefined
+      fileName: uploadedFile.fileName,
+      ...(uploadedFile.contentType === undefined
         ? {}
-        : { contentType: limitString(args.contentType, MAX_CONTENT_TYPE_LENGTH) }),
-      ...(args.fileSizeBytes === undefined
+        : { contentType: uploadedFile.contentType }),
+      ...(uploadedFile.fileSizeBytes === undefined
         ? {}
-        : { fileSizeBytes: args.fileSizeBytes }),
+        : { fileSizeBytes: uploadedFile.fileSizeBytes }),
       uploadStatus: "uploaded",
       expiresAt,
       createdAt: now,
@@ -642,6 +670,8 @@ export const createTemporaryUploadRecord = mutation({
   },
 });
 
+// Actions handle model/network work and delegate all database reads/writes to
+// queries/mutations so Convex transaction boundaries stay explicit.
 export const executeModelRun = action({
   args: {
     smartStorageRunId: v.id("smartStorageRuns"),
@@ -1593,6 +1623,80 @@ export const generateUploadUrl = mutation({
   },
 });
 
+export const addKnowledgePageThumbnail = mutation({
+  args: {
+    entryId: v.id("knowledgeEntries"),
+    uploadedFile: contributionUploadedFile,
+  },
+  returns: v.object({
+    entryId: v.id("knowledgeEntries"),
+    status: v.literal("added"),
+    thumbnailUrl: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const access = await requireAppAccess(ctx);
+    const entry = await ctx.db.get(args.entryId);
+    if (!entry) {
+      throw new Error("Knowledge Entry not found.");
+    }
+    if (!supportsRepresentativeThumbnailType(entry.knowledgeType)) {
+      throw new Error("This Knowledge Type does not use representative thumbnails.");
+    }
+    if (!isKnowledgeEntryVisibleToAccess(entry, access)) {
+      throw new Error("Unauthorized");
+    }
+    if (await entryHasThumbnailRepresentation(ctx, entry._id)) {
+      throw new Error("Knowledge Entry already has a representative thumbnail.");
+    }
+
+    const now = Date.now();
+    const uploadedFile = await attachTemporaryUploadForKnowledgePageThumbnail(
+      ctx,
+      {
+        now,
+        uploadedByUserId: access.userId,
+        uploadedFile: args.uploadedFile,
+      },
+    );
+    if (
+      inferFileRepresentationRoleFromMetadata(
+        uploadedFile.contentType,
+        uploadedFile.fileName,
+      ) !== "thumbnail"
+    ) {
+      throw new Error("Representative thumbnail upload must be an image.");
+    }
+
+    await ctx.db.insert("entryRepresentations", {
+      entryId: entry._id,
+      representationKind: "storageFile",
+      representationRole: "thumbnail",
+      storageId: uploadedFile.storageId,
+      fileName: uploadedFile.fileName,
+      ...(uploadedFile.contentType === undefined
+        ? {}
+        : { contentType: uploadedFile.contentType }),
+      ...(uploadedFile.fileSizeBytes === undefined
+        ? {}
+        : { fileSizeBytes: uploadedFile.fileSizeBytes }),
+      ...(uploadedFile.languageCode === undefined
+        ? {}
+        : { languageCode: uploadedFile.languageCode }),
+      isPrimary: false,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const thumbnailUrl = await ctx.storage.getUrl(uploadedFile.storageId);
+
+    return {
+      entryId: entry._id,
+      status: "added" as const,
+      ...(thumbnailUrl === null ? {} : { thumbnailUrl }),
+    };
+  },
+});
+
 export const startFromContribution = mutation({
   args: {
     body: v.string(),
@@ -1686,41 +1790,36 @@ export const startFromContribution = mutation({
     }
 
     for (const uploadedFile of uploadedFiles) {
-      await attachTemporaryUploadIfPresent(ctx, {
+      const temporaryUpload = await attachTemporaryUploadIfPresent(ctx, {
         contributionSubmissionId,
         now,
         uploadedByUserId: access.userId,
         uploadedFile,
       });
+      const normalizedUploadedFile = await normalizeUploadedFileFromStorage(
+        ctx,
+        uploadedFile,
+        temporaryUpload,
+      );
       sourceIds.push(
         await ctx.db.insert("sources", {
           contributionSubmissionId,
           sourceKind: "uploadedFile",
           title: limitString(
-            uploadedFile.title ?? uploadedFile.fileName,
+            normalizedUploadedFile.title ?? normalizedUploadedFile.fileName,
             MAX_SOURCE_TITLE_LENGTH,
           ),
-          storageId: uploadedFile.storageId,
-          ...(uploadedFile.contentType === undefined
+          storageId: normalizedUploadedFile.storageId,
+          ...(normalizedUploadedFile.contentType === undefined
             ? {}
-            : {
-                contentType: limitString(
-                  uploadedFile.contentType,
-                  MAX_CONTENT_TYPE_LENGTH,
-                ),
-              }),
-          ...(uploadedFile.languageCode === undefined
+            : { contentType: normalizedUploadedFile.contentType }),
+          ...(normalizedUploadedFile.languageCode === undefined
             ? {}
-            : {
-                languageCode: limitString(
-                  uploadedFile.languageCode,
-                  MAX_LANGUAGE_CODE_LENGTH,
-                ),
-              }),
-          fileName: limitString(uploadedFile.fileName, MAX_FILE_NAME_LENGTH),
-          ...(uploadedFile.fileSizeBytes === undefined
+            : { languageCode: normalizedUploadedFile.languageCode }),
+          fileName: normalizedUploadedFile.fileName,
+          ...(normalizedUploadedFile.fileSizeBytes === undefined
             ? {}
-            : { fileSizeBytes: uploadedFile.fileSizeBytes }),
+            : { fileSizeBytes: normalizedUploadedFile.fileSizeBytes }),
           submittedByUserId: access.userId,
           submittedAt: now,
         }),
@@ -2397,14 +2496,11 @@ async function attachTemporaryUploadIfPresent(
     contributionSubmissionId: Id<"contributionSubmissions">;
     now: number;
     uploadedByUserId: Id<"users">;
-    uploadedFile: {
-      temporaryUploadId?: Id<"temporaryUploads">;
-      storageId: Id<"_storage">;
-    };
+    uploadedFile: ContributionUploadedFileInput;
   },
-) {
+): Promise<Doc<"temporaryUploads"> | null> {
   if (uploadedFile.temporaryUploadId === undefined) {
-    return;
+    return null;
   }
 
   const temporaryUpload = await ctx.db.get(uploadedFile.temporaryUploadId);
@@ -2426,6 +2522,107 @@ async function attachTemporaryUploadIfPresent(
     attachedContributionSubmissionId: contributionSubmissionId,
     updatedAt: now,
   });
+
+  return temporaryUpload;
+}
+
+async function attachTemporaryUploadForKnowledgePageThumbnail(
+  ctx: MutationCtx,
+  {
+    now,
+    uploadedByUserId,
+    uploadedFile,
+  }: {
+    now: number;
+    uploadedByUserId: Id<"users">;
+    uploadedFile: ContributionUploadedFileInput;
+  },
+): Promise<NormalizedUploadedFile> {
+  if (uploadedFile.temporaryUploadId === undefined) {
+    throw new Error("Representative thumbnail requires a temporary upload record.");
+  }
+
+  const temporaryUpload = await ctx.db.get(uploadedFile.temporaryUploadId);
+  if (!temporaryUpload) {
+    throw new Error("Temporary upload not found.");
+  }
+  if (temporaryUpload.uploadedByUserId !== uploadedByUserId) {
+    throw new Error("Unauthorized");
+  }
+  if (temporaryUpload.storageId !== uploadedFile.storageId) {
+    throw new Error("Temporary upload storage ID mismatch.");
+  }
+  if (temporaryUpload.uploadStatus !== "uploaded") {
+    throw new Error("Temporary upload is not attachable.");
+  }
+
+  await ctx.db.patch(temporaryUpload._id, {
+    uploadStatus: "attached",
+    updatedAt: now,
+  });
+
+  return await normalizeUploadedFileFromStorage(ctx, uploadedFile, temporaryUpload);
+}
+
+// Normalize file metadata from Convex storage before source rows are created so
+// clients cannot accidentally persist stale or unbounded upload details.
+async function normalizeUploadedFileFromStorage(
+  ctx: MutationCtx,
+  uploadedFile: ContributionUploadedFileInput,
+  temporaryUpload?: Doc<"temporaryUploads"> | null,
+): Promise<NormalizedUploadedFile> {
+  const storedFile = await loadStoredFileMetadata(ctx, uploadedFile.storageId);
+
+  return normalizeUploadedFileMetadata({
+    contentType:
+      temporaryUpload?.contentType ??
+      storedFile.contentType ??
+      uploadedFile.contentType,
+    fileName: temporaryUpload?.fileName ?? uploadedFile.fileName,
+    fileSizeBytes:
+      temporaryUpload?.fileSizeBytes ??
+      storedFile.size ??
+      uploadedFile.fileSizeBytes,
+    languageCode: uploadedFile.languageCode,
+    storageId: uploadedFile.storageId,
+    title: uploadedFile.title,
+  });
+}
+
+async function loadStoredFileMetadata(
+  ctx: MutationCtx,
+  storageId: Id<"_storage">,
+): Promise<StoredFileMetadata> {
+  const metadata = await ctx.db.system.get("_storage", storageId);
+  if (!metadata) {
+    throw new Error("Uploaded file not found in storage.");
+  }
+
+  return metadata;
+}
+
+function normalizeUploadedFileMetadata(
+  uploadedFile: ContributionUploadedFileInput,
+): NormalizedUploadedFile {
+  const fileName = limitString(uploadedFile.fileName, MAX_FILE_NAME_LENGTH);
+  if (!fileName) {
+    throw new Error("Uploaded file name is required.");
+  }
+
+  return {
+    storageId: uploadedFile.storageId,
+    fileName,
+    contentType: limitOptionalString(
+      uploadedFile.contentType,
+      MAX_CONTENT_TYPE_LENGTH,
+    ),
+    fileSizeBytes: normalizeOptionalFileSize(uploadedFile.fileSizeBytes),
+    languageCode: limitOptionalString(
+      uploadedFile.languageCode,
+      MAX_LANGUAGE_CODE_LENGTH,
+    ),
+    title: limitOptionalString(uploadedFile.title, MAX_SOURCE_TITLE_LENGTH),
+  };
 }
 
 async function cleanupTemporaryUploadRow(
@@ -3535,6 +3732,8 @@ async function listProposalSourceCitations(
   }));
 }
 
+// Identity resolution prefers an existing typed referent before creating a new
+// one, keeping repeated accepted proposals from fragmenting the knowledge graph.
 async function resolveRepresentedIdentity(
   ctx: MutationCtx,
   identity: {
@@ -3887,6 +4086,8 @@ async function loadExplicitRepresentationDecisions(
   return acceptedDecisions;
 }
 
+// Accepted representations connect the reviewed proposal back to preserved
+// sources, making provenance visible after the gold entry is created.
 async function insertAcceptedRepresentationsAndOutputs(
   ctx: MutationCtx,
   {
@@ -3948,6 +4149,154 @@ async function insertAcceptedRepresentationsAndOutputs(
       createdAt: now,
     });
   }
+
+  await insertOpenSourceThumbnailFallback(ctx, {
+    entryId,
+    now,
+    proposedEntry,
+    representationDecisions,
+  });
+}
+
+async function insertOpenSourceThumbnailFallback(
+  ctx: MutationCtx,
+  {
+    entryId,
+    now,
+    proposedEntry,
+    representationDecisions,
+  }: {
+    entryId: Id<"knowledgeEntries">;
+    now: number;
+    proposedEntry: SmartStorageProposedEntryDoc;
+    representationDecisions: AcceptedRepresentationDecision[];
+  },
+) {
+  if (!supportsRepresentativeThumbnailType(proposedEntry.knowledgeType)) {
+    return;
+  }
+  if (representationDecisions.some(hasUploadedThumbnailRepresentation)) {
+    return;
+  }
+  if (await entryHasThumbnailRepresentation(ctx, entryId)) {
+    return;
+  }
+
+  const source = representationDecisions
+    .map((decision) => decision.source)
+    .find(
+      (candidate) =>
+        candidate.sourceKind === "externalUrl" &&
+        candidate.linkPreviewImageUrl !== undefined,
+    );
+  const thumbnailUrl = source?.linkPreviewImageUrl?.trim();
+  if (!source || !thumbnailUrl) {
+    return;
+  }
+
+  await ctx.db.insert("entryRepresentations", {
+    entryId,
+    representationKind: "externalUrl",
+    representationRole: "thumbnail",
+    externalUrl: limitString(thumbnailUrl, MAX_URL_LENGTH),
+    isPrimary: false,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  const existingOutput = await ctx.db
+    .query("sourceOutputs")
+    .withIndex("by_sourceId_and_entryId", (q) =>
+      q.eq("sourceId", source._id).eq("entryId", entryId),
+    )
+    .first();
+  if (!existingOutput) {
+    await ctx.db.insert("sourceOutputs", {
+      sourceId: source._id,
+      entryId,
+      outputKind: "produced",
+      createdAt: now,
+    });
+  }
+}
+
+async function entryHasThumbnailRepresentation(
+  ctx: MutationCtx,
+  entryId: Id<"knowledgeEntries">,
+) {
+  const storageRepresentations = await ctx.db
+    .query("entryRepresentations")
+    .withIndex("by_entryId_and_representationKind", (q) =>
+      q.eq("entryId", entryId).eq("representationKind", "storageFile"),
+    )
+    .take(MAX_SOURCES_PER_SUBMISSION);
+  if (storageRepresentations.some(isThumbnailRepresentation)) {
+    return true;
+  }
+
+  const externalRepresentations = await ctx.db
+    .query("entryRepresentations")
+    .withIndex("by_entryId_and_representationKind", (q) =>
+      q.eq("entryId", entryId).eq("representationKind", "externalUrl"),
+    )
+    .take(MAX_SOURCES_PER_SUBMISSION);
+
+  return externalRepresentations.some(isThumbnailRepresentation);
+}
+
+function hasUploadedThumbnailRepresentation(
+  decision: AcceptedRepresentationDecision,
+) {
+  return (
+    decision.representationRole === "thumbnail" ||
+    (decision.source.sourceKind === "uploadedFile" &&
+      inferFileRepresentationRole(decision.source) === "thumbnail")
+  );
+}
+
+function isThumbnailRepresentation(
+  representation: Pick<
+    Doc<"entryRepresentations">,
+    "contentType" | "fileName" | "representationKind" | "representationRole"
+  >,
+) {
+  return (
+    representation.representationRole === "thumbnail" ||
+    (representation.representationKind === "storageFile" &&
+      inferFileRepresentationRoleFromMetadata(
+        representation.contentType,
+        representation.fileName,
+      ) === "thumbnail")
+  );
+}
+
+function supportsRepresentativeThumbnailType(knowledgeType: EntryKnowledgeType) {
+  return knowledgeType !== "comment" && knowledgeType !== "words";
+}
+
+function isKnowledgeEntryVisibleToAccess(
+  entry: Doc<"knowledgeEntries">,
+  access: Awaited<ReturnType<typeof requireAppAccess>>,
+) {
+  if (entry.visibilityKind === "public") {
+    return true;
+  }
+
+  if (entry.visibilityKind === "private") {
+    return (
+      entry.visibilityTargetKey === `user:${access.userId}` ||
+      entry.visibilityTargetKey === access.userId
+    );
+  }
+
+  if (entry.visibilityKind === "organization") {
+    return access.organizations.some(
+      (organization) =>
+        organization.organizationReferentId === entry.visibilityTargetKey,
+    );
+  }
+
+  return false;
 }
 
 async function markProposalAccepted(
@@ -4032,32 +4381,6 @@ function inferFileRepresentationRole(source: Doc<"sources">) {
     source.contentType,
     source.fileName,
   );
-}
-
-function inferFileRepresentationRoleFromMetadata(
-  contentTypeValue?: string,
-  fileNameValue?: string,
-): RepresentationRole {
-  const contentType = contentTypeValue?.toLowerCase() ?? "";
-  const fileName = fileNameValue?.toLowerCase() ?? "";
-
-  if (contentType.startsWith("audio/") || contentType.startsWith("video/")) {
-    return "recording" as const;
-  }
-  if (contentType.includes("presentation") || fileName.endsWith(".pptx")) {
-    return "slides" as const;
-  }
-  if (contentType.startsWith("image/")) {
-    return "thumbnail" as const;
-  }
-  if (fileName.includes("transcript")) {
-    return "transcript" as const;
-  }
-  if (fileName.includes("manuscript")) {
-    return "manuscript" as const;
-  }
-
-  return "supportingMaterial" as const;
 }
 
 function inferRepresentationRoleForMigration(
@@ -4217,4 +4540,24 @@ function normalizeLookupKey(value: string) {
 function limitString(value: string, maxLength: number) {
   const trimmed = value.trim();
   return trimmed.length > maxLength ? trimmed.slice(0, maxLength) : trimmed;
+}
+
+function limitOptionalString(value: string | undefined, maxLength: number) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const limitedValue = limitString(value, maxLength);
+  return limitedValue || undefined;
+}
+
+function normalizeOptionalFileSize(fileSizeBytes: number | undefined) {
+  if (fileSizeBytes === undefined) {
+    return undefined;
+  }
+  if (!Number.isFinite(fileSizeBytes) || fileSizeBytes < 0) {
+    throw new Error("Uploaded file size must be non-negative.");
+  }
+
+  return Math.floor(fileSizeBytes);
 }

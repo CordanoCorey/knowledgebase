@@ -1,5 +1,7 @@
 import { CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION } from "./humanWeightCalculationDefinition";
 
+// Type Behavior is the backend registry for Knowledge Type-specific defaults.
+// Keep frontend knowledgeContracts aligned with these values.
 export const ENTRY_KNOWLEDGE_TYPES = [
   "words",
   "topic",
@@ -242,6 +244,8 @@ const DEFAULT_TYPE_BEHAVIOR: Omit<TypeBehavior, "knowledgeType"> = {
   },
 };
 
+// Overrides document intentional departures from the default entry behavior;
+// unlisted types use the conservative baseline above.
 const TYPE_BEHAVIOR_OVERRIDES: Partial<
   Record<EntryKnowledgeType, Partial<Omit<TypeBehavior, "knowledgeType">>>
 > = {
