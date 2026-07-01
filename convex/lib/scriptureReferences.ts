@@ -1,3 +1,5 @@
+// Scripture reference parsing is pure so frontend fixtures and Convex passage
+// queries interpret user-entered references the same way.
 export type BibleBookReference = {
   aliases: string[];
   code: string;

@@ -15,6 +15,8 @@ const modules = {
   "./lib/appAccess.ts": () => import("./lib/appAccess"),
   "./lib/contextExpertiseEvidence.ts": () =>
     import("./lib/contextExpertiseEvidence"),
+  "./lib/fileRepresentationRoles.ts": () =>
+    import("./lib/fileRepresentationRoles"),
   "./lib/typeBehavior.ts": () => import("./lib/typeBehavior"),
   "./smartStorage.ts": () => import("./smartStorage"),
 };
@@ -30,12 +32,139 @@ type TestContextTagSnapshot = {
 
 type SmartStorageContributionInput = {
   body: string;
+  contributionNote?: string;
   contextTags: TestContextTagSnapshot[];
-  externalUrls?: Array<{ url: string }>;
+  externalUrls?: Array<{
+    linkPreviewDescription?: string;
+    linkPreviewImageUrl?: string;
+    linkPreviewSiteName?: string;
+    linkPreviewTitle?: string;
+    title?: string;
+    url: string;
+  }>;
   knowledgeType: Doc<"knowledgeEntries">["knowledgeType"];
   slotId?: string;
   title: string;
 };
+
+const SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION =
+  "mvp-smart-storage-contract-v3";
+const STORED_FILE_ROLE_CASES = [
+  {
+    contentType: "application/pdf",
+    expectedRole: "manuscript",
+    fileName: "sermon-manuscript.pdf",
+    label: "manuscript",
+  },
+  {
+    contentType:
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    expectedRole: "slides",
+    fileName: "lesson-slides.pptx",
+    label: "slides",
+  },
+  {
+    contentType: "text/plain",
+    expectedRole: "transcript",
+    fileName: "lesson-transcript.txt",
+    label: "transcript",
+  },
+  {
+    contentType: "audio/mpeg",
+    expectedRole: "recording",
+    fileName: "lesson-recording.mp3",
+    label: "audio recording",
+  },
+  {
+    contentType: "video/mp4",
+    expectedRole: "recording",
+    fileName: "lesson-video.mp4",
+    label: "video recording",
+  },
+  {
+    contentType: "image/png",
+    expectedRole: "thumbnail",
+    fileName: "lesson-thumbnail.png",
+    label: "thumbnail",
+  },
+  {
+    contentType:
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    expectedRole: "supportingMaterial",
+    fileName: "lesson-handout.docx",
+    label: "supporting material",
+  },
+] as const;
+const SMART_STORAGE_CONTRACT_SNAPSHOT = {
+  contractKind: "contributionSubmissionToSmartStorageProposal",
+  version: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
+  purpose:
+    "Answer what information the User intends to contribute, given the Knowledge Types currently understood by the app.",
+  layerMapping: {
+    bronze:
+      "Contribution Submissions preserve submitted Sources as close as possible to their original form.",
+    silver:
+      "Smart Storage Proposals are reviewable probability judgments about how Bronze Sources map to one proposed Knowledge Entry.",
+    gold:
+      "Knowledge Entries are confirmed typed knowledge created or updated only after user review.",
+  },
+  process: [
+    "Create a durable Contribution Submission and child Sources before model execution.",
+    "Queue one Smart Storage Run using the current Smart Storage Contract and Type Behavior snapshots.",
+    "Build request-specific input from the Contribution Submission, Sources, current Knowledge Context, and snapshots.",
+    "Ask the current model adapter for one structured Smart Storage Proposal.",
+    "Store a Silver Layer Proposal only after returned JSON is parsed and validated.",
+    "Keep failed, invalid, or no-proposal outcomes on the Smart Storage Run without creating a Proposal.",
+    "Require user confirmation before any Gold Layer Knowledge Entry is created or updated.",
+  ],
+  modelProviderStrategy: {
+    localFirst:
+      "Use deterministic application logic for previews, cheap scaffolds, and fallback behavior before relying on model output.",
+    currentAdapter:
+      "Call OpenAI's Responses API for the first LLM-backed Smart Storage implementation.",
+    futureAdapter:
+      "Keep the contract provider-neutral so a self-hosted proprietary model can replace the OpenAI adapter later.",
+  },
+  proposalShape: {
+    knowledgeType:
+      "One authorable Knowledge Type from the app's current Entry Knowledge Type set.",
+    title: "A bounded proposed Knowledge Entry title.",
+    bodyPreview:
+      "A bounded preview of the represented knowledge, not raw internal reasoning.",
+    contextTags:
+      "A bounded set of proposed Knowledge Context Tag snapshots for review.",
+    proposalConfidence:
+      "A coarse low, medium, or high review signal; not truth, Human Weight, or approval.",
+    rationale:
+      "A bounded explanation of why this Source appears to map to the proposed Knowledge Entry.",
+  },
+  sourceInterpretationPolicy: {
+    authoredTextSource:
+      "sources[].rawText is Authored Text Source and must remain preserved as raw Source material.",
+    editorGuidance:
+      "The slim Contribution Editor does not ask the User to classify Contribution Notes, so guidance-like text may appear inside Authored Text Sources.",
+    guidanceUse:
+      "Use guidance-like text to steer proposal choices, source citations, proposalConfidence, and rationale when appropriate.",
+    representedKnowledge:
+      "Do not treat guidance-like text as represented knowledge by default.",
+    storedContributionNote:
+      "Do not synthesize contributionSubmission.contributionNote from source text; only separately supplied contributionSubmission.contributionNote is an explicit Contribution Note.",
+    ambiguity:
+      "If guidance and substantive material are ambiguous, lower proposalConfidence and explain the ambiguity in rationale.",
+  },
+  boundaries: [
+    "Do not expose or rely on the raw Convex persistence schema as the model contract.",
+    "Do not synthesize Contribution Notes from Authored Text Sources.",
+    "Do not treat guidance-like Source text as represented knowledge by default.",
+    "Do not create Gold Layer Knowledge Entries from model output without user confirmation.",
+    "Do not invent extracted file, media, or URL facts when advanced extraction has not supplied them.",
+  ],
+};
+const SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT = JSON.stringify(
+  SMART_STORAGE_CONTRACT_SNAPSHOT,
+  null,
+  2,
+);
 
 const legacyEntryRepresentationKind = v.union(
   v.literal("prosemirror"),
@@ -174,7 +303,7 @@ describe("Smart Storage contribution spine", () => {
           contentType: "application/pdf",
           contributionSubmissionId: result.contributionSubmissionId,
           fileName: "courage-handout.pdf",
-          fileSizeBytes: 1234,
+          fileSizeBytes: "handout".length,
           sourceKind: "uploadedFile",
           storageId,
         }),
@@ -195,7 +324,7 @@ describe("Smart Storage contribution spine", () => {
           "Objective: students will distinguish courage from presumption.",
         contributionTitle: "Courage in Joshua",
         smartStorageContractVersionId: expect.any(String),
-        contractSnapshotVersion: "mvp-smart-storage-contract-v1",
+        contractSnapshotVersion: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
         createdByUserId: userId,
         primarySourceId: result.sourceId,
         requestedKnowledgeType: "lesson",
@@ -203,15 +332,14 @@ describe("Smart Storage contribution spine", () => {
         sourceId: result.sourceId,
         status: "queued",
         typeBehaviorSnapshotId: expect.any(String),
-        typeBehaviorSnapshotVersion: "mvp-type-behavior-v2",
+        typeBehaviorSnapshotVersion: "mvp-type-behavior-v4",
       }),
     );
     expect(rowState.contractVersion).toEqual(
       expect.objectContaining({
         contractKey: "mvp-smart-storage-contract",
-        snapshotText:
-          "Preserve a durable Contribution Submission with child Sources and queue conservative scaffold proposal generation.",
-        version: "mvp-smart-storage-contract-v1",
+        snapshotText: SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT,
+        version: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
       }),
     );
     expect(rowState.typeBehaviorSnapshot).toEqual(
@@ -222,8 +350,57 @@ describe("Smart Storage contribution spine", () => {
         knowledgeType: "lesson",
         snapshotText:
           "Use the Type Behavior registry for identity, source citation, representation role, primary representation, Human Weight defaults, and Human Weight credit basis.",
-        version: "mvp-type-behavior-v2",
+        version: "mvp-type-behavior-v4",
       }),
+    );
+  });
+
+  test("keeps guidance-like editor text as Authored Text Source without synthesizing a Contribution Note", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const body = [
+      "Objective: students will distinguish courage from presumption.",
+      "Guidance: keep the attached handout as supporting material only.",
+    ].join("\n");
+
+    const result = await authed.mutation(
+      api.smartStorage.startFromContribution,
+      getLessonSmartStorageInput({
+        body,
+        title: "Guided Courage Lesson",
+      }),
+    );
+
+    const rowState = await t.run(async (ctx) => {
+      const contributionSubmission = await ctx.db.get(
+        result.contributionSubmissionId,
+      );
+      const sources = await ctx.db
+        .query("sources")
+        .withIndex("by_contributionSubmissionId_and_submittedAt", (q) =>
+          q.eq("contributionSubmissionId", result.contributionSubmissionId),
+        )
+        .collect();
+
+      return { contributionSubmission, sources };
+    });
+
+    expect(rowState.contributionSubmission?.contributionNote).toBeUndefined();
+    expect(rowState.contributionSubmission).toEqual(
+      expect.objectContaining({
+        primaryIntendedBodyPreview: body,
+        primaryIntendedTitle: "Guided Courage Lesson",
+      }),
+    );
+    expect(rowState.sources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rawText: body,
+          sourceKind: "pastedText",
+          title: "Guided Courage Lesson",
+        }),
+      ]),
     );
   });
 
@@ -274,7 +451,7 @@ describe("Smart Storage contribution spine", () => {
       const now = Date.now();
       await ctx.db.insert("smartStorageContractVersions", {
         contractKey: "mvp-smart-storage-contract",
-        version: "mvp-smart-storage-contract-v1",
+        version: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
         snapshotText: "Conflicting contract text.",
         createdAt: now,
         updatedAt: now,
@@ -297,15 +474,14 @@ describe("Smart Storage contribution spine", () => {
       const now = Date.now();
       await ctx.db.insert("smartStorageContractVersions", {
         contractKey: "mvp-smart-storage-contract",
-        version: "mvp-smart-storage-contract-v1",
-        snapshotText:
-          "Preserve a durable Contribution Submission with child Sources and queue conservative scaffold proposal generation.",
+        version: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
+        snapshotText: SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT,
         createdAt: now,
         updatedAt: now,
       });
       await ctx.db.insert("typeBehaviorSnapshots", {
         knowledgeType: "lesson",
-        version: "mvp-type-behavior-v2",
+        version: "mvp-type-behavior-v4",
         snapshotText: "Conflicting Type Behavior summary.",
         behaviorSnapshotJson: "{}",
         createdAt: now,
@@ -482,6 +658,120 @@ describe("Smart Storage contribution spine", () => {
     );
   });
 
+  test("previews draft Link Preview metadata without creating Smart Storage rows", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        [
+          "<html><head>",
+          '<title>Fallback title</title>',
+          '<meta property="og:title" content="Draft Courage">',
+          '<meta property="og:description" content="Draft preview description.">',
+          '<meta property="og:image" content="/images/draft-courage.png">',
+          '<meta property="og:site_name" content="Draft Library">',
+          "</head></html>",
+        ].join(""),
+        {
+          headers: {
+            "content-type": "text/html; charset=utf-8",
+          },
+        },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await authed.action(api.smartStorage.previewDraftExternalUrl, {
+      url: "https://example.com/courage",
+    });
+
+    const rowCounts = await t.run(async (ctx) => ({
+      contributionSubmissions: (
+        await ctx.db.query("contributionSubmissions").collect()
+      ).length,
+      proposals: (await ctx.db.query("smartStorageProposals").collect()).length,
+      runs: (await ctx.db.query("smartStorageRuns").collect()).length,
+      sources: (await ctx.db.query("sources").collect()).length,
+    }));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({
+      description: "Draft preview description.",
+      imageUrl: "https://example.com/images/draft-courage.png",
+      siteName: "Draft Library",
+      status: "fetched",
+      title: "Draft Courage",
+      url: "https://example.com/courage",
+    });
+    expect(rowCounts).toEqual({
+      contributionSubmissions: 0,
+      proposals: 0,
+      runs: 0,
+      sources: 0,
+    });
+  });
+
+  test("draft Link Preview rejects unsafe URLs without fetching", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await authed.action(api.smartStorage.previewDraftExternalUrl, {
+      url: "http://127.0.0.1/admin",
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      error: "Link Preview URL host is not allowed.",
+      status: "failed",
+      url: "http://127.0.0.1/admin",
+    });
+  });
+
+  test("draft Link Preview returns bounded failure for non-HTML responses", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const fetchMock = vi.fn(async () =>
+      new Response('{"ok":true}', {
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await authed.action(api.smartStorage.previewDraftExternalUrl, {
+      url: "https://example.com/api",
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({
+      error: "Link Preview response is not HTML.",
+      status: "failed",
+      url: "https://example.com/api",
+    });
+  });
+
+  test("draft Link Preview requires app access before fetching", async () => {
+    const t = convexTest({ schema, modules });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await t.action(api.smartStorage.previewDraftExternalUrl, {
+      url: "https://example.com/courage",
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      error: "Unauthorized",
+      status: "failed",
+      url: "https://example.com/courage",
+    });
+  });
+
   test("marks temporary uploads attached when they become Sources", async () => {
     const t = convexTest({ schema, modules });
     const userId = await t.run(insertAllowedUser);
@@ -524,6 +814,62 @@ describe("Smart Storage contribution spine", () => {
         uploadedByUserId: userId,
       }),
     );
+  });
+
+  test("records temporary upload metadata from Convex storage for stored file categories", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+
+    for (const fileCase of STORED_FILE_ROLE_CASES) {
+      const contents = `${fileCase.label} contents`;
+      const storageId = await storeTestFile(
+        t,
+        contents,
+        fileCase.contentType,
+      );
+      const result = await authed.mutation(
+        api.smartStorage.createTemporaryUploadRecord,
+        {
+          contentType: fileCase.contentType,
+          fileName: `  ${fileCase.fileName}  `,
+          fileSizeBytes: 999_999,
+          storageId,
+        },
+      );
+
+      const temporaryUpload = await t.run(
+        async (ctx) => await ctx.db.get(result.temporaryUploadId),
+      );
+
+      expect(temporaryUpload).toEqual(
+        expect.objectContaining({
+          contentType: fileCase.contentType,
+          fileName: fileCase.fileName,
+          fileSizeBytes: contents.length,
+          storageId,
+          uploadStatus: "uploaded",
+          uploadedByUserId: userId,
+        }),
+      );
+    }
+  });
+
+  test("rejects temporary upload records for missing storage objects", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const storageId = await storeTestFile(t, "deleted upload");
+    await t.run(async (ctx) => {
+      await ctx.storage.delete(storageId);
+    });
+
+    await expect(
+      authed.mutation(api.smartStorage.createTemporaryUploadRecord, {
+        fileName: "deleted-upload.pdf",
+        storageId,
+      }),
+    ).rejects.toThrow("Uploaded file not found in storage.");
   });
 
   test("schedules and deletes expired unattached temporary uploads", async () => {
@@ -809,15 +1155,14 @@ describe("Smart Storage contribution spine", () => {
         contributionSubmissionId: startResult.contributionSubmissionId,
         smartStorageContractVersionId:
           rowState.run?.smartStorageContractVersionId,
-        contractSnapshotVersion: "mvp-smart-storage-contract-v1",
-        contractSnapshotText:
-          "Preserve a durable Contribution Submission with child Sources and queue conservative scaffold proposal generation.",
+        contractSnapshotVersion: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
+        contractSnapshotText: SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT,
         createdByUserId: userId,
         smartStorageRunId: startResult.smartStorageRunId,
         sourceId: startResult.sourceId,
         status: "drafted",
         typeBehaviorSnapshotId: rowState.run?.typeBehaviorSnapshotId,
-        typeBehaviorSnapshotVersion: "mvp-type-behavior-v2",
+        typeBehaviorSnapshotVersion: "mvp-type-behavior-v4",
         typeBehaviorSnapshotText:
           "Use the Type Behavior registry for identity, source citation, representation role, primary representation, Human Weight defaults, and Human Weight credit basis.",
       }),
@@ -882,9 +1227,18 @@ describe("Smart Storage contribution spine", () => {
     const t = convexTest({ schema, modules });
     const userId = await t.run(insertAllowedUser);
     const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const modelSourceText = [
+      "Objective: students will distinguish courage from presumption.",
+      "Guidance: use the second line to steer the proposal, not as student-facing text.",
+    ].join("\n");
+    const explicitContributionNote =
+      "Prefer a concise proposal for teacher review.";
     const startResult = await authed.mutation(
       api.smartStorage.startFromContribution,
-      getLessonSmartStorageInput(),
+      getLessonSmartStorageInput({
+        body: modelSourceText,
+        contributionNote: explicitContributionNote,
+      }),
     );
     const modelProposal = getModelProposedEntry({
       bodyPreview: "Model-shaped courage lesson preview.",
@@ -931,16 +1285,63 @@ describe("Smart Storage contribution spine", () => {
     );
     const requestBody = JSON.parse(String(requestInit?.body));
     expect(requestBody).toMatchObject({
+      max_output_tokens: 1_000,
       model: "gpt-test-smart-storage",
+      reasoning: { effort: "low" },
       text: {
         format: {
           name: "smart_storage_proposal",
           strict: true,
           type: "json_schema",
         },
+        verbosity: "low",
       },
     });
     expect(requestBody.input).toContain("Courage in Joshua");
+    expect(requestBody.instructions).toContain("Authored Text Source");
+    expect(requestBody.instructions).toContain(
+      "Guidance-like text inside an Authored Text Source",
+    );
+    expect(requestBody.instructions).toContain(
+      "Do not synthesize Contribution Notes from Source text",
+    );
+    const modelInput = JSON.parse(String(requestBody.input));
+    expect(modelInput).toMatchObject({
+      contributionSubmission: {
+        contributionNote: explicitContributionNote,
+      },
+      run: {
+        contractSnapshotText: SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT,
+        contractSnapshotVersion: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
+      },
+      smartStorageContract: {
+        contractKind: "contributionSubmissionToSmartStorageProposal",
+        layerMapping: {
+          bronze: expect.stringContaining("Sources"),
+          gold: expect.stringContaining("Knowledge Entries"),
+          silver: expect.stringContaining("Smart Storage Proposals"),
+        },
+        modelProviderStrategy: {
+          currentAdapter: expect.stringContaining("OpenAI"),
+          futureAdapter: expect.stringContaining("self-hosted"),
+          localFirst: expect.stringContaining("deterministic"),
+        },
+        version: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
+      },
+      sourceInterpretationPolicy: {
+        authoredTextSource: expect.stringContaining("Authored Text Source"),
+        editorGuidance: expect.stringContaining("slim Contribution Editor"),
+        storedContributionNote: expect.stringContaining(
+          "Do not synthesize contributionSubmission.contributionNote",
+        ),
+      },
+      sources: [
+        expect.objectContaining({
+          rawText: modelSourceText,
+          sourceKind: "pastedText",
+        }),
+      ],
+    });
 
     const rowState = await t.run(async (ctx) => {
       const run = await ctx.db.get(startResult.smartStorageRunId);
@@ -992,6 +1393,36 @@ describe("Smart Storage contribution spine", () => {
         submissionStatus: "reviewReady",
       }),
     );
+  });
+
+  test("defaults model Runs to the low-cost Smart Storage model", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-openai-key");
+    vi.stubEnv("OPENAI_SMART_STORAGE_MODEL", "");
+    const fetchMock = vi.fn(
+      async (_url: string | URL | Request, _init?: RequestInit) =>
+        new Response(JSON.stringify({ output: [] }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const startResult = await authed.mutation(
+      api.smartStorage.startFromContribution,
+      getLessonSmartStorageInput(),
+    );
+
+    await authed.action(api.smartStorage.executeModelRun, {
+      smartStorageRunId: startResult.smartStorageRunId,
+    });
+
+    const requestInit = fetchMock.mock.calls[0]?.[1];
+    const requestBody = JSON.parse(String(requestInit?.body));
+    expect(requestBody).toMatchObject({
+      max_output_tokens: 1_000,
+      model: "gpt-5.4-nano",
+      reasoning: { effort: "low" },
+      text: { verbosity: "low" },
+    });
   });
 
   test("marks a model Run failed when OPENAI_API_KEY is missing", async () => {
@@ -1286,7 +1717,7 @@ describe("Smart Storage contribution spine", () => {
       const contributionSubmission = await ctx.db.get(
         startResult.contributionSubmissionId,
       );
-      const contextTagIds = (
+      const entryContextTagIds = (
         await ctx.db
           .query("entryTags")
           .withIndex("by_entryId_and_tagPurpose", (q) =>
@@ -1296,7 +1727,17 @@ describe("Smart Storage contribution spine", () => {
       )
         .map((entryTag) => entryTag.tagId)
         .sort();
+      const contextTagIds = await getContextTagIdsForSnapshots(
+        ctx,
+        getJoshuaContextTags(),
+      );
       const contextKey = getContextKey(contextTagIds);
+      const organizationTag = await getTagByLookup(
+        ctx,
+        "organization",
+        "arche-classical-academy",
+      );
+      const personTag = await getTagByLookup(ctx, "person", "smart-storage-user");
       const contextExpertiseEvidence = await ctx.db
         .query("contextExpertiseEvidence")
         .withIndex("by_entryId_and_createdAt", (q) =>
@@ -1316,8 +1757,11 @@ describe("Smart Storage contribution spine", () => {
         contextExpertiseEvidence,
         contextKey,
         contextTagIds,
+        entryContextTagIds,
         entry,
+        organizationTag,
         outputs,
+        personTag,
         proposal,
         quoteRows,
         representations,
@@ -1351,6 +1795,13 @@ describe("Smart Storage contribution spine", () => {
         sourceId: startResult.sourceId,
       }),
     ]);
+    expect(rowState.entryContextTagIds).toEqual(
+      expect.arrayContaining([
+        ...rowState.contextTagIds,
+        rowState.organizationTag._id,
+        rowState.personTag._id,
+      ]),
+    );
     expect(rowState.quoteRows).toEqual([]);
     expect(rowState.proposal).toEqual(
       expect.objectContaining({
@@ -1655,7 +2106,7 @@ describe("Smart Storage contribution spine", () => {
         .query("quoteEntries")
         .withIndex("by_entryId", (q) => q.eq("entryId", accepted.entryId!))
         .collect();
-      const contextTagIds = (
+      const entryContextTagIds = (
         await ctx.db
           .query("entryTags")
           .withIndex("by_entryId_and_tagPurpose", (q) =>
@@ -1665,6 +2116,18 @@ describe("Smart Storage contribution spine", () => {
       )
         .map((entryTag) => entryTag.tagId)
         .sort();
+      const contextTagIds = await getContextTagIdsForSnapshots(
+        ctx,
+        getQuoteContextTags([
+          {
+            canonicalKey: "cs-lewis",
+            href: "/goto/cs-lewis",
+            id: "cs-lewis",
+            knowledgeType: "person" as const,
+            label: "C.S. Lewis",
+          },
+        ]),
+      );
       const contextKey = getContextKey(contextTagIds);
       const contextExpertiseEvidence = await ctx.db
         .query("contextExpertiseEvidence")
@@ -1694,6 +2157,7 @@ describe("Smart Storage contribution spine", () => {
         contextExpertiseEvidence,
         contextKey,
         contextTagIds,
+        entryContextTagIds,
         lewis,
         personAggregate,
         quoteRows,
@@ -1713,6 +2177,9 @@ describe("Smart Storage contribution spine", () => {
         sourceText: body,
       }),
     ]);
+    expect(rowState.entryContextTagIds).toEqual(
+      expect.arrayContaining(rowState.contextTagIds),
+    );
     expect(rowState.contextExpertiseEvidence).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -2020,6 +2487,145 @@ describe("Smart Storage contribution spine", () => {
     );
   });
 
+  test("acceptance adds source preview image as a non-primary thumbnail when no upload supplies one", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const startResult = await authed.mutation(
+      api.smartStorage.startFromContribution,
+      {
+        body: "Objective: students will distinguish courage from presumption.",
+        contextTags: getJoshuaContextTags(),
+        externalUrls: [
+          {
+            linkPreviewImageUrl: "https://images.example/courage.jpg",
+            linkPreviewTitle: "Courage source",
+            url: "https://example.com/courage",
+          },
+        ],
+        knowledgeType: "lesson",
+        title: "Courage in Joshua",
+      },
+    );
+    const proposalResult = await authed.mutation(
+      api.smartStorage.generateDraftProposalForRun,
+      {
+        smartStorageRunId: startResult.smartStorageRunId,
+      },
+    );
+
+    const accepted = await authed.mutation(api.smartStorage.acceptScaffoldProposal, {
+      smartStorageProposalId: proposalResult.smartStorageProposalId,
+    });
+
+    const rowState = await t.run(async (ctx) => {
+      const representations = await ctx.db
+        .query("entryRepresentations")
+        .withIndex("by_entryId_and_isPrimary", (q) =>
+          q.eq("entryId", accepted.entryId!),
+        )
+        .collect();
+      const outputs = await ctx.db
+        .query("sourceOutputs")
+        .withIndex("by_entryId_and_sourceId", (q) =>
+          q.eq("entryId", accepted.entryId!),
+        )
+        .collect();
+
+      return {
+        outputs,
+        representations,
+      };
+    });
+
+    expect(rowState.representations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          externalUrl: "https://images.example/courage.jpg",
+          isPrimary: false,
+          representationKind: "externalUrl",
+          representationRole: "thumbnail",
+        }),
+      ]),
+    );
+    expect(
+      rowState.representations.filter((representation) => representation.isPrimary),
+    ).toHaveLength(1);
+    expect(new Set(rowState.outputs.map((output) => output.sourceId)).size).toBe(
+      rowState.outputs.length,
+    );
+  });
+
+  test("adds an uploaded representative thumbnail to an accessible Knowledge Page entry", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const proposalResult = await createDraftProposal(
+      authed,
+      getLessonSmartStorageInput(),
+    );
+    const accepted = await authed.mutation(api.smartStorage.acceptScaffoldProposal, {
+      smartStorageProposalId: proposalResult.smartStorageProposalId,
+    });
+    const storageId = await storeTestImage(t, "thumbnail image");
+    const temporaryUpload = await authed.mutation(
+      api.smartStorage.createTemporaryUploadRecord,
+      {
+        contentType: "image/png",
+        fileName: "courage-thumbnail.png",
+        fileSizeBytes: 15,
+        storageId,
+      },
+    );
+
+    const result = await authed.mutation(api.smartStorage.addKnowledgePageThumbnail, {
+      entryId: accepted.entryId!,
+      uploadedFile: {
+        contentType: "image/png",
+        fileName: "courage-thumbnail.png",
+        fileSizeBytes: 15,
+        storageId,
+        temporaryUploadId: temporaryUpload.temporaryUploadId,
+      },
+    });
+
+    expect(result).toMatchObject({
+      entryId: accepted.entryId,
+      status: "added",
+      thumbnailUrl: expect.any(String),
+    });
+    const rowState = await t.run(async (ctx) => {
+      const representations = await ctx.db
+        .query("entryRepresentations")
+        .withIndex("by_entryId_and_representationKind", (q) =>
+          q.eq("entryId", accepted.entryId!).eq("representationKind", "storageFile"),
+        )
+        .collect();
+      const upload = await ctx.db.get(temporaryUpload.temporaryUploadId);
+
+      return {
+        representations,
+        upload,
+      };
+    });
+
+    expect(rowState.representations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fileName: "courage-thumbnail.png",
+          isPrimary: false,
+          representationRole: "thumbnail",
+          storageId,
+        }),
+      ]),
+    );
+    expect(rowState.upload).toEqual(
+      expect.objectContaining({
+        uploadStatus: "attached",
+      }),
+    );
+  });
+
   test("rejects invalid explicit Representation decisions during Proposal acceptance", async () => {
     const t = convexTest({ schema, modules });
     const userId = await t.run(insertAllowedUser);
@@ -2218,7 +2824,7 @@ describe("Smart Storage contribution spine", () => {
       const contributionSubmission = await ctx.db.get(
         secondProposal.contributionSubmissionId!,
       );
-      const contextTagIds = (
+      const entryContextTagIds = (
         await ctx.db
           .query("entryTags")
           .withIndex("by_entryId_and_tagPurpose", (q) =>
@@ -2228,7 +2834,12 @@ describe("Smart Storage contribution spine", () => {
       )
         .map((entryTag) => entryTag.tagId)
         .sort();
-      const contextKey = getContextKey(contextTagIds);
+      const entryContextKey = getContextKey(entryContextTagIds);
+      const postContextTagIds = await getContextTagIdsForSnapshots(
+        ctx,
+        getJoshuaContextTags(),
+      );
+      const postContextKey = getContextKey(postContextTagIds);
       const contextExpertiseEvidenceRows = await ctx.db
         .query("contextExpertiseEvidence")
         .withIndex("by_entryId_and_createdAt", (q) =>
@@ -2238,7 +2849,7 @@ describe("Smart Storage contribution spine", () => {
       const contextExpertiseAggregate = await ctx.db
         .query("contextExpertiseAggregates")
         .withIndex("by_subjectUserId_and_contextKey", (q) =>
-          q.eq("subjectUserId", userId).eq("contextKey", contextKey),
+          q.eq("subjectUserId", userId).eq("contextKey", postContextKey),
         )
         .unique();
 
@@ -2246,8 +2857,10 @@ describe("Smart Storage contribution spine", () => {
         contributionSubmission,
         contextExpertiseAggregate,
         contextExpertiseEvidenceRows,
-        contextKey,
-        contextTagIds,
+        entryContextKey,
+        entryContextTagIds,
+        postContextKey,
+        postContextTagIds,
         curationEvidenceRows: await ctx.db
           .query("contextExpertiseEvidence")
           .withIndex("by_smartStorageProposalId", (q) =>
@@ -2309,8 +2922,8 @@ describe("Smart Storage contribution spine", () => {
     );
     expect(postEvidence).toEqual(
       expect.objectContaining({
-        contextKey: rowState.contextKey,
-        contextTagIds: rowState.contextTagIds,
+        contextKey: rowState.postContextKey,
+        contextTagIds: rowState.postContextTagIds,
         entryId: firstAccepted.entryId,
         evidenceKind: "post",
         subjectUserId: userId,
@@ -2318,8 +2931,8 @@ describe("Smart Storage contribution spine", () => {
     );
     expect(curationEvidence).toEqual(
       expect.objectContaining({
-        contextKey: rowState.contextKey,
-        contextTagIds: rowState.contextTagIds,
+        contextKey: rowState.entryContextKey,
+        contextTagIds: rowState.entryContextTagIds,
         entryId: firstAccepted.entryId,
         evidenceKind: "curation",
         smartStorageProposalId: secondProposal.smartStorageProposalId,
@@ -2333,11 +2946,11 @@ describe("Smart Storage contribution spine", () => {
     expect(rowState.curationEvidenceRows).toEqual([curationEvidence]);
     expect(rowState.contextExpertiseAggregate).toEqual(
       expect.objectContaining({
-        contextExpertiseMaturity: 40,
-        contextExpertiseScore: 84,
-        contextKey: rowState.contextKey,
-        contextTagIds: rowState.contextTagIds,
-        evidenceCount: 2,
+        contextExpertiseMaturity: 20,
+        contextExpertiseScore: 72,
+        contextKey: rowState.postContextKey,
+        contextTagIds: rowState.postContextTagIds,
+        evidenceCount: 1,
         feedbackCount: 0,
         postCount: 1,
         subjectUserId: userId,
@@ -2348,15 +2961,15 @@ describe("Smart Storage contribution spine", () => {
     const rankedAggregates = await authed.query(
       api.contextExpertise.listForActiveTags,
       {
-        activeTagIds: rowState.contextTagIds,
+        activeTagIds: rowState.postContextTagIds,
         limit: 5,
       },
     );
     expect(rankedAggregates).toEqual([
       expect.objectContaining({
         aggregateId: rowState.contextExpertiseAggregate!._id,
-        contextExpertiseScore: 84,
-        evidenceCount: 2,
+        contextExpertiseScore: 72,
+        evidenceCount: 1,
         feedbackCount: 0,
         postCount: 1,
         subjectUserId: userId,
@@ -2488,6 +3101,33 @@ describe("Smart Storage contribution spine", () => {
         createdAt: now,
         updatedAt: now,
       });
+      await ctx.db.insert("entryRepresentations", {
+        entryId,
+        representationKind: "storageFile",
+        contentType: "image/png",
+        fileName: "chapel-thumbnail.png",
+        isPrimary: false,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await ctx.db.insert("entryRepresentations", {
+        entryId,
+        representationKind: "storageFile",
+        contentType: "application/pdf",
+        fileName: "chapel-manuscript.pdf",
+        isPrimary: false,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await ctx.db.insert("entryRepresentations", {
+        entryId,
+        representationKind: "storageFile",
+        contentType: "text/plain",
+        fileName: "chapel-transcript.txt",
+        isPrimary: false,
+        createdAt: now,
+        updatedAt: now,
+      });
     });
 
     const dryRun = await t.mutation(
@@ -2500,8 +3140,8 @@ describe("Smart Storage contribution spine", () => {
     expect(dryRun).toMatchObject({
       dryRun: true,
       isDone: true,
-      matchedCount: 5,
-      scannedCount: 5,
+      matchedCount: 8,
+      scannedCount: 8,
       updatedCount: 0,
     });
     const dryRunRows = await t.run(
@@ -2520,9 +3160,9 @@ describe("Smart Storage contribution spine", () => {
     expect(backfill).toMatchObject({
       dryRun: false,
       isDone: true,
-      matchedCount: 5,
-      scannedCount: 5,
-      updatedCount: 5,
+      matchedCount: 8,
+      scannedCount: 8,
+      updatedCount: 8,
     });
     const rowState = await t.run(async (ctx) => {
       const rows = await ctx.db.query("entryRepresentations").collect();
@@ -2552,6 +3192,18 @@ describe("Smart Storage contribution spine", () => {
         {
           representationKind: "video",
           representationRole: "recording",
+        },
+        {
+          representationKind: "storageFile",
+          representationRole: "thumbnail",
+        },
+        {
+          representationKind: "storageFile",
+          representationRole: "manuscript",
+        },
+        {
+          representationKind: "storageFile",
+          representationRole: "transcript",
         },
       ]),
     );
@@ -2890,6 +3542,58 @@ function getContextKey(tagIds: Array<Id<"tags">>) {
   return `tags:${[...tagIds].sort().join(",")}`;
 }
 
+async function getContextTagIdsForSnapshots(
+  ctx: MutationCtx,
+  snapshots: TestContextTagSnapshot[],
+) {
+  const tagIds: Array<Id<"tags">> = [];
+  for (const snapshot of snapshots) {
+    tagIds.push(
+      (
+        await getTagByLookup(
+          ctx,
+          snapshot.knowledgeType,
+          getSnapshotLookupKey(snapshot),
+        )
+      )._id,
+    );
+  }
+
+  return tagIds.sort();
+}
+
+async function getTagByLookup(
+  ctx: MutationCtx,
+  knowledgeType: Doc<"referents">["knowledgeType"],
+  lookupKey: string,
+) {
+  const tag = await ctx.db
+    .query("tags")
+    .withIndex("by_knowledgeType_and_lookupKey", (q) =>
+      q.eq("knowledgeType", knowledgeType).eq("lookupKey", lookupKey),
+    )
+    .unique();
+  if (!tag) {
+    throw new Error(`Missing ${knowledgeType} Tag "${lookupKey}".`);
+  }
+
+  return tag;
+}
+
+function getSnapshotLookupKey(snapshot: TestContextTagSnapshot) {
+  return normalizeLookupKey(snapshot.canonicalKey || snapshot.id || snapshot.label);
+}
+
+function normalizeLookupKey(value: string) {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return slug || "untitled";
+}
+
 async function insertJoshuaSlot(
   ctx: MutationCtx,
   {
@@ -2940,13 +3644,21 @@ async function insertJoshuaSlot(
 async function storeTestFile(
   t: ReturnType<typeof convexTest>,
   contents: string,
+  contentType = "application/pdf",
 ) {
   return await t.run(
     async (ctx) =>
       await ctx.storage.store(
-        new Blob([contents], { type: "application/pdf" }),
+        new Blob([contents], { type: contentType }),
       ),
   );
+}
+
+async function storeTestImage(
+  t: ReturnType<typeof convexTest>,
+  contents: string,
+) {
+  return await storeTestFile(t, contents, "image/png");
 }
 
 async function insertLegacySmartStorageRows(

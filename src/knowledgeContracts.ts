@@ -1,3 +1,6 @@
+// Frontend-facing domain contracts for Knowledge Types, contribution inputs,
+// Human Weight, and Smart Storage. Keep these values aligned with Convex
+// validators and the backend typeBehavior registry.
 export type KnowledgeType =
   | "words"
   | "biblePassage"
@@ -23,6 +26,14 @@ export type KnowledgeType =
 
 export type AuthorableKnowledgeType = Exclude<KnowledgeType, "biblePassage">;
 export type GuidedContributionType = Extract<AuthorableKnowledgeType, "group">;
+
+export function supportsRepresentativeThumbnail(knowledgeType: KnowledgeType) {
+  return (
+    knowledgeType !== "biblePassage" &&
+    knowledgeType !== "comment" &&
+    knowledgeType !== "words"
+  );
+}
 
 export const AUTHORABLE_KNOWLEDGE_TYPES = [
   "words",
@@ -136,6 +147,52 @@ export const CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION = {
   expectedConcernThreshold: 40,
   requiredConcernThreshold: 60,
 } as const;
+
+export type ComposerTitleInput = "required" | "hidden" | "addable";
+export type ComposerGeneratedTitleKind =
+  | "none"
+  | "bodyPreview"
+  | "parentComment";
+
+export type ComposerTitleBehavior = {
+  generatedTitleKind: ComposerGeneratedTitleKind;
+  input: ComposerTitleInput;
+  label: string;
+  placeholder?: string;
+  previewLabel: string;
+  primaryInput: boolean;
+  smartStorageTriggerWhenProvided: boolean;
+};
+
+const DEFAULT_COMPOSER_TITLE_BEHAVIOR: ComposerTitleBehavior = {
+  generatedTitleKind: "none",
+  input: "required",
+  label: "Title",
+  previewLabel: "Title",
+  primaryInput: false,
+  smartStorageTriggerWhenProvided: false,
+};
+
+const COMPOSER_TITLE_BEHAVIOR_OVERRIDES: Partial<
+  Record<AuthorableKnowledgeType, Partial<ComposerTitleBehavior>>
+> = {
+  comment: {
+    generatedTitleKind: "parentComment",
+    input: "hidden",
+  },
+  question: {
+    label: "Question",
+    placeholder: "Ask a question...",
+    previewLabel: "Question",
+    primaryInput: true,
+  },
+  words: {
+    generatedTitleKind: "bodyPreview",
+    input: "addable",
+    placeholder: "Optional title",
+    smartStorageTriggerWhenProvided: true,
+  },
+};
 
 export const HUMAN_WEIGHT_FEEDBACK_KINDS = [
   "recognize",
@@ -308,6 +365,21 @@ export type SmartStorageExternalUrlInput = {
   url: string;
 };
 
+export type DraftLinkPreviewResult =
+  | {
+      description?: string;
+      imageUrl?: string;
+      siteName?: string;
+      status: "fetched";
+      title?: string;
+      url: string;
+    }
+  | {
+      error?: string;
+      status: "failed";
+      url: string;
+    };
+
 export type SmartStorageProposedEntrySummary = {
   bodyPreview: string;
   contextTags: ActiveTag[];
@@ -423,6 +495,27 @@ export function formatKnowledgeTypeLabel(knowledgeType: KnowledgeType) {
   return KNOWLEDGE_TYPE_LABELS[knowledgeType];
 }
 
+export function getComposerTitleBehavior(
+  knowledgeType: AuthorableKnowledgeType,
+): ComposerTitleBehavior {
+  return {
+    ...DEFAULT_COMPOSER_TITLE_BEHAVIOR,
+    ...COMPOSER_TITLE_BEHAVIOR_OVERRIDES[knowledgeType],
+  };
+}
+
+export function isComposerTitleAddable(
+  knowledgeType: AuthorableKnowledgeType,
+) {
+  return getComposerTitleBehavior(knowledgeType).input === "addable";
+}
+
+export function isComposerTitleRequired(
+  knowledgeType: AuthorableKnowledgeType,
+) {
+  return getComposerTitleBehavior(knowledgeType).input === "required";
+}
+
 const AUTHORABLE_KNOWLEDGE_TYPE_SET = new Set<KnowledgeType>(
   AUTHORABLE_KNOWLEDGE_TYPES,
 );
@@ -459,7 +552,7 @@ export function isNonWeightBearingKnowledgeType(
 export function getDefaultHumanWeightExpectation(
   knowledgeType: KnowledgeType,
 ): HumanWeightExpectation {
-  if (knowledgeType === "essay") {
+  if (knowledgeType === "words" || knowledgeType === "essay") {
     return "expected";
   }
 

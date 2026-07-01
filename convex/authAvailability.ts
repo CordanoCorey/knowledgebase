@@ -7,6 +7,8 @@ import {
   hasResendAuth,
 } from "./authProviderConfig";
 
+// Auth availability lets the frontend hide provider buttons that are not
+// configured in the current deployment.
 export const get = query({
   args: {},
   returns: v.object({

@@ -1,5 +1,7 @@
 import archePressIconUrl from "../assets/arche-press_icon-full.svg";
 
+// Brand rendering stays in one component so shell/header variants share the same
+// accessible label and asset treatment.
 type LogeionBrandProps = {
   className?: string;
   density?: "full" | "compact";

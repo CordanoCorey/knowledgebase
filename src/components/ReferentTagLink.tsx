@@ -6,6 +6,8 @@ import {
 } from "../knowledgeContext";
 import { KnowledgeTypeIcon } from "./KnowledgeTypeIcon";
 
+// Resolve display labels to canonical tag hrefs at the UI edge, keeping plain
+// text labels usable in shared contracts.
 type ReferentTagLinkProps = {
   children?: ReactNode;
   className?: string;

@@ -15,11 +15,59 @@ const modules = {
   "./lib/appAccess.ts": () => import("./lib/appAccess"),
   "./lib/contextExpertiseEvidence.ts": () =>
     import("./lib/contextExpertiseEvidence"),
+  "./lib/fileRepresentationRoles.ts": () =>
+    import("./lib/fileRepresentationRoles"),
   "./lib/humanWeightEvidence.ts": () => import("./lib/humanWeightEvidence"),
   "./lib/typeBehavior.ts": () => import("./lib/typeBehavior"),
 };
 
 const BASE_TIME = Date.UTC(2026, 5, 1, 12);
+const DIRECT_FILE_ROLE_CASES = [
+  {
+    contentType: "application/pdf",
+    expectedRole: "manuscript",
+    fileName: "chapel-manuscript.pdf",
+    label: "manuscript",
+  },
+  {
+    contentType:
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    expectedRole: "slides",
+    fileName: "chapel-slides.pptx",
+    label: "slides",
+  },
+  {
+    contentType: "text/plain",
+    expectedRole: "transcript",
+    fileName: "chapel-transcript.txt",
+    label: "transcript",
+  },
+  {
+    contentType: "audio/mpeg",
+    expectedRole: "recording",
+    fileName: "chapel-recording.mp3",
+    label: "audio recording",
+  },
+  {
+    contentType: "video/mp4",
+    expectedRole: "recording",
+    fileName: "chapel-video.mp4",
+    label: "video recording",
+  },
+  {
+    contentType: "image/jpeg",
+    expectedRole: "thumbnail",
+    fileName: "chapel-thumbnail.jpg",
+    label: "thumbnail",
+  },
+  {
+    contentType:
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    expectedRole: "supportingMaterial",
+    fileName: "chapel-handout.docx",
+    label: "supporting material",
+  },
+] as const;
 
 describe("Direct Contributions", () => {
   test("creates a durable Words Knowledge Entry and makes it visible in the Answer Feed", async () => {
@@ -82,7 +130,11 @@ describe("Direct Contributions", () => {
       if (!courageTag) {
         throw new Error("Courage tag was not created.");
       }
-      const contextKey = getContextKey([seed.joshuaTagId, courageTag._id]);
+      const contextTagIds = [
+        seed.joshuaTagId,
+        courageTag._id,
+      ].sort();
+      const contextKey = getContextKey(contextTagIds);
       const entryTags = await ctx.db
         .query("entryTags")
         .withIndex("by_entryId_and_tagId", (q) => q.eq("entryId", result.entryId))
@@ -99,17 +151,29 @@ describe("Direct Contributions", () => {
           q.eq("subjectUserId", seed.userId).eq("contextKey", contextKey),
         )
         .unique();
+      const entryRepresentations = await ctx.db
+        .query("entryRepresentations")
+        .withIndex("by_entryId_and_isPrimary", (q) =>
+          q.eq("entryId", result.entryId),
+        )
+        .collect();
 
       return {
         contextExpertiseAggregate,
         courageTag,
         contextExpertiseEvidence,
         contextKey,
+        contextTagIds,
         entry,
+        entryRepresentations,
         entryTags,
         primaryTag,
         representedReferent,
+        contributionSubmissionCount: (
+          await ctx.db.query("contributionSubmissions").collect()
+        ).length,
         sourceCount: (await ctx.db.query("sources").collect()).length,
+        sourceOutputCount: (await ctx.db.query("sourceOutputs").collect()).length,
         smartStorageProposalCount: (
           await ctx.db.query("smartStorageProposals").collect()
         ).length,
@@ -129,6 +193,15 @@ describe("Direct Contributions", () => {
         discoverabilityKind: "public",
       }),
     );
+    expect(rowState.entryRepresentations).toEqual([
+      expect.objectContaining({
+        entryId: result.entryId,
+        isPrimary: true,
+        plainText: "A youth-ready lesson bridge from courage into obedience.",
+        representationKind: "plainText",
+        representationRole: "primaryContent",
+      }),
+    ]);
     expect(rowState.representedReferent).toEqual(
       expect.objectContaining({
         canonicalName: "Hopeful courage in Joshua",
@@ -164,15 +237,27 @@ describe("Direct Contributions", () => {
           tagPurpose: "context",
           taggedByUserId: seed.userId,
         }),
+        expect.objectContaining({
+          tagId: seed.personTagId,
+          tagPurpose: "context",
+          taggedByUserId: seed.userId,
+        }),
+        expect.objectContaining({
+          tagId: seed.organizationTagId,
+          tagPurpose: "context",
+          taggedByUserId: seed.userId,
+        }),
       ]),
     );
+    expect(rowState.contributionSubmissionCount).toBe(0);
     expect(rowState.sourceCount).toBe(0);
+    expect(rowState.sourceOutputCount).toBe(0);
     expect(rowState.smartStorageRunCount).toBe(0);
     expect(rowState.smartStorageProposalCount).toBe(0);
     expect(rowState.contextExpertiseEvidence).toEqual([
       expect.objectContaining({
         contextKey: rowState.contextKey,
-        contextTagIds: [seed.joshuaTagId, rowState.courageTag._id].sort(),
+        contextTagIds: rowState.contextTagIds,
         entryId: result.entryId,
         evidenceKind: "post",
         subjectUserId: seed.userId,
@@ -185,7 +270,7 @@ describe("Direct Contributions", () => {
         contextExpertiseMaturity: 20,
         contextExpertiseScore: 94,
         contextKey: rowState.contextKey,
-        contextTagIds: [seed.joshuaTagId, rowState.courageTag._id].sort(),
+        contextTagIds: rowState.contextTagIds,
         evidenceCount: 1,
         feedbackCount: 0,
         postCount: 1,
@@ -228,6 +313,197 @@ describe("Direct Contributions", () => {
       slotLimit: 10,
     });
     expect(getAnswerTitles(byKeysFeed)).toContain("Hopeful courage in Joshua");
+  });
+
+  test("stores direct URL and file attachments as Entry Representations without Smart Storage rows", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedAllowedUserWithJoshuaTag);
+    const storageId = await storeTestFile(t, "Friday chapel program");
+    const temporaryUploadId = await t.run(async (ctx) => {
+      const now = BASE_TIME;
+      return await ctx.db.insert("temporaryUploads", {
+        storageId,
+        uploadedByUserId: seed.userId,
+        fileName: "chapel-program.pdf",
+        contentType: "application/pdf",
+        fileSizeBytes: 22,
+        uploadStatus: "uploaded",
+        expiresAt: now + 60_000,
+        createdAt: now,
+        updatedAt: now,
+      });
+    });
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    const result = await authed.mutation(
+      api.directContributions.postDirectContribution,
+      {
+        body: "Friday chapel notes.",
+        contextTags: [
+          {
+            canonicalKey: "joshua-1-6-9",
+            href: "/scripture/joshua-1-6-9",
+            id: "joshua-1-6-9",
+            knowledgeType: "biblePassage" as const,
+            label: "Joshua 1:6-9",
+            passageString: "Joshua 1:6-9",
+          },
+        ],
+        externalUrls: [
+          {
+            linkPreviewSiteName: "Example Chapel",
+            linkPreviewTitle: "Chapel Program",
+            url: "https://example.com/chapel-program",
+          },
+        ],
+        knowledgeType: "words" as const,
+        title: "Friday chapel notes",
+        uploadedFiles: [
+          {
+            contentType: "application/pdf",
+            fileName: "chapel-program.pdf",
+            fileSizeBytes: 22,
+            languageCode: "en",
+            storageId,
+            temporaryUploadId,
+          },
+        ],
+      },
+    );
+
+    const state = await t.run(async (ctx) => {
+      const entryRepresentations = await ctx.db
+        .query("entryRepresentations")
+        .withIndex("by_entryId_and_isPrimary", (q) =>
+          q.eq("entryId", result.entryId),
+        )
+        .collect();
+      const temporaryUpload = await ctx.db.get(temporaryUploadId);
+
+      return {
+        contributionSubmissionCount: (
+          await ctx.db.query("contributionSubmissions").collect()
+        ).length,
+        entryRepresentations,
+        sourceCount: (await ctx.db.query("sources").collect()).length,
+        sourceOutputCount: (await ctx.db.query("sourceOutputs").collect()).length,
+        smartStorageProposalCount: (
+          await ctx.db.query("smartStorageProposals").collect()
+        ).length,
+        smartStorageRunCount: (await ctx.db.query("smartStorageRuns").collect())
+          .length,
+        temporaryUpload,
+      };
+    });
+
+    expect(state.entryRepresentations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          entryId: result.entryId,
+          isPrimary: true,
+          plainText: "Friday chapel notes.",
+          representationKind: "plainText",
+          representationRole: "primaryContent",
+        }),
+        expect.objectContaining({
+          entryId: result.entryId,
+          externalUrl: "https://example.com/chapel-program",
+          isPrimary: false,
+          representationKind: "externalUrl",
+          representationRole: "supportingMaterial",
+        }),
+        expect.objectContaining({
+          contentType: "application/pdf",
+          entryId: result.entryId,
+          fileName: "chapel-program.pdf",
+          fileSizeBytes: 22,
+          isPrimary: false,
+          languageCode: "en",
+          representationKind: "storageFile",
+          representationRole: "supportingMaterial",
+          storageId,
+        }),
+      ]),
+    );
+    expect(state.entryRepresentations).toHaveLength(3);
+    expect(state.temporaryUpload).toEqual(
+      expect.objectContaining({
+        uploadStatus: "attached",
+      }),
+    );
+    expect(state.temporaryUpload).not.toHaveProperty(
+      "attachedContributionSubmissionId",
+    );
+    expect(state.contributionSubmissionCount).toBe(0);
+    expect(state.sourceCount).toBe(0);
+    expect(state.sourceOutputCount).toBe(0);
+    expect(state.smartStorageRunCount).toBe(0);
+    expect(state.smartStorageProposalCount).toBe(0);
+  });
+
+  test("infers direct uploaded file Representation Roles for stored file categories", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedAllowedUserWithJoshuaTag);
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    for (const fileCase of DIRECT_FILE_ROLE_CASES) {
+      const contents = `${fileCase.label} contents`;
+      const storageId = await storeTestFile(
+        t,
+        contents,
+        fileCase.contentType,
+      );
+      const temporaryUploadId = await t.run(async (ctx) => {
+        const now = BASE_TIME;
+        return await ctx.db.insert("temporaryUploads", {
+          storageId,
+          uploadedByUserId: seed.userId,
+          fileName: fileCase.fileName,
+          contentType: fileCase.contentType,
+          fileSizeBytes: contents.length,
+          uploadStatus: "uploaded",
+          expiresAt: now + 60_000,
+          createdAt: now,
+          updatedAt: now,
+        });
+      });
+
+      await authed.mutation(api.directContributions.postDirectContribution, {
+        body: `Notes for ${fileCase.label}.`,
+        contextTags: [],
+        knowledgeType: "words",
+        title: `Direct ${fileCase.label} attachment`,
+        uploadedFiles: [
+          {
+            contentType: "application/x-client-spoof",
+            fileName: `client-${fileCase.fileName}`,
+            fileSizeBytes: 999_999,
+            storageId,
+            temporaryUploadId,
+          },
+        ],
+      });
+
+      const fileRepresentation = await t.run(
+        async (ctx) =>
+          await ctx.db
+            .query("entryRepresentations")
+            .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
+            .unique(),
+      );
+
+      expect(fileRepresentation).toEqual(
+        expect.objectContaining({
+          contentType: fileCase.contentType,
+          fileName: fileCase.fileName,
+          fileSizeBytes: contents.length,
+          isPrimary: false,
+          representationKind: "storageFile",
+          representationRole: fileCase.expectedRole,
+          storageId,
+        }),
+      );
+    }
   });
 
   test("omits Human Weight for non-weight-bearing direct contributions", async () => {
@@ -351,7 +627,10 @@ describe("Direct Contributions", () => {
     );
 
     const rowState = await t.run(async (ctx) => {
-      const contextTagIds = [seed.joshuaTagId, seed.lewisTagId].sort();
+      const contextTagIds = [
+        seed.joshuaTagId,
+        seed.lewisTagId,
+      ].sort();
       const contextKey = getContextKey(contextTagIds);
       const quoteRows = await ctx.db
         .query("quoteEntries")
@@ -1039,8 +1318,21 @@ async function countEntries(t: ReturnType<typeof convexTest>) {
   });
 }
 
+async function storeTestFile(
+  t: ReturnType<typeof convexTest>,
+  contents: string,
+  contentType = "application/pdf",
+) {
+  return await t.run(
+    async (ctx) =>
+      await ctx.storage.store(
+        new Blob([contents], { type: contentType }),
+      ),
+  );
+}
+
 async function seedAllowedUserWithJoshuaTag(ctx: MutationCtx) {
-  const userId = await insertAllowedUser(ctx);
+  const allowedUser = await insertAllowedUser(ctx);
   const joshua = await insertTag(ctx, {
     canonicalKey: "joshua-1-6-9",
     knowledgeType: "biblePassage",
@@ -1049,7 +1341,9 @@ async function seedAllowedUserWithJoshuaTag(ctx: MutationCtx) {
 
   return {
     joshuaTagId: joshua.tagId,
-    userId,
+    organizationTagId: allowedUser.organizationTagId,
+    personTagId: allowedUser.personTagId,
+    userId: allowedUser.userId,
   };
 }
 
@@ -1099,7 +1393,11 @@ async function insertAllowedUser(ctx: MutationCtx) {
     updatedAt: now,
   });
 
-  return userId;
+  return {
+    organizationTagId: organization.tagId,
+    personTagId: person.tagId,
+    userId,
+  };
 }
 
 async function insertActiveUser(ctx: MutationCtx) {

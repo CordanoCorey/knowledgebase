@@ -14,6 +14,8 @@ import {
 import { api } from "../../convex/_generated/api";
 import { LogeionBrand } from "../components/LogeionBrand";
 
+// AuthPanel keeps provider-specific auth flows at the edge of the app; callers
+// only supply copy and callbacks for successful authentication.
 type PasswordFlow = "signIn" | "signUp" | "reset" | "reset-verification";
 type AuthMethod = "password" | "resend";
 type PendingProvider = "google" | "password" | "resend" | null;

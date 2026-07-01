@@ -26,6 +26,8 @@ import {
   type HumanWeightExpectation,
 } from "./lib/typeBehavior";
 
+// Answer feed queries project durable Knowledge Entries and open Slots into the
+// same UI contract, while keeping result sets bounded for realtime subscriptions.
 const DEFAULT_ANSWER_LIMIT = 20;
 const DEFAULT_EXPERT_LIMIT = 3;
 const DEFAULT_SLOT_LIMIT = 10;
@@ -398,6 +400,36 @@ export const listForActiveTagKeys = query({
   },
 });
 
+export const listAssignedSlotsForCurrentUser = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  returns: v.array(knowledgeSlotSummary),
+  handler: async (ctx, args): Promise<KnowledgeSlotSummary[]> => {
+    const access = await requireAppAccess(ctx);
+    const limit = normalizeLimit(args.limit, DEFAULT_SLOT_LIMIT, MAX_SLOT_LIMIT);
+    if (limit < 1) {
+      return [];
+    }
+
+    const candidateSlots = await getAssignedSlotCandidatesForUser(
+      ctx,
+      access.userId,
+      getCandidateLimit(limit),
+    );
+    const slotItems = [];
+
+    for (const slot of candidateSlots) {
+      slotItems.push({
+        kind: "slot" as const,
+        slot: await summarizeSlot(ctx, slot),
+      });
+    }
+
+    return slotItems.sort(compareSlotItems).slice(0, limit).map((item) => item.slot);
+  },
+});
+
 export const listExpertsForActiveTags = query({
   args: {
     activeTagIds: v.array(v.id("tags")),
@@ -640,7 +672,7 @@ async function getMatchingAnswerEntries(
     }
   }
 
-  return matchingEntries.sort(compareEntries).slice(0, limit);
+  return matchingEntries.sort(compareEntries).slice(0, candidateLimit);
 }
 
 async function getGlobalAnswerCandidates(
@@ -810,6 +842,37 @@ async function getSlotCandidatesByStatus(ctx: QueryCtx, candidateLimit: number) 
 
     for (const slot of statusSlots) {
       if (!seenSlotIds.has(slot._id)) {
+        seenSlotIds.add(slot._id);
+        slots.push(slot);
+      }
+    }
+  }
+
+  return slots;
+}
+
+async function getAssignedSlotCandidatesForUser(
+  ctx: QueryCtx,
+  userId: Id<"users">,
+  candidateLimit: number,
+) {
+  const slots = [];
+  const seenSlotIds = new Set<string>();
+
+  for (const status of ["overdue", "open"] as const) {
+    const statusSlots = await ctx.db
+      .query("knowledgeSlots")
+      .withIndex("by_targetUserId_and_status_and_dueAt", (q) =>
+        q.eq("targetUserId", userId).eq("status", status),
+      )
+      .take(candidateLimit);
+
+    for (const slot of statusSlots) {
+      if (
+        slot.targetKind === "user" &&
+        slot.targetUserId === userId &&
+        !seenSlotIds.has(slot._id)
+      ) {
         seenSlotIds.add(slot._id);
         slots.push(slot);
       }

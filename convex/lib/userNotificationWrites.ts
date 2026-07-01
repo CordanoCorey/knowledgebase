@@ -1,6 +1,8 @@
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 
+// Notification write helpers keep subscription fanout bounded and separate from
+// feature mutations that create the underlying event.
 const MAX_ORGANIZATION_NOTIFICATION_RECIPIENTS = 100;
 const MAX_NOTIFICATION_ROWS_PER_SOURCE = 100;
 

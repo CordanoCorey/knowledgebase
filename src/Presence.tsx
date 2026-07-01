@@ -1,5 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 
+// Presence is presentation-only for now: realtime collaborator data can later
+// plug in without changing every editor surface.
 export type PresenceState = "enter" | "exit";
 
 const DEFAULT_EXIT_DURATION_MS = 180;

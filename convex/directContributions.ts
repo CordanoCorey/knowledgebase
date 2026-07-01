@@ -2,9 +2,16 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, type MutationCtx } from "./_generated/server";
 import { requireAppAccess } from "./lib/appAccess";
+import {
+  appendAutomaticContextTags,
+  insertEntryContextTags,
+} from "./lib/automaticContextTags";
 import { recordContextExpertiseEvidence } from "./lib/contextExpertiseEvidence";
+import { inferFileRepresentationRoleFromMetadata } from "./lib/fileRepresentationRoles";
 import { getApplicableHumanWeight } from "./lib/typeBehavior";
 
+// Direct contributions bypass model proposal generation and write reviewed
+// Knowledge Entries immediately from explicit user input.
 const MAX_TITLE_LENGTH = 240;
 const MAX_BODY_LENGTH = 40_000;
 const MAX_PREVIEW_TEXT_LENGTH = 500;
@@ -13,6 +20,11 @@ const MAX_CONTEXT_TAGS = 20;
 const MAX_CONTEXT_PREVIEW_TAG_LABELS = 6;
 const MAX_CONTEXT_TAG_FIELD_LENGTH = 240;
 const MAX_CONTEXT_TAG_HREF_LENGTH = 500;
+const MAX_DIRECT_ATTACHMENTS = 20;
+const MAX_DIRECT_URL_LENGTH = 2_000;
+const MAX_DIRECT_FILE_NAME_LENGTH = 500;
+const MAX_DIRECT_CONTENT_TYPE_LENGTH = 120;
+const MAX_DIRECT_LANGUAGE_CODE_LENGTH = 35;
 const DIRECT_CONTRIBUTION_HUMAN_WEIGHT = 82;
 
 const referentKnowledgeType = v.union(
@@ -71,6 +83,25 @@ const contextTagSnapshot = v.object({
   passageString: v.optional(v.string()),
 });
 
+const directExternalUrlInput = v.object({
+  linkPreviewDescription: v.optional(v.string()),
+  linkPreviewImageUrl: v.optional(v.string()),
+  linkPreviewSiteName: v.optional(v.string()),
+  linkPreviewTitle: v.optional(v.string()),
+  title: v.optional(v.string()),
+  url: v.string(),
+});
+
+const directUploadedFileInput = v.object({
+  contentType: v.optional(v.string()),
+  fileName: v.string(),
+  fileSizeBytes: v.optional(v.number()),
+  languageCode: v.optional(v.string()),
+  storageId: v.id("_storage"),
+  temporaryUploadId: v.optional(v.id("temporaryUploads")),
+  title: v.optional(v.string()),
+});
+
 const contributorSummary = v.object({
   id: v.string(),
   name: v.string(),
@@ -91,6 +122,7 @@ const knowledgeEntrySummary = v.object({
 });
 
 type EntryKnowledgeType = Doc<"knowledgeEntries">["knowledgeType"];
+type EntryRepresentationRole = Doc<"entryRepresentations">["representationRole"];
 type ReferentKnowledgeType = Doc<"referents">["knowledgeType"];
 type ContextTagSnapshotInput = {
   canonicalKey: string;
@@ -100,14 +132,33 @@ type ContextTagSnapshotInput = {
   label: string;
   passageString?: string;
 };
+type DirectExternalUrlInput = {
+  linkPreviewDescription?: string;
+  linkPreviewImageUrl?: string;
+  linkPreviewSiteName?: string;
+  linkPreviewTitle?: string;
+  title?: string;
+  url: string;
+};
+type DirectUploadedFileInput = {
+  contentType?: string;
+  fileName: string;
+  fileSizeBytes?: number;
+  languageCode?: string;
+  storageId: Id<"_storage">;
+  temporaryUploadId?: Id<"temporaryUploads">;
+  title?: string;
+};
 
 export const postDirectContribution = mutation({
   args: {
     body: v.string(),
     contextTags: v.array(contextTagSnapshot),
+    externalUrls: v.optional(v.array(directExternalUrlInput)),
     knowledgeType: entryKnowledgeType,
     slotId: v.optional(v.string()),
     title: v.string(),
+    uploadedFiles: v.optional(v.array(directUploadedFileInput)),
   },
   returns: v.object({
     entry: knowledgeEntrySummary,
@@ -145,10 +196,19 @@ export const postDirectContribution = mutation({
       normalizeContextTags(args.contextTags),
       access.userId,
     );
+    const entryContextTags = await appendAutomaticContextTags(ctx, {
+      contextTags,
+      organizations: access.organizations,
+      representedTagId: represented.primaryTagId,
+      taggedByUserId: access.userId,
+    });
     if (slotFulfillment !== undefined) {
       await assertContributionIncludesSlotTags(
         slotContextTagIds ?? [],
-        contextTags.map((tag) => tag._id),
+        [
+          represented.primaryTagId,
+          ...entryContextTags.map((tag) => tag._id),
+        ],
       );
     }
     const previewText = buildPreviewText(args.knowledgeType, body);
@@ -167,7 +227,7 @@ export const postDirectContribution = mutation({
       title,
       previewText,
       searchText: limitString(
-        [title, body, ...contextTags.map((tag) => tag.label)].join(" "),
+        [title, body, ...entryContextTags.map((tag) => tag.label)].join(" "),
         MAX_SEARCH_TEXT_LENGTH,
       ),
       primaryTagLabel: represented.primaryTagLabel,
@@ -191,15 +251,21 @@ export const postDirectContribution = mutation({
       taggedByUserId: access.userId,
     });
 
-    for (const tag of contextTags) {
-      await ctx.db.insert("entryTags", {
-        entryId,
-        tagId: tag._id,
-        tagPurpose: "context",
-        taggedAt: now,
-        taggedByUserId: access.userId,
-      });
-    }
+    await insertEntryContextTags(ctx, {
+      contextTags: entryContextTags,
+      entryId,
+      now,
+      taggedByUserId: access.userId,
+    });
+
+    await insertDirectEntryRepresentations(ctx, {
+      body,
+      entryId,
+      externalUrls: args.externalUrls ?? [],
+      now,
+      uploadedByUserId: access.userId,
+      uploadedFiles: args.uploadedFiles ?? [],
+    });
 
     await recordContextExpertiseEvidence(ctx, {
       contextTagIds: contextTags.map((tag) => tag._id),
@@ -269,6 +335,233 @@ export const postDirectContribution = mutation({
     };
   },
 });
+
+async function insertDirectEntryRepresentations(
+  ctx: MutationCtx,
+  {
+    body,
+    entryId,
+    externalUrls,
+    now,
+    uploadedByUserId,
+    uploadedFiles,
+  }: {
+    body: string;
+    entryId: Id<"knowledgeEntries">;
+    externalUrls: DirectExternalUrlInput[];
+    now: number;
+    uploadedByUserId: Id<"users">;
+    uploadedFiles: DirectUploadedFileInput[];
+  },
+) {
+  if (externalUrls.length + uploadedFiles.length > MAX_DIRECT_ATTACHMENTS) {
+    throw new Error(
+      `Direct posting supports at most ${MAX_DIRECT_ATTACHMENTS} attachments.`,
+    );
+  }
+
+  const normalizedExternalUrls = normalizeDirectExternalUrls(externalUrls);
+  const normalizedUploadedFiles = normalizeDirectUploadedFiles(uploadedFiles);
+  let hasPrimaryRepresentation = false;
+  const plainText = body.trim();
+
+  if (plainText) {
+    await ctx.db.insert("entryRepresentations", {
+      entryId,
+      representationKind: "plainText",
+      representationRole: "primaryContent",
+      plainText,
+      isPrimary: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+    hasPrimaryRepresentation = true;
+  }
+
+  for (const externalUrl of normalizedExternalUrls) {
+    const isPrimary = !hasPrimaryRepresentation;
+    await ctx.db.insert("entryRepresentations", {
+      entryId,
+      representationKind: "externalUrl",
+      representationRole: isPrimary ? "primaryContent" : "supportingMaterial",
+      externalUrl,
+      isPrimary,
+      createdAt: now,
+      updatedAt: now,
+    });
+    hasPrimaryRepresentation = true;
+  }
+
+  for (const uploadedFile of normalizedUploadedFiles) {
+    const temporaryUpload = await attachDirectTemporaryUpload(ctx, {
+      now,
+      uploadedByUserId,
+      uploadedFile,
+    });
+    const attachedUploadedFile = normalizeAttachedDirectUploadedFile(
+      uploadedFile,
+      temporaryUpload,
+    );
+
+    const isPrimary = !hasPrimaryRepresentation;
+    await ctx.db.insert("entryRepresentations", {
+      entryId,
+      representationKind: "storageFile",
+      representationRole: isPrimary
+        ? "primaryContent"
+        : inferStorageFileRepresentationRole(attachedUploadedFile),
+      storageId: attachedUploadedFile.storageId,
+      fileName: attachedUploadedFile.fileName,
+      ...(attachedUploadedFile.contentType === undefined
+        ? {}
+        : { contentType: attachedUploadedFile.contentType }),
+      ...(attachedUploadedFile.fileSizeBytes === undefined
+        ? {}
+        : { fileSizeBytes: attachedUploadedFile.fileSizeBytes }),
+      ...(attachedUploadedFile.languageCode === undefined
+        ? {}
+        : { languageCode: attachedUploadedFile.languageCode }),
+      isPrimary,
+      createdAt: now,
+      updatedAt: now,
+    });
+    hasPrimaryRepresentation = true;
+  }
+}
+
+function normalizeDirectExternalUrls(externalUrls: DirectExternalUrlInput[]) {
+  const normalizedUrls = new Map<string, string>();
+
+  for (const externalUrl of externalUrls) {
+    const url = normalizeDirectExternalUrl(externalUrl.url);
+    normalizedUrls.set(url, url);
+  }
+
+  return Array.from(normalizedUrls.values());
+}
+
+function normalizeDirectExternalUrl(value: string) {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
+    throw new Error("Direct attachment URL is required.");
+  }
+  if (trimmedValue.length > MAX_DIRECT_URL_LENGTH) {
+    throw new Error(
+      `Direct attachment URL supports at most ${MAX_DIRECT_URL_LENGTH} characters.`,
+    );
+  }
+
+  let parsed: URL;
+
+  try {
+    parsed = new URL(trimmedValue);
+  } catch {
+    throw new Error("Direct attachment URL must be valid.");
+  }
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error("Direct attachment URL must use HTTP or HTTPS.");
+  }
+
+  return parsed.href;
+}
+
+function normalizeDirectUploadedFiles(uploadedFiles: DirectUploadedFileInput[]) {
+  return uploadedFiles.map((uploadedFile) => {
+    const fileName = limitString(
+      uploadedFile.fileName,
+      MAX_DIRECT_FILE_NAME_LENGTH,
+    );
+    if (!fileName) {
+      throw new Error("Direct file attachment name is required.");
+    }
+
+    return {
+      contentType: limitOptionalString(
+        uploadedFile.contentType,
+        MAX_DIRECT_CONTENT_TYPE_LENGTH,
+      ),
+      fileName,
+      fileSizeBytes: normalizeOptionalFileSize(uploadedFile.fileSizeBytes),
+      languageCode: limitOptionalString(
+        uploadedFile.languageCode,
+        MAX_DIRECT_LANGUAGE_CODE_LENGTH,
+      ),
+      storageId: uploadedFile.storageId,
+      temporaryUploadId: uploadedFile.temporaryUploadId,
+      title: limitOptionalString(uploadedFile.title, MAX_TITLE_LENGTH),
+    };
+  });
+}
+
+async function attachDirectTemporaryUpload(
+  ctx: MutationCtx,
+  {
+    now,
+    uploadedByUserId,
+    uploadedFile,
+  }: {
+    now: number;
+    uploadedByUserId: Id<"users">;
+    uploadedFile: DirectUploadedFileInput;
+  },
+): Promise<Doc<"temporaryUploads">> {
+  if (uploadedFile.temporaryUploadId === undefined) {
+    throw new Error("Direct file attachment requires a temporary upload record.");
+  }
+
+  const temporaryUpload = await ctx.db.get(uploadedFile.temporaryUploadId);
+  if (!temporaryUpload) {
+    throw new Error("Temporary upload not found.");
+  }
+  if (temporaryUpload.uploadedByUserId !== uploadedByUserId) {
+    throw new Error("Unauthorized");
+  }
+  if (temporaryUpload.storageId !== uploadedFile.storageId) {
+    throw new Error("Temporary upload storage ID mismatch.");
+  }
+  if (temporaryUpload.uploadStatus !== "uploaded") {
+    throw new Error("Temporary upload is not attachable.");
+  }
+
+  await ctx.db.patch(temporaryUpload._id, {
+    uploadStatus: "attached",
+    updatedAt: now,
+  });
+
+  return temporaryUpload;
+}
+
+function normalizeAttachedDirectUploadedFile(
+  uploadedFile: DirectUploadedFileInput,
+  temporaryUpload: Doc<"temporaryUploads">,
+): DirectUploadedFileInput {
+  const temporaryFileName = limitString(
+    temporaryUpload.fileName,
+    MAX_DIRECT_FILE_NAME_LENGTH,
+  );
+
+  return {
+    ...uploadedFile,
+    contentType: limitOptionalString(
+      temporaryUpload.contentType ?? uploadedFile.contentType,
+      MAX_DIRECT_CONTENT_TYPE_LENGTH,
+    ),
+    fileName: temporaryFileName || uploadedFile.fileName,
+    fileSizeBytes: normalizeOptionalFileSize(
+      temporaryUpload.fileSizeBytes ?? uploadedFile.fileSizeBytes,
+    ),
+  };
+}
+
+function inferStorageFileRepresentationRole(
+  uploadedFile: DirectUploadedFileInput,
+): EntryRepresentationRole {
+  return inferFileRepresentationRoleFromMetadata(
+    uploadedFile.contentType,
+    uploadedFile.fileName,
+  );
+}
 
 async function insertQuoteEntry(
   ctx: MutationCtx,
@@ -731,4 +1024,24 @@ function normalizeLookupKey(value: string) {
 function limitString(value: string, maxLength: number) {
   const trimmed = value.trim();
   return trimmed.length > maxLength ? trimmed.slice(0, maxLength) : trimmed;
+}
+
+function limitOptionalString(value: string | undefined, maxLength: number) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const limitedValue = limitString(value, maxLength);
+  return limitedValue || undefined;
+}
+
+function normalizeOptionalFileSize(fileSizeBytes: number | undefined) {
+  if (fileSizeBytes === undefined) {
+    return undefined;
+  }
+  if (!Number.isFinite(fileSizeBytes) || fileSizeBytes < 0) {
+    throw new Error("Direct file attachment size must be non-negative.");
+  }
+
+  return Math.floor(fileSizeBytes);
 }

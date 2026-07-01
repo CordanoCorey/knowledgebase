@@ -12,6 +12,10 @@ import {
 } from "./_generated/server";
 import { requireAppAccess } from "./lib/appAccess";
 import {
+  appendAutomaticContextTags,
+  insertEntryContextTags,
+} from "./lib/automaticContextTags";
+import {
   ENTRY_KNOWLEDGE_TYPES,
   getApplicableHumanWeight,
   getTypeBehavior,
@@ -23,7 +27,11 @@ import {
   getEntryContextTagIds,
   recordContextExpertiseEvidence,
 } from "./lib/contextExpertiseEvidence";
+import { inferFileRepresentationRoleFromMetadata } from "./lib/fileRepresentationRoles";
 
+// Smart Storage is a staged pipeline: preserve submitted sources, run bounded
+// proposal generation, then require explicit user acceptance before gold entries
+// or representations are written.
 const MAX_TITLE_LENGTH = 240;
 const MAX_SOURCE_TEXT_LENGTH = 40_000;
 const MAX_BODY_PREVIEW_LENGTH = 500;
@@ -58,15 +66,86 @@ const MAX_MODEL_INPUT_LENGTH = 24_000;
 const MAX_MODEL_ERROR_LENGTH = 500;
 
 const SMART_STORAGE_CONTRACT_KEY = "mvp-smart-storage-contract";
-const SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION =
-  "mvp-smart-storage-contract-v1";
-const SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT =
-  "Preserve a durable Contribution Submission with child Sources and queue conservative scaffold proposal generation.";
 const TYPE_BEHAVIOR_SNAPSHOT_TEXT =
   "Use the Type Behavior registry for identity, source citation, representation role, primary representation, Human Weight defaults, and Human Weight credit basis.";
+const SMART_STORAGE_SOURCE_INTERPRETATION_POLICY = {
+  authoredTextSource:
+    "sources[].rawText is Authored Text Source and must remain preserved as raw Source material.",
+  editorGuidance:
+    "The slim Contribution Editor does not ask the User to classify Contribution Notes, so guidance-like text may appear inside Authored Text Sources.",
+  guidanceUse:
+    "Use guidance-like text to steer proposal choices, source citations, proposalConfidence, and rationale when appropriate.",
+  representedKnowledge:
+    "Do not treat guidance-like text as represented knowledge by default.",
+  storedContributionNote:
+    "Do not synthesize contributionSubmission.contributionNote from source text; only separately supplied contributionSubmission.contributionNote is an explicit Contribution Note.",
+  ambiguity:
+    "If guidance and substantive material are ambiguous, lower proposalConfidence and explain the ambiguity in rationale.",
+} as const;
+const SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION =
+  "mvp-smart-storage-contract-v3";
+// The snapshot is persisted with each run/proposal so future model or schema
+// changes do not erase the contract used for an existing decision.
+const SMART_STORAGE_CONTRACT_SNAPSHOT = {
+  contractKind: "contributionSubmissionToSmartStorageProposal",
+  version: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
+  purpose:
+    "Answer what information the User intends to contribute, given the Knowledge Types currently understood by the app.",
+  layerMapping: {
+    bronze:
+      "Contribution Submissions preserve submitted Sources as close as possible to their original form.",
+    silver:
+      "Smart Storage Proposals are reviewable probability judgments about how Bronze Sources map to one proposed Knowledge Entry.",
+    gold:
+      "Knowledge Entries are confirmed typed knowledge created or updated only after user review.",
+  },
+  process: [
+    "Create a durable Contribution Submission and child Sources before model execution.",
+    "Queue one Smart Storage Run using the current Smart Storage Contract and Type Behavior snapshots.",
+    "Build request-specific input from the Contribution Submission, Sources, current Knowledge Context, and snapshots.",
+    "Ask the current model adapter for one structured Smart Storage Proposal.",
+    "Store a Silver Layer Proposal only after returned JSON is parsed and validated.",
+    "Keep failed, invalid, or no-proposal outcomes on the Smart Storage Run without creating a Proposal.",
+    "Require user confirmation before any Gold Layer Knowledge Entry is created or updated.",
+  ],
+  modelProviderStrategy: {
+    localFirst:
+      "Use deterministic application logic for previews, cheap scaffolds, and fallback behavior before relying on model output.",
+    currentAdapter:
+      "Call OpenAI's Responses API for the first LLM-backed Smart Storage implementation.",
+    futureAdapter:
+      "Keep the contract provider-neutral so a self-hosted proprietary model can replace the OpenAI adapter later.",
+  },
+  proposalShape: {
+    knowledgeType:
+      "One authorable Knowledge Type from the app's current Entry Knowledge Type set.",
+    title: "A bounded proposed Knowledge Entry title.",
+    bodyPreview:
+      "A bounded preview of the represented knowledge, not raw internal reasoning.",
+    contextTags:
+      "A bounded set of proposed Knowledge Context Tag snapshots for review.",
+    proposalConfidence:
+      "A coarse low, medium, or high review signal; not truth, Human Weight, or approval.",
+    rationale:
+      "A bounded explanation of why this Source appears to map to the proposed Knowledge Entry.",
+  },
+  sourceInterpretationPolicy: SMART_STORAGE_SOURCE_INTERPRETATION_POLICY,
+  boundaries: [
+    "Do not expose or rely on the raw Convex persistence schema as the model contract.",
+    "Do not synthesize Contribution Notes from Authored Text Sources.",
+    "Do not treat guidance-like Source text as represented knowledge by default.",
+    "Do not create Gold Layer Knowledge Entries from model output without user confirmation.",
+    "Do not invent extracted file, media, or URL facts when advanced extraction has not supplied them.",
+  ],
+} as const;
+const SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT = JSON.stringify(
+  SMART_STORAGE_CONTRACT_SNAPSHOT,
+  null,
+  2,
+);
 const DETERMINISTIC_GENERATOR_VERSION = "mvp-deterministic-scaffold-v1";
 const OPENAI_RESPONSES_API_URL = "https://api.openai.com/v1/responses";
-const DEFAULT_OPENAI_SMART_STORAGE_MODEL = "gpt-5.4-mini";
+const DEFAULT_OPENAI_SMART_STORAGE_MODEL = "gpt-5.4-nano";
 const SMART_STORAGE_MODEL_SCHEMA_NAME = "smart_storage_proposal";
 const SMART_STORAGE_PROPOSAL_JSON_SCHEMA = {
   type: "object",
@@ -156,6 +235,27 @@ type RepresentationDecisionInput = {
   isPrimary: boolean;
   representationRole: RepresentationRole;
   sourceId: Id<"sources">;
+};
+type ContributionUploadedFileInput = {
+  temporaryUploadId?: Id<"temporaryUploads">;
+  storageId: Id<"_storage">;
+  fileName: string;
+  contentType?: string;
+  fileSizeBytes?: number;
+  languageCode?: string;
+  title?: string;
+};
+type StoredFileMetadata = {
+  contentType?: string;
+  size: number;
+};
+type NormalizedUploadedFile = {
+  storageId: Id<"_storage">;
+  fileName: string;
+  contentType?: string;
+  fileSizeBytes?: number;
+  languageCode?: string;
+  title?: string;
 };
 type AcceptedRepresentationDecision = {
   isPrimary: boolean;
@@ -326,6 +426,37 @@ const contributionExternalUrl = v.object({
   linkPreviewImageUrl: v.optional(v.string()),
   linkPreviewSiteName: v.optional(v.string()),
 });
+
+const draftLinkPreviewResult = v.union(
+  v.object({
+    status: v.literal("fetched"),
+    url: v.string(),
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+    siteName: v.optional(v.string()),
+  }),
+  v.object({
+    status: v.literal("failed"),
+    url: v.string(),
+    error: v.string(),
+  }),
+);
+
+type DraftLinkPreviewResult =
+  | {
+      status: "fetched";
+      url: string;
+      title?: string;
+      description?: string;
+      imageUrl?: string;
+      siteName?: string;
+    }
+  | {
+      status: "failed";
+      url: string;
+      error: string;
+    };
 
 const proposalSourceCitationKind = v.union(
   v.literal("wholeSource"),
@@ -510,16 +641,17 @@ export const createTemporaryUploadRecord = mutation({
     const access = await requireAppAccess(ctx);
     const now = Date.now();
     const expiresAt = args.expiresAt ?? now + MAX_TEMPORARY_UPLOAD_AGE_MS;
+    const uploadedFile = await normalizeUploadedFileFromStorage(ctx, args);
     const temporaryUploadId = await ctx.db.insert("temporaryUploads", {
       storageId: args.storageId,
       uploadedByUserId: access.userId,
-      fileName: limitString(args.fileName, MAX_FILE_NAME_LENGTH),
-      ...(args.contentType === undefined
+      fileName: uploadedFile.fileName,
+      ...(uploadedFile.contentType === undefined
         ? {}
-        : { contentType: limitString(args.contentType, MAX_CONTENT_TYPE_LENGTH) }),
-      ...(args.fileSizeBytes === undefined
+        : { contentType: uploadedFile.contentType }),
+      ...(uploadedFile.fileSizeBytes === undefined
         ? {}
-        : { fileSizeBytes: args.fileSizeBytes }),
+        : { fileSizeBytes: uploadedFile.fileSizeBytes }),
       uploadStatus: "uploaded",
       expiresAt,
       createdAt: now,
@@ -538,6 +670,8 @@ export const createTemporaryUploadRecord = mutation({
   },
 });
 
+// Actions handle model/network work and delegate all database reads/writes to
+// queries/mutations so Convex transaction boundaries stay explicit.
 export const executeModelRun = action({
   args: {
     smartStorageRunId: v.id("smartStorageRuns"),
@@ -623,6 +757,68 @@ export const executeModelRun = action({
         smartStorageRunId: args.smartStorageRunId,
       });
     }
+  },
+});
+
+export const previewDraftExternalUrl = action({
+  args: {
+    url: v.string(),
+  },
+  returns: draftLinkPreviewResult,
+  handler: async (ctx, args): Promise<DraftLinkPreviewResult> => {
+    const requestedUrl = limitString(args.url, MAX_URL_LENGTH);
+    try {
+      const accessResult: null = await ctx.runQuery(
+        internal.smartStorage.verifyDraftLinkPreviewAccess,
+        {},
+      );
+      if (accessResult !== null) {
+        return {
+          status: "failed",
+          url: requestedUrl,
+          error: "Unauthorized",
+        };
+      }
+    } catch {
+      return {
+        status: "failed",
+        url: requestedUrl,
+        error: "Unauthorized",
+      };
+    }
+
+    const safeUrl = getSafeLinkPreviewUrl(args.url);
+    if (safeUrl.kind === "error") {
+      return {
+        status: "failed",
+        url: requestedUrl,
+        error: safeUrl.message,
+      };
+    }
+
+    try {
+      const metadata = await fetchLinkPreviewMetadata(safeUrl.url);
+      return {
+        ...metadata,
+        status: "fetched" as const,
+        url: safeUrl.url,
+      };
+    } catch (error) {
+      return {
+        status: "failed",
+        url: safeUrl.url,
+        error: getPreviewErrorMessage(error),
+      };
+    }
+  },
+});
+
+export const verifyDraftLinkPreviewAccess = internalQuery({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx): Promise<null> => {
+    await requireAppAccess(ctx);
+    return null;
   },
 });
 
@@ -1427,6 +1623,80 @@ export const generateUploadUrl = mutation({
   },
 });
 
+export const addKnowledgePageThumbnail = mutation({
+  args: {
+    entryId: v.id("knowledgeEntries"),
+    uploadedFile: contributionUploadedFile,
+  },
+  returns: v.object({
+    entryId: v.id("knowledgeEntries"),
+    status: v.literal("added"),
+    thumbnailUrl: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const access = await requireAppAccess(ctx);
+    const entry = await ctx.db.get(args.entryId);
+    if (!entry) {
+      throw new Error("Knowledge Entry not found.");
+    }
+    if (!supportsRepresentativeThumbnailType(entry.knowledgeType)) {
+      throw new Error("This Knowledge Type does not use representative thumbnails.");
+    }
+    if (!isKnowledgeEntryVisibleToAccess(entry, access)) {
+      throw new Error("Unauthorized");
+    }
+    if (await entryHasThumbnailRepresentation(ctx, entry._id)) {
+      throw new Error("Knowledge Entry already has a representative thumbnail.");
+    }
+
+    const now = Date.now();
+    const uploadedFile = await attachTemporaryUploadForKnowledgePageThumbnail(
+      ctx,
+      {
+        now,
+        uploadedByUserId: access.userId,
+        uploadedFile: args.uploadedFile,
+      },
+    );
+    if (
+      inferFileRepresentationRoleFromMetadata(
+        uploadedFile.contentType,
+        uploadedFile.fileName,
+      ) !== "thumbnail"
+    ) {
+      throw new Error("Representative thumbnail upload must be an image.");
+    }
+
+    await ctx.db.insert("entryRepresentations", {
+      entryId: entry._id,
+      representationKind: "storageFile",
+      representationRole: "thumbnail",
+      storageId: uploadedFile.storageId,
+      fileName: uploadedFile.fileName,
+      ...(uploadedFile.contentType === undefined
+        ? {}
+        : { contentType: uploadedFile.contentType }),
+      ...(uploadedFile.fileSizeBytes === undefined
+        ? {}
+        : { fileSizeBytes: uploadedFile.fileSizeBytes }),
+      ...(uploadedFile.languageCode === undefined
+        ? {}
+        : { languageCode: uploadedFile.languageCode }),
+      isPrimary: false,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const thumbnailUrl = await ctx.storage.getUrl(uploadedFile.storageId);
+
+    return {
+      entryId: entry._id,
+      status: "added" as const,
+      ...(thumbnailUrl === null ? {} : { thumbnailUrl }),
+    };
+  },
+});
+
 export const startFromContribution = mutation({
   args: {
     body: v.string(),
@@ -1520,41 +1790,36 @@ export const startFromContribution = mutation({
     }
 
     for (const uploadedFile of uploadedFiles) {
-      await attachTemporaryUploadIfPresent(ctx, {
+      const temporaryUpload = await attachTemporaryUploadIfPresent(ctx, {
         contributionSubmissionId,
         now,
         uploadedByUserId: access.userId,
         uploadedFile,
       });
+      const normalizedUploadedFile = await normalizeUploadedFileFromStorage(
+        ctx,
+        uploadedFile,
+        temporaryUpload,
+      );
       sourceIds.push(
         await ctx.db.insert("sources", {
           contributionSubmissionId,
           sourceKind: "uploadedFile",
           title: limitString(
-            uploadedFile.title ?? uploadedFile.fileName,
+            normalizedUploadedFile.title ?? normalizedUploadedFile.fileName,
             MAX_SOURCE_TITLE_LENGTH,
           ),
-          storageId: uploadedFile.storageId,
-          ...(uploadedFile.contentType === undefined
+          storageId: normalizedUploadedFile.storageId,
+          ...(normalizedUploadedFile.contentType === undefined
             ? {}
-            : {
-                contentType: limitString(
-                  uploadedFile.contentType,
-                  MAX_CONTENT_TYPE_LENGTH,
-                ),
-              }),
-          ...(uploadedFile.languageCode === undefined
+            : { contentType: normalizedUploadedFile.contentType }),
+          ...(normalizedUploadedFile.languageCode === undefined
             ? {}
-            : {
-                languageCode: limitString(
-                  uploadedFile.languageCode,
-                  MAX_LANGUAGE_CODE_LENGTH,
-                ),
-              }),
-          fileName: limitString(uploadedFile.fileName, MAX_FILE_NAME_LENGTH),
-          ...(uploadedFile.fileSizeBytes === undefined
+            : { languageCode: normalizedUploadedFile.languageCode }),
+          fileName: normalizedUploadedFile.fileName,
+          ...(normalizedUploadedFile.fileSizeBytes === undefined
             ? {}
-            : { fileSizeBytes: uploadedFile.fileSizeBytes }),
+            : { fileSizeBytes: normalizedUploadedFile.fileSizeBytes }),
           submittedByUserId: access.userId,
           submittedAt: now,
         }),
@@ -1912,6 +2177,17 @@ export const acceptScaffoldProposal = mutation({
           proposedEntry,
           representationDecisions,
         });
+        await insertEntryContextTags(ctx, {
+          contextTags: await appendAutomaticContextTags(ctx, {
+            contextTags: [],
+            organizations: access.organizations,
+            representedTagId: existingEntry.primaryTagId,
+            taggedByUserId: access.userId,
+          }),
+          entryId: existingEntry._id,
+          now,
+          taggedByUserId: access.userId,
+        });
         await recordContextExpertiseEvidence(ctx, {
           contextTagIds: await getEntryContextTagIds(ctx, existingEntry._id),
           entryId: existingEntry._id,
@@ -1963,10 +2239,19 @@ export const acceptScaffoldProposal = mutation({
       normalizeContextTags(proposedEntry.contextTags),
       access.userId,
     );
+    const entryContextTags = await appendAutomaticContextTags(ctx, {
+      contextTags,
+      organizations: access.organizations,
+      representedTagId: represented.primaryTagId,
+      taggedByUserId: access.userId,
+    });
     if (slotFulfillment !== undefined) {
       assertAcceptedEntryIncludesSlotTags(
         slotContextTagIds ?? [],
-        contextTags.map((tag) => tag._id),
+        [
+          represented.primaryTagId,
+          ...entryContextTags.map((tag) => tag._id),
+        ],
       );
     }
     const contextPreviewTagLabels = contextTags
@@ -1991,7 +2276,7 @@ export const acceptScaffoldProposal = mutation({
         [
           proposedEntry.title,
           proposedEntry.bodyPreview,
-          ...contextTags.map((tag) => tag.label),
+          ...entryContextTags.map((tag) => tag.label),
         ].join(" "),
         MAX_SEARCH_TEXT_LENGTH,
       ),
@@ -2016,15 +2301,12 @@ export const acceptScaffoldProposal = mutation({
       taggedAt: now,
       taggedByUserId: access.userId,
     });
-    for (const tag of contextTags) {
-      await ctx.db.insert("entryTags", {
-        entryId,
-        tagId: tag._id,
-        tagPurpose: "context",
-        taggedAt: now,
-        taggedByUserId: access.userId,
-      });
-    }
+    await insertEntryContextTags(ctx, {
+      contextTags: entryContextTags,
+      entryId,
+      now,
+      taggedByUserId: access.userId,
+    });
     await recordContextExpertiseEvidence(ctx, {
       contextTagIds: contextTags.map((tag) => tag._id),
       entryId,
@@ -2214,14 +2496,11 @@ async function attachTemporaryUploadIfPresent(
     contributionSubmissionId: Id<"contributionSubmissions">;
     now: number;
     uploadedByUserId: Id<"users">;
-    uploadedFile: {
-      temporaryUploadId?: Id<"temporaryUploads">;
-      storageId: Id<"_storage">;
-    };
+    uploadedFile: ContributionUploadedFileInput;
   },
-) {
+): Promise<Doc<"temporaryUploads"> | null> {
   if (uploadedFile.temporaryUploadId === undefined) {
-    return;
+    return null;
   }
 
   const temporaryUpload = await ctx.db.get(uploadedFile.temporaryUploadId);
@@ -2243,6 +2522,107 @@ async function attachTemporaryUploadIfPresent(
     attachedContributionSubmissionId: contributionSubmissionId,
     updatedAt: now,
   });
+
+  return temporaryUpload;
+}
+
+async function attachTemporaryUploadForKnowledgePageThumbnail(
+  ctx: MutationCtx,
+  {
+    now,
+    uploadedByUserId,
+    uploadedFile,
+  }: {
+    now: number;
+    uploadedByUserId: Id<"users">;
+    uploadedFile: ContributionUploadedFileInput;
+  },
+): Promise<NormalizedUploadedFile> {
+  if (uploadedFile.temporaryUploadId === undefined) {
+    throw new Error("Representative thumbnail requires a temporary upload record.");
+  }
+
+  const temporaryUpload = await ctx.db.get(uploadedFile.temporaryUploadId);
+  if (!temporaryUpload) {
+    throw new Error("Temporary upload not found.");
+  }
+  if (temporaryUpload.uploadedByUserId !== uploadedByUserId) {
+    throw new Error("Unauthorized");
+  }
+  if (temporaryUpload.storageId !== uploadedFile.storageId) {
+    throw new Error("Temporary upload storage ID mismatch.");
+  }
+  if (temporaryUpload.uploadStatus !== "uploaded") {
+    throw new Error("Temporary upload is not attachable.");
+  }
+
+  await ctx.db.patch(temporaryUpload._id, {
+    uploadStatus: "attached",
+    updatedAt: now,
+  });
+
+  return await normalizeUploadedFileFromStorage(ctx, uploadedFile, temporaryUpload);
+}
+
+// Normalize file metadata from Convex storage before source rows are created so
+// clients cannot accidentally persist stale or unbounded upload details.
+async function normalizeUploadedFileFromStorage(
+  ctx: MutationCtx,
+  uploadedFile: ContributionUploadedFileInput,
+  temporaryUpload?: Doc<"temporaryUploads"> | null,
+): Promise<NormalizedUploadedFile> {
+  const storedFile = await loadStoredFileMetadata(ctx, uploadedFile.storageId);
+
+  return normalizeUploadedFileMetadata({
+    contentType:
+      temporaryUpload?.contentType ??
+      storedFile.contentType ??
+      uploadedFile.contentType,
+    fileName: temporaryUpload?.fileName ?? uploadedFile.fileName,
+    fileSizeBytes:
+      temporaryUpload?.fileSizeBytes ??
+      storedFile.size ??
+      uploadedFile.fileSizeBytes,
+    languageCode: uploadedFile.languageCode,
+    storageId: uploadedFile.storageId,
+    title: uploadedFile.title,
+  });
+}
+
+async function loadStoredFileMetadata(
+  ctx: MutationCtx,
+  storageId: Id<"_storage">,
+): Promise<StoredFileMetadata> {
+  const metadata = await ctx.db.system.get("_storage", storageId);
+  if (!metadata) {
+    throw new Error("Uploaded file not found in storage.");
+  }
+
+  return metadata;
+}
+
+function normalizeUploadedFileMetadata(
+  uploadedFile: ContributionUploadedFileInput,
+): NormalizedUploadedFile {
+  const fileName = limitString(uploadedFile.fileName, MAX_FILE_NAME_LENGTH);
+  if (!fileName) {
+    throw new Error("Uploaded file name is required.");
+  }
+
+  return {
+    storageId: uploadedFile.storageId,
+    fileName,
+    contentType: limitOptionalString(
+      uploadedFile.contentType,
+      MAX_CONTENT_TYPE_LENGTH,
+    ),
+    fileSizeBytes: normalizeOptionalFileSize(uploadedFile.fileSizeBytes),
+    languageCode: limitOptionalString(
+      uploadedFile.languageCode,
+      MAX_LANGUAGE_CODE_LENGTH,
+    ),
+    title: limitOptionalString(uploadedFile.title, MAX_SOURCE_TITLE_LENGTH),
+  };
 }
 
 async function cleanupTemporaryUploadRow(
@@ -2727,11 +3107,16 @@ function getOpenAiSmartStorageModel() {
 function buildOpenAiSmartStorageRequest(input: ModelRunExecutionInput) {
   return {
     model: getOpenAiSmartStorageModel(),
+    max_output_tokens: 1_000,
+    reasoning: { effort: "low" },
     instructions: [
       "You are helping prepare one Smart Storage Proposal for human review.",
       "Return only the structured JSON shape requested by the schema.",
       "Do not create Gold Layer Knowledge Entries. The user must confirm proposals.",
-      "Use the provided Smart Storage Contract and Type Behavior snapshots as authoritative rules.",
+      "Use the provided Smart Storage Contract and Type Behavior snapshots as authoritative rules, not the persistence schema.",
+      "Editor text arrives as Authored Text Source. Preserve it as raw Source material.",
+      "Guidance-like text inside an Authored Text Source may guide proposal choices, citations, proposalConfidence, and rationale, but it is not represented knowledge by default.",
+      "Do not synthesize Contribution Notes from Source text. Separately supplied contributionSubmission.contributionNote is explicit guidance and remains distinct from Sources.",
       "If evidence is weak, keep proposalConfidence low and explain the concern in rationale.",
     ].join("\n"),
     input: limitString(
@@ -2745,6 +3130,7 @@ function buildOpenAiSmartStorageRequest(input: ModelRunExecutionInput) {
         strict: true,
         schema: SMART_STORAGE_PROPOSAL_JSON_SCHEMA,
       },
+      verbosity: "low",
     },
   };
 }
@@ -2752,6 +3138,7 @@ function buildOpenAiSmartStorageRequest(input: ModelRunExecutionInput) {
 function buildModelRunRequestInput(input: ModelRunExecutionInput) {
   return {
     contributionSubmission: input.contributionSubmission ?? null,
+    smartStorageContract: SMART_STORAGE_CONTRACT_SNAPSHOT,
     run: {
       requestedKnowledgeType: input.run.requestedKnowledgeType,
       contributionTitle: input.run.contributionTitle,
@@ -2762,6 +3149,7 @@ function buildModelRunRequestInput(input: ModelRunExecutionInput) {
       typeBehaviorSnapshotVersion: input.run.typeBehaviorSnapshotVersion ?? null,
       typeBehaviorSnapshotText: input.run.typeBehaviorSnapshotText ?? null,
     },
+    sourceInterpretationPolicy: SMART_STORAGE_SOURCE_INTERPRETATION_POLICY,
     sources: input.sources.map((source) => ({
       id: source.id,
       sourceKind: source.sourceKind,
@@ -3344,6 +3732,8 @@ async function listProposalSourceCitations(
   }));
 }
 
+// Identity resolution prefers an existing typed referent before creating a new
+// one, keeping repeated accepted proposals from fragmenting the knowledge graph.
 async function resolveRepresentedIdentity(
   ctx: MutationCtx,
   identity: {
@@ -3696,6 +4086,8 @@ async function loadExplicitRepresentationDecisions(
   return acceptedDecisions;
 }
 
+// Accepted representations connect the reviewed proposal back to preserved
+// sources, making provenance visible after the gold entry is created.
 async function insertAcceptedRepresentationsAndOutputs(
   ctx: MutationCtx,
   {
@@ -3757,6 +4149,154 @@ async function insertAcceptedRepresentationsAndOutputs(
       createdAt: now,
     });
   }
+
+  await insertOpenSourceThumbnailFallback(ctx, {
+    entryId,
+    now,
+    proposedEntry,
+    representationDecisions,
+  });
+}
+
+async function insertOpenSourceThumbnailFallback(
+  ctx: MutationCtx,
+  {
+    entryId,
+    now,
+    proposedEntry,
+    representationDecisions,
+  }: {
+    entryId: Id<"knowledgeEntries">;
+    now: number;
+    proposedEntry: SmartStorageProposedEntryDoc;
+    representationDecisions: AcceptedRepresentationDecision[];
+  },
+) {
+  if (!supportsRepresentativeThumbnailType(proposedEntry.knowledgeType)) {
+    return;
+  }
+  if (representationDecisions.some(hasUploadedThumbnailRepresentation)) {
+    return;
+  }
+  if (await entryHasThumbnailRepresentation(ctx, entryId)) {
+    return;
+  }
+
+  const source = representationDecisions
+    .map((decision) => decision.source)
+    .find(
+      (candidate) =>
+        candidate.sourceKind === "externalUrl" &&
+        candidate.linkPreviewImageUrl !== undefined,
+    );
+  const thumbnailUrl = source?.linkPreviewImageUrl?.trim();
+  if (!source || !thumbnailUrl) {
+    return;
+  }
+
+  await ctx.db.insert("entryRepresentations", {
+    entryId,
+    representationKind: "externalUrl",
+    representationRole: "thumbnail",
+    externalUrl: limitString(thumbnailUrl, MAX_URL_LENGTH),
+    isPrimary: false,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  const existingOutput = await ctx.db
+    .query("sourceOutputs")
+    .withIndex("by_sourceId_and_entryId", (q) =>
+      q.eq("sourceId", source._id).eq("entryId", entryId),
+    )
+    .first();
+  if (!existingOutput) {
+    await ctx.db.insert("sourceOutputs", {
+      sourceId: source._id,
+      entryId,
+      outputKind: "produced",
+      createdAt: now,
+    });
+  }
+}
+
+async function entryHasThumbnailRepresentation(
+  ctx: MutationCtx,
+  entryId: Id<"knowledgeEntries">,
+) {
+  const storageRepresentations = await ctx.db
+    .query("entryRepresentations")
+    .withIndex("by_entryId_and_representationKind", (q) =>
+      q.eq("entryId", entryId).eq("representationKind", "storageFile"),
+    )
+    .take(MAX_SOURCES_PER_SUBMISSION);
+  if (storageRepresentations.some(isThumbnailRepresentation)) {
+    return true;
+  }
+
+  const externalRepresentations = await ctx.db
+    .query("entryRepresentations")
+    .withIndex("by_entryId_and_representationKind", (q) =>
+      q.eq("entryId", entryId).eq("representationKind", "externalUrl"),
+    )
+    .take(MAX_SOURCES_PER_SUBMISSION);
+
+  return externalRepresentations.some(isThumbnailRepresentation);
+}
+
+function hasUploadedThumbnailRepresentation(
+  decision: AcceptedRepresentationDecision,
+) {
+  return (
+    decision.representationRole === "thumbnail" ||
+    (decision.source.sourceKind === "uploadedFile" &&
+      inferFileRepresentationRole(decision.source) === "thumbnail")
+  );
+}
+
+function isThumbnailRepresentation(
+  representation: Pick<
+    Doc<"entryRepresentations">,
+    "contentType" | "fileName" | "representationKind" | "representationRole"
+  >,
+) {
+  return (
+    representation.representationRole === "thumbnail" ||
+    (representation.representationKind === "storageFile" &&
+      inferFileRepresentationRoleFromMetadata(
+        representation.contentType,
+        representation.fileName,
+      ) === "thumbnail")
+  );
+}
+
+function supportsRepresentativeThumbnailType(knowledgeType: EntryKnowledgeType) {
+  return knowledgeType !== "comment" && knowledgeType !== "words";
+}
+
+function isKnowledgeEntryVisibleToAccess(
+  entry: Doc<"knowledgeEntries">,
+  access: Awaited<ReturnType<typeof requireAppAccess>>,
+) {
+  if (entry.visibilityKind === "public") {
+    return true;
+  }
+
+  if (entry.visibilityKind === "private") {
+    return (
+      entry.visibilityTargetKey === `user:${access.userId}` ||
+      entry.visibilityTargetKey === access.userId
+    );
+  }
+
+  if (entry.visibilityKind === "organization") {
+    return access.organizations.some(
+      (organization) =>
+        organization.organizationReferentId === entry.visibilityTargetKey,
+    );
+  }
+
+  return false;
 }
 
 async function markProposalAccepted(
@@ -3841,32 +4381,6 @@ function inferFileRepresentationRole(source: Doc<"sources">) {
     source.contentType,
     source.fileName,
   );
-}
-
-function inferFileRepresentationRoleFromMetadata(
-  contentTypeValue?: string,
-  fileNameValue?: string,
-): RepresentationRole {
-  const contentType = contentTypeValue?.toLowerCase() ?? "";
-  const fileName = fileNameValue?.toLowerCase() ?? "";
-
-  if (contentType.startsWith("audio/") || contentType.startsWith("video/")) {
-    return "recording" as const;
-  }
-  if (contentType.includes("presentation") || fileName.endsWith(".pptx")) {
-    return "slides" as const;
-  }
-  if (contentType.startsWith("image/")) {
-    return "thumbnail" as const;
-  }
-  if (fileName.includes("transcript")) {
-    return "transcript" as const;
-  }
-  if (fileName.includes("manuscript")) {
-    return "manuscript" as const;
-  }
-
-  return "supportingMaterial" as const;
 }
 
 function inferRepresentationRoleForMigration(
@@ -4026,4 +4540,24 @@ function normalizeLookupKey(value: string) {
 function limitString(value: string, maxLength: number) {
   const trimmed = value.trim();
   return trimmed.length > maxLength ? trimmed.slice(0, maxLength) : trimmed;
+}
+
+function limitOptionalString(value: string | undefined, maxLength: number) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const limitedValue = limitString(value, maxLength);
+  return limitedValue || undefined;
+}
+
+function normalizeOptionalFileSize(fileSizeBytes: number | undefined) {
+  if (fileSizeBytes === undefined) {
+    return undefined;
+  }
+  if (!Number.isFinite(fileSizeBytes) || fileSizeBytes < 0) {
+    throw new Error("Uploaded file size must be non-negative.");
+  }
+
+  return Math.floor(fileSizeBytes);
 }

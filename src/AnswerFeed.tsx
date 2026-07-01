@@ -35,6 +35,8 @@ import type {
 } from "./knowledgeContracts";
 import { formatKnowledgeTypeLabel } from "./knowledgeContracts";
 
+// AnswerFeed is controlled by contract-shaped props; it can render fixture data,
+// Convex query results, or filtered subsets without knowing the data source.
 export type AnswerFeedKindFilter = "all" | "entries" | "requests";
 export type AnswerFeedKnowledgeTypeFilter = "all" | AuthorableKnowledgeType;
 
@@ -140,6 +142,8 @@ export function AnswerFeed({
       ? knowledgeTypeFilter
       : "all";
   const activeSearchQuery = searchQuery.trim();
+  // Filtering can recompute often as tags/search change, so memoization is
+  // scoped to normalized inputs rather than hidden module state.
   const visibleFeedItems = useMemo(
     () =>
       filterAnswerFeedItems(feedItems, {

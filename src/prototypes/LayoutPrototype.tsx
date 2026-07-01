@@ -1,4 +1,5 @@
 // PROTOTYPE: General-page layout variants, switchable via ?variant=, on the existing app shell.
+// This file is intentionally isolated from production route logic.
 import {
   useCallback,
   useEffect,

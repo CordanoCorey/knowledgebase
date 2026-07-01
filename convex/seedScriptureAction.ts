@@ -9,6 +9,8 @@ import {
   parseBiblePassageReference,
 } from "./lib/scriptureReferences";
 
+// The seeding action runs outside mutations to fetch and chunk source data, then
+// delegates persistence to bounded internal mutations.
 const STRUCTURE_BATCH_SIZE = 250;
 const TEXT_BATCH_SIZE = 200;
 const EXPECTED_BOOK_COUNT = 66;

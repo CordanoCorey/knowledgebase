@@ -1,7 +1,9 @@
 node_modules/
+.codex-temp/
 .env.local
 .env.*.local
 dist/
+output/
 docs/*
 issues/
 !docs/product-core.md

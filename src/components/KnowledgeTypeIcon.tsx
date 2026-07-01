@@ -5,6 +5,8 @@ import {
   type KnowledgeType,
 } from "../knowledgeContracts";
 
+// Centralize Knowledge Type visual language so new surfaces do not invent
+// one-off symbols or labels.
 export const KNOWLEDGE_TYPE_ICON_SYMBOLS = {
   words: "kt-words",
   biblePassage: "kt-bible-passage",

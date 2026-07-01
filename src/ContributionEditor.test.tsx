@@ -3,16 +3,22 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import {
   ContributionEditor,
   createContributionInput,
   createContributionPreview,
+  createRichTextDocumentJsonFromText,
   extractExternalUrlsFromText,
   resolveContributionKnowledgeType,
   resolveContributionMode,
 } from "./ContributionEditor";
-import type { ActiveTag, ContributionInput, KnowledgeSlotSummary } from "./knowledgeContracts";
+import type {
+  ActiveTag,
+  ContributionInput,
+  DraftLinkPreviewResult,
+  KnowledgeSlotSummary,
+} from "./knowledgeContracts";
 
 const romansTag: ActiveTag = {
   canonicalKey: "romans-8-28",
@@ -148,6 +154,36 @@ describe("Contribution Editor type and mode resolution", () => {
     expect(markup).not.toContain("<select");
   });
 
+  test("emphasizes representative thumbnails except for Words and Comments", () => {
+    const lessonMarkup = renderToStaticMarkup(
+      <ContributionEditor
+        allowedContributionTypes={["lesson"]}
+        context={[romansTag]}
+        onSubmitSource={() => ({ status: "submitted" })}
+      />,
+    );
+    expect(lessonMarkup).toContain("Representative thumbnail");
+    expect(lessonMarkup).toContain("Upload representative thumbnail");
+
+    const wordsMarkup = renderToStaticMarkup(
+      <ContributionEditor
+        allowedContributionTypes={["words"]}
+        context={[romansTag]}
+        onSubmitSource={() => ({ status: "submitted" })}
+      />,
+    );
+    expect(wordsMarkup).not.toContain("Representative thumbnail");
+
+    const commentMarkup = renderToStaticMarkup(
+      <ContributionEditor
+        context={[romansTag]}
+        onSubmitSource={() => ({ status: "submitted" })}
+        parentEntryTitle="Courage in Joshua"
+      />,
+    );
+    expect(commentMarkup).not.toContain("Representative thumbnail");
+  });
+
   test("Bible Passage and RSVP are unavailable as generic contribution types", () => {
     expect(
       resolveContributionKnowledgeType({
@@ -201,14 +237,14 @@ describe("Contribution Editor type and mode resolution", () => {
     });
   });
 
-  test("staged Sources, non-Words types, and explicit Words titles force Smart Storage", () => {
+  test("staged attachments keep direct posting available while richer types and explicit Words titles force Smart Storage", () => {
     expect(
       resolveContributionMode({
         context: [romansTag],
         hasSupplementalSources: true,
         knowledgeType: "words",
       }),
-    ).toBe("smartStorage");
+    ).toBe("direct");
 
     expect(
       resolveContributionMode({
@@ -313,7 +349,9 @@ describe("Contribution Editor rendering", () => {
     expect(formIndex).toBeGreaterThan(-1);
     expect(primaryInputIndex).toBeGreaterThan(formIndex);
     expect(metadataIndex).toBeGreaterThan(primaryInputIndex);
-    expect(markup.indexOf("<textarea")).toBeLessThan(metadataIndex);
+    expect(markup.indexOf('class="kb-contribution-rich-text"')).toBeLessThan(
+      metadataIndex,
+    );
   });
 
   test("Comment editor is titleless and keeps body as visible substance", () => {
@@ -328,8 +366,10 @@ describe("Contribution Editor rendering", () => {
 
     expect(markup).toContain("Comment");
     expect(markup).not.toContain(">Title<");
+    expect(markup).not.toContain("Add title");
     expect(markup).not.toContain('type="text"');
-    expect(markup).toMatch(/<textarea[^>]*required/);
+    expect(markup).toContain('class="kb-contribution-rich-text"');
+    expect(markup).toContain('aria-required="true"');
   });
 
   test("Words is titleless by default but can reveal an optional Title", async () => {
@@ -372,7 +412,24 @@ describe("Contribution Editor rendering", () => {
     expect(markup).toContain(">Question<");
     expect(markup).toContain(">Details<");
     expect(markup).toMatch(/<input[^>]*required/);
-    expect(markup).not.toMatch(/<textarea[^>]*required/);
+    expect(markup).toContain('aria-required="false"');
+    expect(markup).toContain("Smart Storage");
+  });
+
+  test("title-bearing Knowledge Types still show a required Title field", () => {
+    const markup = renderToStaticMarkup(
+      <ContributionEditor
+        allowedContributionTypes={["lesson"]}
+        context={[romansTag]}
+        onSubmitSource={() => ({ status: "submitted" })}
+        selectedKnowledgeType="lesson"
+      />,
+    );
+
+    expect(markup).toContain('data-knowledge-type="lesson"');
+    expect(markup).toContain(">Title<");
+    expect(markup).toContain('placeholder="Lesson title"');
+    expect(markup).toMatch(/<input[^>]*required/);
     expect(markup).toContain("Smart Storage");
   });
 
@@ -584,7 +641,7 @@ describe("Contribution Editor payload and sources", () => {
     });
   });
 
-  test("extracts one external URL Source per unique normalized URL", () => {
+  test("extracts one external URL Attachment per unique normalized URL", () => {
     expect(
       extractExternalUrlsFromText(
         "Read https://example.com/chapel, then https://example.com/chapel.",
@@ -592,7 +649,7 @@ describe("Contribution Editor payload and sources", () => {
     ).toEqual([{ url: "https://example.com/chapel" }]);
   });
 
-  test("auto-detected URL Sources route submission through Smart Storage", async () => {
+  test("auto-detected URL Attachments stay available for direct posting", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
@@ -603,12 +660,12 @@ describe("Contribution Editor payload and sources", () => {
         root.render(
           <ContributionEditor
             context={[romansTag]}
-            onPostDirect={() => {
-              throw new Error("Direct post should not be used.");
-            }}
-            onStoreSmartly={(input) => {
+            onPostDirect={(input) => {
               submittedInput = input;
               return { status: "submitted" };
+            }}
+            onStoreSmartly={() => {
+              throw new Error("Smart Storage should not be used.");
             }}
           />,
         );
@@ -623,7 +680,7 @@ describe("Contribution Editor payload and sources", () => {
       expect(editor.textContent).toContain("Link preview pending");
       expect(editor.querySelectorAll(".kb-contribution-source-chips li")).toHaveLength(1);
 
-      await click(getButton(editor, "Store"));
+      await click(getButton(editor, "Post"));
 
       expect(submittedInput).toMatchObject({
         body:
@@ -640,7 +697,246 @@ describe("Contribution Editor payload and sources", () => {
     }
   });
 
-  test("removing a derived URL Source edits the body and removes the chip", async () => {
+  test("detected URL chips enrich from draft Link Preview metadata", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const deferred = createDeferred<DraftLinkPreviewResult>();
+    const previewExternalUrl = vi.fn(() => deferred.promise);
+
+    try {
+      await act(async () => {
+        root.render(
+          <ContributionEditor
+            context={[romansTag]}
+            onPreviewExternalUrl={previewExternalUrl}
+            onSubmitSource={() => ({ status: "submitted" })}
+          />,
+        );
+      });
+
+      const editor = getContributionEditor(container);
+      await setTextareaValue(
+        getTextarea(editor),
+        "Read https://example.com/chapel for the program.",
+      );
+
+      expect(editor.textContent).toContain("Link preview pending");
+      expect(previewExternalUrl).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        deferred.resolve({
+          description: "Friday chapel program.",
+          imageUrl: "https://example.com/chapel.png",
+          siteName: "Example Chapel",
+          status: "fetched",
+          title: "Chapel Program",
+          url: "https://example.com/chapel",
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(editor.textContent).toContain("Chapel Program");
+      expect(editor.textContent).toContain("Example Chapel");
+      expect(editor.textContent).toContain("Friday chapel program.");
+      expect(getTextarea(editor).value).toBe(
+        "Read https://example.com/chapel for the program.",
+      );
+    } finally {
+      await act(async () => {
+        root.unmount();
+      });
+      container.remove();
+    }
+  });
+
+  test("duplicate detected URLs request one draft preview and render one chip", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const previewExternalUrl = vi.fn(async (url: string) => ({
+      siteName: "Example Chapel",
+      status: "fetched" as const,
+      title: "Chapel Program",
+      url,
+    }));
+
+    try {
+      await act(async () => {
+        root.render(
+          <ContributionEditor
+            context={[romansTag]}
+            onPreviewExternalUrl={previewExternalUrl}
+            onSubmitSource={() => ({ status: "submitted" })}
+          />,
+        );
+      });
+
+      const editor = getContributionEditor(container);
+      await setTextareaValue(
+        getTextarea(editor),
+        "See https://example.com/chapel and https://example.com/chapel.",
+      );
+      await flushAsyncWork();
+
+      expect(previewExternalUrl).toHaveBeenCalledTimes(1);
+      expect(editor.querySelectorAll(".kb-contribution-source-chips li")).toHaveLength(1);
+      expect(editor.textContent).toContain("Chapel Program");
+    } finally {
+      await act(async () => {
+        root.unmount();
+      });
+      container.remove();
+    }
+  });
+
+  test("removing a URL before draft preview resolves ignores the stale result", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const deferred = createDeferred<DraftLinkPreviewResult>();
+
+    try {
+      await act(async () => {
+        root.render(
+          <ContributionEditor
+            context={[romansTag]}
+            onPreviewExternalUrl={() => deferred.promise}
+            onSubmitSource={() => ({ status: "submitted" })}
+          />,
+        );
+      });
+
+      const editor = getContributionEditor(container);
+      const textarea = getTextarea(editor);
+      await setTextareaValue(textarea, "See https://example.com/chapel.");
+      expect(editor.querySelectorAll(".kb-contribution-source-chips li")).toHaveLength(1);
+
+      await click(getButton(editor, "Remove external URL Attachment 1"));
+      expect(editor.querySelectorAll(".kb-contribution-source-chips li")).toHaveLength(0);
+
+      await act(async () => {
+        deferred.resolve({
+          siteName: "Example Chapel",
+          status: "fetched",
+          title: "Chapel Program",
+          url: "https://example.com/chapel",
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(editor.querySelectorAll(".kb-contribution-source-chips li")).toHaveLength(0);
+      expect(editor.textContent).not.toContain("Chapel Program");
+    } finally {
+      await act(async () => {
+        root.unmount();
+      });
+      container.remove();
+    }
+  });
+
+  test("failed draft preview is non-blocking and submits only the URL", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    let submittedInput: ContributionInput | undefined;
+
+    try {
+      await act(async () => {
+        root.render(
+          <ContributionEditor
+            context={[romansTag]}
+            onPreviewExternalUrl={async (url) => ({
+              error: "Link Preview response is not HTML.",
+              status: "failed",
+              url,
+            })}
+            onStoreSmartly={(input) => {
+              submittedInput = input;
+              return { status: "submitted" };
+            }}
+          />,
+        );
+      });
+
+      const editor = getContributionEditor(container);
+      await setTextareaValue(
+        getTextarea(editor),
+        "Raw chapel notes\nSee https://example.com/chapel.",
+      );
+      await flushAsyncWork();
+
+      expect(editor.textContent).toContain("Link preview unavailable");
+      await click(getButton(editor, "Store"));
+
+      expect(submittedInput).toMatchObject({
+        externalUrls: [{ url: "https://example.com/chapel" }],
+      });
+    } finally {
+      await act(async () => {
+        root.unmount();
+      });
+      container.remove();
+    }
+  });
+
+  test("fetched draft preview metadata is included in submitted external URLs", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    let submittedInput: ContributionInput | undefined;
+
+    try {
+      await act(async () => {
+        root.render(
+          <ContributionEditor
+            context={[romansTag]}
+            onPreviewExternalUrl={async (url) => ({
+              description: "Friday chapel program.",
+              imageUrl: "https://example.com/chapel.png",
+              siteName: "Example Chapel",
+              status: "fetched",
+              title: "Chapel Program",
+              url,
+            })}
+            onStoreSmartly={(input) => {
+              submittedInput = input;
+              return { status: "submitted" };
+            }}
+          />,
+        );
+      });
+
+      const editor = getContributionEditor(container);
+      await setTextareaValue(
+        getTextarea(editor),
+        "Raw chapel notes\nSee https://example.com/chapel.",
+      );
+      await flushAsyncWork();
+      await click(getButton(editor, "Store"));
+
+      expect(submittedInput).toMatchObject({
+        externalUrls: [
+          {
+            linkPreviewDescription: "Friday chapel program.",
+            linkPreviewImageUrl: "https://example.com/chapel.png",
+            linkPreviewSiteName: "Example Chapel",
+            linkPreviewTitle: "Chapel Program",
+            url: "https://example.com/chapel",
+          },
+        ],
+      });
+    } finally {
+      await act(async () => {
+        root.unmount();
+      });
+      container.remove();
+    }
+  });
+
+  test("removing a derived URL Attachment edits the body and removes the chip", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
@@ -660,7 +956,7 @@ describe("Contribution Editor payload and sources", () => {
       await setTextareaValue(textarea, "See https://example.com/chapel for the program.");
 
       expect(editor.querySelectorAll(".kb-contribution-source-chips li")).toHaveLength(1);
-      await click(getButton(editor, "Remove external URL Source 1"));
+      await click(getButton(editor, "Remove external URL Attachment 1"));
 
       expect(editor.querySelectorAll(".kb-contribution-source-chips li")).toHaveLength(0);
       expect(textarea.value).toBe("See  for the program.");
@@ -672,7 +968,7 @@ describe("Contribution Editor payload and sources", () => {
     }
   });
 
-  test("file selection stages uploaded file Sources", async () => {
+  test("file selection stages uploaded file Attachments for direct posting", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
@@ -686,9 +982,12 @@ describe("Contribution Editor payload and sources", () => {
         root.render(
           <ContributionEditor
             context={[romansTag]}
-            onStoreSmartly={(input) => {
+            onPostDirect={(input) => {
               submittedInput = input;
               return { status: "submitted" };
+            }}
+            onStoreSmartly={() => {
+              throw new Error("Smart Storage should not be used.");
             }}
             onUploadFile={async (file) => ({
               contentType: file.type,
@@ -706,7 +1005,7 @@ describe("Contribution Editor payload and sources", () => {
       await setFileInputFiles(getFileInput(editor), [uploadedFile]);
 
       expect(editor.textContent).toContain("chapel-program.pdf");
-      await click(getButton(editor, "Store"));
+      await click(getButton(editor, "Post"));
 
       expect(submittedInput).toMatchObject({
         body: "Raw chapel notes",
@@ -720,6 +1019,144 @@ describe("Contribution Editor payload and sources", () => {
           }),
         ],
       });
+    } finally {
+      await act(async () => {
+        root.unmount();
+      });
+      container.remove();
+    }
+  });
+
+  test("autosaves rich text drafts after the draft key has loaded", async () => {
+    vi.useFakeTimers();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const onDraftChange = vi.fn();
+    const onClearDraft = vi.fn();
+
+    try {
+      await act(async () => {
+        root.render(
+          <ContributionEditor
+            context={[romansTag]}
+            draft={null}
+            draftKey="contribution-editor|romans"
+            onClearDraft={onClearDraft}
+            onDraftChange={onDraftChange}
+            onSubmitSource={() => ({ status: "submitted" })}
+          />,
+        );
+      });
+
+      await setTextareaValue(
+        getTextarea(container),
+        "Draft notes with https://example.com/chapel.",
+      );
+      await act(async () => {
+        vi.advanceTimersByTime(700);
+        await Promise.resolve();
+      });
+
+      expect(onDraftChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          bodyPlainText: "Draft notes with https://example.com/chapel.",
+          title: "",
+        }),
+      );
+      expect(
+        JSON.parse(onDraftChange.mock.calls[0][0].bodyDocumentJson),
+      ).toMatchObject({
+        type: "doc",
+        content: [
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: "Draft notes with https://example.com/chapel." }],
+          },
+        ],
+      });
+      expect(onClearDraft).not.toHaveBeenCalled();
+    } finally {
+      await act(async () => {
+        root.unmount();
+      });
+      container.remove();
+      vi.useRealTimers();
+    }
+  });
+
+  test("restores a loaded draft and derives URL Attachments from the restored body", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const draftBody = "Restored notes from https://example.com/chapel.";
+
+    try {
+      await act(async () => {
+        root.render(
+          <ContributionEditor
+            context={[romansTag]}
+            draft={undefined}
+            draftKey="contribution-editor|romans"
+            onSubmitSource={() => ({ status: "submitted" })}
+          />,
+        );
+      });
+
+      expect(getTextarea(container).value).toBe("");
+
+      await act(async () => {
+        root.render(
+          <ContributionEditor
+            context={[romansTag]}
+            draft={{
+              bodyDocumentJson: createRichTextDocumentJsonFromText(draftBody),
+              bodyPlainText: draftBody,
+              selectedKnowledgeType: "words",
+              title: "",
+            }}
+            draftKey="contribution-editor|romans"
+            onSubmitSource={() => ({ status: "submitted" })}
+          />,
+        );
+        await Promise.resolve();
+      });
+
+      expect(getTextarea(container).value).toBe(draftBody);
+      expect(container.textContent).toContain("Link preview pending");
+      expect(container.querySelectorAll(".kb-contribution-source-chips li")).toHaveLength(1);
+    } finally {
+      await act(async () => {
+        root.unmount();
+      });
+      container.remove();
+    }
+  });
+
+  test("clears the active draft after successful direct submission", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const onClearDraft = vi.fn();
+
+    try {
+      await act(async () => {
+        root.render(
+          <ContributionEditor
+            context={[romansTag]}
+            draft={null}
+            draftKey="contribution-editor|romans"
+            onClearDraft={onClearDraft}
+            onPostDirect={() => ({ status: "submitted" })}
+          />,
+        );
+      });
+
+      await setTextareaValue(getTextarea(container), "Ready to post.");
+      await click(getButton(container, "Post"));
+
+      expect(onClearDraft).toHaveBeenCalledTimes(1);
+      expect(getTextarea(container).value).toBe("");
     } finally {
       await act(async () => {
         root.unmount();
@@ -801,4 +1238,21 @@ async function setFileInputFiles(input: HTMLInputElement, files: File[]) {
     await Promise.resolve();
     await Promise.resolve();
   });
+}
+
+async function flushAsyncWork() {
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+
+  return { promise, resolve };
 }

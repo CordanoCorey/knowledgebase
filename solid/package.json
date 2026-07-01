@@ -1,0 +1,21 @@
+{
+  "name": "logeion-solid",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "@solidjs/web": "2.0.0-beta.15",
+    "convex": "1.42.0",
+    "solid-js": "2.0.0-beta.15",
+    "vite": "8.1.0",
+    "vite-plugin-solid": "3.0.0-next.5"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3"
+  }
+}

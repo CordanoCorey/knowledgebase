@@ -7,6 +7,8 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 
+// Scripture seeding mutations upsert normalized structure in bounded batches so
+// local/dev deployments can rebuild the public-domain dataset safely.
 const translationCategory = v.union(
   v.literal("translation"),
   v.literal("sourceText"),

@@ -68,6 +68,10 @@ _Avoid_: Visibility Scope, audience, permission, send to page
 The versioned domain behavior the application applies to a Knowledge Type, including how entries of that type are recognized, enriched, related, displayed, stored, reviewed, scored, or scoped.
 _Avoid_: Implementation, schema behavior
 
+**Export Behavior**:
+The Type Behavior axis that determines whether and how Knowledge Entries of a Knowledge Type can be exported, including the default export shape, representation handling, and permission boundaries.
+_Avoid_: File format, download button, backup
+
 **Answer**:
 A Knowledge Entry considered as something that can help satisfy future Knowledge Requests in whole or in part.
 _Avoid_: AI response, chat reply
@@ -395,6 +399,10 @@ _Avoid_: Upload, post, store, work
 **Contribution Submission**:
 A single user intent to Contribute, collecting the material and choices submitted from a composer before it is posted directly or processed through Smart Storage. A Contribution Submission may include multiple Sources and contribution guidance, but it is not itself a Knowledge Entry.
 _Avoid_: Source, Knowledge Entry, upload bundle
+
+**Composer Draft**:
+Pre-submit state for a Knowledge Composer, such as Contribution Editor body text, rich-text document JSON, selected Knowledge Type, title, and placement key. A Composer Draft preserves in-progress authoring, but it is not a Contribution Submission, Source, Smart Storage Run, Smart Storage Proposal, or Knowledge Entry.
+_Avoid_: Draft entry, draft Source, draft Contribution Submission
 
 **Primary Intended Entry**:
 The one Knowledge Entry a Contribution Submission is primarily meant to create or update. Smart Storage may propose additional derived Knowledge Entries from the same Contribution Submission without changing the Primary Intended Entry.

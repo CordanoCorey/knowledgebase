@@ -11,6 +11,8 @@ import {
 import { api } from "../../convex/_generated/api";
 import { SignOutButton } from "./AuthPanel";
 
+// Pre-access path for authenticated users who need a verified contact identity
+// before pending organization memberships can be claimed.
 type OrganizationAccessRequestScreenProps = {
   email?: string;
   reason: "inactiveUser" | "needsOrganization" | "unauthenticated";

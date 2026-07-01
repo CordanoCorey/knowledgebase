@@ -18,16 +18,20 @@ import type * as bookmarkedKnowledgePages from "../bookmarkedKnowledgePages.js";
 import type * as contactIdentities from "../contactIdentities.js";
 import type * as contextExpertise from "../contextExpertise.js";
 import type * as contextExpertiseSettings from "../contextExpertiseSettings.js";
+import type * as contributionDrafts from "../contributionDrafts.js";
 import type * as crons from "../crons.js";
 import type * as directContributions from "../directContributions.js";
 import type * as editor from "../editor.js";
+import type * as emailer from "../emailer.js";
 import type * as http from "../http.js";
 import type * as humanWeightFeedback from "../humanWeightFeedback.js";
 import type * as humanWeightRecalculation from "../humanWeightRecalculation.js";
 import type * as knowledgeSubscriptions from "../knowledgeSubscriptions.js";
 import type * as lib_appAccess from "../lib/appAccess.js";
+import type * as lib_automaticContextTags from "../lib/automaticContextTags.js";
 import type * as lib_contextExpertiseEvidence from "../lib/contextExpertiseEvidence.js";
 import type * as lib_contextExpertiseScoring from "../lib/contextExpertiseScoring.js";
+import type * as lib_fileRepresentationRoles from "../lib/fileRepresentationRoles.js";
 import type * as lib_humanWeightCalculationDefinition from "../lib/humanWeightCalculationDefinition.js";
 import type * as lib_humanWeightEvidence from "../lib/humanWeightEvidence.js";
 import type * as lib_humanWeightRecalculation from "../lib/humanWeightRecalculation.js";
@@ -66,16 +70,20 @@ declare const fullApi: ApiFromModules<{
   contactIdentities: typeof contactIdentities;
   contextExpertise: typeof contextExpertise;
   contextExpertiseSettings: typeof contextExpertiseSettings;
+  contributionDrafts: typeof contributionDrafts;
   crons: typeof crons;
   directContributions: typeof directContributions;
   editor: typeof editor;
+  emailer: typeof emailer;
   http: typeof http;
   humanWeightFeedback: typeof humanWeightFeedback;
   humanWeightRecalculation: typeof humanWeightRecalculation;
   knowledgeSubscriptions: typeof knowledgeSubscriptions;
   "lib/appAccess": typeof lib_appAccess;
+  "lib/automaticContextTags": typeof lib_automaticContextTags;
   "lib/contextExpertiseEvidence": typeof lib_contextExpertiseEvidence;
   "lib/contextExpertiseScoring": typeof lib_contextExpertiseScoring;
+  "lib/fileRepresentationRoles": typeof lib_fileRepresentationRoles;
   "lib/humanWeightCalculationDefinition": typeof lib_humanWeightCalculationDefinition;
   "lib/humanWeightEvidence": typeof lib_humanWeightEvidence;
   "lib/humanWeightRecalculation": typeof lib_humanWeightRecalculation;
@@ -126,4 +134,5 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   prosemirrorSync: import("@convex-dev/prosemirror-sync/_generated/component.js").ComponentApi<"prosemirrorSync">;
+  resend: import("@convex-dev/resend/_generated/component.js").ComponentApi<"resend">;
 };

@@ -4,6 +4,8 @@ import { Password } from "@convex-dev/auth/providers/Password";
 import type { AuthProviderConfig } from "@convex-dev/auth/server";
 import type { Value } from "convex/values";
 
+// Provider configuration is environment-driven so local development and
+// deployed auth surfaces can share the same Convex Auth setup.
 export function hasPasswordAuth() {
   return true;
 }

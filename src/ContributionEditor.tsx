@@ -1,6 +1,11 @@
 import {
+  Bold,
   CheckCircle2,
+  Italic,
+  ImagePlus,
   Link,
+  List,
+  ListOrdered,
   LoaderCircle,
   LockKeyhole,
   Send,
@@ -9,23 +14,35 @@ import {
   UploadCloud,
   X,
 } from "lucide-react";
+import { EditorContent, useEditor, type Editor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import type { Content } from "@tiptap/core";
 import {
   useEffect,
+  useMemo,
+  useRef,
   useState,
   type ChangeEvent,
   type DragEvent,
   type FormEvent,
+  type ReactNode,
 } from "react";
 import {
   GENERIC_CONTRIBUTION_KNOWLEDGE_TYPES,
   formatKnowledgeTypeLabel,
+  getComposerTitleBehavior,
+  isComposerTitleAddable,
+  isComposerTitleRequired,
   isAuthorableKnowledgeType,
+  supportsRepresentativeThumbnail,
   type ActiveTag,
+  type ComposerTitleBehavior,
   type AuthorableKnowledgeType,
   type ContributionInput,
   type ContributionMode,
   type ContributionPreview,
   type ContributionResult,
+  type DraftLinkPreviewResult,
   type GuidedContributionType,
   type KnowledgeSlotSummary,
   type KnowledgeType,
@@ -36,6 +53,9 @@ import { KnowledgeTypeIcon } from "./components/KnowledgeTypeIcon";
 import { ReferentTagLink } from "./components/ReferentTagLink";
 import { Presence } from "./Presence";
 
+// ContributionEditor keeps rich-text editing, file/link collection, and
+// contribution shaping in one controlled surface while exporting pure helpers
+// for tests and future non-React entry points.
 export type ContributionKnowledgeTypeSources = {
   allowedContributionTypes?: readonly AuthorableKnowledgeType[];
   body?: string;
@@ -51,15 +71,25 @@ type ContributionSubmitHandler = (
 type ContributionFileUploadHandler = (
   file: File,
 ) => Promise<SmartStorageUploadedFileInput>;
+type DraftLinkPreviewHandler = (
+  url: string,
+) => Promise<DraftLinkPreviewResult> | DraftLinkPreviewResult;
 
 export type ContributionEditorProps = ContributionKnowledgeTypeSources & {
   context: ActiveTag[];
   defaultMode?: ContributionMode;
+  draft?: ContributionEditorDraft | null;
+  draftKey?: string;
   guidedContributionType?: GuidedContributionType | null;
   initialBody?: string;
   initialTitle?: string;
+  onClearDraft?: () => Promise<void> | void;
+  onDraftChange?: (
+    draft: ContributionEditorDraftInput,
+  ) => Promise<void> | void;
   onKnowledgeTypeChange?: (nextType: AuthorableKnowledgeType) => void;
   onNavigateToHref?: (href: string) => void;
+  onPreviewExternalUrl?: DraftLinkPreviewHandler;
   onUploadFile?: ContributionFileUploadHandler;
   onPostDirect?: ContributionSubmitHandler;
   onStoreSmartly?: ContributionSubmitHandler;
@@ -79,9 +109,11 @@ type ContributionFieldConfig = {
   bodyRequired: boolean;
   showsBodyField: boolean;
   showsTitleField: boolean;
+  titleBehavior: ComposerTitleBehavior;
   titleLabel?: string;
   titlePlaceholder?: string;
   titlePreviewLabel?: string;
+  titleRequired: boolean;
 };
 
 type ContributionPrimaryField = "body" | "title";
@@ -89,16 +121,56 @@ type UploadState =
   | { kind: "idle" }
   | { kind: "uploading" }
   | { kind: "error"; message: string };
+type DraftLinkPreviewState =
+  | { status: "pending" }
+  | {
+      status: "fetched";
+      description?: string;
+      imageUrl?: string;
+      siteName?: string;
+      title?: string;
+    }
+  | { status: "failed"; error?: string };
+type ContributionExternalUrlChip = SmartStorageExternalUrlInput & {
+  draftPreviewError?: string;
+  draftPreviewStatus: DraftLinkPreviewState["status"];
+};
+
+export type ContributionEditorDraft = {
+  bodyDocumentJson: string;
+  bodyPlainText: string;
+  selectedKnowledgeType?: AuthorableKnowledgeType;
+  title: string;
+};
+
+export type ContributionEditorDraftInput = ContributionEditorDraft;
+
+type RichTextContributionValue = {
+  bodyDocumentJson: string;
+  bodyPlainText: string;
+};
+
+const EMPTY_RICH_TEXT_DOCUMENT: Content = {
+  type: "doc",
+  content: [{ type: "paragraph" }],
+};
+
+const AUTOSAVE_DRAFT_DELAY_MS = 700;
 
 export function ContributionEditor({
   allowedContributionTypes,
   context,
+  draft,
+  draftKey,
   defaultMode,
   guidedContributionType,
   initialBody = "",
   initialTitle = "",
+  onClearDraft,
+  onDraftChange,
   onKnowledgeTypeChange,
   onNavigateToHref,
+  onPreviewExternalUrl,
   onUploadFile,
   onPostDirect,
   onStoreSmartly,
@@ -110,7 +182,10 @@ export function ContributionEditor({
   const [isExpanded, setIsExpanded] = useState(Boolean(slot));
   const [title, setTitle] = useState(initialTitle);
   const [body, setBody] = useState(initialBody);
-  const [isWordsTitleVisible, setIsWordsTitleVisible] = useState(
+  const [bodyDocumentJson, setBodyDocumentJson] = useState(() =>
+    createRichTextDocumentJsonFromText(initialBody),
+  );
+  const [isAddableTitleVisible, setIsAddableTitleVisible] = useState(
     initialTitle.trim().length > 0,
   );
   const [uploadedFiles, setUploadedFiles] = useState<
@@ -119,10 +194,20 @@ export function ContributionEditor({
   const [uploadState, setUploadState] = useState<UploadState>({
     kind: "idle",
   });
+  const [draftLinkPreviews, setDraftLinkPreviews] = useState<
+    Record<string, DraftLinkPreviewState>
+  >({});
+  const requestedDraftPreviewUrlsRef = useRef(new Set<string>());
+  const detectedDraftPreviewUrlsRef = useRef(new Set<string>());
+  const appliedDraftKeyRef = useRef<string | undefined>(undefined);
   const [submissionState, setSubmissionState] = useState<SubmissionState>({
     kind: "idle",
   });
-  const allowedTypes = getAllowedContributionTypes(allowedContributionTypes);
+  const allowedTypes = useMemo(
+    () => getAllowedContributionTypes(allowedContributionTypes),
+    [allowedContributionTypes],
+  );
+  const allowedTypeKey = allowedTypes.join("\n");
   const activeKnowledgeType = resolveContributionKnowledgeType({
     allowedContributionTypes: allowedTypes,
     body,
@@ -134,12 +219,29 @@ export function ContributionEditor({
     activeKnowledgeType,
     guidedContributionType,
   );
+  const activeTitleBehavior = getComposerTitleBehavior(activeKnowledgeType);
   const supportsSmartStorageSources = activeGuidedContributionType === null;
-  const externalUrls = supportsSmartStorageSources
+  const detectedExternalUrls = supportsSmartStorageSources
     ? extractExternalUrlsFromText(body)
     : [];
+  const detectedExternalUrlKey = detectedExternalUrls
+    .map((externalUrl) => externalUrl.url)
+    .join("\n");
+  const externalUrls = detectedExternalUrls.map((externalUrl) =>
+    createExternalUrlInputFromPreview(
+      externalUrl.url,
+      draftLinkPreviews[externalUrl.url],
+    ),
+  );
+  const externalUrlChips = detectedExternalUrls.map((externalUrl) =>
+    createExternalUrlChipFromPreview(
+      externalUrl.url,
+      draftLinkPreviews[externalUrl.url],
+    ),
+  );
   const hasExplicitWordsTitle =
-    activeKnowledgeType === "words" && title.trim().length > 0;
+    activeTitleBehavior.smartStorageTriggerWhenProvided &&
+    title.trim().length > 0;
   const hasSupplementalSources =
     supportsSmartStorageSources &&
     (externalUrls.length > 0 || uploadedFiles.length > 0);
@@ -171,7 +273,6 @@ export function ContributionEditor({
     activeGuidedContributionType === null &&
     !isSmartStorageForced({
       hasExplicitWordsTitle,
-      hasSupplementalSources,
       knowledgeType: activeKnowledgeType,
     });
   const secondarySubmitLabel = getContributionSubmitLabel(
@@ -179,11 +280,90 @@ export function ContributionEditor({
     activeKnowledgeType,
     activeGuidedContributionType,
   );
-  const primaryField = getContributionPrimaryField(
-    fieldConfig,
-    activeKnowledgeType,
-    activeGuidedContributionType,
-  );
+  const primaryField = getContributionPrimaryField(fieldConfig);
+
+  useEffect(() => {
+    appliedDraftKeyRef.current = undefined;
+    setBody(initialBody);
+    setBodyDocumentJson(createRichTextDocumentJsonFromText(initialBody));
+    setTitle(initialTitle);
+    setIsAddableTitleVisible(initialTitle.trim().length > 0);
+  }, [draftKey, initialBody, initialTitle]);
+
+  useEffect(() => {
+    if (!draftKey || draft === undefined || appliedDraftKeyRef.current === draftKey) {
+      return;
+    }
+
+    appliedDraftKeyRef.current = draftKey;
+
+    if (!draft) {
+      return;
+    }
+
+    setBody(draft.bodyPlainText);
+    setBodyDocumentJson(draft.bodyDocumentJson);
+    setTitle(draft.title);
+    setIsAddableTitleVisible(draft.title.trim().length > 0);
+
+    if (
+      draft.selectedKnowledgeType &&
+      allowedTypes.includes(draft.selectedKnowledgeType)
+    ) {
+      onKnowledgeTypeChange?.(draft.selectedKnowledgeType);
+    }
+  }, [allowedTypeKey, draft, draftKey, onKnowledgeTypeChange]);
+
+  useEffect(() => {
+    if (
+      !draftKey ||
+      draft === undefined ||
+      appliedDraftKeyRef.current !== draftKey ||
+      (!onDraftChange && !onClearDraft)
+    ) {
+      return;
+    }
+
+    const handle = window.setTimeout(() => {
+      const bodyPlainText = body;
+      const draftTitle =
+        activeTitleBehavior.input === "hidden" ? "" : title.trim();
+      const hasDraftContent =
+        bodyPlainText.trim().length > 0 || draftTitle.length > 0;
+
+      if (!hasDraftContent) {
+        if (draft) {
+          void Promise.resolve(onClearDraft?.()).catch(() => undefined);
+        }
+        return;
+      }
+
+      void Promise.resolve(
+        onDraftChange?.({
+          bodyDocumentJson,
+          bodyPlainText,
+          ...(isAuthorableKnowledgeType(selectedKnowledgeType) &&
+          allowedTypes.includes(selectedKnowledgeType)
+            ? { selectedKnowledgeType }
+            : {}),
+          title: draftTitle,
+        }),
+      ).catch(() => undefined);
+    }, AUTOSAVE_DRAFT_DELAY_MS);
+
+    return () => window.clearTimeout(handle);
+  }, [
+    activeTitleBehavior.input,
+    allowedTypeKey,
+    body,
+    bodyDocumentJson,
+    draft,
+    draftKey,
+    onClearDraft,
+    onDraftChange,
+    selectedKnowledgeType,
+    title,
+  ]);
 
   useEffect(() => {
     if (slot) {
@@ -192,10 +372,86 @@ export function ContributionEditor({
   }, [slot]);
 
   useEffect(() => {
-    if (activeKnowledgeType !== "words") {
-      setIsWordsTitleVisible(false);
+    if (!isComposerTitleAddable(activeKnowledgeType)) {
+      setIsAddableTitleVisible(false);
     }
   }, [activeKnowledgeType]);
+
+  useEffect(() => {
+    const detectedUrlSet = new Set(getUrlsFromKey(detectedExternalUrlKey));
+    detectedDraftPreviewUrlsRef.current = detectedUrlSet;
+
+    for (const requestedUrl of requestedDraftPreviewUrlsRef.current) {
+      if (!detectedUrlSet.has(requestedUrl)) {
+        requestedDraftPreviewUrlsRef.current.delete(requestedUrl);
+      }
+    }
+
+    setDraftLinkPreviews((current) => {
+      let changed = false;
+      const next = { ...current };
+
+      for (const url of Object.keys(next)) {
+        if (!detectedUrlSet.has(url)) {
+          delete next[url];
+          changed = true;
+        }
+      }
+
+      return changed ? next : current;
+    });
+  }, [detectedExternalUrlKey]);
+
+  useEffect(() => {
+    if (!supportsSmartStorageSources || !onPreviewExternalUrl) {
+      return;
+    }
+
+    for (const url of getUrlsFromKey(detectedExternalUrlKey)) {
+      if (requestedDraftPreviewUrlsRef.current.has(url)) {
+        continue;
+      }
+
+      requestedDraftPreviewUrlsRef.current.add(url);
+      setDraftLinkPreviews((current) => ({
+        ...current,
+        [url]: current[url] ?? { status: "pending" },
+      }));
+
+      void Promise.resolve(onPreviewExternalUrl(url))
+        .then((result) => {
+          setDraftLinkPreviews((current) => {
+            if (!detectedDraftPreviewUrlsRef.current.has(url)) {
+              return current;
+            }
+
+            return {
+              ...current,
+              [url]: toDraftLinkPreviewState(result),
+            };
+          });
+        })
+        .catch(() => {
+          setDraftLinkPreviews((current) => {
+            if (!detectedDraftPreviewUrlsRef.current.has(url)) {
+              return current;
+            }
+
+            return {
+              ...current,
+              [url]: {
+                error: "Link preview unavailable.",
+                status: "failed",
+              },
+            };
+          });
+        });
+    }
+  }, [
+    detectedExternalUrlKey,
+    onPreviewExternalUrl,
+    supportsSmartStorageSources,
+  ]);
 
   function handleEditorFocus() {
     setIsExpanded(true);
@@ -240,11 +496,16 @@ export function ContributionEditor({
       onStoreSmartly,
       onSubmitSource,
     });
+    await Promise.resolve(onClearDraft?.());
     setSubmissionState({ kind: "submitted", entryId: result.entryId, mode });
     setBody("");
+    setBodyDocumentJson(createRichTextDocumentJsonFromText(""));
     setTitle("");
-    setIsWordsTitleVisible(false);
+    setIsAddableTitleVisible(false);
     setUploadedFiles([]);
+    setDraftLinkPreviews({});
+    requestedDraftPreviewUrlsRef.current.clear();
+    detectedDraftPreviewUrlsRef.current = new Set();
   }
 
   function handleRemoveExternalUrl(url: string) {
@@ -339,9 +600,9 @@ export function ContributionEditor({
       </select>
     </label>
   );
-  const showsWordsTitleField =
-    activeKnowledgeType === "words" && isWordsTitleVisible;
-  const showsTitleField = fieldConfig.showsTitleField || showsWordsTitleField;
+  const showsAddableTitleField =
+    fieldConfig.titleBehavior.input === "addable" && isAddableTitleVisible;
+  const showsTitleField = fieldConfig.showsTitleField || showsAddableTitleField;
   const titleField = showsTitleField ? (
     <label
       className={getContributionFieldClassName(
@@ -353,24 +614,30 @@ export function ContributionEditor({
       <input
         onChange={(event) => setTitle(event.currentTarget.value)}
         placeholder={fieldConfig.titlePlaceholder}
-        required={fieldConfig.showsTitleField}
+        required={fieldConfig.titleRequired}
         type="text"
         value={title}
       />
     </label>
   ) : null;
-  const addWordsTitleButton =
-    activeKnowledgeType === "words" && !isWordsTitleVisible ? (
+  const addTitleButton =
+    fieldConfig.titleBehavior.input === "addable" && !isAddableTitleVisible ? (
       <button
         className="kb-contribution-add-title"
-        onClick={() => setIsWordsTitleVisible(true)}
+        onClick={() => setIsAddableTitleVisible(true)}
         type="button"
       >
         Add title
       </button>
     ) : null;
+
+  function handleBodyChange(nextValue: RichTextContributionValue) {
+    setBody(nextValue.bodyPlainText);
+    setBodyDocumentJson(nextValue.bodyDocumentJson);
+  }
+
   const bodyField = fieldConfig.showsBodyField ? (
-    <label
+    <div
       className={getContributionFieldClassName(
         "body",
         primaryField === "body",
@@ -379,29 +646,29 @@ export function ContributionEditor({
       onDrop={handleBodyDrop}
     >
       <span>{fieldConfig.bodyLabel}</span>
-      <textarea
-        onChange={(event) => setBody(event.currentTarget.value)}
+      <RichTextContributionBody
+        bodyDocumentJson={bodyDocumentJson}
+        bodyPlainText={body}
+        onChange={handleBodyChange}
         placeholder={fieldConfig.bodyPlaceholder}
         required={fieldConfig.bodyRequired}
-        rows={5}
-        value={body}
       />
-    </label>
+    </div>
   ) : null;
   const sourceTools =
     supportsSmartStorageSources ? (
       <ContributionSourceTools
-        externalUrls={externalUrls}
+        activeKnowledgeType={activeKnowledgeType}
+        externalUrls={externalUrlChips}
         onFileInputChange={(event) => void handleFileInputChange(event)}
         onRemoveExternalUrl={handleRemoveExternalUrl}
         onRemoveUploadedFile={handleRemoveUploadedFile}
         uploadedFiles={uploadedFiles}
         uploadState={uploadState}
       />
-    ) : null;
+  ) : null;
   const modeChip = isSmartStorageForced({
     hasExplicitWordsTitle,
-    hasSupplementalSources,
     knowledgeType: activeKnowledgeType,
   }) ? (
     <span className="kb-contribution-mode-chip">
@@ -448,7 +715,7 @@ export function ContributionEditor({
         <div className="kb-contribution-metadata-row">
           {typeField}
           {primaryField === "title" ? bodyField : titleField}
-          {addWordsTitleButton}
+          {addTitleButton}
           {modeChip}
         </div>
 
@@ -517,13 +784,8 @@ export function ContributionEditor({
 
 function getContributionPrimaryField(
   fieldConfig: ContributionFieldConfig,
-  knowledgeType: AuthorableKnowledgeType,
-  guidedContributionType: GuidedContributionType | null,
 ): ContributionPrimaryField {
-  if (
-    fieldConfig.showsTitleField &&
-    (knowledgeType === "question" || guidedContributionType === "group")
-  ) {
+  if (fieldConfig.showsTitleField && fieldConfig.titleBehavior.primaryInput) {
     return "title";
   }
 
@@ -547,7 +809,235 @@ function getContributionFieldClassName(
     .join(" ");
 }
 
+function RichTextContributionBody({
+  bodyDocumentJson,
+  bodyPlainText,
+  onChange,
+  placeholder,
+  required,
+}: {
+  bodyDocumentJson: string;
+  bodyPlainText: string;
+  onChange: (nextValue: RichTextContributionValue) => void;
+  placeholder: string;
+  required: boolean;
+}) {
+  const initialContent = useMemo(
+    () => parseRichTextDocumentJson(bodyDocumentJson, bodyPlainText),
+    [],
+  );
+  const appliedDocumentJsonRef = useRef(bodyDocumentJson);
+  const editor = useEditor(
+    {
+      extensions: [StarterKit],
+      content: initialContent,
+      immediatelyRender: false,
+      shouldRerenderOnTransaction: true,
+      editorProps: {
+        attributes: {
+          "aria-label": "Contribution body",
+          "aria-multiline": "true",
+          "aria-required": required ? "true" : "false",
+          class: "kb-contribution-rich-text-prose",
+          role: "textbox",
+        },
+      },
+      onUpdate: ({ editor: updatedEditor }) => {
+        const nextBodyDocumentJson = stringifyEditorDocument(updatedEditor);
+        appliedDocumentJsonRef.current = nextBodyDocumentJson;
+        onChange({
+          bodyDocumentJson: nextBodyDocumentJson,
+          bodyPlainText: getEditorPlainText(updatedEditor),
+        });
+      },
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!editor || appliedDocumentJsonRef.current === bodyDocumentJson) {
+      return;
+    }
+
+    const nextContent = parseRichTextDocumentJson(
+      bodyDocumentJson,
+      bodyPlainText,
+    );
+    appliedDocumentJsonRef.current = bodyDocumentJson;
+    editor.commands.setContent(nextContent, { emitUpdate: false });
+  }, [bodyDocumentJson, bodyPlainText, editor]);
+
+  function handlePlainTextStateChange(event: ChangeEvent<HTMLTextAreaElement>) {
+    const bodyPlainText = event.currentTarget.value;
+    const nextBodyDocumentJson =
+      createRichTextDocumentJsonFromText(bodyPlainText);
+    appliedDocumentJsonRef.current = nextBodyDocumentJson;
+    editor?.commands.setContent(
+      parseRichTextDocumentJson(nextBodyDocumentJson, bodyPlainText),
+      { emitUpdate: false },
+    );
+    onChange({
+      bodyDocumentJson: nextBodyDocumentJson,
+      bodyPlainText,
+    });
+  }
+
+  return (
+    <div
+      aria-label="Contribution body editor"
+      aria-required={required ? "true" : "false"}
+      className="kb-contribution-rich-text"
+    >
+      <ContributionRichTextToolbar editor={editor} />
+      <div className="kb-contribution-rich-text-surface">
+        <EditorContent editor={editor} />
+        {bodyPlainText.trim() ? null : (
+          <span className="kb-contribution-rich-text-placeholder" aria-hidden="true">
+            {placeholder}
+          </span>
+        )}
+      </div>
+      <textarea
+        aria-hidden="true"
+        className="kb-contribution-rich-text-state"
+        onChange={handlePlainTextStateChange}
+        tabIndex={-1}
+        value={bodyPlainText}
+      />
+    </div>
+  );
+}
+
+function ContributionRichTextToolbar({ editor }: { editor: Editor | null }) {
+  return (
+    <div className="kb-contribution-rich-text-toolbar" aria-label="Formatting">
+      <ContributionRichTextButton
+        active={editor?.isActive("bold")}
+        disabled={!editor?.can().chain().focus().toggleBold().run()}
+        label="Bold"
+        onClick={() => editor?.chain().focus().toggleBold().run()}
+      >
+        <Bold aria-hidden="true" />
+      </ContributionRichTextButton>
+      <ContributionRichTextButton
+        active={editor?.isActive("italic")}
+        disabled={!editor?.can().chain().focus().toggleItalic().run()}
+        label="Italic"
+        onClick={() => editor?.chain().focus().toggleItalic().run()}
+      >
+        <Italic aria-hidden="true" />
+      </ContributionRichTextButton>
+      <ContributionRichTextButton
+        active={editor?.isActive("bulletList")}
+        disabled={!editor}
+        label="Bullet list"
+        onClick={() => editor?.chain().focus().toggleBulletList().run()}
+      >
+        <List aria-hidden="true" />
+      </ContributionRichTextButton>
+      <ContributionRichTextButton
+        active={editor?.isActive("orderedList")}
+        disabled={!editor}
+        label="Numbered list"
+        onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+      >
+        <ListOrdered aria-hidden="true" />
+      </ContributionRichTextButton>
+    </div>
+  );
+}
+
+function ContributionRichTextButton({
+  active,
+  children,
+  disabled,
+  label,
+  onClick,
+}: {
+  active?: boolean;
+  children: ReactNode;
+  disabled?: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      aria-label={label}
+      className="kb-contribution-rich-text-button"
+      data-active={active ? "true" : "false"}
+      disabled={disabled}
+      onClick={onClick}
+      title={label}
+      type="button"
+    >
+      {children}
+    </button>
+  );
+}
+
+// Persist editor content as ProseMirror JSON, but keep plain text available for
+// search, previews, and Smart Storage source interpretation.
+export function createRichTextDocumentJsonFromText(text: string) {
+  return JSON.stringify(createRichTextDocumentFromText(text));
+}
+
+function createRichTextDocumentFromText(text: string): Content {
+  const lines = text.split(/\r?\n/);
+  const content = lines.length === 0 ? [""] : lines;
+
+  return {
+    type: "doc",
+    content: content.map((line) => ({
+      type: "paragraph",
+      ...(line
+        ? {
+            content: [
+              {
+                type: "text",
+                text: line,
+              },
+            ],
+          }
+        : {}),
+    })),
+  };
+}
+
+function parseRichTextDocumentJson(
+  bodyDocumentJson: string,
+  fallbackText: string,
+): Content {
+  try {
+    const parsed = JSON.parse(bodyDocumentJson) as unknown;
+    if (isRichTextDocument(parsed)) {
+      return parsed;
+    }
+  } catch {
+    // Fall back to plain text below.
+  }
+
+  return fallbackText ? createRichTextDocumentFromText(fallbackText) : EMPTY_RICH_TEXT_DOCUMENT;
+}
+
+function isRichTextDocument(value: unknown): value is Content {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    "type" in value &&
+    (value as { type?: unknown }).type === "doc"
+  );
+}
+
+function stringifyEditorDocument(editor: Editor) {
+  return JSON.stringify(editor.getJSON());
+}
+
+function getEditorPlainText(editor: Editor) {
+  return editor.getText({ blockSeparator: "\n" });
+}
+
 function ContributionSourceTools({
+  activeKnowledgeType,
   externalUrls,
   onFileInputChange,
   onRemoveExternalUrl,
@@ -555,7 +1045,8 @@ function ContributionSourceTools({
   uploadedFiles,
   uploadState,
 }: {
-  externalUrls: SmartStorageExternalUrlInput[];
+  activeKnowledgeType: AuthorableKnowledgeType;
+  externalUrls: ContributionExternalUrlChip[];
   onFileInputChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onRemoveExternalUrl: (url: string) => void;
   onRemoveUploadedFile: (index: number) => void;
@@ -563,19 +1054,41 @@ function ContributionSourceTools({
   uploadState: UploadState;
 }) {
   const hasInventory = externalUrls.length > 0 || uploadedFiles.length > 0;
+  const showsThumbnailUpload =
+    supportsRepresentativeThumbnail(activeKnowledgeType);
 
   return (
     <section
-      aria-label="Staged Sources"
+      aria-label="Staged Attachments"
       className="kb-contribution-source-tools"
     >
+      {showsThumbnailUpload ? (
+        <div className="kb-contribution-thumbnail-prompt">
+          <ImagePlus aria-hidden="true" />
+          <span>
+            <strong>Representative thumbnail</strong>
+            <small>Shown on Knowledge Pages and search results.</small>
+          </span>
+          <label className="kb-contribution-thumbnail-picker">
+            <span>Upload image</span>
+            <input
+              accept="image/*"
+              aria-label="Upload representative thumbnail"
+              disabled={uploadState.kind === "uploading"}
+              onChange={onFileInputChange}
+              type="file"
+            />
+          </label>
+        </div>
+      ) : null}
+
       <label className="kb-contribution-file-picker">
         <UploadCloud aria-hidden="true" />
         <span>
           {uploadState.kind === "uploading" ? "Uploading..." : "Attach file"}
         </span>
         <input
-          aria-label="Attach file Source"
+          aria-label="Attach file"
           disabled={uploadState.kind === "uploading"}
           multiple
           onChange={onFileInputChange}
@@ -595,14 +1108,18 @@ function ContributionSourceTools({
             <li key={`${externalUrl.url}-${index}`}>
               <Link aria-hidden="true" />
               <span>
-                <strong>{externalUrl.linkPreviewTitle ?? "Link preview pending"}</strong>
-                <small>{externalUrl.url}</small>
+                <strong>{getExternalUrlChipTitle(externalUrl)}</strong>
+                <small>{getExternalUrlChipMeta(externalUrl)}</small>
+                {externalUrl.linkPreviewSiteName &&
+                externalUrl.linkPreviewDescription ? (
+                  <small>{externalUrl.linkPreviewDescription}</small>
+                ) : null}
               </span>
               <button
-                aria-label={`Remove external URL Source ${index + 1}`}
+                aria-label={`Remove external URL Attachment ${index + 1}`}
                 className="kb-contribution-source-remove"
                 onClick={() => onRemoveExternalUrl(externalUrl.url)}
-                title="Remove external URL Source"
+                title="Remove external URL Attachment"
                 type="button"
               >
                 <Trash2 aria-hidden="true" />
@@ -617,10 +1134,10 @@ function ContributionSourceTools({
                 <small>{formatUploadedFileMeta(uploadedFile)}</small>
               </span>
               <button
-                aria-label={`Remove uploaded file Source ${index + 1}`}
+                aria-label={`Remove uploaded file Attachment ${index + 1}`}
                 className="kb-contribution-source-remove"
                 onClick={() => onRemoveUploadedFile(index)}
-                title="Remove uploaded file Source"
+                title="Remove uploaded file Attachment"
                 type="button"
               >
                 <Trash2 aria-hidden="true" />
@@ -631,6 +1148,37 @@ function ContributionSourceTools({
       ) : null}
     </section>
   );
+}
+
+function getExternalUrlChipTitle(externalUrl: ContributionExternalUrlChip) {
+  if (externalUrl.linkPreviewTitle) {
+    return externalUrl.linkPreviewTitle;
+  }
+  if (externalUrl.linkPreviewSiteName) {
+    return externalUrl.linkPreviewSiteName;
+  }
+  if (externalUrl.linkPreviewDescription) {
+    return "Link preview";
+  }
+  if (
+    externalUrl.draftPreviewStatus === "failed" ||
+    externalUrl.draftPreviewStatus === "fetched"
+  ) {
+    return "Link preview unavailable";
+  }
+
+  return "Link preview pending";
+}
+
+function getExternalUrlChipMeta(externalUrl: ContributionExternalUrlChip) {
+  if (externalUrl.linkPreviewSiteName) {
+    return `${externalUrl.linkPreviewSiteName} / ${externalUrl.url}`;
+  }
+  if (externalUrl.linkPreviewDescription) {
+    return externalUrl.linkPreviewDescription;
+  }
+
+  return externalUrl.url;
 }
 
 function formatUploadedFileMeta(uploadedFile: SmartStorageUploadedFileInput) {
@@ -656,6 +1204,8 @@ function formatFileSize(sizeBytes: number) {
   return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// Knowledge Type resolution combines explicit user choice, targeted slots, and
+// Smart Storage suggestions without letting suggestions override a valid choice.
 export function resolveContributionKnowledgeType({
   allowedContributionTypes,
   body = "",
@@ -715,7 +1265,6 @@ export function resolveContributionMode({
   if (
     isSmartStorageForced({
       hasExplicitWordsTitle,
-      hasSupplementalSources,
       knowledgeType,
     })
   ) {
@@ -823,6 +1372,74 @@ export function createContributionPreview({
   };
 }
 
+function createExternalUrlInputFromPreview(
+  url: string,
+  preview: DraftLinkPreviewState | undefined,
+): SmartStorageExternalUrlInput {
+  if (!preview || preview.status !== "fetched") {
+    return { url };
+  }
+
+  return {
+    ...(preview.description === undefined
+      ? {}
+      : { linkPreviewDescription: preview.description }),
+    ...(preview.imageUrl === undefined
+      ? {}
+      : { linkPreviewImageUrl: preview.imageUrl }),
+    ...(preview.siteName === undefined
+      ? {}
+      : { linkPreviewSiteName: preview.siteName }),
+    ...(preview.title === undefined
+      ? {}
+      : { linkPreviewTitle: preview.title }),
+    url,
+  };
+}
+
+function createExternalUrlChipFromPreview(
+  url: string,
+  preview: DraftLinkPreviewState | undefined,
+): ContributionExternalUrlChip {
+  const externalUrl = createExternalUrlInputFromPreview(url, preview);
+  const previewStatus = preview?.status ?? "pending";
+
+  return {
+    ...externalUrl,
+    ...(preview?.status === "failed" && preview.error
+      ? { draftPreviewError: preview.error }
+      : {}),
+    draftPreviewStatus: previewStatus,
+  };
+}
+
+function toDraftLinkPreviewState(
+  result: DraftLinkPreviewResult,
+): DraftLinkPreviewState {
+  if (result.status === "failed") {
+    return {
+      ...(result.error === undefined ? {} : { error: result.error }),
+      status: "failed",
+    };
+  }
+
+  return {
+    ...(result.description === undefined
+      ? {}
+      : { description: result.description }),
+    ...(result.imageUrl === undefined ? {} : { imageUrl: result.imageUrl }),
+    ...(result.siteName === undefined ? {} : { siteName: result.siteName }),
+    ...(result.title === undefined ? {} : { title: result.title }),
+    status: "fetched",
+  };
+}
+
+function getUrlsFromKey(urlKey: string) {
+  return urlKey ? urlKey.split("\n") : [];
+}
+
+// Convert transient editor state into the backend-safe contribution contract.
+// Optional fields are omitted instead of passed as undefined Convex values.
 export function createContributionInput({
   body,
   contributionNote,
@@ -888,15 +1505,18 @@ function createContributionInputTitle({
   parentEntryTitle?: string;
   title: string;
 }) {
-  if (knowledgeType === "comment") {
+  const titleBehavior = getComposerTitleBehavior(knowledgeType);
+  const trimmedTitle = title.trim();
+
+  if (titleBehavior.generatedTitleKind === "parentComment") {
     return createCommentTitle(parentEntryTitle);
   }
 
-  if (knowledgeType === "words") {
-    return title.trim() || createWordsTitle(body);
+  if (titleBehavior.generatedTitleKind === "bodyPreview") {
+    return trimmedTitle || createWordsTitle(body);
   }
 
-  return title.trim();
+  return trimmedTitle;
 }
 
 function createCommentTitle(parentEntryTitle?: string) {
@@ -908,17 +1528,34 @@ function getContributionFieldConfig(
   knowledgeType: AuthorableKnowledgeType,
   guidedContributionType: GuidedContributionType | null = null,
 ): ContributionFieldConfig {
+  const titleBehavior = getComposerTitleBehavior(knowledgeType);
+  const showsTitleField = isComposerTitleRequired(knowledgeType);
+  const titlePlaceholder =
+    titleBehavior.placeholder ?? `${formatKnowledgeTypeLabel(knowledgeType)} title`;
+  const titlePreviewLabel =
+    titleBehavior.input === "hidden" ? undefined : titleBehavior.previewLabel;
+
   if (knowledgeType === "group" && guidedContributionType === "group") {
+    const guidedGroupTitleBehavior: ComposerTitleBehavior = {
+      ...titleBehavior,
+      label: "What is the group called?",
+      placeholder: "Basketball Club",
+      previewLabel: "Group",
+      primaryInput: true,
+    };
+
     return {
       bodyLabel: "Source",
       bodyPlaceholder: "",
       bodyPreviewLabel: "Preview",
       bodyRequired: false,
       showsBodyField: false,
-      showsTitleField: true,
-      titleLabel: "What is the group called?",
-      titlePlaceholder: "Basketball Club",
-      titlePreviewLabel: "Group",
+      showsTitleField,
+      titleBehavior: guidedGroupTitleBehavior,
+      titleLabel: guidedGroupTitleBehavior.label,
+      titlePlaceholder: guidedGroupTitleBehavior.placeholder,
+      titlePreviewLabel: guidedGroupTitleBehavior.previewLabel,
+      titleRequired: showsTitleField,
     };
   }
 
@@ -929,7 +1566,12 @@ function getContributionFieldConfig(
       bodyPreviewLabel: "Preview",
       bodyRequired: true,
       showsBodyField: true,
-      showsTitleField: false,
+      showsTitleField,
+      titleBehavior,
+      titleLabel: titleBehavior.label,
+      titlePlaceholder,
+      titlePreviewLabel,
+      titleRequired: showsTitleField,
     };
   }
 
@@ -940,10 +1582,12 @@ function getContributionFieldConfig(
       bodyPreviewLabel: "Preview",
       bodyRequired: true,
       showsBodyField: true,
-      showsTitleField: false,
-      titleLabel: "Title",
-      titlePlaceholder: "Optional title",
-      titlePreviewLabel: "Title",
+      showsTitleField,
+      titleBehavior,
+      titleLabel: titleBehavior.label,
+      titlePlaceholder,
+      titlePreviewLabel,
+      titleRequired: showsTitleField,
     };
   }
 
@@ -954,14 +1598,14 @@ function getContributionFieldConfig(
       bodyPreviewLabel: "Details",
       bodyRequired: false,
       showsBodyField: true,
-      showsTitleField: true,
-      titleLabel: "Question",
-      titlePlaceholder: "Ask a question...",
-      titlePreviewLabel: "Question",
+      showsTitleField,
+      titleBehavior,
+      titleLabel: titleBehavior.label,
+      titlePlaceholder,
+      titlePreviewLabel,
+      titleRequired: showsTitleField,
     };
   }
-
-  const knowledgeTypeLabel = formatKnowledgeTypeLabel(knowledgeType);
 
   return {
     bodyLabel: "Source",
@@ -969,10 +1613,12 @@ function getContributionFieldConfig(
     bodyPreviewLabel: "Preview",
     bodyRequired: true,
     showsBodyField: true,
-    showsTitleField: true,
-    titleLabel: "Title",
-    titlePlaceholder: `${knowledgeTypeLabel} title`,
-    titlePreviewLabel: "Title",
+    showsTitleField,
+    titleBehavior,
+    titleLabel: titleBehavior.label,
+    titlePlaceholder,
+    titlePreviewLabel,
+    titleRequired: showsTitleField,
   };
 }
 
@@ -1123,16 +1769,16 @@ function getAllowedContributionTypes(
 
 function isSmartStorageForced({
   hasExplicitWordsTitle,
-  hasSupplementalSources,
   knowledgeType,
 }: {
   hasExplicitWordsTitle?: boolean;
-  hasSupplementalSources?: boolean;
   knowledgeType: AuthorableKnowledgeType;
 }) {
+  const titleBehavior = getComposerTitleBehavior(knowledgeType);
+
   return (
-    hasSupplementalSources === true ||
-    (knowledgeType === "words" && hasExplicitWordsTitle === true) ||
+    (titleBehavior.smartStorageTriggerWhenProvided &&
+      hasExplicitWordsTitle === true) ||
     (knowledgeType !== "words" && knowledgeType !== "comment")
   );
 }
