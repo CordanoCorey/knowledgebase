@@ -8,6 +8,8 @@ import {
 } from "./_generated/server";
 import type { OrganizationMembershipRole } from "./lib/organizationRoles";
 
+// Organization seed data creates the canonical demo/access workspace records
+// needed by local development and initial deployments.
 const DEFAULT_CONTEXT_TAG_LABELS: string[] = [];
 const DUPLICATE_EMAIL_ERROR = "Email is already in use by another user.";
 

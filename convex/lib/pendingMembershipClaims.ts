@@ -3,6 +3,8 @@ import type { MutationCtx } from "../_generated/server";
 import type { OrganizationMembershipRole } from "./organizationRoles";
 import { notifyOrganizationAdminsOfPersonConsolidationReview } from "./userNotificationWrites";
 
+// Pending membership claims connect verified contact identities to pre-created
+// person memberships while preserving review records for ambiguous matches.
 const MAX_PERSON_ENTRIES_PER_REFERENT = 10;
 const MAX_PENDING_MEMBERSHIPS_TO_CLAIM = 100;
 const NON_CLAIMABLE_MEMBERSHIP_STATUSES = ["active", "inactive"] as const;

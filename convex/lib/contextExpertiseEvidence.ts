@@ -9,6 +9,8 @@ import {
   normalizeContextExpertiseTagIds,
 } from "./contextExpertiseScoring";
 
+// Context Expertise Evidence is append/update-heavy signal data, separated from
+// entries so feedback, curation, and fulfillment do not contend on gold records.
 const MAX_CONTEXT_TAGS = 20;
 const TOP_SUPPORTING_ENTRY_LIMIT = 5;
 const MAX_CONTEXT_EXPERTISE_EVIDENCE_PER_AGGREGATE = 200;
@@ -73,6 +75,8 @@ type RecordContextExpertiseEvidenceArgs = {
   subjectPersonReferentId?: Id<"referents">;
 };
 
+// Evidence is idempotent for keyed sources such as feedback, slots, and Smart
+// Storage proposals, then rolled into scoped aggregates for fast reads.
 export async function recordContextExpertiseEvidence(
   ctx: MutationCtx,
   args: RecordContextExpertiseEvidenceArgs,

@@ -5,6 +5,8 @@ import App from "./App";
 import { createConvexClient } from "./convexClient";
 import "./index.css";
 
+// Keep bootstrapping narrow: construct infrastructure here, then let App own
+// routing, data subscriptions, and feature composition.
 const convex = createConvexClient();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

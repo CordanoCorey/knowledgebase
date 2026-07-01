@@ -2,6 +2,8 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { getCurrentAppAccess } from "./lib/appAccess";
 
+// Public access query returns a discriminated union instead of leaking auth
+// implementation details to React components.
 const allowedOrganization = v.object({
   organizationEntryId: v.id("organizationEntries"),
   organizationKind: v.union(

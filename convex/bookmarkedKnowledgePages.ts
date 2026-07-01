@@ -6,6 +6,8 @@ import {
   type AllowedOrganization,
 } from "./lib/appAccess";
 
+// Bookmarks are profile-scoped knowledge page references, distinct from sidebar
+// pins so lightweight saving does not affect primary navigation.
 const DEFAULT_PROFILE_BOOKMARK_LIMIT = 50;
 const MAX_PROFILE_BOOKMARK_LIMIT = 100;
 const MAX_TAGS_PER_REFERENT = 5;

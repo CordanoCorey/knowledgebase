@@ -3,6 +3,8 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
 import { requireAppAccess, type AppAccessState } from "./lib/appAccess";
 
+// Tag suggestion queries favor deterministic, bounded candidates so text input
+// subscriptions stay responsive.
 const DEFAULT_SUGGESTION_LIMIT = 5;
 const MAX_SUGGESTION_LIMIT = 8;
 const MAX_SEARCH_TEXT_LENGTH = 120;
@@ -12,6 +14,15 @@ const MAX_RECOGNITIONS_PER_TAG = 20;
 const MAX_REPRESENTED_ENTRIES_PER_REFERENT = 20;
 const MAX_CORRELATION_ROWS_PER_TAG = 40;
 const MAX_ENTRY_TAGS_FOR_CORRELATION = 40;
+const MAX_RECOMMENDED_CONTEXT_ROWS_PER_ACTIVE_TAG = 32;
+const MAX_RECOMMENDED_ENTRY_TAGS = 32;
+const MAX_RECOMMENDED_RECOGNITIONS_PER_SCOPE = 24;
+const MAX_RECOMMENDED_RECOGNITION_ORGANIZATIONS = 10;
+const MAX_RECOMMENDED_RECENT_ENTRIES = 40;
+const RELATED_RECOMMENDATION_SCORE = 120;
+const USER_RECOGNITION_RECOMMENDATION_SCORE = 80;
+const ORGANIZATION_RECOGNITION_RECOMMENDATION_SCORE = 64;
+const RECENT_ACCESSIBLE_RECOMMENDATION_SCORE = 18;
 
 const referentKnowledgeType = v.union(
   v.literal("words"),
@@ -136,6 +147,33 @@ export const listKnowledgeNavigatorTagSuggestions = query({
   },
 });
 
+export const listKnowledgeNavigatorRecommendedTags = query({
+  args: {
+    activeTags: v.array(activeTagSnapshot),
+    limit: v.optional(v.number()),
+  },
+  returns: v.array(tagSuggestion),
+  handler: async (ctx, args): Promise<TagSuggestion[]> => {
+    const access = toSuggestionAccess(await requireAppAccess(ctx));
+    const limit = normalizeLimit(args.limit);
+    if (limit < 1) {
+      return [];
+    }
+
+    const activeTagIds = await resolveActiveTagIds(ctx, args.activeTags);
+    const candidates = await getRecommendedTagCandidates(
+      ctx,
+      activeTagIds,
+      access,
+    );
+
+    return await summarizeCandidates(ctx, candidates, access, {
+      activeTagIds,
+      limit,
+    });
+  },
+});
+
 async function searchTagCandidates(
   ctx: QueryCtx,
   searchText: string,
@@ -194,6 +232,190 @@ function addCandidate(
   if (!current || score > current.score) {
     candidates.set(tag._id, { matchKind, score, tag });
   }
+}
+
+async function getRecommendedTagCandidates(
+  ctx: QueryCtx,
+  activeTagIds: Set<Id<"tags">>,
+  access: SuggestionAccess,
+) {
+  const candidates = new Map<string, Candidate>();
+
+  if (activeTagIds.size > 0) {
+    await addContextRecommendationCandidates(
+      ctx,
+      candidates,
+      activeTagIds,
+      access,
+    );
+  }
+
+  await addRecognitionRecommendationCandidates(ctx, candidates, access);
+  await addRecentAccessibleRecommendationCandidates(ctx, candidates, access);
+
+  return Array.from(candidates.values());
+}
+
+async function addContextRecommendationCandidates(
+  ctx: QueryCtx,
+  candidates: Map<string, Candidate>,
+  activeTagIds: Set<Id<"tags">>,
+  access: SuggestionAccess,
+) {
+  for (const activeTagId of activeTagIds) {
+    const rows = await ctx.db
+      .query("entryTags")
+      .withIndex("by_tagId_and_entryId", (q) => q.eq("tagId", activeTagId))
+      .take(MAX_RECOMMENDED_CONTEXT_ROWS_PER_ACTIVE_TAG);
+
+    for (const row of rows) {
+      const entry = await ctx.db.get(row.entryId);
+      if (!entry || !isEntryAccessible(entry, access)) {
+        continue;
+      }
+
+      const entryTags = await ctx.db
+        .query("entryTags")
+        .withIndex("by_entryId_and_tagId", (q) => q.eq("entryId", row.entryId))
+        .take(MAX_RECOMMENDED_ENTRY_TAGS);
+
+      for (const entryTag of entryTags) {
+        if (activeTagIds.has(entryTag.tagId)) {
+          continue;
+        }
+
+        const tag = await ctx.db.get(entryTag.tagId);
+        if (!tag) {
+          continue;
+        }
+
+        addRecommendedCandidate(
+          candidates,
+          tag,
+          getContextRecommendationScore(entry, entryTag, access),
+        );
+      }
+    }
+  }
+}
+
+async function addRecognitionRecommendationCandidates(
+  ctx: QueryCtx,
+  candidates: Map<string, Candidate>,
+  access: SuggestionAccess,
+) {
+  const userRecognitions = await ctx.db
+    .query("tagRecognitions")
+    .withIndex("by_userId_and_lastInteractedAt", (q) =>
+      q.eq("userId", access.userId),
+    )
+    .order("desc")
+    .take(MAX_RECOMMENDED_RECOGNITIONS_PER_SCOPE);
+
+  for (const [index, recognition] of userRecognitions.entries()) {
+    const tag = await ctx.db.get(recognition.tagId);
+    if (!tag) {
+      continue;
+    }
+
+    addRecommendedCandidate(
+      candidates,
+      tag,
+      getRankedRecognitionScore(
+        USER_RECOGNITION_RECOMMENDATION_SCORE,
+        index,
+      ),
+    );
+  }
+
+  const organizationReferentIds = Array.from(access.organizationReferentIds).slice(
+    0,
+    MAX_RECOMMENDED_RECOGNITION_ORGANIZATIONS,
+  );
+  for (const organizationReferentId of organizationReferentIds) {
+    const organizationRecognitions = await ctx.db
+      .query("tagRecognitions")
+      .withIndex("by_organizationReferentId_and_lastInteractedAt", (q) =>
+        q.eq("organizationReferentId", organizationReferentId),
+      )
+      .order("desc")
+      .take(MAX_RECOMMENDED_RECOGNITIONS_PER_SCOPE);
+
+    for (const [index, recognition] of organizationRecognitions.entries()) {
+      const tag = await ctx.db.get(recognition.tagId);
+      if (!tag) {
+        continue;
+      }
+
+      addRecommendedCandidate(
+        candidates,
+        tag,
+        getRankedRecognitionScore(
+          ORGANIZATION_RECOGNITION_RECOMMENDATION_SCORE,
+          index,
+        ),
+      );
+    }
+  }
+}
+
+async function addRecentAccessibleRecommendationCandidates(
+  ctx: QueryCtx,
+  candidates: Map<string, Candidate>,
+  access: SuggestionAccess,
+) {
+  const entries = await ctx.db
+    .query("knowledgeEntries")
+    .withIndex("by_updatedAt")
+    .order("desc")
+    .take(MAX_RECOMMENDED_RECENT_ENTRIES);
+
+  for (const [index, entry] of entries.entries()) {
+    if (!isEntryAccessible(entry, access)) {
+      continue;
+    }
+
+    const tag = await ctx.db.get(entry.primaryTagId);
+    if (!tag) {
+      continue;
+    }
+
+    addRecommendedCandidate(
+      candidates,
+      tag,
+      Math.max(1, RECENT_ACCESSIBLE_RECOMMENDATION_SCORE - index),
+    );
+  }
+}
+
+function addRecommendedCandidate(
+  candidates: Map<string, Candidate>,
+  tag: Doc<"tags">,
+  score: number,
+) {
+  const current = candidates.get(tag._id);
+  if (current) {
+    current.score += score;
+    return;
+  }
+
+  candidates.set(tag._id, { matchKind: "label", score, tag });
+}
+
+function getContextRecommendationScore(
+  entry: Doc<"knowledgeEntries">,
+  entryTag: Doc<"entryTags">,
+  access: SuggestionAccess,
+) {
+  return (
+    RELATED_RECOMMENDATION_SCORE +
+    (entryTag.tagPurpose === "represented" ? 16 : 8) +
+    (entry.createdByUserId === access.userId ? 8 : 0)
+  );
+}
+
+function getRankedRecognitionScore(baseScore: number, index: number) {
+  return baseScore + Math.max(0, MAX_RECOMMENDED_RECOGNITIONS_PER_SCOPE - index);
 }
 
 async function summarizeCandidates(

@@ -1,6 +1,8 @@
 import type { Doc } from "../_generated/dataModel";
 import { getApplicableHumanWeight } from "./typeBehavior";
 
+// Pure scoring helpers for Context Expertise. Keeping this math outside Convex
+// functions makes aggregate rebuilds and feed ranking easier to test.
 export const CONTEXT_EXPERTISE_SCORING_VERSION =
   "context-expertise-mvp-1";
 export const DEFAULT_CONTEXT_EXPERTISE_SIGNAL_SCORE = 55;

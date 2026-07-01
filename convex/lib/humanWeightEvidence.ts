@@ -5,6 +5,8 @@ import {
   type EntryKnowledgeType,
 } from "./typeBehavior";
 
+// Human Weight evidence summarizes individual feedback/evidence rows into the
+// compact maturity signal shown on feeds and cards.
 type HumanWeightFeedbackKind = Doc<"humanWeightFeedback">["feedbackKind"];
 type HumanWeightEvidenceSignal = Doc<"humanWeightEvidence">["evidenceSignal"];
 

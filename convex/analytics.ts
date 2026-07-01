@@ -4,6 +4,8 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { parseBiblePassageReference } from "./lib/scriptureReferences";
 
+// Analytics mutations store normalized interaction events and maintain small
+// aggregate rows for dashboard/context trend reads.
 const DEFAULT_POPULAR_LIMIT = 6;
 const DEFAULT_RECENT_LIMIT = 8;
 const DEFAULT_BIBLE_CONTEXT_LIMIT = 4;

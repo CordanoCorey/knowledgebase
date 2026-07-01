@@ -154,6 +154,36 @@ describe("Contribution Editor type and mode resolution", () => {
     expect(markup).not.toContain("<select");
   });
 
+  test("emphasizes representative thumbnails except for Words and Comments", () => {
+    const lessonMarkup = renderToStaticMarkup(
+      <ContributionEditor
+        allowedContributionTypes={["lesson"]}
+        context={[romansTag]}
+        onSubmitSource={() => ({ status: "submitted" })}
+      />,
+    );
+    expect(lessonMarkup).toContain("Representative thumbnail");
+    expect(lessonMarkup).toContain("Upload representative thumbnail");
+
+    const wordsMarkup = renderToStaticMarkup(
+      <ContributionEditor
+        allowedContributionTypes={["words"]}
+        context={[romansTag]}
+        onSubmitSource={() => ({ status: "submitted" })}
+      />,
+    );
+    expect(wordsMarkup).not.toContain("Representative thumbnail");
+
+    const commentMarkup = renderToStaticMarkup(
+      <ContributionEditor
+        context={[romansTag]}
+        onSubmitSource={() => ({ status: "submitted" })}
+        parentEntryTitle="Courage in Joshua"
+      />,
+    );
+    expect(commentMarkup).not.toContain("Representative thumbnail");
+  });
+
   test("Bible Passage and RSVP are unavailable as generic contribution types", () => {
     expect(
       resolveContributionKnowledgeType({

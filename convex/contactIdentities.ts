@@ -13,6 +13,8 @@ import {
 import { claimPendingOrganizationMembershipsForVerifiedEmail } from "./lib/pendingMembershipClaims";
 import { organizationMembershipRole } from "./lib/organizationRoles";
 
+// Contact identities support verified-email membership claims without requiring
+// every membership invite to know the eventual user account.
 const VERIFICATION_CODE_TTL_MS = 30 * 60 * 1000;
 
 const contactIdentitySummary = v.object({

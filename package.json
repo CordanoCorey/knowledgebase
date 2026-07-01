@@ -28,6 +28,7 @@
     "@auth/core": "^0.41.2",
     "@convex-dev/auth": "^0.0.94",
     "@convex-dev/prosemirror-sync": "^0.2.4",
+    "@convex-dev/resend": "^0.2.5",
     "@tiptap/react": "^3.26.0",
     "@tiptap/starter-kit": "^3.26.0",
     "@vitejs/plugin-react": "latest",

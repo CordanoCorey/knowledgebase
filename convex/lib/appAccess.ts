@@ -2,6 +2,8 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 
+// Access checks are centralized so public Convex functions derive authorization
+// from the authenticated user, not from client-supplied IDs.
 const MAX_ACTIVE_MEMBERSHIPS_TO_CHECK = 50;
 const MAX_ORGANIZATION_ENTRIES_PER_REFERENT = 10;
 const MAX_SYSTEM_ADMIN_ORGANIZATIONS_PER_KIND = 100;

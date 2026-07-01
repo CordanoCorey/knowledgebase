@@ -15,6 +15,8 @@ const modules = {
   "./lib/appAccess.ts": () => import("./lib/appAccess"),
   "./lib/contextExpertiseEvidence.ts": () =>
     import("./lib/contextExpertiseEvidence"),
+  "./lib/fileRepresentationRoles.ts": () =>
+    import("./lib/fileRepresentationRoles"),
   "./lib/typeBehavior.ts": () => import("./lib/typeBehavior"),
   "./smartStorage.ts": () => import("./smartStorage"),
 };
@@ -32,7 +34,14 @@ type SmartStorageContributionInput = {
   body: string;
   contributionNote?: string;
   contextTags: TestContextTagSnapshot[];
-  externalUrls?: Array<{ url: string }>;
+  externalUrls?: Array<{
+    linkPreviewDescription?: string;
+    linkPreviewImageUrl?: string;
+    linkPreviewSiteName?: string;
+    linkPreviewTitle?: string;
+    title?: string;
+    url: string;
+  }>;
   knowledgeType: Doc<"knowledgeEntries">["knowledgeType"];
   slotId?: string;
   title: string;
@@ -40,6 +49,52 @@ type SmartStorageContributionInput = {
 
 const SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION =
   "mvp-smart-storage-contract-v3";
+const STORED_FILE_ROLE_CASES = [
+  {
+    contentType: "application/pdf",
+    expectedRole: "manuscript",
+    fileName: "sermon-manuscript.pdf",
+    label: "manuscript",
+  },
+  {
+    contentType:
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    expectedRole: "slides",
+    fileName: "lesson-slides.pptx",
+    label: "slides",
+  },
+  {
+    contentType: "text/plain",
+    expectedRole: "transcript",
+    fileName: "lesson-transcript.txt",
+    label: "transcript",
+  },
+  {
+    contentType: "audio/mpeg",
+    expectedRole: "recording",
+    fileName: "lesson-recording.mp3",
+    label: "audio recording",
+  },
+  {
+    contentType: "video/mp4",
+    expectedRole: "recording",
+    fileName: "lesson-video.mp4",
+    label: "video recording",
+  },
+  {
+    contentType: "image/png",
+    expectedRole: "thumbnail",
+    fileName: "lesson-thumbnail.png",
+    label: "thumbnail",
+  },
+  {
+    contentType:
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    expectedRole: "supportingMaterial",
+    fileName: "lesson-handout.docx",
+    label: "supporting material",
+  },
+] as const;
 const SMART_STORAGE_CONTRACT_SNAPSHOT = {
   contractKind: "contributionSubmissionToSmartStorageProposal",
   version: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
@@ -248,7 +303,7 @@ describe("Smart Storage contribution spine", () => {
           contentType: "application/pdf",
           contributionSubmissionId: result.contributionSubmissionId,
           fileName: "courage-handout.pdf",
-          fileSizeBytes: 1234,
+          fileSizeBytes: "handout".length,
           sourceKind: "uploadedFile",
           storageId,
         }),
@@ -759,6 +814,62 @@ describe("Smart Storage contribution spine", () => {
         uploadedByUserId: userId,
       }),
     );
+  });
+
+  test("records temporary upload metadata from Convex storage for stored file categories", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+
+    for (const fileCase of STORED_FILE_ROLE_CASES) {
+      const contents = `${fileCase.label} contents`;
+      const storageId = await storeTestFile(
+        t,
+        contents,
+        fileCase.contentType,
+      );
+      const result = await authed.mutation(
+        api.smartStorage.createTemporaryUploadRecord,
+        {
+          contentType: fileCase.contentType,
+          fileName: `  ${fileCase.fileName}  `,
+          fileSizeBytes: 999_999,
+          storageId,
+        },
+      );
+
+      const temporaryUpload = await t.run(
+        async (ctx) => await ctx.db.get(result.temporaryUploadId),
+      );
+
+      expect(temporaryUpload).toEqual(
+        expect.objectContaining({
+          contentType: fileCase.contentType,
+          fileName: fileCase.fileName,
+          fileSizeBytes: contents.length,
+          storageId,
+          uploadStatus: "uploaded",
+          uploadedByUserId: userId,
+        }),
+      );
+    }
+  });
+
+  test("rejects temporary upload records for missing storage objects", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const storageId = await storeTestFile(t, "deleted upload");
+    await t.run(async (ctx) => {
+      await ctx.storage.delete(storageId);
+    });
+
+    await expect(
+      authed.mutation(api.smartStorage.createTemporaryUploadRecord, {
+        fileName: "deleted-upload.pdf",
+        storageId,
+      }),
+    ).rejects.toThrow("Uploaded file not found in storage.");
   });
 
   test("schedules and deletes expired unattached temporary uploads", async () => {
@@ -2376,6 +2487,145 @@ describe("Smart Storage contribution spine", () => {
     );
   });
 
+  test("acceptance adds source preview image as a non-primary thumbnail when no upload supplies one", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const startResult = await authed.mutation(
+      api.smartStorage.startFromContribution,
+      {
+        body: "Objective: students will distinguish courage from presumption.",
+        contextTags: getJoshuaContextTags(),
+        externalUrls: [
+          {
+            linkPreviewImageUrl: "https://images.example/courage.jpg",
+            linkPreviewTitle: "Courage source",
+            url: "https://example.com/courage",
+          },
+        ],
+        knowledgeType: "lesson",
+        title: "Courage in Joshua",
+      },
+    );
+    const proposalResult = await authed.mutation(
+      api.smartStorage.generateDraftProposalForRun,
+      {
+        smartStorageRunId: startResult.smartStorageRunId,
+      },
+    );
+
+    const accepted = await authed.mutation(api.smartStorage.acceptScaffoldProposal, {
+      smartStorageProposalId: proposalResult.smartStorageProposalId,
+    });
+
+    const rowState = await t.run(async (ctx) => {
+      const representations = await ctx.db
+        .query("entryRepresentations")
+        .withIndex("by_entryId_and_isPrimary", (q) =>
+          q.eq("entryId", accepted.entryId!),
+        )
+        .collect();
+      const outputs = await ctx.db
+        .query("sourceOutputs")
+        .withIndex("by_entryId_and_sourceId", (q) =>
+          q.eq("entryId", accepted.entryId!),
+        )
+        .collect();
+
+      return {
+        outputs,
+        representations,
+      };
+    });
+
+    expect(rowState.representations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          externalUrl: "https://images.example/courage.jpg",
+          isPrimary: false,
+          representationKind: "externalUrl",
+          representationRole: "thumbnail",
+        }),
+      ]),
+    );
+    expect(
+      rowState.representations.filter((representation) => representation.isPrimary),
+    ).toHaveLength(1);
+    expect(new Set(rowState.outputs.map((output) => output.sourceId)).size).toBe(
+      rowState.outputs.length,
+    );
+  });
+
+  test("adds an uploaded representative thumbnail to an accessible Knowledge Page entry", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const proposalResult = await createDraftProposal(
+      authed,
+      getLessonSmartStorageInput(),
+    );
+    const accepted = await authed.mutation(api.smartStorage.acceptScaffoldProposal, {
+      smartStorageProposalId: proposalResult.smartStorageProposalId,
+    });
+    const storageId = await storeTestImage(t, "thumbnail image");
+    const temporaryUpload = await authed.mutation(
+      api.smartStorage.createTemporaryUploadRecord,
+      {
+        contentType: "image/png",
+        fileName: "courage-thumbnail.png",
+        fileSizeBytes: 15,
+        storageId,
+      },
+    );
+
+    const result = await authed.mutation(api.smartStorage.addKnowledgePageThumbnail, {
+      entryId: accepted.entryId!,
+      uploadedFile: {
+        contentType: "image/png",
+        fileName: "courage-thumbnail.png",
+        fileSizeBytes: 15,
+        storageId,
+        temporaryUploadId: temporaryUpload.temporaryUploadId,
+      },
+    });
+
+    expect(result).toMatchObject({
+      entryId: accepted.entryId,
+      status: "added",
+      thumbnailUrl: expect.any(String),
+    });
+    const rowState = await t.run(async (ctx) => {
+      const representations = await ctx.db
+        .query("entryRepresentations")
+        .withIndex("by_entryId_and_representationKind", (q) =>
+          q.eq("entryId", accepted.entryId!).eq("representationKind", "storageFile"),
+        )
+        .collect();
+      const upload = await ctx.db.get(temporaryUpload.temporaryUploadId);
+
+      return {
+        representations,
+        upload,
+      };
+    });
+
+    expect(rowState.representations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fileName: "courage-thumbnail.png",
+          isPrimary: false,
+          representationRole: "thumbnail",
+          storageId,
+        }),
+      ]),
+    );
+    expect(rowState.upload).toEqual(
+      expect.objectContaining({
+        uploadStatus: "attached",
+      }),
+    );
+  });
+
   test("rejects invalid explicit Representation decisions during Proposal acceptance", async () => {
     const t = convexTest({ schema, modules });
     const userId = await t.run(insertAllowedUser);
@@ -2851,6 +3101,33 @@ describe("Smart Storage contribution spine", () => {
         createdAt: now,
         updatedAt: now,
       });
+      await ctx.db.insert("entryRepresentations", {
+        entryId,
+        representationKind: "storageFile",
+        contentType: "image/png",
+        fileName: "chapel-thumbnail.png",
+        isPrimary: false,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await ctx.db.insert("entryRepresentations", {
+        entryId,
+        representationKind: "storageFile",
+        contentType: "application/pdf",
+        fileName: "chapel-manuscript.pdf",
+        isPrimary: false,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await ctx.db.insert("entryRepresentations", {
+        entryId,
+        representationKind: "storageFile",
+        contentType: "text/plain",
+        fileName: "chapel-transcript.txt",
+        isPrimary: false,
+        createdAt: now,
+        updatedAt: now,
+      });
     });
 
     const dryRun = await t.mutation(
@@ -2863,8 +3140,8 @@ describe("Smart Storage contribution spine", () => {
     expect(dryRun).toMatchObject({
       dryRun: true,
       isDone: true,
-      matchedCount: 5,
-      scannedCount: 5,
+      matchedCount: 8,
+      scannedCount: 8,
       updatedCount: 0,
     });
     const dryRunRows = await t.run(
@@ -2883,9 +3160,9 @@ describe("Smart Storage contribution spine", () => {
     expect(backfill).toMatchObject({
       dryRun: false,
       isDone: true,
-      matchedCount: 5,
-      scannedCount: 5,
-      updatedCount: 5,
+      matchedCount: 8,
+      scannedCount: 8,
+      updatedCount: 8,
     });
     const rowState = await t.run(async (ctx) => {
       const rows = await ctx.db.query("entryRepresentations").collect();
@@ -2915,6 +3192,18 @@ describe("Smart Storage contribution spine", () => {
         {
           representationKind: "video",
           representationRole: "recording",
+        },
+        {
+          representationKind: "storageFile",
+          representationRole: "thumbnail",
+        },
+        {
+          representationKind: "storageFile",
+          representationRole: "manuscript",
+        },
+        {
+          representationKind: "storageFile",
+          representationRole: "transcript",
         },
       ]),
     );
@@ -3355,13 +3644,21 @@ async function insertJoshuaSlot(
 async function storeTestFile(
   t: ReturnType<typeof convexTest>,
   contents: string,
+  contentType = "application/pdf",
 ) {
   return await t.run(
     async (ctx) =>
       await ctx.storage.store(
-        new Blob([contents], { type: "application/pdf" }),
+        new Blob([contents], { type: contentType }),
       ),
   );
+}
+
+async function storeTestImage(
+  t: ReturnType<typeof convexTest>,
+  contents: string,
+) {
+  return await storeTestFile(t, contents, "image/png");
 }
 
 async function insertLegacySmartStorageRows(

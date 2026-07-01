@@ -16,6 +16,8 @@ import {
 } from "./lib/organizationRoles";
 import { notifyPersonConsolidationReviewClaimant } from "./lib/userNotificationWrites";
 
+// Organization account setup and membership management create the minimum
+// referent, entry, membership, and notification state for an organization space.
 const MAX_ORGANIZATION_ENTRIES_PER_REFERENT = 10;
 const MAX_ORGANIZATION_MEMBERS = 100;
 const organizationKind = v.union(

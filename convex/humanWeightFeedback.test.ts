@@ -5,6 +5,13 @@ import { describe, expect, test } from "vitest";
 import { api } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
+import {
+  CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION,
+  HUMAN_WEIGHT_CALCULATION_DEFINITION_KEY,
+} from "./lib/humanWeightCalculationDefinition";
+import {
+  MVP_HUMAN_WEIGHT_RECALCULATION_VERSION,
+} from "./lib/humanWeightRecalculation";
 import schema from "./schema";
 
 const modules = {
@@ -13,7 +20,11 @@ const modules = {
   "./lib/appAccess.ts": () => import("./lib/appAccess"),
   "./lib/contextExpertiseEvidence.ts": () =>
     import("./lib/contextExpertiseEvidence"),
+  "./lib/humanWeightCalculationDefinition.ts": () =>
+    import("./lib/humanWeightCalculationDefinition"),
   "./lib/humanWeightEvidence.ts": () => import("./lib/humanWeightEvidence"),
+  "./lib/humanWeightRecalculation.ts": () =>
+    import("./lib/humanWeightRecalculation"),
   "./lib/typeBehavior.ts": () => import("./lib/typeBehavior"),
 };
 
@@ -51,8 +62,31 @@ describe("Human Weight Feedback", () => {
         .query("contextExpertiseEvidence")
         .withIndex("by_feedbackId", (q) => q.eq("feedbackId", created.feedbackId))
         .collect(),
+      entry: await ctx.db.get(seed.entries.lesson),
       feedbackRows: await ctx.db.query("humanWeightFeedback").collect(),
+      calculationDefinitions: await ctx.db
+        .query("humanWeightCalculationDefinitions")
+        .collect(),
     }));
+    expect(rowState.calculationDefinitions).toEqual([
+      expect.objectContaining({
+        definitionKey: HUMAN_WEIGHT_CALCULATION_DEFINITION_KEY,
+        definitionJson: JSON.stringify(
+          CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION,
+        ),
+        snapshotText: CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION.snapshotText,
+        version: MVP_HUMAN_WEIGHT_RECALCULATION_VERSION,
+      }),
+    ]);
+    expect(rowState.entry).toEqual(
+      expect.objectContaining({
+        humanWeight: 85,
+        humanWeightBaseEstimate: 82,
+        humanWeightCalculationDefinitionId:
+          rowState.calculationDefinitions[0]?._id,
+        humanWeightCalculationVersion: MVP_HUMAN_WEIGHT_RECALCULATION_VERSION,
+      }),
+    );
     expect(rowState.feedbackRows).toHaveLength(1);
     expect(rowState.feedbackRows[0]).toEqual(
       expect.objectContaining({

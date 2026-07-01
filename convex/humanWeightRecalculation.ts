@@ -1,17 +1,16 @@
 import { v } from "convex/values";
-import { internalMutation, type MutationCtx } from "./_generated/server";
-import {
-  CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION,
-  getHumanWeightCalculationDefinitionSnapshot,
-} from "./lib/humanWeightCalculationDefinition";
+import { internalMutation } from "./_generated/server";
+import { getHumanWeightCalculationDefinitionSnapshot } from "./lib/humanWeightCalculationDefinition";
 import { summarizeHumanWeightEvidence } from "./lib/humanWeightEvidence";
 import {
-  getHumanWeightRecalculationBaseEstimate,
+  ensureHumanWeightCalculationDefinition,
+  getHumanWeightRecalculationPatch,
   MVP_HUMAN_WEIGHT_RECALCULATION_VERSION,
-  recalculateHumanWeightEstimate,
 } from "./lib/humanWeightRecalculation";
 import { isWeightBearingEntryKnowledgeType } from "./lib/typeBehavior";
 
+// Internal recalculation mutation lets migrations/backfills update stored Human
+// Weight values without duplicating the pure scoring logic.
 const DEFAULT_RECALCULATION_BATCH_SIZE = 50;
 const MAX_RECALCULATION_BATCH_SIZE = 100;
 const MAX_FEEDBACK_ROWS_PER_ENTRY = 100;
@@ -83,41 +82,18 @@ export const recalculateBatch = internalMutation({
         continue;
       }
 
-      const baseHumanWeight =
-        entry.humanWeightBaseEstimate ??
-        getHumanWeightRecalculationBaseEstimate({
-          knowledgeType: entry.knowledgeType,
-          currentHumanWeight: entry.humanWeight,
-      });
       recalculatedCount += 1;
-      const humanWeight = recalculateHumanWeightEstimate({
-        definition: CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION,
-        knowledgeType: entry.knowledgeType,
-        currentHumanWeight: baseHumanWeight,
+      const recalculation = getHumanWeightRecalculationPatch({
+        calculationDefinitionId,
+        entry,
         evidenceSummary,
       });
-      if (humanWeight === undefined) {
+      if (recalculation === undefined) {
         unchangedCount += 1;
         continue;
       }
 
-      const patch = {
-        ...(humanWeight === entry.humanWeight ? {} : { humanWeight }),
-        ...(baseHumanWeight === undefined ||
-        entry.humanWeightBaseEstimate === baseHumanWeight
-          ? {}
-          : { humanWeightBaseEstimate: baseHumanWeight }),
-        ...(entry.humanWeightCalculationVersion ===
-        MVP_HUMAN_WEIGHT_RECALCULATION_VERSION
-          ? {}
-          : {
-              humanWeightCalculationVersion:
-                MVP_HUMAN_WEIGHT_RECALCULATION_VERSION,
-            }),
-        ...(entry.humanWeightCalculationDefinitionId === calculationDefinitionId
-          ? {}
-          : { humanWeightCalculationDefinitionId: calculationDefinitionId }),
-      };
+      const { patch } = recalculation;
       if (Object.keys(patch).length === 0) {
         unchangedCount += 1;
         continue;
@@ -150,49 +126,4 @@ function normalizeRecalculationBatchSize(batchSize: number | undefined) {
     MAX_RECALCULATION_BATCH_SIZE,
     Math.max(1, Math.floor(batchSize)),
   );
-}
-
-async function ensureHumanWeightCalculationDefinition(
-  ctx: MutationCtx,
-  {
-    definitionKey,
-    definitionJson,
-    now,
-    snapshotText,
-    version,
-  }: {
-    definitionKey: string;
-    definitionJson: string;
-    now: number;
-    snapshotText: string;
-    version: string;
-  },
-) {
-  const existing = await ctx.db
-    .query("humanWeightCalculationDefinitions")
-    .withIndex("by_definitionKey_and_version", (q) =>
-      q.eq("definitionKey", definitionKey).eq("version", version),
-    )
-    .unique();
-  if (existing) {
-    if (
-      existing.snapshotText !== snapshotText ||
-      existing.definitionJson !== definitionJson
-    ) {
-      throw new Error(
-        "Human Weight Calculation Definition content changed for existing version.",
-      );
-    }
-
-    return existing._id;
-  }
-
-  return await ctx.db.insert("humanWeightCalculationDefinitions", {
-    definitionKey,
-    version,
-    snapshotText,
-    definitionJson,
-    createdAt: now,
-    updatedAt: now,
-  });
 }

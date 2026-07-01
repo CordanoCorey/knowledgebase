@@ -3,6 +3,8 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { organizationMembershipRole } from "./lib/organizationRoles";
 
+// Schema validators are the durable backend contract. Keep shared unions here
+// aligned with frontend knowledgeContracts and Convex lib/typeBehavior.
 const referentKnowledgeType = v.union(
   v.literal("words"),
   v.literal("biblePassage"),
@@ -259,6 +261,20 @@ const userNotificationSourceKind = v.union(
   v.literal("event"),
   v.literal("system"),
 );
+const emailDeliveryKind = v.union(
+  v.literal("notification"),
+  v.literal("system"),
+);
+const emailDeliveryStatus = v.union(
+  v.literal("waiting"),
+  v.literal("queued"),
+  v.literal("cancelled"),
+  v.literal("sent"),
+  v.literal("delivered"),
+  v.literal("delivery_delayed"),
+  v.literal("bounced"),
+  v.literal("failed"),
+);
 
 const pinState = v.union(
   v.literal("pinned"),
@@ -358,6 +374,8 @@ const searchScope = v.union(
 export default defineSchema({
   ...authTables,
 
+  // Identity and access tables gate the app before Knowledge Context features
+  // become visible to authenticated users.
   users: defineTable({
     name: v.optional(v.string()),
     image: v.optional(v.string()),
@@ -372,6 +390,8 @@ export default defineSchema({
     .index("email", ["email"])
     .index("phone", ["phone"]),
 
+  // Referents are canonical things being discussed; Tags are the user-facing
+  // labels and aliases that route/search users into those referents.
   referents: defineTable({
     knowledgeType: referentKnowledgeType,
     canonicalKey: v.string(),
@@ -430,6 +450,8 @@ export default defineSchema({
       filterFields: ["knowledgeType", "aliasKind"],
     }),
 
+  // Knowledge Entries are the gold layer: typed, reviewable records anchored to
+  // a represented referent and discoverable through tags.
   knowledgeEntries: defineTable({
     knowledgeType: entryKnowledgeType,
     representedReferentId: v.id("referents"),
@@ -559,6 +581,8 @@ export default defineSchema({
     "createdAt",
   ]),
 
+  // Membership and contact tables support pre-account invitations, verified
+  // identity claims, and admin review of possible person consolidation.
   memberships: defineTable({
     personReferentId: v.id("referents"),
     memberUserId: v.optional(v.id("users")),
@@ -679,6 +703,8 @@ export default defineSchema({
       "createdAt",
     ]),
 
+  // User navigation state is stored separately from knowledge content so sidebar
+  // personalization and notifications do not churn entry documents.
   pinnedKnowledgePages: defineTable({
     userId: v.id("users"),
     pageKey: v.string(),
@@ -784,6 +810,37 @@ export default defineSchema({
       "receivedAt",
     ]),
 
+  // Email delivery rows track provider state separately from notifications so
+  // inbox records remain stable while outbound status changes arrive by webhook.
+  emailDeliveries: defineTable({
+    deliveryKind: emailDeliveryKind,
+    status: emailDeliveryStatus,
+    to: v.string(),
+    from: v.string(),
+    subject: v.string(),
+    sourceKey: v.optional(v.string()),
+    userId: v.optional(v.id("users")),
+    notificationId: v.optional(v.id("userNotifications")),
+    providerEmailId: v.optional(v.string()),
+    resendMessageId: v.optional(v.string()),
+    lastEventType: v.optional(v.string()),
+    lastEventAt: v.optional(v.number()),
+    openedAt: v.optional(v.number()),
+    clickedAt: v.optional(v.number()),
+    complainedAt: v.optional(v.number()),
+    errorMessage: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_sourceKey", ["sourceKey"])
+    .index("by_providerEmailId", ["providerEmailId"])
+    .index("by_resendMessageId", ["resendMessageId"])
+    .index("by_userId_and_createdAt", ["userId", "createdAt"])
+    .index("by_notificationId", ["notificationId"])
+    .index("by_status_and_createdAt", ["status", "createdAt"]),
+
+  // Contribution Submissions are bronze-layer user intent; Sources preserve the
+  // submitted material before Smart Storage proposes any gold entry changes.
   contributionSubmissions: defineTable({
     submittedByUserId: v.id("users"),
     submissionStatus: contributionSubmissionStatus,
@@ -914,6 +971,8 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_definitionKey_and_version", ["definitionKey", "version"]),
 
+  // Smart Storage tables preserve model contracts, snapshots, runs, and
+  // proposals so model-assisted decisions remain auditable before acceptance.
   smartStorageRuns: defineTable({
     contributionSubmissionId: v.optional(v.id("contributionSubmissions")),
     sourceId: v.id("sources"),
@@ -1018,6 +1077,8 @@ export default defineSchema({
       "createdAt",
     ]),
 
+  // Human Weight and Context Expertise are derived signals, kept in their own
+  // tables to avoid rewriting primary Knowledge Entry rows for every signal.
   humanWeightFeedback: defineTable({
     entryId: v.id("knowledgeEntries"),
     userId: v.id("users"),
@@ -1176,6 +1237,8 @@ export default defineSchema({
       "latestEvidenceAt",
     ]),
 
+  // Type-detail and representation tables keep per-Knowledge-Type shape out of
+  // the shared Knowledge Entry table.
   entryRepresentations: defineTable({
     entryId: v.id("knowledgeEntries"),
     representationKind: entryRepresentationKind,
@@ -1333,6 +1396,8 @@ export default defineSchema({
       "countryCode",
     ]),
 
+  // Knowledge Slots represent open requests for missing knowledge and connect
+  // fulfillment back to entries and human/context expertise evidence.
   knowledgeSlots: defineTable({
     requestedKnowledgeType: entryKnowledgeType,
     status: knowledgeSlotStatus,
@@ -1402,6 +1467,8 @@ export default defineSchema({
     .index("by_itemTagId", ["itemTagId"])
     .index("by_itemSlotId", ["itemSlotId"]),
 
+  // Scripture tables store normalized structure and verse text separately so
+  // passage queries can resolve by ordinal range and translation.
   bibleBooks: defineTable({
     code: v.string(),
     name: v.string(),
@@ -1467,6 +1534,8 @@ export default defineSchema({
       "verseOrdinal",
     ]),
 
+  // Analytics tables store bounded event rows plus aggregate counters for MVP
+  // dashboards and context trend suggestions.
   pageVisitEvents: defineTable({
     pageType,
     targetKind: analyticsTargetKind,

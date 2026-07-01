@@ -1,12 +1,17 @@
 import { BookOpen, Search, X } from "lucide-react";
 import type { MouseEvent } from "react";
-import { KnowledgeTypeBadge } from "./components/KnowledgeTypeIcon";
+import {
+  KnowledgeTypeBadge,
+  KnowledgeTypeIcon,
+} from "./components/KnowledgeTypeIcon";
 import {
   type ActiveTag,
   type AuthorableKnowledgeType,
   type KnowledgeType,
 } from "./knowledgeContracts";
 
+// RootSearchResults renders already-scored search results and keeps navigation
+// as href callbacks so the surface remains independent of the router.
 export type RootSearchResult = {
   canonicalKey: string;
   href: string;
@@ -23,6 +28,7 @@ export type RootSearchResult = {
   };
   scopeLabel: string;
   tag: ActiveTag;
+  thumbnailUrl?: string;
 };
 
 type RootSearchResultsProps = {
@@ -96,16 +102,30 @@ export function RootSearchResults({
                 className="kb-root-search-result"
               >
                 <header>
-                  <div>
-                    <p className="kb-card-eyebrow">Referent Page</p>
-                    <h3 id={`kb-root-search-result-${result.id}`}>
-                      <a
-                        href={result.href}
-                        onClick={(event) => handleResultClick(event, result.href)}
-                      >
-                        {result.label}
-                      </a>
-                    </h3>
+                  <div className="kb-root-search-result-heading">
+                    <span
+                      className="kb-root-search-result-thumbnail"
+                      data-has-thumbnail={result.thumbnailUrl ? "true" : "false"}
+                    >
+                      {result.thumbnailUrl ? (
+                        <img alt="" src={result.thumbnailUrl} />
+                      ) : (
+                        <KnowledgeTypeIcon knowledgeType={result.knowledgeType} />
+                      )}
+                    </span>
+                    <div>
+                      <p className="kb-card-eyebrow">Referent Page</p>
+                      <h3 id={`kb-root-search-result-${result.id}`}>
+                        <a
+                          href={result.href}
+                          onClick={(event) =>
+                            handleResultClick(event, result.href)
+                          }
+                        >
+                          {result.label}
+                        </a>
+                      </h3>
+                    </div>
                   </div>
                   <KnowledgeTypeBadge
                     className="kb-card-type"

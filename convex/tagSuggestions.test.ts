@@ -121,6 +121,58 @@ describe("Tag suggestion queries", () => {
       "city-planning",
     );
   });
+
+  test("recommends related and recognized navigator Tags for the active context", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedRecommendedRows);
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    const contextSuggestions = await authed.query(
+      api.tagSuggestions.listKnowledgeNavigatorRecommendedTags,
+      {
+        activeTags: [
+          {
+            canonicalKey: "first-crusade",
+            href: "/goto/first-crusade",
+            id: "first-crusade",
+            knowledgeType: "topic",
+            label: "First Crusade",
+          },
+        ],
+        limit: 5,
+      },
+    );
+
+    expect(contextSuggestions.map((suggestion) => suggestion.id)).not.toContain(
+      "first-crusade",
+    );
+    expect(contextSuggestions[0]).toMatchObject({
+      id: "the-city-of-god",
+      label: "The City of God",
+    });
+    expect(contextSuggestions.map((suggestion) => suggestion.id)).toContain(
+      "grade-9-church-history",
+    );
+    expect(contextSuggestions.map((suggestion) => suggestion.id)).not.toContain(
+      "outside-grade-9-unit",
+    );
+
+    const rootSuggestions = await authed.query(
+      api.tagSuggestions.listKnowledgeNavigatorRecommendedTags,
+      { activeTags: [], limit: 5 },
+    );
+
+    expect(rootSuggestions[0]).toMatchObject({
+      id: "student-crusades-question",
+      label: "Student Crusades Question",
+    });
+    expect(rootSuggestions.map((suggestion) => suggestion.id)).toContain(
+      "grade-9-church-history",
+    );
+    expect(rootSuggestions.map((suggestion) => suggestion.id)).not.toContain(
+      "outside-grade-9-unit",
+    );
+  });
 });
 
 async function seedSuggestionRows(ctx: MutationCtx) {
@@ -253,6 +305,81 @@ async function seedCorrelationRows(ctx: MutationCtx) {
     tagPurpose: "context",
     taggedAt: 1,
     taggedByUserId: userId,
+  });
+
+  return { userId };
+}
+
+async function seedRecommendedRows(ctx: MutationCtx) {
+  const { organizationReferentId, userId } = await insertAllowedUser(
+    ctx,
+    "recommendations",
+  );
+  const otherUserId = await insertUser(ctx, "recommendations-other");
+  const outsideOrganization = await insertOrganization(
+    ctx,
+    "recommendations-outside",
+  );
+  const firstCrusade = await insertTag(ctx, {
+    canonicalKey: "first-crusade",
+    knowledgeType: "topic",
+    label: "First Crusade",
+  });
+  const cityOfGod = await insertTag(ctx, {
+    canonicalKey: "the-city-of-god",
+    knowledgeType: "book",
+    label: "The City of God",
+  });
+  const grade9 = await insertTag(ctx, {
+    canonicalKey: "grade-9-church-history",
+    createdByUserId: otherUserId,
+    knowledgeType: "group",
+    label: "Grade 9 Church History",
+  });
+  const question = await insertTag(ctx, {
+    canonicalKey: "student-crusades-question",
+    createdByUserId: otherUserId,
+    knowledgeType: "question",
+    label: "Student Crusades Question",
+  });
+  const outsideTag = await insertTag(ctx, {
+    canonicalKey: "outside-grade-9-unit",
+    createdByUserId: otherUserId,
+    knowledgeType: "group",
+    label: "Outside Grade 9 Unit",
+  });
+  const entryId = await insertRepresentedEntry(ctx, cityOfGod, {
+    createdByUserId: userId,
+    visibilityKind: "public",
+    visibilityTargetKey: "public",
+  });
+  await ctx.db.insert("entryTags", {
+    entryId,
+    tagId: firstCrusade.tagId,
+    tagPurpose: "context",
+    taggedAt: 1,
+    taggedByUserId: userId,
+  });
+  await ctx.db.insert("tagRecognitions", {
+    tagId: question.tagId,
+    recognizerKind: "user",
+    userId,
+    recognizedAt: 1,
+    lastInteractedAt: 3,
+  });
+  await ctx.db.insert("tagRecognitions", {
+    tagId: grade9.tagId,
+    recognizerKind: "organization",
+    organizationReferentId,
+    recognizedAt: 1,
+    lastInteractedAt: 2,
+  });
+  await ctx.db.insert("tagRecognitions", {
+    tagId: outsideTag.tagId,
+    recognizerKind: "organization",
+    organizationReferentId: outsideOrganization.organizationReferentId,
+    recognizedAt: 1,
+    lastInteractedAt: 4,
   });
 
   return { userId };

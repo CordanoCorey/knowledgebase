@@ -1,0 +1,443 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  color: #17201a;
+  background: #f7f6f1;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+:root[data-theme="dark"] {
+  color: #ece9df;
+  background: #171a1f;
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  align-items: center;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 0.45rem;
+  justify-content: center;
+}
+
+.kb-app {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.kb-sidebar {
+  background: #1d2520;
+  color: #f6f1e7;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  padding: 1.1rem;
+}
+
+.kb-brand,
+.kb-sidebar nav a,
+.kb-sidebar-group a {
+  align-items: center;
+  border-radius: 8px;
+  display: flex;
+  gap: 0.7rem;
+  min-height: 2.5rem;
+  padding: 0.6rem 0.7rem;
+}
+
+.kb-sidebar nav a[aria-current="page"],
+.kb-sidebar nav a:hover,
+.kb-sidebar-group a:hover {
+  background: rgb(255 255 255 / 0.1);
+}
+
+.kb-brand-mark,
+.kb-glyph {
+  align-items: center;
+  background: #e4be62;
+  border-radius: 8px;
+  color: #162018;
+  display: inline-flex;
+  font-size: 0.76rem;
+  font-weight: 800;
+  height: 2.15rem;
+  justify-content: center;
+  text-transform: uppercase;
+  width: 2.15rem;
+}
+
+.kb-brand small,
+.kb-sidebar-group p,
+.kb-muted,
+.kb-member-row small {
+  color: #748074;
+}
+
+.kb-frame {
+  min-width: 0;
+}
+
+.kb-topbar {
+  align-items: center;
+  background: color-mix(in srgb, Canvas 86%, transparent);
+  border-bottom: 1px solid #d9d5c9;
+  display: flex;
+  justify-content: space-between;
+  min-height: 5rem;
+  padding: 0.8rem 1.4rem;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+[data-theme="dark"] .kb-topbar,
+[data-theme="dark"] .kb-panel,
+[data-theme="dark"] .kb-auth-bridge,
+[data-theme="dark"] .kb-context-band,
+[data-theme="dark"] .kb-dashboard-hero,
+[data-theme="dark"] .kb-search-panel,
+[data-theme="dark"] .kb-calendar-summary,
+[data-theme="dark"] .kb-calendar-agenda {
+  background: #20252c;
+  border-color: #333b44;
+}
+
+.kb-topbar h1,
+.kb-panel h2,
+.kb-dashboard-hero h2,
+.kb-context-band h2 {
+  margin: 0;
+}
+
+.kb-eyebrow {
+  color: #627064;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  margin: 0 0 0.25rem;
+  text-transform: uppercase;
+}
+
+.kb-topbar-actions,
+.kb-action-row,
+.kb-chip-row,
+.kb-add-row,
+.kb-expert-strip {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.kb-icon-button {
+  align-items: center;
+  background: #eeece4;
+  border-radius: 8px;
+  display: inline-flex;
+  height: 2.4rem;
+  justify-content: center;
+  position: relative;
+  width: 2.4rem;
+}
+
+.kb-badge {
+  background: #b84036;
+  border-radius: 999px;
+  color: white;
+  font-size: 0.72rem;
+  min-width: 1.1rem;
+  padding: 0.1rem 0.3rem;
+  position: absolute;
+  right: -0.2rem;
+  top: -0.2rem;
+}
+
+.kb-connection {
+  border: 1px solid #c7c1b2;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  padding: 0.35rem 0.65rem;
+}
+
+.kb-connection[data-connected="true"] {
+  background: #e8f3dc;
+  color: #375f22;
+}
+
+.kb-main {
+  display: grid;
+  gap: 1rem;
+  padding: 1.2rem;
+}
+
+.kb-panel,
+.kb-auth-bridge,
+.kb-context-band,
+.kb-dashboard-hero,
+.kb-search-panel,
+.kb-calendar-summary,
+.kb-calendar-agenda {
+  background: #fffdf7;
+  border: 1px solid #dfdbcf;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.kb-panel header,
+.kb-dashboard-hero,
+.kb-context-band,
+.kb-auth-bridge {
+  align-items: start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.kb-dashboard-hero {
+  background:
+    linear-gradient(90deg, rgb(255 253 247 / 0.94), rgb(255 253 247 / 0.8)),
+    url("../../public/arche-press_logo-horizontal-full.svg");
+  background-position: right 1rem center;
+  background-repeat: no-repeat;
+  background-size: min(35%, 22rem);
+}
+
+.kb-hero-metrics,
+.kb-calendar-summary {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.kb-metric {
+  border: 1px solid #ded8c8;
+  border-radius: 8px;
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.7rem;
+}
+
+.kb-metric span {
+  color: #627064;
+  font-size: 0.78rem;
+}
+
+.kb-metric strong {
+  font-size: 1.25rem;
+}
+
+.kb-agenda-grid,
+.kb-card-grid,
+.kb-two-column,
+.kb-workspace {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.kb-agenda-grid a,
+.kb-card,
+.kb-result-row,
+.kb-feed-card,
+.kb-notification,
+.kb-calendar-agenda a {
+  border: 1px solid #ded8c8;
+  border-radius: 8px;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.85rem;
+}
+
+.kb-chip,
+.kb-add-button,
+.kb-composer button,
+.kb-action-row button,
+.kb-notification button,
+.kb-auth-bridge button {
+  background: #24382c;
+  color: white;
+  min-height: 2.35rem;
+  padding: 0.55rem 0.8rem;
+}
+
+.kb-add-button {
+  background: #ece8dc;
+  color: #17201a;
+}
+
+.kb-chip[data-type="biblePassage"] {
+  background: #2f5e72;
+}
+
+.kb-form-grid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: minmax(9rem, 0.35fr) 1fr;
+}
+
+.kb-composer,
+.kb-auth-bridge label {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.kb-composer label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.kb-composer input,
+.kb-composer select,
+.kb-composer textarea,
+.kb-auth-bridge input,
+.kb-search-panel input {
+  border: 1px solid #cfc8b8;
+  border-radius: 8px;
+  padding: 0.7rem 0.75rem;
+  width: 100%;
+}
+
+.kb-search-panel form {
+  align-items: center;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.kb-search-panel button {
+  background: #24382c;
+  color: white;
+  min-height: 2.5rem;
+  padding: 0 1rem;
+}
+
+.kb-feed {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.kb-feed-card footer,
+.kb-member-row {
+  align-items: center;
+  display: flex;
+  gap: 0.6rem;
+  justify-content: space-between;
+}
+
+.kb-feed-card button,
+.kb-member-row button {
+  background: #e8f3dc;
+  color: #315a21;
+  padding: 0.45rem 0.65rem;
+}
+
+.kb-calendar-layout {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
+
+.kb-calendar-month {
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.kb-calendar-day {
+  aspect-ratio: 1;
+  border: 1px solid #ded8c8;
+  border-radius: 8px;
+  overflow: hidden;
+  padding: 0.45rem;
+}
+
+.kb-calendar-day[data-today="true"] {
+  border-color: #b84036;
+  box-shadow: inset 0 0 0 1px #b84036;
+}
+
+.kb-calendar-day a {
+  background: #e8f3dc;
+  border-radius: 5px;
+  display: block;
+  font-size: 0.72rem;
+  margin-top: 0.25rem;
+  padding: 0.2rem;
+}
+
+.kb-error,
+.kb-access-notice {
+  background: #fff2ef;
+  border: 1px solid #e5b1aa;
+  border-radius: 8px;
+  color: #87352c;
+  padding: 0.75rem;
+}
+
+.kb-toast {
+  background: #24382c;
+  border-radius: 8px;
+  color: white;
+  padding: 0.7rem 1rem;
+  position: fixed;
+  right: 1rem;
+  top: 5.5rem;
+  z-index: 10;
+}
+
+.kb-auth-page,
+.kb-empty-state {
+  align-items: center;
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  text-align: center;
+}
+
+@media (max-width: 860px) {
+  .kb-app,
+  .kb-calendar-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .kb-sidebar nav {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  }
+
+  .kb-topbar,
+  .kb-panel header,
+  .kb-dashboard-hero,
+  .kb-context-band,
+  .kb-auth-bridge {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .kb-hero-metrics,
+  .kb-calendar-summary,
+  .kb-form-grid,
+  .kb-search-panel form {
+    grid-template-columns: 1fr;
+  }
+}

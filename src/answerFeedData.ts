@@ -11,6 +11,8 @@ import {
   getHumanWeightFeedPriority,
 } from "./knowledgeContracts";
 
+// Local answer-feed fixtures preserve the same contracts as Convex results, so
+// the UI can operate before backend data is seeded and tests can stay stable.
 export type { ActiveTag } from "./knowledgeContext";
 export type {
   AnswerFeedItem,

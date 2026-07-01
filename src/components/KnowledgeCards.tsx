@@ -22,6 +22,8 @@ import {
 import { KnowledgeTypeBadge, KnowledgeTypeIcon } from "./KnowledgeTypeIcon";
 import { ReferentTagLink } from "./ReferentTagLink";
 
+// Reusable, contract-driven display components for entries and requests;
+// mutation behavior is injected through callbacks.
 type KnowledgeEntryCardProps = {
   className?: string;
   entry: KnowledgeEntrySummary;

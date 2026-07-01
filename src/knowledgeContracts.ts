@@ -1,3 +1,6 @@
+// Frontend-facing domain contracts for Knowledge Types, contribution inputs,
+// Human Weight, and Smart Storage. Keep these values aligned with Convex
+// validators and the backend typeBehavior registry.
 export type KnowledgeType =
   | "words"
   | "biblePassage"
@@ -23,6 +26,14 @@ export type KnowledgeType =
 
 export type AuthorableKnowledgeType = Exclude<KnowledgeType, "biblePassage">;
 export type GuidedContributionType = Extract<AuthorableKnowledgeType, "group">;
+
+export function supportsRepresentativeThumbnail(knowledgeType: KnowledgeType) {
+  return (
+    knowledgeType !== "biblePassage" &&
+    knowledgeType !== "comment" &&
+    knowledgeType !== "words"
+  );
+}
 
 export const AUTHORABLE_KNOWLEDGE_TYPES = [
   "words",

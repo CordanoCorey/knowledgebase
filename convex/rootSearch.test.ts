@@ -44,8 +44,30 @@ describe("Root Search results", () => {
         id: "the-city-of-god",
         label: "The City of God",
       },
+      thumbnailUrl: expect.any(String),
     });
+    expect(results[0].thumbnailUrl).toBeTruthy();
     expect(results[0].matchedEntryPreview?.href).not.toMatch(/^\/entries\//);
+  });
+
+  test("returns representative thumbnail state for a Knowledge Page", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedPageResultRows);
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    const state = await authed.query(
+      api.rootSearch.getKnowledgePageThumbnailState,
+      {
+        canonicalKey: "the-city-of-god",
+        knowledgeType: "book",
+        tagLookupKey: "the-city-of-god",
+      },
+    );
+
+    expect(state).toMatchObject({
+      entryTitle: "The City of God and Ordered Loves",
+      thumbnailUrl: expect.any(String),
+    });
   });
 
   test("does not leak private or outside-organization results", async () => {
@@ -170,12 +192,21 @@ async function seedPageResultRows(ctx: MutationCtx) {
     label: "The City of God",
   });
 
-  await insertRepresentedEntry(ctx, cityOfGod, {
+  const entryId = await insertRepresentedEntry(ctx, cityOfGod, {
     previewText:
       "A represented Book entry preview about Augustine and ordered loves.",
     searchText:
       "The City of God and Ordered Loves Augustine disordered loves earthly city",
     title: "The City of God and Ordered Loves",
+  });
+  await ctx.db.insert("entryRepresentations", {
+    entryId,
+    representationKind: "externalUrl",
+    representationRole: "thumbnail",
+    externalUrl: "https://images.example/city-of-god.png",
+    isPrimary: false,
+    createdAt: 1,
+    updatedAt: 1,
   });
   await insertRepresentedEntry(ctx, cityOfGod, {
     previewText: "A duplicate represented entry that should not create a page.",

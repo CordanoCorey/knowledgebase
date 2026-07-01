@@ -35,6 +35,8 @@ import {
   type SmartStorageSourceKind,
 } from "./smartStorageClassifier";
 
+// Playground state mirrors the real Smart Storage workflow closely enough to
+// gather feedback, while still using deterministic local classification.
 type FeedbackRating = "accurate" | "close" | "wrong";
 
 type FeedbackStatus =

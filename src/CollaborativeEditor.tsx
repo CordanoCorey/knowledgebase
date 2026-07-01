@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { api } from "../convex/_generated/api";
 
+// CollaborativeEditor is the Tiptap/ProseMirror adapter. The rest of the app
+// treats document IDs as data and leaves editor runtime details in this module.
 const EMPTY_DOC = { type: "doc", content: [{ type: "paragraph" }] };
 
 type CollaborativeEditorProps = {

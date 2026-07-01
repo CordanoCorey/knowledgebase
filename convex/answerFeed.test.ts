@@ -1029,8 +1029,35 @@ describe("Answer Feed backend adapter", () => {
     expect(
       feedItems
         .filter((item) => item.kind === "slot")
-        .map((item) => item.slot.title),
+      .map((item) => item.slot.title),
     ).toEqual(["Requested future Answer"]);
+  });
+
+  test("lists only open or overdue Knowledge Slots assigned to the current user", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedAssignedTodoSlotRows);
+
+    const slots = await t
+      .withIdentity({ subject: `${seed.viewerUserId}|test-session` })
+      .query(api.answerFeed.listAssignedSlotsForCurrentUser, {
+        limit: 10,
+      });
+
+    expect(slots.map((slot) => slot.title)).toEqual([
+      "Overdue assigned request",
+      "Open assigned request",
+    ]);
+    expect(slots).toContainEqual(
+      expect.objectContaining({
+        id: seed.slots.overdueAssigned,
+        status: "overdue",
+        targetLabel: "Assigned user",
+      }),
+    );
+    expect(slots.map((slot) => slot.id)).not.toContain(seed.slots.otherUser);
+    expect(slots.map((slot) => slot.id)).not.toContain(seed.slots.publicSlot);
+    expect(slots.map((slot) => slot.id)).not.toContain(seed.slots.fulfilled);
+    expect(slots.map((slot) => slot.id)).not.toContain(seed.slots.cancelled);
   });
 
   test("surfaces recent unscored global Answers that need Human Weight feedback", async () => {
@@ -1073,6 +1100,22 @@ describe("Answer Feed backend adapter", () => {
         .map((item) => item.entry.title),
     ).toEqual(["Mature Same Weight Answer", "Fresh Same Weight Answer"]);
     expect(feedItems[0]).toMatchObject({
+      kind: "answer",
+      entry: {
+        evidenceMaturity: 100,
+        humanWeight: 70,
+        title: "Mature Same Weight Answer",
+      },
+    });
+
+    const limitedFeedItems = await t.query(api.answerFeed.listForActiveTags, {
+      activeTagIds: [seed.tagId],
+      answerLimit: 1,
+      slotLimit: 0,
+    });
+
+    expect(limitedFeedItems).toHaveLength(1);
+    expect(limitedFeedItems[0]).toMatchObject({
       kind: "answer",
       entry: {
         evidenceMaturity: 100,
@@ -1356,6 +1399,92 @@ async function seedEvidenceMaturityPriorityRows(ctx: MutationCtx) {
   });
 
   return { tagId: tag.tagId };
+}
+
+async function seedAssignedTodoSlotRows(ctx: MutationCtx) {
+  const viewerUserId = await insertUser(ctx, {
+    email: "todo-viewer@example.com",
+    name: "Todo Viewer",
+  });
+  const otherUserId = await insertUser(ctx, {
+    email: "todo-other@example.com",
+    name: "Todo Other",
+  });
+  const organization = await insertOrganization(ctx, {
+    createdByUserId: viewerUserId,
+    name: "Todo School",
+  });
+  await insertOrganizationMembership(ctx, {
+    organizationReferentId: organization.organizationReferentId,
+    userId: viewerUserId,
+  });
+  const tag = await insertTag(ctx, {
+    canonicalKey: "todo-context",
+    knowledgeType: "topic",
+    label: "TODO Context",
+  });
+
+  const overdueAssigned = await insertSlot(ctx, {
+    contextTagIds: [tag.tagId],
+    dueAt: BASE_TIME - 10,
+    promptText: "Handle the overdue assigned request.",
+    requestedKnowledgeType: "comment",
+    status: "overdue",
+    targetKind: "user",
+    targetUserId: viewerUserId,
+    title: "Overdue assigned request",
+  });
+  const openAssigned = await insertSlot(ctx, {
+    contextTagIds: [tag.tagId],
+    dueAt: BASE_TIME + 10,
+    requestedKnowledgeType: "lesson",
+    status: "open",
+    targetKind: "user",
+    targetUserId: viewerUserId,
+    title: "Open assigned request",
+  });
+  const otherUser = await insertSlot(ctx, {
+    contextTagIds: [tag.tagId],
+    requestedKnowledgeType: "lesson",
+    status: "open",
+    targetKind: "user",
+    targetUserId: otherUserId,
+    title: "Other user's request",
+  });
+  const publicSlot = await insertSlot(ctx, {
+    contextTagIds: [tag.tagId],
+    requestedKnowledgeType: "lesson",
+    status: "open",
+    title: "Public request",
+  });
+  const fulfilled = await insertSlot(ctx, {
+    contextTagIds: [tag.tagId],
+    requestedKnowledgeType: "lesson",
+    status: "fulfilled",
+    targetKind: "user",
+    targetUserId: viewerUserId,
+    title: "Fulfilled assigned request",
+  });
+  const cancelled = await insertSlot(ctx, {
+    contextTagIds: [tag.tagId],
+    requestedKnowledgeType: "lesson",
+    status: "cancelled",
+    targetKind: "user",
+    targetUserId: viewerUserId,
+    title: "Cancelled assigned request",
+  });
+
+  return {
+    slots: {
+      cancelled,
+      fulfilled,
+      openAssigned,
+      otherUser,
+      overdueAssigned,
+      publicSlot,
+    },
+    viewerUserId,
+  };
 }
 
 async function seedGlobalFeedbackPriorityRows(ctx: MutationCtx) {
@@ -1709,11 +1838,14 @@ async function insertSlot(
   ctx: MutationCtx,
   slot: {
     contextTagIds: Array<Id<"tags">>;
+    dueAt?: number;
     fulfilledEntryId?: Id<"knowledgeEntries">;
     humanWeightExpectation?: Doc<"knowledgeSlots">["humanWeightExpectation"];
     promptText?: string;
     requestedKnowledgeType: Doc<"knowledgeSlots">["requestedKnowledgeType"];
     status?: Doc<"knowledgeSlots">["status"];
+    targetKind?: Doc<"knowledgeSlots">["targetKind"];
+    targetUserId?: Id<"users">;
     title: string;
   },
 ) {
@@ -1723,14 +1855,17 @@ async function insertSlot(
     title: slot.title,
     ...(slot.promptText === undefined ? {} : { promptText: slot.promptText }),
     contextKey: getContextKey(slot.contextTagIds),
-    targetKind: "public",
+    targetKind: slot.targetKind ?? "public",
+    ...(slot.targetUserId === undefined
+      ? {}
+      : { targetUserId: slot.targetUserId }),
     ...(slot.fulfilledEntryId === undefined
       ? {}
       : { fulfilledEntryId: slot.fulfilledEntryId }),
     ...(slot.humanWeightExpectation === undefined
       ? {}
       : { humanWeightExpectation: slot.humanWeightExpectation }),
-    dueAt: BASE_TIME + 30,
+    dueAt: slot.dueAt ?? BASE_TIME + 30,
     createdAt: BASE_TIME,
     updatedAt: BASE_TIME,
   });

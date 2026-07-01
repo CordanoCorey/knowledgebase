@@ -12,6 +12,8 @@ import { CollaborativeEditor } from "./CollaborativeEditor";
 import { createConvexClient } from "./convexClient";
 import "./index.css";
 
+// Static editor entry point lets the collaborative editor be embedded outside
+// the full authenticated application shell.
 const elementName = "convex-collaborative-editor";
 
 class ConvexCollaborativeEditor extends HTMLElement {

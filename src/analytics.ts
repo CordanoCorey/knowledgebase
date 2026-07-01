@@ -6,6 +6,8 @@ import {
   type KnowledgeRouteLocation,
 } from "./knowledgeContext";
 
+// Client-side analytics inputs are derived from typed route/tag state so Convex
+// only receives normalized target keys and bounded labels.
 export type AnalyticsPageType = "dashboard" | "referent" | "context";
 export type AnalyticsTargetKind = "dashboard" | "tag" | "biblePassage" | "context";
 export type NavigatorUsageKind = "select" | "deselect" | "explore" | "contribute";

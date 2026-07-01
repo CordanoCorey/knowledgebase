@@ -6,6 +6,8 @@ import {
 } from "./knowledgeContracts";
 import { NAVIGATOR_TAG_FIXTURES } from "./knowledgeContext";
 
+// Deterministic Smart Storage classification for the playground and tests. It
+// provides explainable local predictions before model-backed proposals run.
 export type SmartStorageSourceKind =
   | "pastedText"
   | "uploadedFile"

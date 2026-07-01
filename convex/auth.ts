@@ -3,6 +3,8 @@ import { configuredAuthProviders } from "./authProviderConfig";
 import type { MutationCtx } from "./_generated/server";
 import { claimPendingOrganizationMembershipsForVerifiedEmail } from "./lib/pendingMembershipClaims";
 
+// Convex Auth is customized here so verified identities can safely claim pending
+// organization memberships as soon as the user record is created or linked.
 const DUPLICATE_EMAIL_ERROR = "Email is already in use by another user.";
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({

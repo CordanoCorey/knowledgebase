@@ -15,11 +15,59 @@ const modules = {
   "./lib/appAccess.ts": () => import("./lib/appAccess"),
   "./lib/contextExpertiseEvidence.ts": () =>
     import("./lib/contextExpertiseEvidence"),
+  "./lib/fileRepresentationRoles.ts": () =>
+    import("./lib/fileRepresentationRoles"),
   "./lib/humanWeightEvidence.ts": () => import("./lib/humanWeightEvidence"),
   "./lib/typeBehavior.ts": () => import("./lib/typeBehavior"),
 };
 
 const BASE_TIME = Date.UTC(2026, 5, 1, 12);
+const DIRECT_FILE_ROLE_CASES = [
+  {
+    contentType: "application/pdf",
+    expectedRole: "manuscript",
+    fileName: "chapel-manuscript.pdf",
+    label: "manuscript",
+  },
+  {
+    contentType:
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    expectedRole: "slides",
+    fileName: "chapel-slides.pptx",
+    label: "slides",
+  },
+  {
+    contentType: "text/plain",
+    expectedRole: "transcript",
+    fileName: "chapel-transcript.txt",
+    label: "transcript",
+  },
+  {
+    contentType: "audio/mpeg",
+    expectedRole: "recording",
+    fileName: "chapel-recording.mp3",
+    label: "audio recording",
+  },
+  {
+    contentType: "video/mp4",
+    expectedRole: "recording",
+    fileName: "chapel-video.mp4",
+    label: "video recording",
+  },
+  {
+    contentType: "image/jpeg",
+    expectedRole: "thumbnail",
+    fileName: "chapel-thumbnail.jpg",
+    label: "thumbnail",
+  },
+  {
+    contentType:
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    expectedRole: "supportingMaterial",
+    fileName: "chapel-handout.docx",
+    label: "supporting material",
+  },
+] as const;
 
 describe("Direct Contributions", () => {
   test("creates a durable Words Knowledge Entry and makes it visible in the Answer Feed", async () => {
@@ -391,6 +439,71 @@ describe("Direct Contributions", () => {
     expect(state.sourceOutputCount).toBe(0);
     expect(state.smartStorageRunCount).toBe(0);
     expect(state.smartStorageProposalCount).toBe(0);
+  });
+
+  test("infers direct uploaded file Representation Roles for stored file categories", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedAllowedUserWithJoshuaTag);
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    for (const fileCase of DIRECT_FILE_ROLE_CASES) {
+      const contents = `${fileCase.label} contents`;
+      const storageId = await storeTestFile(
+        t,
+        contents,
+        fileCase.contentType,
+      );
+      const temporaryUploadId = await t.run(async (ctx) => {
+        const now = BASE_TIME;
+        return await ctx.db.insert("temporaryUploads", {
+          storageId,
+          uploadedByUserId: seed.userId,
+          fileName: fileCase.fileName,
+          contentType: fileCase.contentType,
+          fileSizeBytes: contents.length,
+          uploadStatus: "uploaded",
+          expiresAt: now + 60_000,
+          createdAt: now,
+          updatedAt: now,
+        });
+      });
+
+      await authed.mutation(api.directContributions.postDirectContribution, {
+        body: `Notes for ${fileCase.label}.`,
+        contextTags: [],
+        knowledgeType: "words",
+        title: `Direct ${fileCase.label} attachment`,
+        uploadedFiles: [
+          {
+            contentType: "application/x-client-spoof",
+            fileName: `client-${fileCase.fileName}`,
+            fileSizeBytes: 999_999,
+            storageId,
+            temporaryUploadId,
+          },
+        ],
+      });
+
+      const fileRepresentation = await t.run(
+        async (ctx) =>
+          await ctx.db
+            .query("entryRepresentations")
+            .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
+            .unique(),
+      );
+
+      expect(fileRepresentation).toEqual(
+        expect.objectContaining({
+          contentType: fileCase.contentType,
+          fileName: fileCase.fileName,
+          fileSizeBytes: contents.length,
+          isPrimary: false,
+          representationKind: "storageFile",
+          representationRole: fileCase.expectedRole,
+          storageId,
+        }),
+      );
+    }
   });
 
   test("omits Human Weight for non-weight-bearing direct contributions", async () => {
@@ -1208,11 +1321,12 @@ async function countEntries(t: ReturnType<typeof convexTest>) {
 async function storeTestFile(
   t: ReturnType<typeof convexTest>,
   contents: string,
+  contentType = "application/pdf",
 ) {
   return await t.run(
     async (ctx) =>
       await ctx.storage.store(
-        new Blob([contents], { type: "application/pdf" }),
+        new Blob([contents], { type: contentType }),
       ),
   );
 }

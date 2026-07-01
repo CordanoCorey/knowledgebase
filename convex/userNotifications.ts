@@ -3,6 +3,8 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { requireAppAccess } from "./lib/appAccess";
 
+// User notification queries/mutations expose inbox state without leaking source
+// table details to the React shell.
 const DEFAULT_INBOX_LIMIT = 50;
 const MAX_INBOX_LIMIT = 100;
 

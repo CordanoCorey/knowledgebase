@@ -4,6 +4,8 @@ import type { DataModel } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { requireAppAccess } from "./lib/appAccess";
 
+// Collaborative editor storage is delegated to the ProseMirror sync component;
+// this module only exposes the app-level document access point.
 const prosemirrorSync = new ProsemirrorSync(components.prosemirrorSync);
 
 async function requireAuthorizedAccess(ctx: QueryCtx | MutationCtx) {
