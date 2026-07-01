@@ -2,6 +2,10 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, type MutationCtx } from "./_generated/server";
 import { requireAppAccess } from "./lib/appAccess";
+import {
+  appendAutomaticContextTags,
+  insertEntryContextTags,
+} from "./lib/automaticContextTags";
 import { recordContextExpertiseEvidence } from "./lib/contextExpertiseEvidence";
 import { getApplicableHumanWeight } from "./lib/typeBehavior";
 
@@ -189,10 +193,19 @@ export const postDirectContribution = mutation({
       normalizeContextTags(args.contextTags),
       access.userId,
     );
+    const entryContextTags = await appendAutomaticContextTags(ctx, {
+      contextTags,
+      organizations: access.organizations,
+      representedTagId: represented.primaryTagId,
+      taggedByUserId: access.userId,
+    });
     if (slotFulfillment !== undefined) {
       await assertContributionIncludesSlotTags(
         slotContextTagIds ?? [],
-        contextTags.map((tag) => tag._id),
+        [
+          represented.primaryTagId,
+          ...entryContextTags.map((tag) => tag._id),
+        ],
       );
     }
     const previewText = buildPreviewText(args.knowledgeType, body);
@@ -211,7 +224,7 @@ export const postDirectContribution = mutation({
       title,
       previewText,
       searchText: limitString(
-        [title, body, ...contextTags.map((tag) => tag.label)].join(" "),
+        [title, body, ...entryContextTags.map((tag) => tag.label)].join(" "),
         MAX_SEARCH_TEXT_LENGTH,
       ),
       primaryTagLabel: represented.primaryTagLabel,
@@ -235,15 +248,12 @@ export const postDirectContribution = mutation({
       taggedByUserId: access.userId,
     });
 
-    for (const tag of contextTags) {
-      await ctx.db.insert("entryTags", {
-        entryId,
-        tagId: tag._id,
-        tagPurpose: "context",
-        taggedAt: now,
-        taggedByUserId: access.userId,
-      });
-    }
+    await insertEntryContextTags(ctx, {
+      contextTags: entryContextTags,
+      entryId,
+      now,
+      taggedByUserId: access.userId,
+    });
 
     await insertDirectEntryRepresentations(ctx, {
       body,

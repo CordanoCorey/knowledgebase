@@ -82,7 +82,11 @@ describe("Direct Contributions", () => {
       if (!courageTag) {
         throw new Error("Courage tag was not created.");
       }
-      const contextKey = getContextKey([seed.joshuaTagId, courageTag._id]);
+      const contextTagIds = [
+        seed.joshuaTagId,
+        courageTag._id,
+      ].sort();
+      const contextKey = getContextKey(contextTagIds);
       const entryTags = await ctx.db
         .query("entryTags")
         .withIndex("by_entryId_and_tagId", (q) => q.eq("entryId", result.entryId))
@@ -111,6 +115,7 @@ describe("Direct Contributions", () => {
         courageTag,
         contextExpertiseEvidence,
         contextKey,
+        contextTagIds,
         entry,
         entryRepresentations,
         entryTags,
@@ -184,6 +189,16 @@ describe("Direct Contributions", () => {
           tagPurpose: "context",
           taggedByUserId: seed.userId,
         }),
+        expect.objectContaining({
+          tagId: seed.personTagId,
+          tagPurpose: "context",
+          taggedByUserId: seed.userId,
+        }),
+        expect.objectContaining({
+          tagId: seed.organizationTagId,
+          tagPurpose: "context",
+          taggedByUserId: seed.userId,
+        }),
       ]),
     );
     expect(rowState.contributionSubmissionCount).toBe(0);
@@ -194,7 +209,7 @@ describe("Direct Contributions", () => {
     expect(rowState.contextExpertiseEvidence).toEqual([
       expect.objectContaining({
         contextKey: rowState.contextKey,
-        contextTagIds: [seed.joshuaTagId, rowState.courageTag._id].sort(),
+        contextTagIds: rowState.contextTagIds,
         entryId: result.entryId,
         evidenceKind: "post",
         subjectUserId: seed.userId,
@@ -207,7 +222,7 @@ describe("Direct Contributions", () => {
         contextExpertiseMaturity: 20,
         contextExpertiseScore: 94,
         contextKey: rowState.contextKey,
-        contextTagIds: [seed.joshuaTagId, rowState.courageTag._id].sort(),
+        contextTagIds: rowState.contextTagIds,
         evidenceCount: 1,
         feedbackCount: 0,
         postCount: 1,
@@ -499,7 +514,10 @@ describe("Direct Contributions", () => {
     );
 
     const rowState = await t.run(async (ctx) => {
-      const contextTagIds = [seed.joshuaTagId, seed.lewisTagId].sort();
+      const contextTagIds = [
+        seed.joshuaTagId,
+        seed.lewisTagId,
+      ].sort();
       const contextKey = getContextKey(contextTagIds);
       const quoteRows = await ctx.db
         .query("quoteEntries")
@@ -1200,7 +1218,7 @@ async function storeTestFile(
 }
 
 async function seedAllowedUserWithJoshuaTag(ctx: MutationCtx) {
-  const userId = await insertAllowedUser(ctx);
+  const allowedUser = await insertAllowedUser(ctx);
   const joshua = await insertTag(ctx, {
     canonicalKey: "joshua-1-6-9",
     knowledgeType: "biblePassage",
@@ -1209,7 +1227,9 @@ async function seedAllowedUserWithJoshuaTag(ctx: MutationCtx) {
 
   return {
     joshuaTagId: joshua.tagId,
-    userId,
+    organizationTagId: allowedUser.organizationTagId,
+    personTagId: allowedUser.personTagId,
+    userId: allowedUser.userId,
   };
 }
 
@@ -1259,7 +1279,11 @@ async function insertAllowedUser(ctx: MutationCtx) {
     updatedAt: now,
   });
 
-  return userId;
+  return {
+    organizationTagId: organization.tagId,
+    personTagId: person.tagId,
+    userId,
+  };
 }
 
 async function insertActiveUser(ctx: MutationCtx) {

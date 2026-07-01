@@ -12,6 +12,10 @@ import {
 } from "./_generated/server";
 import { requireAppAccess } from "./lib/appAccess";
 import {
+  appendAutomaticContextTags,
+  insertEntryContextTags,
+} from "./lib/automaticContextTags";
+import {
   ENTRY_KNOWLEDGE_TYPES,
   getApplicableHumanWeight,
   getTypeBehavior,
@@ -2074,6 +2078,17 @@ export const acceptScaffoldProposal = mutation({
           proposedEntry,
           representationDecisions,
         });
+        await insertEntryContextTags(ctx, {
+          contextTags: await appendAutomaticContextTags(ctx, {
+            contextTags: [],
+            organizations: access.organizations,
+            representedTagId: existingEntry.primaryTagId,
+            taggedByUserId: access.userId,
+          }),
+          entryId: existingEntry._id,
+          now,
+          taggedByUserId: access.userId,
+        });
         await recordContextExpertiseEvidence(ctx, {
           contextTagIds: await getEntryContextTagIds(ctx, existingEntry._id),
           entryId: existingEntry._id,
@@ -2125,10 +2140,19 @@ export const acceptScaffoldProposal = mutation({
       normalizeContextTags(proposedEntry.contextTags),
       access.userId,
     );
+    const entryContextTags = await appendAutomaticContextTags(ctx, {
+      contextTags,
+      organizations: access.organizations,
+      representedTagId: represented.primaryTagId,
+      taggedByUserId: access.userId,
+    });
     if (slotFulfillment !== undefined) {
       assertAcceptedEntryIncludesSlotTags(
         slotContextTagIds ?? [],
-        contextTags.map((tag) => tag._id),
+        [
+          represented.primaryTagId,
+          ...entryContextTags.map((tag) => tag._id),
+        ],
       );
     }
     const contextPreviewTagLabels = contextTags
@@ -2153,7 +2177,7 @@ export const acceptScaffoldProposal = mutation({
         [
           proposedEntry.title,
           proposedEntry.bodyPreview,
-          ...contextTags.map((tag) => tag.label),
+          ...entryContextTags.map((tag) => tag.label),
         ].join(" "),
         MAX_SEARCH_TEXT_LENGTH,
       ),
@@ -2178,15 +2202,12 @@ export const acceptScaffoldProposal = mutation({
       taggedAt: now,
       taggedByUserId: access.userId,
     });
-    for (const tag of contextTags) {
-      await ctx.db.insert("entryTags", {
-        entryId,
-        tagId: tag._id,
-        tagPurpose: "context",
-        taggedAt: now,
-        taggedByUserId: access.userId,
-      });
-    }
+    await insertEntryContextTags(ctx, {
+      contextTags: entryContextTags,
+      entryId,
+      now,
+      taggedByUserId: access.userId,
+    });
     await recordContextExpertiseEvidence(ctx, {
       contextTagIds: contextTags.map((tag) => tag._id),
       entryId,
