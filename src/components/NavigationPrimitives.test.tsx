@@ -91,4 +91,20 @@ describe("ReferentTagLink", () => {
 
     expect(navigate).toHaveBeenCalledWith("/goto/augustine");
   });
+
+  test("features a tag thumbnail when explicit tag data includes one", () => {
+    const markup = renderToStaticMarkup(
+      <ReferentTagLink
+        className="tag-link"
+        tag={{
+          ...augustineTag,
+          thumbnailUrl: "https://images.example/augustine.jpg",
+        }}
+      />,
+    );
+
+    expect(markup).toContain("kb-referent-tag-thumbnail");
+    expect(markup).toContain('src="https://images.example/augustine.jpg"');
+    expect(markup).toContain("Augustine");
+  });
 });

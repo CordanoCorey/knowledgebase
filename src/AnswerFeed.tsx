@@ -10,7 +10,10 @@ import {
 import { UserCircle, X } from "lucide-react";
 import { KnowledgeEntryCard, KnowledgeSlotCard } from "./components/KnowledgeCards";
 import { KnowledgeTypeBadge } from "./components/KnowledgeTypeIcon";
-import { ReferentTagLink } from "./components/ReferentTagLink";
+import {
+  ReferentTagLink,
+  ReferentTagVisual,
+} from "./components/ReferentTagLink";
 import {
   ANSWER_FEED_FIXTURE,
   type ActiveTag,
@@ -830,6 +833,10 @@ function QuoteAttributionCorrectionForm({
                 role="option"
                 type="button"
               >
+                <ReferentTagVisual
+                  className="kb-quote-attribution-option-visual"
+                  tag={getPersonOptionTag(option)}
+                />
                 <span>{option.label}</span>
               </button>
             ))
@@ -1056,6 +1063,19 @@ function getFeedHeading(activeTags: ActiveTag[]) {
   }
 
   return "Matching Answers";
+}
+
+function getPersonOptionTag(option: QuoteAttributionPersonOption): ActiveTag {
+  return {
+    canonicalKey: option.tagId,
+    href: `/goto/${encodeURIComponent(option.label)}`,
+    id: option.tagId,
+    knowledgeType: "person",
+    label: option.label,
+    ...(option.thumbnailUrl === undefined
+      ? {}
+      : { thumbnailUrl: option.thumbnailUrl }),
+  };
 }
 
 function formatCount(count: number, singular: string, plural = `${singular}s`) {

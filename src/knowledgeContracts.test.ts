@@ -98,6 +98,7 @@ describe("Human Weight Concern contract", () => {
 
   test("uses default expectations when no override is supplied", () => {
     expect(getDefaultHumanWeightExpectation("words")).toBe("expected");
+    expect(getDefaultHumanWeightExpectation("announcement")).toBe("expected");
     expect(getDefaultHumanWeightExpectation("essay")).toBe("expected");
     expect(getDefaultHumanWeightExpectation("lesson")).toBe("informative");
 
@@ -133,6 +134,7 @@ describe("Human Weight Concern contract", () => {
 
   test("mirrors default Human Weight credit basis by Knowledge Type", () => {
     expect(getDefaultHumanWeightCreditBasis("words")).toBe("contributor");
+    expect(getDefaultHumanWeightCreditBasis("announcement")).toBe("contributor");
     expect(getDefaultHumanWeightCreditBasis("lesson")).toBe("contributor");
     expect(getDefaultHumanWeightCreditBasis("quote")).toBe("quotedPerson");
     expect(getDefaultHumanWeightCreditBasis("topic")).toBeUndefined();
@@ -176,5 +178,13 @@ describe("Type Behavior title input contract", () => {
       primaryInput: false,
     });
     expect(isComposerTitleRequired("lesson")).toBe(true);
+
+    expect(getComposerTitleBehavior("announcement")).toMatchObject({
+      generatedTitleKind: "none",
+      input: "required",
+      label: "Title",
+      primaryInput: false,
+    });
+    expect(isComposerTitleRequired("announcement")).toBe(true);
   });
 });

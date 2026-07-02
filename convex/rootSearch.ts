@@ -2,7 +2,10 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
 import { requireAppAccess, type AppAccessState } from "./lib/appAccess";
-import { inferFileRepresentationRoleFromMetadata } from "./lib/fileRepresentationRoles";
+import {
+  getEntryThumbnailUrl,
+  getRepresentedReferentThumbnailUrl,
+} from "./lib/referentThumbnails";
 
 // Root search blends tag/referent matches with represented entries while
 // respecting the current user's app access.
@@ -12,10 +15,10 @@ const MAX_SEARCH_TEXT_LENGTH = 180;
 const MAX_SEARCH_CANDIDATES = 64;
 const MAX_RECOGNITIONS_PER_TAG = 20;
 const MAX_REPRESENTED_ENTRIES_PER_REFERENT = 20;
-const MAX_THUMBNAIL_REPRESENTATIONS_PER_ENTRY = 20;
 
 const referentKnowledgeType = v.union(
   v.literal("words"),
+  v.literal("announcement"),
   v.literal("biblePassage"),
   v.literal("topic"),
   v.literal("series"),
@@ -40,6 +43,7 @@ const referentKnowledgeType = v.union(
 
 const authorableKnowledgeType = v.union(
   v.literal("words"),
+  v.literal("announcement"),
   v.literal("topic"),
   v.literal("series"),
   v.literal("question"),
@@ -68,6 +72,7 @@ const activeTagSnapshot = v.object({
   knowledgeType: referentKnowledgeType,
   label: v.string(),
   passageString: v.optional(v.string()),
+  thumbnailUrl: v.optional(v.string()),
 });
 
 const matchedEntryPreview = v.object({
@@ -129,6 +134,7 @@ type RootSearchResult = {
     knowledgeType: Doc<"referents">["knowledgeType"];
     label: string;
     passageString?: string;
+    thumbnailUrl?: string;
   };
   thumbnailUrl?: string;
 };
@@ -165,7 +171,7 @@ export const listRootSearchResults = query({
         continue;
       }
 
-      const result = await toRootSearchResult(ctx, entry, searchText);
+      const result = await toRootSearchResult(ctx, entry, searchText, access);
       if (!result) {
         continue;
       }
@@ -339,6 +345,7 @@ async function toRootSearchResult(
   ctx: QueryCtx,
   entry: Doc<"knowledgeEntries">,
   searchText: string,
+  access: SearchAccess,
 ): Promise<ScoredRootSearchResult | null> {
   const tag = await ctx.db.get(entry.primaryTagId);
   if (!tag) {
@@ -352,6 +359,11 @@ async function toRootSearchResult(
 
   const canonicalKey = referent.canonicalKey || tag.lookupKey;
   const href = getTagHref(tag, canonicalKey);
+  const thumbnailUrl = await getRepresentedReferentThumbnailUrl(
+    ctx,
+    entry.representedReferentId,
+    { isEntryVisible: (candidate) => isEntryVisible(candidate, access) },
+  );
   const activeTag = {
     canonicalKey,
     href,
@@ -361,8 +373,8 @@ async function toRootSearchResult(
     ...(tag.knowledgeType === "biblePassage"
       ? { passageString: tag.lookupKey }
       : {}),
+    ...(thumbnailUrl === undefined ? {} : { thumbnailUrl }),
   };
-  const thumbnailUrl = await getEntryThumbnailUrl(ctx, entry._id);
 
   return {
     canonicalKey,
@@ -409,9 +421,11 @@ async function toTagRootSearchResult(
   const preview = previewEntry
     ? toMatchedEntryPreview(previewEntry, href)
     : undefined;
-  const thumbnailUrl = previewEntry
-    ? await getEntryThumbnailUrl(ctx, previewEntry._id)
-    : undefined;
+  const thumbnailUrl = await getRepresentedReferentThumbnailUrl(
+    ctx,
+    tag.referentId,
+    { isEntryVisible: (entry) => isEntryVisible(entry, access) },
+  );
 
   return {
     canonicalKey,
@@ -433,6 +447,7 @@ async function toTagRootSearchResult(
       ...(tag.knowledgeType === "biblePassage"
         ? { passageString: tag.lookupKey }
         : {}),
+      ...(thumbnailUrl === undefined ? {} : { thumbnailUrl }),
     },
     ...(thumbnailUrl === undefined ? {} : { thumbnailUrl }),
     updatedAt: previewEntry?.updatedAt ?? 0,
@@ -538,53 +553,6 @@ function toMatchedEntryPreview(entry: Doc<"knowledgeEntries">, href: string) {
     primaryTagLabel: entry.primaryTagLabel,
     title: entry.title,
   };
-}
-
-async function getEntryThumbnailUrl(
-  ctx: QueryCtx,
-  entryId: Id<"knowledgeEntries">,
-) {
-  const storageRepresentations = await ctx.db
-    .query("entryRepresentations")
-    .withIndex("by_entryId_and_representationKind", (q) =>
-      q.eq("entryId", entryId).eq("representationKind", "storageFile"),
-    )
-    .take(MAX_THUMBNAIL_REPRESENTATIONS_PER_ENTRY);
-
-  const storageThumbnail = storageRepresentations.find(isThumbnailRepresentation);
-  if (storageThumbnail?.storageId !== undefined) {
-    return (await ctx.storage.getUrl(storageThumbnail.storageId)) ?? undefined;
-  }
-
-  const externalRepresentations = await ctx.db
-    .query("entryRepresentations")
-    .withIndex("by_entryId_and_representationKind", (q) =>
-      q.eq("entryId", entryId).eq("representationKind", "externalUrl"),
-    )
-    .take(MAX_THUMBNAIL_REPRESENTATIONS_PER_ENTRY);
-
-  return externalRepresentations.find(isThumbnailRepresentation)?.externalUrl;
-}
-
-function isThumbnailRepresentation(
-  representation: Pick<
-    Doc<"entryRepresentations">,
-    | "contentType"
-    | "externalUrl"
-    | "fileName"
-    | "representationKind"
-    | "representationRole"
-    | "storageId"
-  >,
-) {
-  return (
-    representation.representationRole === "thumbnail" ||
-    (representation.representationKind === "storageFile" &&
-      inferFileRepresentationRoleFromMetadata(
-        representation.contentType,
-        representation.fileName,
-      ) === "thumbnail")
-  );
 }
 
 function isEntryVisible(entry: Doc<"knowledgeEntries">, access: SearchAccess) {

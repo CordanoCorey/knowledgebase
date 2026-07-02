@@ -7,6 +7,7 @@ import { organizationMembershipRole } from "./lib/organizationRoles";
 // aligned with frontend knowledgeContracts and Convex lib/typeBehavior.
 const referentKnowledgeType = v.union(
   v.literal("words"),
+  v.literal("announcement"),
   v.literal("biblePassage"),
   v.literal("topic"),
   v.literal("series"),
@@ -31,6 +32,7 @@ const referentKnowledgeType = v.union(
 
 const entryKnowledgeType = v.union(
   v.literal("words"),
+  v.literal("announcement"),
   v.literal("topic"),
   v.literal("series"),
   v.literal("question"),
@@ -220,6 +222,20 @@ const entryRepresentationRole = v.union(
   v.literal("supportingMaterial"),
 );
 
+const literatureDetailFields = {
+  author: v.optional(v.union(v.string(), v.null())),
+  yearPublished: v.optional(v.union(v.string(), v.null())),
+  lexileMeasure: v.optional(v.union(v.number(), v.null())),
+  approxWordCountK: v.optional(v.union(v.number(), v.null())),
+  approxGradeMin: v.optional(v.union(v.number(), v.null())),
+  approxGradeMax: v.optional(v.union(v.number(), v.null())),
+  historicalTimeframeStartYear: v.optional(v.union(v.number(), v.null())),
+  historicalTimeframeEndYear: v.optional(v.union(v.number(), v.null())),
+  settingLocation: v.optional(v.union(v.string(), v.null())),
+  genres: v.optional(v.array(v.string())),
+  publisher: v.optional(v.union(v.string(), v.null())),
+};
+
 const temporaryUploadStatus = v.union(
   v.literal("uploaded"),
   v.literal("attached"),
@@ -246,6 +262,7 @@ const bookmarkedKnowledgePageKind = v.union(v.literal("organization"));
 const knowledgeSubscriptionTargetKind = v.union(v.literal("organization"));
 const userNotificationKind = v.union(
   v.literal("access"),
+  v.literal("announcement"),
   v.literal("answer"),
   v.literal("event"),
   v.literal("knowledgeSlot"),
@@ -256,6 +273,7 @@ const userNotificationStatus = v.union(
   v.literal("unread"),
 );
 const userNotificationSourceKind = v.union(
+  v.literal("announcement"),
   v.literal("subscription"),
   v.literal("knowledgeSlot"),
   v.literal("event"),
@@ -991,6 +1009,7 @@ export default defineSchema({
     contractSnapshotText: v.optional(v.string()),
     typeBehaviorSnapshotVersion: v.optional(v.string()),
     typeBehaviorSnapshotText: v.optional(v.string()),
+    rawModelRequest: v.optional(v.string()),
     rawModelOutput: v.optional(v.string()),
     errorMessage: v.optional(v.string()),
     createdByUserId: v.id("users"),
@@ -1269,12 +1288,20 @@ export default defineSchema({
 
   seriesEntries: defineTable({
     entryId: v.id("knowledgeEntries"),
+    ...literatureDetailFields,
   }).index("by_entryId", ["entryId"]),
 
   questionEntries: defineTable({
     entryId: v.id("knowledgeEntries"),
     questionText: v.string(),
   }).index("by_entryId", ["entryId"]),
+
+  announcementEntries: defineTable({
+    entryId: v.id("knowledgeEntries"),
+    organizationReferentId: v.id("referents"),
+  })
+    .index("by_entryId", ["entryId"])
+    .index("by_organizationReferentId", ["organizationReferentId"]),
 
   quoteEntries: defineTable({
     entryId: v.id("knowledgeEntries"),
@@ -1296,23 +1323,28 @@ export default defineSchema({
 
   essayEntries: defineTable({
     entryId: v.id("knowledgeEntries"),
+    ...literatureDetailFields,
   }).index("by_entryId", ["entryId"]),
 
   poemEntries: defineTable({
     entryId: v.id("knowledgeEntries"),
+    ...literatureDetailFields,
   }).index("by_entryId", ["entryId"]),
 
   songEntries: defineTable({
     entryId: v.id("knowledgeEntries"),
+    ...literatureDetailFields,
   }).index("by_entryId", ["entryId"]),
 
   bookEntries: defineTable({
     entryId: v.id("knowledgeEntries"),
+    ...literatureDetailFields,
     isbn: v.optional(v.string()),
   }).index("by_entryId", ["entryId"]),
 
   shortStoryEntries: defineTable({
     entryId: v.id("knowledgeEntries"),
+    ...literatureDetailFields,
   }).index("by_entryId", ["entryId"]),
 
   lessonEntries: defineTable({

@@ -19,6 +19,7 @@ import {
   type KnowledgeRequestDraft,
 } from "./knowledgeContracts";
 import { KnowledgeTypeBadge } from "./components/KnowledgeTypeIcon";
+import { ReferentTagVisual } from "./components/ReferentTagLink";
 
 // The navigator composer models "ask/search/map to tags" as plain draft state
 // so UI interactions and pure mapping helpers can evolve independently.
@@ -302,6 +303,10 @@ export function KnowledgeNavigatorQueryInput({
               role="option"
               type="button"
             >
+              <ReferentTagVisual
+                className="kb-request-suggestion-visual"
+                tag={suggestion.tag}
+              />
               <span>{suggestion.tag.label}</span>
               <KnowledgeTypeBadge
                 className="kb-request-suggestion-type"

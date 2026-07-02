@@ -747,6 +747,7 @@ describe("AnswerFeed", () => {
         label: "J. R. R. Tolkien",
         referentId: "referent-tolkien",
         tagId: "tag-tolkien",
+        thumbnailUrl: "https://images.example/tolkien.jpg",
       },
     ];
     const onQuoteAttributionPersonSearchChange = vi.fn();
@@ -790,6 +791,11 @@ describe("AnswerFeed", () => {
       entry: quoteEntry,
       searchQuery: "Tolkien",
     });
+    expect(
+      testContainer
+        .querySelector(".kb-quote-attribution-person-option img")
+        ?.getAttribute("src"),
+    ).toBe("https://images.example/tolkien.jpg");
     await act(async () => {
       getButtonByText(testContainer, "J. R. R. Tolkien").click();
       await Promise.resolve();

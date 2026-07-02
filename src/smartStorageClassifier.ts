@@ -49,6 +49,7 @@ const AUTHORABLE_TYPE_SET = new Set<AuthorableKnowledgeType>(
 
 const TYPE_KEYWORDS: Record<AuthorableKnowledgeType, string[]> = {
   words: ["note", "memo", "reflection", "thought"],
+  announcement: [],
   topic: ["topic", "theme", "doctrine", "concept", "about"],
   series: ["series", "unit", "part 1", "week 1", "sequence"],
   question: ["question", "why", "how", "what", "who", "when", "where"],

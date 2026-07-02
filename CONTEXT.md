@@ -236,6 +236,10 @@ _Avoid_: Global Search Input, Knowledge Composer, Global Knowledge Context searc
 The base Knowledge Type used for a Referent when no more specific Knowledge Type is recognized by the application.
 _Avoid_: Text, document, generic
 
+**Announcement**:
+A Knowledge Type for an organization-scoped informational notice intended to be broadcast, archived, and surfaced to the relevant Organization audience.
+_Avoid_: Prayer Request, Event, Comment, generic Words
+
 **Bible Passage**:
 A Knowledge Type for Scripture references, independent of translation wording and citation-string formatting, including a single verse, one verse range, a chapter, a larger passage, or a set of passages across multiple books of the Bible. A Bible Passage Referent may be a subset of another Bible Passage Referent.
 _Avoid_: Bible verse, Scripture tag, translation-specific passage, raw citation string

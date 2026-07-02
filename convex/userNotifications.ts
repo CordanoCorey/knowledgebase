@@ -10,6 +10,7 @@ const MAX_INBOX_LIMIT = 100;
 
 const notificationKind = v.union(
   v.literal("access"),
+  v.literal("announcement"),
   v.literal("answer"),
   v.literal("event"),
   v.literal("knowledgeSlot"),

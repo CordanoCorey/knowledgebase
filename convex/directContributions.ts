@@ -1,7 +1,8 @@
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { mutation, type MutationCtx } from "./_generated/server";
-import { requireAppAccess } from "./lib/appAccess";
+import { internalMutation, mutation, type MutationCtx } from "./_generated/server";
+import { requireAppAccess, type AllowedOrganization } from "./lib/appAccess";
 import {
   appendAutomaticContextTags,
   insertEntryContextTags,
@@ -26,9 +27,11 @@ const MAX_DIRECT_FILE_NAME_LENGTH = 500;
 const MAX_DIRECT_CONTENT_TYPE_LENGTH = 120;
 const MAX_DIRECT_LANGUAGE_CODE_LENGTH = 35;
 const DIRECT_CONTRIBUTION_HUMAN_WEIGHT = 82;
+const ANNOUNCEMENT_NOTIFICATION_BATCH_SIZE = 50;
 
 const referentKnowledgeType = v.union(
   v.literal("words"),
+  v.literal("announcement"),
   v.literal("biblePassage"),
   v.literal("topic"),
   v.literal("series"),
@@ -53,6 +56,7 @@ const referentKnowledgeType = v.union(
 
 const entryKnowledgeType = v.union(
   v.literal("words"),
+  v.literal("announcement"),
   v.literal("topic"),
   v.literal("series"),
   v.literal("question"),
@@ -81,6 +85,7 @@ const contextTagSnapshot = v.object({
   knowledgeType: referentKnowledgeType,
   label: v.string(),
   passageString: v.optional(v.string()),
+  thumbnailUrl: v.optional(v.string()),
 });
 
 const directExternalUrlInput = v.object({
@@ -131,6 +136,7 @@ type ContextTagSnapshotInput = {
   knowledgeType: ReferentKnowledgeType;
   label: string;
   passageString?: string;
+  thumbnailUrl?: string;
 };
 type DirectExternalUrlInput = {
   linkPreviewDescription?: string;
@@ -149,6 +155,17 @@ type DirectUploadedFileInput = {
   temporaryUploadId?: Id<"temporaryUploads">;
   title?: string;
 };
+type DirectContributionAccess = Awaited<ReturnType<typeof requireAppAccess>>;
+type AnnouncementNotificationBatchInput = {
+  body: string;
+  contextHref: string;
+  contextLabel: string;
+  cursor: string | null;
+  entryId: Id<"knowledgeEntries">;
+  organizationReferentId: Id<"referents">;
+  receivedAt: number;
+  title: string;
+};
 
 export const postDirectContribution = mutation({
   args: {
@@ -156,6 +173,7 @@ export const postDirectContribution = mutation({
     contextTags: v.array(contextTagSnapshot),
     externalUrls: v.optional(v.array(directExternalUrlInput)),
     knowledgeType: entryKnowledgeType,
+    organizationReferentId: v.optional(v.id("referents")),
     slotId: v.optional(v.string()),
     title: v.string(),
     uploadedFiles: v.optional(v.array(directUploadedFileInput)),
@@ -171,9 +189,16 @@ export const postDirectContribution = mutation({
     const now = Date.now();
     const title = limitString(args.title, MAX_TITLE_LENGTH);
     const body = limitString(args.body, MAX_BODY_LENGTH);
+    const announcementOrganization = getAnnouncementOrganization(access, {
+      knowledgeType: args.knowledgeType,
+      organizationReferentId: args.organizationReferentId,
+    });
 
     if (!title) {
       throw new Error("Contribution title is required.");
+    }
+    if (args.knowledgeType === "announcement" && !body) {
+      throw new Error("Announcement body is required.");
     }
 
     const slotFulfillment = await resolveSlotFulfillment(ctx, {
@@ -187,6 +212,7 @@ export const postDirectContribution = mutation({
     const represented = await resolveRepresentedIdentity(ctx, {
       knowledgeType: args.knowledgeType,
       now,
+      organizationReferentId: announcementOrganization?.organizationReferentId,
       slotId: args.slotId,
       title,
       userId: access.userId,
@@ -198,7 +224,10 @@ export const postDirectContribution = mutation({
     );
     const entryContextTags = await appendAutomaticContextTags(ctx, {
       contextTags,
-      organizations: access.organizations,
+      organizations: getAutomaticContextOrganizations(
+        access.organizations,
+        announcementOrganization,
+      ),
       representedTagId: represented.primaryTagId,
       taggedByUserId: access.userId,
     });
@@ -212,12 +241,17 @@ export const postDirectContribution = mutation({
       );
     }
     const previewText = buildPreviewText(args.knowledgeType, body);
-    const contextPreviewTagLabels = contextTags
-      .map((tag) => tag.label)
-      .slice(0, MAX_CONTEXT_PREVIEW_TAG_LABELS);
+    const contextPreviewTagLabels = getContextPreviewTagLabels(
+      contextTags,
+      announcementOrganization,
+    );
     const humanWeight = getApplicableHumanWeight(
       args.knowledgeType,
       DIRECT_CONTRIBUTION_HUMAN_WEIGHT,
+    );
+    const visibility = getDirectContributionVisibility(
+      args.knowledgeType,
+      announcementOrganization?.organizationReferentId,
     );
 
     const entryId = await ctx.db.insert("knowledgeEntries", {
@@ -233,10 +267,10 @@ export const postDirectContribution = mutation({
       primaryTagLabel: represented.primaryTagLabel,
       contextPreviewTagLabels,
       ...(humanWeight === undefined ? {} : { humanWeight }),
-      visibilityKind: "public",
-      visibilityTargetKey: "public",
-      discoverabilityKind: "public",
-      discoverabilityTargetKey: "public",
+      visibilityKind: visibility.kind,
+      visibilityTargetKey: visibility.targetKey,
+      discoverabilityKind: visibility.kind,
+      discoverabilityTargetKey: visibility.targetKey,
       publicPreviewText: previewText,
       createdByUserId: access.userId,
       createdAt: now,
@@ -279,6 +313,25 @@ export const postDirectContribution = mutation({
       await ctx.db.insert("questionEntries", {
         entryId,
         questionText: title,
+      });
+    }
+    if (args.knowledgeType === "announcement") {
+      if (announcementOrganization === undefined) {
+        throw new Error("Announcement Organization is required.");
+      }
+      await ctx.db.insert("announcementEntries", {
+        entryId,
+        organizationReferentId: announcementOrganization.organizationReferentId,
+      });
+      await deliverAnnouncementNotificationBatch(ctx, {
+        body: previewText,
+        contextHref: `/entries/${entryId}`,
+        contextLabel: announcementOrganization.name,
+        cursor: null,
+        entryId,
+        organizationReferentId: announcementOrganization.organizationReferentId,
+        receivedAt: now,
+        title,
       });
     }
     if (args.knowledgeType === "quote") {
@@ -335,6 +388,218 @@ export const postDirectContribution = mutation({
     };
   },
 });
+
+export const deliverAnnouncementNotifications = internalMutation({
+  args: {
+    body: v.string(),
+    contextHref: v.string(),
+    contextLabel: v.string(),
+    cursor: v.union(v.string(), v.null()),
+    entryId: v.id("knowledgeEntries"),
+    organizationReferentId: v.id("referents"),
+    receivedAt: v.number(),
+    title: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await deliverAnnouncementNotificationBatch(ctx, args);
+    return null;
+  },
+});
+
+function getAnnouncementOrganization(
+  access: DirectContributionAccess,
+  {
+    knowledgeType,
+    organizationReferentId,
+  }: {
+    knowledgeType: EntryKnowledgeType;
+    organizationReferentId?: Id<"referents">;
+  },
+) {
+  if (knowledgeType !== "announcement") {
+    if (organizationReferentId !== undefined) {
+      throw new Error(
+        "Organization target is only supported for Announcement contributions.",
+      );
+    }
+    return undefined;
+  }
+
+  if (organizationReferentId === undefined) {
+    throw new Error("Announcement Organization is required.");
+  }
+
+  const organization = access.organizations.find(
+    (candidate) =>
+      candidate.organizationReferentId === organizationReferentId,
+  );
+  if (!organization) {
+    throw new Error(
+      "Announcement Organization must be one of your active Organizations.",
+    );
+  }
+
+  return organization;
+}
+
+function getAutomaticContextOrganizations(
+  organizations: AllowedOrganization[],
+  preferredOrganization: AllowedOrganization | undefined,
+) {
+  if (preferredOrganization === undefined) {
+    return organizations;
+  }
+
+  return [
+    preferredOrganization,
+    ...organizations.filter(
+      (organization) =>
+        organization.organizationReferentId !==
+        preferredOrganization.organizationReferentId,
+    ),
+  ];
+}
+
+function getContextPreviewTagLabels(
+  contextTags: Doc<"tags">[],
+  announcementOrganization: AllowedOrganization | undefined,
+) {
+  const labels = [
+    ...(announcementOrganization === undefined
+      ? []
+      : [announcementOrganization.name]),
+    ...contextTags.map((tag) => tag.label),
+  ];
+
+  return Array.from(new Set(labels)).slice(0, MAX_CONTEXT_PREVIEW_TAG_LABELS);
+}
+
+function getDirectContributionVisibility(
+  knowledgeType: EntryKnowledgeType,
+  organizationReferentId: Id<"referents"> | undefined,
+) {
+  if (knowledgeType === "announcement") {
+    if (organizationReferentId === undefined) {
+      throw new Error("Announcement Organization is required.");
+    }
+    return {
+      kind: "organization" as const,
+      targetKey: organizationReferentId,
+    };
+  }
+
+  return {
+    kind: "public" as const,
+    targetKey: "public",
+  };
+}
+
+async function deliverAnnouncementNotificationBatch(
+  ctx: MutationCtx,
+  input: AnnouncementNotificationBatchInput,
+) {
+  const membershipsPage = await ctx.db
+    .query("memberships")
+    .withIndex("by_organizationReferentId_and_membershipStatus", (q) =>
+      q
+        .eq("organizationReferentId", input.organizationReferentId)
+        .eq("membershipStatus", "active"),
+    )
+    .order("asc")
+    .paginate({
+      cursor: input.cursor,
+      numItems: ANNOUNCEMENT_NOTIFICATION_BATCH_SIZE,
+    });
+  const notifiedUserIds = new Set<Id<"users">>();
+
+  for (const membership of membershipsPage.page) {
+    if (
+      membership.targetKind !== "organization" ||
+      membership.memberUserId === undefined ||
+      notifiedUserIds.has(membership.memberUserId)
+    ) {
+      continue;
+    }
+
+    const user = await ctx.db.get(membership.memberUserId);
+    if (!user || user.isActive !== true) {
+      continue;
+    }
+
+    notifiedUserIds.add(membership.memberUserId);
+    await upsertUnreadAnnouncementNotification(ctx, {
+      ...input,
+      userId: membership.memberUserId,
+    });
+  }
+
+  if (!membershipsPage.isDone) {
+    await ctx.scheduler.runAfter(
+      0,
+      internal.directContributions.deliverAnnouncementNotifications,
+      {
+        ...input,
+        cursor: membershipsPage.continueCursor,
+      },
+    );
+  }
+}
+
+async function upsertUnreadAnnouncementNotification(
+  ctx: MutationCtx,
+  input: Omit<AnnouncementNotificationBatchInput, "cursor"> & {
+    userId: Id<"users">;
+  },
+) {
+  const sourceSubscriptionKey = getAnnouncementNotificationKey(
+    input.entryId,
+    input.userId,
+  );
+  const existingNotification = await ctx.db
+    .query("userNotifications")
+    .withIndex("by_sourceSubscriptionKey_and_receivedAt", (q) =>
+      q.eq("sourceSubscriptionKey", sourceSubscriptionKey),
+    )
+    .first();
+  const notification = {
+    body: input.body,
+    contextHref: input.contextHref,
+    contextLabel: input.contextLabel,
+    notificationKind: "announcement" as const,
+    notificationStatus: "unread" as const,
+    receivedAt: input.receivedAt,
+    sourceKind: "announcement" as const,
+    sourceSubscriptionKey,
+    targetReferentId: input.organizationReferentId,
+    title: input.title,
+    updatedAt: input.receivedAt,
+    userId: input.userId,
+  };
+
+  if (existingNotification) {
+    const { _creationTime, _id, readAt, ...replacement } =
+      existingNotification;
+    await ctx.db.replace(_id, {
+      ...replacement,
+      ...notification,
+      createdAt: existingNotification.createdAt,
+    });
+    return _id;
+  }
+
+  return await ctx.db.insert("userNotifications", {
+    ...notification,
+    createdAt: input.receivedAt,
+  });
+}
+
+function getAnnouncementNotificationKey(
+  entryId: Id<"knowledgeEntries">,
+  userId: Id<"users">,
+) {
+  return `announcement:${entryId}:user:${userId}`;
+}
 
 async function insertDirectEntryRepresentations(
   ctx: MutationCtx,
@@ -708,6 +973,7 @@ async function resolveRepresentedIdentity(
   identity: {
     knowledgeType: EntryKnowledgeType;
     now: number;
+    organizationReferentId?: Id<"referents">;
     slotId?: string;
     title: string;
     userId: Id<"users">;
@@ -889,12 +1155,14 @@ function normalizeContextTags(tags: ContextTagSnapshotInput[]) {
 function getRepresentedCanonicalKey({
   knowledgeType,
   now,
+  organizationReferentId,
   slotId,
   title,
   userId,
 }: {
   knowledgeType: EntryKnowledgeType;
   now: number;
+  organizationReferentId?: Id<"referents">;
   slotId?: string;
   title: string;
   userId: Id<"users">;
@@ -903,6 +1171,9 @@ function getRepresentedCanonicalKey({
   if (knowledgeType === "comment") {
     const slotKey = slotId ? normalizeLookupKey(slotId) : "no-slot";
     return `direct:${userId}:comment:${slotKey}:${now}`;
+  }
+  if (knowledgeType === "announcement") {
+    return `direct:${userId}:announcement:${organizationReferentId ?? "no-org"}:${titleKey}:${now}`;
   }
 
   return `direct:${userId}:${knowledgeType}:${titleKey}`;
@@ -987,6 +1258,7 @@ function formatEmailDisplayName(email: string) {
 function formatKnowledgeTypeLabel(knowledgeType: EntryKnowledgeType) {
   const labels: Record<EntryKnowledgeType, string> = {
     words: "Words",
+    announcement: "Announcement",
     topic: "Topic",
     series: "Series",
     question: "Question",

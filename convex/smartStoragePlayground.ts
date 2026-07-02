@@ -22,6 +22,7 @@ const sourceKind = v.union(
 
 const entryKnowledgeType = v.union(
   v.literal("words"),
+  v.literal("announcement"),
   v.literal("topic"),
   v.literal("series"),
   v.literal("question"),

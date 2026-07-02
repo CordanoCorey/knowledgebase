@@ -9,6 +9,9 @@ import schema from "./schema";
 
 const modules = {
   ...import.meta.glob("./_generated/*.*s"),
+  "./lib/fileRepresentationRoles.ts": () =>
+    import("./lib/fileRepresentationRoles"),
+  "./lib/referentThumbnails.ts": () => import("./lib/referentThumbnails"),
   "./rootSearch.ts": () => import("./rootSearch"),
 };
 
@@ -43,6 +46,7 @@ describe("Root Search results", () => {
         href: "/goto/the-city-of-god",
         id: "the-city-of-god",
         label: "The City of God",
+        thumbnailUrl: expect.any(String),
       },
       thumbnailUrl: expect.any(String),
     });

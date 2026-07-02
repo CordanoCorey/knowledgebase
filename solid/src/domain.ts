@@ -1,5 +1,6 @@
 export type KnowledgeType =
   | "words"
+  | "announcement"
   | "biblePassage"
   | "topic"
   | "series"
@@ -30,6 +31,7 @@ export type ActiveTag = {
   knowledgeType: KnowledgeType;
   label: string;
   passageString?: string;
+  thumbnailUrl?: string;
 };
 
 export type PageId =
@@ -126,6 +128,7 @@ export type RootSearchResult = {
   };
   scopeLabel: string;
   tag: ActiveTag;
+  thumbnailUrl?: string;
 };
 
 export type UserNotification = {
@@ -133,7 +136,13 @@ export type UserNotification = {
   contextHref: string;
   contextLabel: string;
   id: string;
-  kind: "access" | "answer" | "event" | "knowledgeSlot" | "subscription";
+  kind:
+    | "access"
+    | "announcement"
+    | "answer"
+    | "event"
+    | "knowledgeSlot"
+    | "subscription";
   readAt?: number;
   receivedAt: number;
   status: "read" | "unread";
@@ -210,6 +219,7 @@ const TAGS_BY_ID = new Map(REFERENT_TAG_FIXTURES.map((tag) => [tag.id, tag]));
 
 export const KNOWLEDGE_TYPE_LABELS: Record<KnowledgeType, string> = {
   words: "Words",
+  announcement: "Announcement",
   biblePassage: "Bible Passage",
   topic: "Topic",
   series: "Series",

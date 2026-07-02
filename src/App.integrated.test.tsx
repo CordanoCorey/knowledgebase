@@ -1488,6 +1488,10 @@ vi.mock("convex/react", () => ({
       return getMockRecommendedTagSuggestions(args);
     }
 
+    if (functionName === "tagSuggestions:resolveRouteActiveTags") {
+      return getMockResolvedRouteActiveTags(args);
+    }
+
     if (functionName === "rootSearch:listRootSearchResults") {
       return getMockRootSearchResults(args);
     }
@@ -1785,6 +1789,67 @@ function getMockTagSuggestions(
     }));
 }
 
+function getMockResolvedRouteActiveTags(args: unknown) {
+  if (
+    !args ||
+    typeof args !== "object" ||
+    !("tagKeys" in args) ||
+    !Array.isArray(args.tagKeys)
+  ) {
+    return [];
+  }
+
+  return args.tagKeys.map((tagKey) => {
+    const normalizedTagKey = normalizeMockRouteTagKey(String(tagKey));
+    const suggestion = findMockRouteTagSource(
+      mockState.tagSuggestions,
+      normalizedTagKey,
+    );
+    if (suggestion) {
+      return toMockActiveTag(suggestion);
+    }
+
+    const rootSearchResult = findMockRouteTagSource(
+      mockState.rootSearchResults,
+      normalizedTagKey,
+    );
+    return rootSearchResult ? toMockActiveTag(rootSearchResult) : null;
+  });
+}
+
+function findMockRouteTagSource(
+  candidates: unknown[],
+  normalizedTagKey: string,
+) {
+  return candidates.find((candidate): candidate is Record<string, unknown> => {
+    if (candidate === null || typeof candidate !== "object") {
+      return false;
+    }
+
+    const candidateRecord = candidate as Record<string, unknown>;
+    return [candidateRecord.id, candidateRecord.canonicalKey].some(
+      (value) => normalizeMockRouteTagKey(String(value ?? "")) === normalizedTagKey,
+    );
+  });
+}
+
+function toMockActiveTag(source: Record<string, unknown>) {
+  if (source.tag && typeof source.tag === "object") {
+    return source.tag;
+  }
+
+  return {
+    canonicalKey: String(source.canonicalKey ?? source.id ?? ""),
+    href: String(source.href ?? `/goto/${source.id ?? source.canonicalKey ?? ""}`),
+    id: String(source.id ?? source.canonicalKey ?? ""),
+    knowledgeType: source.knowledgeType,
+    label: String(source.label ?? source.id ?? source.canonicalKey ?? ""),
+    ...("thumbnailUrl" in source && typeof source.thumbnailUrl === "string"
+      ? { thumbnailUrl: source.thumbnailUrl }
+      : {}),
+  };
+}
+
 function getMockRecommendedTagSuggestions(args: unknown) {
   const activeTagIds = new Set(getMockActiveTagIds(args));
   const limit =
@@ -1988,6 +2053,10 @@ function normalizeMockSuggestionText(value: string) {
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function normalizeMockRouteTagKey(value: string) {
+  return normalizeMockSuggestionText(value).replace(/\s+/g, "-");
 }
 
 function getMockContributionContextTagIds(args: unknown) {
@@ -4191,6 +4260,65 @@ describe("MVP Explore/Contribute loop", () => {
     expect(getButtonIn(accountControls, "Sign out")).toBeTruthy();
   });
 
+  test("moves pinned Knowledge Pages into the primary sidebar away from Dashboard", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "http://localhost:3000/scripture/joshua-1-6-9",
+    );
+
+    await renderApp();
+
+    expect(container.querySelector(".kb-knowledge-drawer")).toBeNull();
+    expect(container.querySelector('[aria-label="Knowledge Page destinations"]')).toBeNull();
+
+    const primaryNavigation = getLabelledElement("Primary navigation");
+    const pinnedPages = getLabelledElement("Pinned Knowledge Pages");
+    expect(primaryNavigation.contains(pinnedPages)).toBe(true);
+    expect(getLabelledLinkIn(pinnedPages, "Arche Classical Academy")).toBeTruthy();
+    expect(getLabelledLinkIn(pinnedPages, "Ruler of Kings Church")).toBeTruthy();
+    expect(getLabelledLinkIn(pinnedPages, "My Family")).toBeTruthy();
+    expect(getButtonIn(pinnedPages, "1 more pinned Knowledge Pages")).toBeTruthy();
+  });
+
+  test("opens hidden pinned Knowledge Pages from the dashboard drawer overflow", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/");
+
+    await renderApp();
+
+    const knowledgePageDestinations = getLabelledElement("Knowledge Page destinations");
+    await click(getButtonIn(knowledgePageDestinations, "1 more pinned Knowledge Pages"));
+
+    const dialog = getDialog();
+    expect(dialog.textContent).toContain("Hidden Pinned Knowledge Pages");
+    expect(getLabelledLinkIn(dialog, "My Community")).toBeTruthy();
+
+    await click(getLabelledLinkIn(dialog, "My Community"));
+
+    expect(window.location.pathname).toBe("/organizations/communityOrganizationReferent");
+  });
+
+  test("opens hidden pinned Knowledge Pages from the compact rail overflow", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "http://localhost:3000/scripture/joshua-1-6-9",
+    );
+
+    await renderApp();
+
+    const pinnedPages = getLabelledElement("Pinned Knowledge Pages");
+    await click(getButtonIn(pinnedPages, "1 more pinned Knowledge Pages"));
+
+    const dialog = getDialog();
+    expect(dialog.textContent).toContain("Hidden Pinned Knowledge Pages");
+    expect(getLabelledLinkIn(dialog, "My Community")).toBeTruthy();
+
+    await click(getLabelledLinkIn(dialog, "My Community"));
+
+    expect(window.location.pathname).toBe("/organizations/communityOrganizationReferent");
+  });
+
   test("toggles a durable Organization pin from the Organization page", async () => {
     window.history.replaceState(
       {},
@@ -4204,8 +4332,8 @@ describe("MVP Explore/Contribute loop", () => {
       "true",
     );
     expect(
-      getLabelledElement("Knowledge Page destinations").textContent,
-    ).toContain("Arche Classical Academy");
+      getLabelledLinkIn(getLabelledElement("Pinned Knowledge Pages"), "Arche Classical Academy"),
+    ).toBeTruthy();
 
     await click(getButton("Unpin Arche Classical Academy"));
     await rerenderApp();
@@ -4220,8 +4348,10 @@ describe("MVP Explore/Contribute loop", () => {
       "false",
     );
     expect(
-      getLabelledElement("Knowledge Page destinations").textContent,
-    ).not.toContain("Arche Classical Academy");
+      getLabelledElement("Pinned Knowledge Pages").querySelector(
+        'a[aria-label="Arche Classical Academy"]',
+      ),
+    ).toBeNull();
 
     await click(getButton("Pin Arche Classical Academy"));
     await rerenderApp();
@@ -4236,8 +4366,8 @@ describe("MVP Explore/Contribute loop", () => {
       "true",
     );
     expect(
-      getLabelledElement("Knowledge Page destinations").textContent,
-    ).toContain("Arche Classical Academy");
+      getLabelledLinkIn(getLabelledElement("Pinned Knowledge Pages"), "Arche Classical Academy"),
+    ).toBeTruthy();
   });
 
   test("toggles an Organization bookmark without changing sidebar pins", async () => {
@@ -4269,8 +4399,8 @@ describe("MVP Explore/Contribute loop", () => {
       ),
     ).toBe("true");
     expect(
-      getLabelledElement("Knowledge Page destinations").textContent,
-    ).toContain("Arche Classical Academy");
+      getLabelledLinkIn(getLabelledElement("Pinned Knowledge Pages"), "Arche Classical Academy"),
+    ).toBeTruthy();
 
     await click(getButton("Remove Bookmark Arche Classical Academy"));
     await rerenderApp();
@@ -4285,8 +4415,8 @@ describe("MVP Explore/Contribute loop", () => {
       getButton("Bookmark Arche Classical Academy").getAttribute("aria-pressed"),
     ).toBe("false");
     expect(
-      getLabelledElement("Knowledge Page destinations").textContent,
-    ).toContain("Arche Classical Academy");
+      getLabelledLinkIn(getLabelledElement("Pinned Knowledge Pages"), "Arche Classical Academy"),
+    ).toBeTruthy();
 
     await click(getButton("Bookmark Arche Classical Academy"));
     await rerenderApp();
@@ -4335,8 +4465,8 @@ describe("MVP Explore/Contribute loop", () => {
       ),
     ).toBe("true");
     expect(
-      getLabelledElement("Knowledge Page destinations").textContent,
-    ).toContain("Arche Classical Academy");
+      getLabelledLinkIn(getLabelledElement("Pinned Knowledge Pages"), "Arche Classical Academy"),
+    ).toBeTruthy();
     expect(mockState.bookmarkedKnowledgePages).toEqual([]);
 
     await click(getButton("Unsubscribe Arche Classical Academy"));
@@ -4352,8 +4482,8 @@ describe("MVP Explore/Contribute loop", () => {
       getButton("Subscribe Arche Classical Academy").getAttribute("aria-pressed"),
     ).toBe("false");
     expect(
-      getLabelledElement("Knowledge Page destinations").textContent,
-    ).toContain("Arche Classical Academy");
+      getLabelledLinkIn(getLabelledElement("Pinned Knowledge Pages"), "Arche Classical Academy"),
+    ).toBeTruthy();
     expect(mockState.bookmarkedKnowledgePages).toEqual([]);
 
     await click(getButton("Subscribe Arche Classical Academy"));
@@ -5036,6 +5166,43 @@ describe("MVP Explore/Contribute loop", () => {
     expect(overview?.textContent).toContain("Doctrine, theme, or subject.");
   });
 
+  test("renders live route-resolved Knowledge Type overviews for seeded Book pages", async () => {
+    mockState.tagSuggestions = [
+      ...mockState.tagSuggestions,
+      {
+        canonicalKey: "the-wind-in-the-willows-kenneth-grahame",
+        href: "/goto/the-wind-in-the-willows-kenneth-grahame",
+        id: "the-wind-in-the-willows-kenneth-grahame",
+        knowledgeType: "book",
+        label: "The Wind In The Willows Kenneth Grahame",
+        tag: {
+          canonicalKey: "the-wind-in-the-willows-kenneth-grahame",
+          href: "/goto/the-wind-in-the-willows-kenneth-grahame",
+          id: "the-wind-in-the-willows-kenneth-grahame",
+          knowledgeType: "book",
+          label: "The Wind In The Willows Kenneth Grahame",
+        },
+      },
+    ];
+    window.history.replaceState(
+      {},
+      "",
+      "http://localhost:3000/goto/the-wind-in-the-willows-kenneth-grahame",
+    );
+
+    await renderApp();
+
+    const identityBand = container.querySelector(".kb-knowledge-page-identity");
+    expect(identityBand?.textContent).toContain("Book");
+
+    const overview = container.querySelector(".kb-knowledge-overview");
+    expect(overview).toBeTruthy();
+    expect(overview?.getAttribute("data-knowledge-type")).toBe("book");
+    expect(overview?.textContent).toContain("Book Overview");
+    expect(overview?.textContent).toContain("Book Detail");
+    expect(overview?.textContent).not.toContain("Words Overview");
+  });
+
   test("keeps Scripture Text without the generic Bible Passage overview", async () => {
     window.history.replaceState(
       {},
@@ -5096,9 +5263,8 @@ describe("MVP Explore/Contribute loop", () => {
     expect(container.textContent).toContain("Popular targets");
     expect(container.textContent).toContain("Romans 8:28");
     expect(container.textContent).toContain("Navigator Actions");
-    expect(getLabelledElement("Knowledge Page destinations").textContent).not.toContain(
-      "Analytics",
-    );
+    expect(container.querySelector('[aria-label="Knowledge Page destinations"]')).toBeNull();
+    expect(container.querySelector('a[aria-label="Analytics"]')).toBeNull();
   });
 
   test("blocks the Smart Storage playground from non-system admins", async () => {
@@ -5131,9 +5297,7 @@ describe("MVP Explore/Contribute loop", () => {
     await renderApp();
 
     expect(container.querySelector(".kb-smart-playground-main")).toBeTruthy();
-    expect(getLabelledElement("Knowledge Page destinations").textContent).not.toContain(
-      "Smart Storage",
-    );
+    expect(container.querySelector('[aria-label="Knowledge Page destinations"]')).toBeNull();
     expect(getLabelledLinkIn(getLabelledElement("User Views"), "Smart Storage")).toBeTruthy();
 
     const sourceInput = container.querySelector('textarea[aria-label="Raw input"]');
@@ -5170,6 +5334,70 @@ describe("MVP Explore/Contribute loop", () => {
       }),
     );
     expect(container.textContent).toContain("Feedback saved");
+  });
+
+  test("shows dev playground prototype routes only to system admins", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/");
+    mockState.appAccess = {
+      ...(mockState.appAccess as Record<string, unknown>),
+      systemRole: "systemAdmin",
+    };
+
+    await renderApp();
+
+    const userViews = getLabelledElement("User Views");
+    expect(getLabelledLinkIn(userViews, "Smart Storage")).toBeTruthy();
+    expect(getLabelledLinkIn(userViews, "Layout Prototype")).toBeTruthy();
+    expect(getLabelledLinkIn(userViews, "Header Sidebar Prototype")).toBeTruthy();
+  });
+
+  test("blocks prototype routes from non-system admins", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "http://localhost:3000/playground/prototypes/layout?variant=T",
+    );
+
+    await renderApp();
+
+    expect(container.querySelector(".layout-prototype")).toBeNull();
+    expect(container.textContent).toContain("Unavailable");
+    expect(getLabelledElement("User Views").textContent).not.toContain(
+      "Layout Prototype",
+    );
+  });
+
+  test("renders prototype routes for system admins and preserves legacy prototype URLs", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "http://localhost:3000/playground/prototypes/layout?variant=T",
+    );
+    mockState.appAccess = {
+      ...(mockState.appAccess as Record<string, unknown>),
+      systemRole: "systemAdmin",
+    };
+
+    await renderApp();
+
+    expect(container.querySelector(".layout-prototype")).toBeTruthy();
+    expect(container.textContent).toContain("T - Questions sage, Answers clay");
+
+    await act(async () => {
+      root?.unmount();
+    });
+    root = null;
+    container.innerHTML = "";
+    window.history.replaceState(
+      {},
+      "",
+      "http://localhost:3000/?prototype=header-sidebar&variant=D",
+    );
+
+    await renderApp();
+
+    expect(container.querySelector(".hsp-shell")).toBeTruthy();
+    expect(container.textContent).toContain("D - Knowledge shelf header");
   });
 
   test("renders the notifications route with filterable user notices", async () => {

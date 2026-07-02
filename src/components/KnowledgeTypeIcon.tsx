@@ -9,6 +9,7 @@ import {
 // one-off symbols or labels.
 export const KNOWLEDGE_TYPE_ICON_SYMBOLS = {
   words: "kt-words",
+  announcement: "kt-announcement",
   biblePassage: "kt-bible-passage",
   topic: "kt-topic",
   series: "kt-series",
