@@ -29,6 +29,7 @@ import {
   normalizeContextExpertiseTagIds,
   type ContextExpertiseContextMatchKind,
 } from "./lib/contextExpertiseScoring";
+import { getRepresentedReferentThumbnailUrl } from "./lib/referentThumbnails";
 
 // Public Context Expertise functions expose ranked experts, profile summaries,
 // and bounded admin maintenance tools over evidence aggregates.
@@ -60,6 +61,7 @@ const contextExpertSubjectKind = v.union(
 );
 const referentKnowledgeType = v.union(
   v.literal("words"),
+  v.literal("announcement"),
   v.literal("biblePassage"),
   v.literal("topic"),
   v.literal("series"),
@@ -110,6 +112,7 @@ const profileContextExpertiseTagSnapshot = v.object({
   knowledgeType: referentKnowledgeType,
   label: v.string(),
   passageString: v.optional(v.string()),
+  thumbnailUrl: v.optional(v.string()),
 });
 
 const currentUserProfileContextExpertiseRow = v.object({
@@ -292,6 +295,7 @@ const quoteAttributionPersonSearchResult = v.object({
   label: v.string(),
   referentId: v.id("referents"),
   tagId: v.id("tags"),
+  thumbnailUrl: v.optional(v.string()),
 });
 
 const personGlobalExpertVisibilityModerationStatus = v.union(
@@ -1248,11 +1252,21 @@ async function searchPersonTagOptions(
     )
     .take(limit);
 
-  return personTags.map((tag) => ({
-    label: tag.label,
-    referentId: tag.referentId,
-    tagId: tag._id,
-  }));
+  const options = [];
+  for (const tag of personTags) {
+    const thumbnailUrl = await getRepresentedReferentThumbnailUrl(
+      ctx,
+      tag.referentId,
+    );
+    options.push({
+      label: tag.label,
+      referentId: tag.referentId,
+      tagId: tag._id,
+      ...(thumbnailUrl === undefined ? {} : { thumbnailUrl }),
+    });
+  }
+
+  return options;
 }
 
 async function getPersonGlobalExpertVisibilityModerationSummary(
@@ -1349,6 +1363,7 @@ type ProfileContextExpertiseTagSnapshot = {
   knowledgeType: Doc<"tags">["knowledgeType"];
   label: string;
   passageString?: string;
+  thumbnailUrl?: string;
 };
 type CurrentUserProfileContextExpertiseRow = {
   aggregateId: Id<"contextExpertiseAggregates">;
@@ -1464,19 +1479,24 @@ async function getProfileContextTagSnapshots(
       return null;
     }
 
-    tags.push(toProfileContextTagSnapshot(tag));
+    tags.push(await toProfileContextTagSnapshot(ctx, tag));
   }
 
   return tags;
 }
 
-function toProfileContextTagSnapshot(
+async function toProfileContextTagSnapshot(
+  ctx: QueryCtx,
   tag: Doc<"tags">,
-): ProfileContextExpertiseTagSnapshot {
+): Promise<ProfileContextExpertiseTagSnapshot> {
   const href =
     tag.knowledgeType === "biblePassage"
       ? `/scripture/${encodeURIComponent(tag.lookupKey)}`
       : `/goto/${encodeURIComponent(tag.lookupKey)}`;
+  const thumbnailUrl = await getRepresentedReferentThumbnailUrl(
+    ctx,
+    tag.referentId,
+  );
 
   return {
     canonicalKey: tag.lookupKey,
@@ -1487,6 +1507,7 @@ function toProfileContextTagSnapshot(
     ...(tag.knowledgeType === "biblePassage"
       ? { passageString: tag.lookupKey }
       : {}),
+    ...(thumbnailUrl === undefined ? {} : { thumbnailUrl }),
   };
 }
 

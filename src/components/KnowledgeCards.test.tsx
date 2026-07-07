@@ -74,6 +74,39 @@ describe("KnowledgeEntryCard", () => {
     expect(markup).toContain('href="/goto/youth-lesson"');
   });
 
+  it("features thumbnail-rich primary and context Tags", () => {
+    const markup = renderToStaticMarkup(
+      <KnowledgeEntryCard
+        entry={{
+          ...entryFixture,
+          primaryTag: {
+            canonicalKey: "romans-8",
+            href: "/scripture/romans-8",
+            id: "romans-8",
+            knowledgeType: "biblePassage",
+            label: "Romans 8",
+            passageString: "romans-8",
+            thumbnailUrl: "https://images.example/romans-8.jpg",
+          },
+          contextPreviewTags: [
+            {
+              canonicalKey: "suffering-and-hope",
+              href: "/goto/suffering-and-hope",
+              id: "suffering-and-hope",
+              knowledgeType: "topic",
+              label: "Suffering and hope",
+              thumbnailUrl: "https://images.example/suffering.jpg",
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(markup).toContain('src="https://images.example/romans-8.jpg"');
+    expect(markup).toContain('src="https://images.example/suffering.jpg"');
+    expect(markup).toContain("kb-referent-tag-thumbnail");
+  });
+
   it("does not render Human Weight for non-weight-bearing entries", () => {
     const nonWeightBearingEntry: KnowledgeEntrySummary = {
       ...entryFixture,

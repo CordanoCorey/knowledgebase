@@ -4,6 +4,7 @@ import { CURRENT_HUMAN_WEIGHT_CALCULATION_DEFINITION } from "./humanWeightCalcul
 // Keep frontend knowledgeContracts aligned with these values.
 export const ENTRY_KNOWLEDGE_TYPES = [
   "words",
+  "announcement",
   "topic",
   "series",
   "question",
@@ -29,6 +30,7 @@ export type EntryKnowledgeType = (typeof ENTRY_KNOWLEDGE_TYPES)[number];
 
 export const WEIGHT_BEARING_ENTRY_KNOWLEDGE_TYPES = [
   "words",
+  "announcement",
   "question",
   "quote",
   "sermon",
@@ -257,6 +259,21 @@ const TYPE_BEHAVIOR_OVERRIDES: Partial<
     humanWeight: {
       defaultEstimate: 60,
       expectation: "expected",
+    },
+  },
+  announcement: {
+    identity: {
+      strategy: "generated",
+    },
+    referentIdentityScope: {
+      defaultScope: "organization",
+    },
+    humanWeight: {
+      defaultEstimate: 60,
+      expectation: "expected",
+    },
+    provenance: {
+      requiresSourceCitation: false,
     },
   },
   question: {

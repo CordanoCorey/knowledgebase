@@ -64,8 +64,12 @@ const MAX_MIGRATION_PROPOSALS_PER_RUN = 20;
 const MAX_MODEL_SOURCE_TEXT_LENGTH = 4_000;
 const MAX_MODEL_INPUT_LENGTH = 24_000;
 const MAX_MODEL_ERROR_LENGTH = 500;
+const MAX_RAW_MODEL_REQUEST_LENGTH = 36_000;
 
 const SMART_STORAGE_CONTRACT_KEY = "mvp-smart-storage-contract";
+const SMART_STORAGE_ENTRY_KNOWLEDGE_TYPES = ENTRY_KNOWLEDGE_TYPES.filter(
+  (knowledgeType) => knowledgeType !== "announcement",
+);
 const TYPE_BEHAVIOR_SNAPSHOT_TEXT =
   "Use the Type Behavior registry for identity, source citation, representation role, primary representation, Human Weight defaults, and Human Weight credit basis.";
 const SMART_STORAGE_SOURCE_INTERPRETATION_POLICY = {
@@ -159,7 +163,7 @@ const SMART_STORAGE_PROPOSAL_JSON_SCHEMA = {
     "rationale",
   ],
   properties: {
-    knowledgeType: { type: "string", enum: ENTRY_KNOWLEDGE_TYPES },
+    knowledgeType: { type: "string", enum: SMART_STORAGE_ENTRY_KNOWLEDGE_TYPES },
     title: { type: "string" },
     bodyPreview: { type: "string" },
     contextTags: {
@@ -222,6 +226,7 @@ type ContextTagSnapshotInput = {
   knowledgeType: ReferentKnowledgeType;
   label: string;
   passageString?: string;
+  thumbnailUrl?: string;
 };
 type SmartStorageProposedEntryDoc = Doc<"smartStorageProposals">["currentProposal"];
 type LegacyEntryRepresentation = Omit<
@@ -311,6 +316,8 @@ type ModelRunExecutionInput = {
 type ModelRunExecutionResult = {
   executionStatus: "proposalCreated" | "existingProposal" | "failed" | "noProposal";
   errorMessage?: string;
+  rawModelOutput?: string;
+  rawModelRequest?: string;
   smartStorageProposalId?: Id<"smartStorageProposals">;
   smartStorageRunId: Id<"smartStorageRuns">;
   status: "drafted" | "failed" | "noProposal";
@@ -318,6 +325,7 @@ type ModelRunExecutionResult = {
 
 const referentKnowledgeType = v.union(
   v.literal("words"),
+  v.literal("announcement"),
   v.literal("biblePassage"),
   v.literal("topic"),
   v.literal("series"),
@@ -342,6 +350,7 @@ const referentKnowledgeType = v.union(
 
 const entryKnowledgeType = v.union(
   v.literal("words"),
+  v.literal("announcement"),
   v.literal("topic"),
   v.literal("series"),
   v.literal("question"),
@@ -391,6 +400,7 @@ const contextTagSnapshot = v.object({
   knowledgeType: referentKnowledgeType,
   label: v.string(),
   passageString: v.optional(v.string()),
+  thumbnailUrl: v.optional(v.string()),
 });
 
 const proposalConfidence = v.union(
@@ -547,6 +557,8 @@ const modelRunExecutionStatus = v.union(
 const modelRunExecutionResult = v.object({
   executionStatus: modelRunExecutionStatus,
   errorMessage: v.optional(v.string()),
+  rawModelOutput: v.optional(v.string()),
+  rawModelRequest: v.optional(v.string()),
   smartStorageProposalId: v.optional(v.id("smartStorageProposals")),
   smartStorageRunId: v.id("smartStorageRuns"),
   status: v.union(
@@ -704,31 +716,40 @@ export const executeModelRun = action({
       smartStorageRunId: args.smartStorageRunId,
     });
 
+    const requestBody = buildOpenAiSmartStorageRequest(executionInput);
+    const rawModelRequest = limitString(
+      JSON.stringify(requestBody, null, 2),
+      MAX_RAW_MODEL_REQUEST_LENGTH,
+    );
+
     try {
       const response = await fetch(OPENAI_RESPONSES_API_URL, {
-        body: JSON.stringify(buildOpenAiSmartStorageRequest(executionInput)),
+        body: JSON.stringify(requestBody),
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
         method: "POST",
       });
+      const responseText = await response.text();
       const rawResponseText = limitString(
-        await response.text(),
+        responseText,
         MAX_RAW_MODEL_OUTPUT_LENGTH,
       );
       if (!response.ok) {
         return await ctx.runMutation(internal.smartStorage.failModelRun, {
           errorMessage: `OpenAI Responses API failed with ${response.status}.`,
+          rawModelRequest,
           rawModelOutput: rawResponseText,
           smartStorageRunId: args.smartStorageRunId,
         });
       }
 
-      const modelText = extractOpenAiResponseText(rawResponseText);
+      const modelText = extractOpenAiResponseText(responseText);
       if (!modelText) {
         return await ctx.runMutation(internal.smartStorage.completeModelRunNoProposal, {
           errorMessage: "OpenAI response did not include proposal content.",
+          rawModelRequest,
           rawModelOutput: rawResponseText,
           smartStorageRunId: args.smartStorageRunId,
         });
@@ -738,6 +759,7 @@ export const executeModelRun = action({
       if (proposal.kind === "error") {
         return await ctx.runMutation(internal.smartStorage.failModelRun, {
           errorMessage: proposal.message,
+          rawModelRequest,
           rawModelOutput: rawResponseText,
           smartStorageRunId: args.smartStorageRunId,
         });
@@ -747,6 +769,7 @@ export const executeModelRun = action({
         internal.smartStorage.completeModelRunWithProposal,
         {
           proposal: proposal.proposal,
+          rawModelRequest,
           rawModelOutput: rawResponseText,
           smartStorageRunId: args.smartStorageRunId,
         },
@@ -754,6 +777,7 @@ export const executeModelRun = action({
     } catch (error) {
       return await ctx.runMutation(internal.smartStorage.failModelRun, {
         errorMessage: getModelExecutionErrorMessage(error),
+        rawModelRequest,
         smartStorageRunId: args.smartStorageRunId,
       });
     }
@@ -1106,6 +1130,7 @@ export const markModelRunRunning = internalMutation({
 export const failModelRun = internalMutation({
   args: {
     errorMessage: v.string(),
+    rawModelRequest: v.optional(v.string()),
     rawModelOutput: v.optional(v.string()),
     smartStorageRunId: v.id("smartStorageRuns"),
   },
@@ -1128,6 +1153,14 @@ export const failModelRun = internalMutation({
               MAX_RAW_MODEL_OUTPUT_LENGTH,
             ),
           }),
+      ...(args.rawModelRequest === undefined
+        ? {}
+        : {
+            rawModelRequest: limitString(
+              args.rawModelRequest,
+              MAX_RAW_MODEL_REQUEST_LENGTH,
+            ),
+          }),
       updatedAt: now,
       completedAt: now,
     });
@@ -1136,6 +1169,22 @@ export const failModelRun = internalMutation({
     return {
       executionStatus: "failed" as const,
       errorMessage: limitString(args.errorMessage, MAX_MODEL_ERROR_LENGTH),
+      ...(args.rawModelOutput === undefined
+        ? {}
+        : {
+            rawModelOutput: limitString(
+              args.rawModelOutput,
+              MAX_RAW_MODEL_OUTPUT_LENGTH,
+            ),
+          }),
+      ...(args.rawModelRequest === undefined
+        ? {}
+        : {
+            rawModelRequest: limitString(
+              args.rawModelRequest,
+              MAX_RAW_MODEL_REQUEST_LENGTH,
+            ),
+          }),
       smartStorageRunId: run._id,
       status: "failed" as const,
     };
@@ -1145,6 +1194,7 @@ export const failModelRun = internalMutation({
 export const completeModelRunNoProposal = internalMutation({
   args: {
     errorMessage: v.optional(v.string()),
+    rawModelRequest: v.optional(v.string()),
     rawModelOutput: v.optional(v.string()),
     smartStorageRunId: v.id("smartStorageRuns"),
   },
@@ -1169,6 +1219,14 @@ export const completeModelRunNoProposal = internalMutation({
               MAX_RAW_MODEL_OUTPUT_LENGTH,
             ),
           }),
+      ...(args.rawModelRequest === undefined
+        ? {}
+        : {
+            rawModelRequest: limitString(
+              args.rawModelRequest,
+              MAX_RAW_MODEL_REQUEST_LENGTH,
+            ),
+          }),
       updatedAt: now,
       completedAt: now,
     });
@@ -1179,6 +1237,22 @@ export const completeModelRunNoProposal = internalMutation({
       ...(args.errorMessage === undefined
         ? {}
         : { errorMessage: limitString(args.errorMessage, MAX_MODEL_ERROR_LENGTH) }),
+      ...(args.rawModelOutput === undefined
+        ? {}
+        : {
+            rawModelOutput: limitString(
+              args.rawModelOutput,
+              MAX_RAW_MODEL_OUTPUT_LENGTH,
+            ),
+          }),
+      ...(args.rawModelRequest === undefined
+        ? {}
+        : {
+            rawModelRequest: limitString(
+              args.rawModelRequest,
+              MAX_RAW_MODEL_REQUEST_LENGTH,
+            ),
+          }),
       smartStorageRunId: run._id,
       status: "noProposal" as const,
     };
@@ -1188,6 +1262,7 @@ export const completeModelRunNoProposal = internalMutation({
 export const completeModelRunWithProposal = internalMutation({
   args: {
     proposal: smartStorageProposedEntry,
+    rawModelRequest: v.string(),
     rawModelOutput: v.string(),
     smartStorageRunId: v.id("smartStorageRuns"),
   },
@@ -1267,6 +1342,10 @@ export const completeModelRunWithProposal = internalMutation({
 
     await ctx.db.patch(run._id, {
       status: "succeeded",
+      rawModelRequest: limitString(
+        args.rawModelRequest,
+        MAX_RAW_MODEL_REQUEST_LENGTH,
+      ),
       rawModelOutput: limitString(
         args.rawModelOutput,
         MAX_RAW_MODEL_OUTPUT_LENGTH,
@@ -1281,6 +1360,14 @@ export const completeModelRunWithProposal = internalMutation({
 
     return {
       executionStatus: "proposalCreated" as const,
+      rawModelRequest: limitString(
+        args.rawModelRequest,
+        MAX_RAW_MODEL_REQUEST_LENGTH,
+      ),
+      rawModelOutput: limitString(
+        args.rawModelOutput,
+        MAX_RAW_MODEL_OUTPUT_LENGTH,
+      ),
       smartStorageProposalId,
       smartStorageRunId: run._id,
       status: "drafted" as const,
@@ -1721,6 +1808,10 @@ export const startFromContribution = mutation({
   }),
   handler: async (ctx, args) => {
     const access = await requireAppAccess(ctx);
+    if (args.knowledgeType === "announcement") {
+      throw new Error("Announcements must be posted directly to an Organization.");
+    }
+
     const now = Date.now();
     const title = limitString(args.title, MAX_TITLE_LENGTH);
     const body = limitString(args.body, MAX_SOURCE_TEXT_LENGTH);
@@ -1933,6 +2024,8 @@ export const generateDraftProposalForRun = mutation({
   returns: v.object({
     contributionSubmissionId: v.optional(v.id("contributionSubmissions")),
     currentProposal: smartStorageProposedEntry,
+    rawModelOutput: v.optional(v.string()),
+    rawModelRequest: v.optional(v.string()),
     smartStorageProposalId: v.id("smartStorageProposals"),
     smartStorageRunId: v.id("smartStorageRuns"),
     sourceCitations: v.array(proposalSourceCitationSummary),
@@ -1962,6 +2055,7 @@ export const generateDraftProposalForRun = mutation({
           ? {}
           : { contributionSubmissionId: existingProposal.contributionSubmissionId }),
         currentProposal: existingProposal.currentProposal,
+        ...getModelDebugSummary(run),
         smartStorageProposalId: existingProposal._id,
         smartStorageRunId: run._id,
         sourceCitations: await listProposalSourceCitations(ctx, existingProposal._id),
@@ -2069,6 +2163,7 @@ export const generateDraftProposalForRun = mutation({
     return {
       contributionSubmissionId,
       currentProposal,
+      ...getModelDebugSummary(run),
       smartStorageProposalId,
       smartStorageRunId: run._id,
       sourceCitations,
@@ -2131,6 +2226,9 @@ export const acceptScaffoldProposal = mutation({
 
     const now = Date.now();
     const proposedEntry = proposal.currentProposal;
+    if (proposedEntry.knowledgeType === "announcement") {
+      throw new Error("Announcements must be posted directly to an Organization.");
+    }
     const typeBehavior = getTypeBehavior(proposedEntry.knowledgeType);
     const slotFulfillment = await resolveSlotFulfillment(ctx, {
       knowledgeType: proposedEntry.knowledgeType,
@@ -3077,6 +3175,17 @@ function getSourceInventoryPreview(
   ].filter(Boolean);
 
   return parts.length > 0 ? parts.join(", ") : "Submitted Sources";
+}
+
+function getModelDebugSummary(run: Doc<"smartStorageRuns">) {
+  return {
+    ...(run.rawModelRequest === undefined
+      ? {}
+      : { rawModelRequest: run.rawModelRequest }),
+    ...(run.rawModelOutput === undefined
+      ? {}
+      : { rawModelOutput: run.rawModelOutput }),
+  };
 }
 
 async function markSubmissionReviewReadyIfPresent(
@@ -4271,7 +4380,11 @@ function isThumbnailRepresentation(
 }
 
 function supportsRepresentativeThumbnailType(knowledgeType: EntryKnowledgeType) {
-  return knowledgeType !== "comment" && knowledgeType !== "words";
+  return (
+    knowledgeType !== "announcement" &&
+    knowledgeType !== "comment" &&
+    knowledgeType !== "words"
+  );
 }
 
 function isKnowledgeEntryVisibleToAccess(
@@ -4503,6 +4616,7 @@ function formatEmailDisplayName(email: string) {
 function formatKnowledgeTypeLabel(knowledgeType: EntryKnowledgeType) {
   const labels: Record<EntryKnowledgeType, string> = {
     words: "Words",
+    announcement: "Announcement",
     topic: "Topic",
     series: "Series",
     question: "Question",

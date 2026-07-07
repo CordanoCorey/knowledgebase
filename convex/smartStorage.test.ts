@@ -17,6 +17,7 @@ const modules = {
     import("./lib/contextExpertiseEvidence"),
   "./lib/fileRepresentationRoles.ts": () =>
     import("./lib/fileRepresentationRoles"),
+  "./lib/referentThumbnails.ts": () => import("./lib/referentThumbnails"),
   "./lib/typeBehavior.ts": () => import("./lib/typeBehavior"),
   "./smartStorage.ts": () => import("./smartStorage"),
 };
@@ -1367,6 +1368,7 @@ describe("Smart Storage contribution spine", () => {
     expect(rowState.run).toEqual(
       expect.objectContaining({
         completedAt: expect.any(Number),
+        rawModelRequest: expect.stringContaining("gpt-test-smart-storage"),
         rawModelOutput: expect.stringContaining("resp_smart_storage_test"),
         status: "succeeded",
       }),
@@ -1391,6 +1393,93 @@ describe("Smart Storage contribution spine", () => {
     expect(rowState.contributionSubmission).toEqual(
       expect.objectContaining({
         submissionStatus: "reviewReady",
+      }),
+    );
+  });
+
+  test("parses model output before storing a bounded raw response", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-openai-key");
+    vi.stubEnv("OPENAI_SMART_STORAGE_MODEL", "gpt-test-smart-storage");
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const startResult = await authed.mutation(
+      api.smartStorage.startFromContribution,
+      getLessonSmartStorageInput(),
+    );
+    const modelProposal = getModelProposedEntry({
+      bodyPreview: "Long response still yields a proposal.",
+      title: "Long Response Courage Lesson",
+    });
+    const fetchMock = vi.fn(
+      async (_url: string | URL | Request, _init?: RequestInit) =>
+        new Response(
+          JSON.stringify({
+            id: "resp_smart_storage_long",
+            output: [
+              {
+                type: "reasoning",
+                content: [],
+                summary: [],
+              },
+              {
+                type: "message",
+                status: "completed",
+                role: "assistant",
+                content: [
+                  {
+                    type: "output_text",
+                    text: JSON.stringify(modelProposal),
+                  },
+                ],
+              },
+            ],
+            text: {
+              format: {
+                type: "json_schema",
+                schema: {
+                  description: "large echoed schema ".repeat(400),
+                },
+              },
+            },
+          }),
+          { status: 200 },
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await authed.action(api.smartStorage.executeModelRun, {
+      smartStorageRunId: startResult.smartStorageRunId,
+    });
+
+    expect(result).toMatchObject({
+      executionStatus: "proposalCreated",
+      status: "drafted",
+    });
+    const rowState = await t.run(async (ctx) => {
+      const run = await ctx.db.get(startResult.smartStorageRunId);
+      const proposal =
+        result.smartStorageProposalId === undefined
+          ? null
+          : await ctx.db.get(result.smartStorageProposalId);
+
+      return { proposal, run };
+    });
+    expect(rowState.run).toEqual(
+      expect.objectContaining({
+        rawModelRequest: expect.stringContaining("gpt-test-smart-storage"),
+        rawModelOutput: expect.stringContaining("resp_smart_storage_long"),
+        status: "succeeded",
+      }),
+    );
+    expect(rowState.run?.rawModelRequest).not.toContain("Authorization");
+    expect(rowState.run?.rawModelOutput?.length).toBeLessThanOrEqual(4_000);
+    expect(rowState.proposal).toEqual(
+      expect.objectContaining({
+        currentProposal: expect.objectContaining({
+          bodyPreview: "Long response still yields a proposal.",
+          title: "Long Response Courage Lesson",
+        }),
       }),
     );
   });

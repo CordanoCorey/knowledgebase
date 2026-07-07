@@ -45,10 +45,40 @@ export function ReferentTagLink({
       onClick={handleClick}
       title={`Open ${referentTag.label}`}
     >
-      {showIcon ? (
-        <KnowledgeTypeIcon knowledgeType={referentTag.knowledgeType} />
-      ) : null}
+      <ReferentTagVisual showIcon={showIcon} tag={referentTag} />
       {children ?? <span>{referentTag.label}</span>}
     </a>
   );
+}
+
+export function ReferentTagVisual({
+  className,
+  showIcon = true,
+  tag,
+}: {
+  className?: string;
+  showIcon?: boolean;
+  tag: ActiveTag;
+}) {
+  if (tag.thumbnailUrl) {
+    return (
+      <span
+        aria-hidden="true"
+        className={joinClassNames("kb-referent-tag-thumbnail", className)}
+      >
+        <img alt="" src={tag.thumbnailUrl} />
+      </span>
+    );
+  }
+
+  return showIcon ? (
+    <KnowledgeTypeIcon
+      className={className}
+      knowledgeType={tag.knowledgeType}
+    />
+  ) : null;
+}
+
+function joinClassNames(...classNames: Array<string | undefined>) {
+  return classNames.filter(Boolean).join(" ");
 }

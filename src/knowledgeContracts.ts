@@ -3,6 +3,7 @@
 // validators and the backend typeBehavior registry.
 export type KnowledgeType =
   | "words"
+  | "announcement"
   | "biblePassage"
   | "topic"
   | "series"
@@ -29,6 +30,7 @@ export type GuidedContributionType = Extract<AuthorableKnowledgeType, "group">;
 
 export function supportsRepresentativeThumbnail(knowledgeType: KnowledgeType) {
   return (
+    knowledgeType !== "announcement" &&
     knowledgeType !== "biblePassage" &&
     knowledgeType !== "comment" &&
     knowledgeType !== "words"
@@ -37,6 +39,7 @@ export function supportsRepresentativeThumbnail(knowledgeType: KnowledgeType) {
 
 export const AUTHORABLE_KNOWLEDGE_TYPES = [
   "words",
+  "announcement",
   "topic",
   "series",
   "question",
@@ -60,6 +63,7 @@ export const AUTHORABLE_KNOWLEDGE_TYPES = [
 
 export const WEIGHT_BEARING_KNOWLEDGE_TYPES = [
   "words",
+  "announcement",
   "question",
   "quote",
   "sermon",
@@ -228,6 +232,7 @@ export type ActiveTag = {
   knowledgeType: KnowledgeType;
   label: string;
   passageString?: string;
+  thumbnailUrl?: string;
 };
 
 export type KnowledgeRequestDraft = {
@@ -243,7 +248,9 @@ export type KnowledgeEntrySummary = {
   knowledgeType: AuthorableKnowledgeType;
   previewText: string;
   primaryTagLabel: string;
+  primaryTag?: ActiveTag;
   contextPreviewTagLabels: string[];
+  contextPreviewTags?: ActiveTag[];
   humanWeight?: number;
   evidenceMaturity?: number;
   humanWeightConcern?: HumanWeightConcernSummary;
@@ -262,6 +269,7 @@ export type QuoteAttributionPersonOption = {
   label: string;
   referentId: string;
   tagId: string;
+  thumbnailUrl?: string;
 };
 
 export type HumanWeightEvidenceSummary = {
@@ -328,6 +336,7 @@ export type KnowledgeSlotSummary = {
   promptText?: string;
   status: KnowledgeSlotStatus;
   contextPreviewTagLabels: string[];
+  contextPreviewTags?: ActiveTag[];
   targetLabel: string;
   dueAt?: number;
   href: string;
@@ -339,9 +348,15 @@ export type ContributionInput = {
   contextTags: ActiveTag[];
   externalUrls?: SmartStorageExternalUrlInput[];
   knowledgeType: AuthorableKnowledgeType;
+  organizationReferentId?: string;
   slotId?: string;
   title: string;
   uploadedFiles?: SmartStorageUploadedFileInput[];
+};
+
+export type ContributionOrganizationOption = {
+  name: string;
+  organizationReferentId: string;
 };
 
 export type ProposalConfidence = "low" | "medium" | "high";
@@ -423,6 +438,8 @@ export type SmartStorageProposalReviewSummary = {
   contributionSubmissionId?: string;
   currentProposal: SmartStorageProposedEntrySummary;
   id: string;
+  rawModelOutput?: string;
+  rawModelRequest?: string;
   smartStorageRunId: string;
   sourceCitations: SmartStorageProposalSourceCitationSummary[];
   sourceId: string;
@@ -469,6 +486,7 @@ export type KnowledgeLoopState = {
 
 const KNOWLEDGE_TYPE_LABELS: Record<KnowledgeType, string> = {
   words: "Words",
+  announcement: "Announcement",
   biblePassage: "Bible Passage",
   topic: "Topic",
   series: "Series",
@@ -552,7 +570,11 @@ export function isNonWeightBearingKnowledgeType(
 export function getDefaultHumanWeightExpectation(
   knowledgeType: KnowledgeType,
 ): HumanWeightExpectation {
-  if (knowledgeType === "words" || knowledgeType === "essay") {
+  if (
+    knowledgeType === "announcement" ||
+    knowledgeType === "words" ||
+    knowledgeType === "essay"
+  ) {
     return "expected";
   }
 

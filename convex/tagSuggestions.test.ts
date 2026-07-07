@@ -9,6 +9,9 @@ import schema from "./schema";
 
 const modules = {
   ...import.meta.glob("./_generated/*.*s"),
+  "./lib/fileRepresentationRoles.ts": () =>
+    import("./lib/fileRepresentationRoles"),
+  "./lib/referentThumbnails.ts": () => import("./lib/referentThumbnails"),
   "./tagSuggestions.ts": () => import("./tagSuggestions"),
 };
 
@@ -28,6 +31,9 @@ describe("Tag suggestion queries", () => {
         id: "the-city-of-god",
         knowledgeType: "book",
         label: "The City of God",
+        tag: expect.objectContaining({
+          thumbnailUrl: "https://images.example/city-of-god.png",
+        }),
       }),
     );
 
@@ -44,6 +50,36 @@ describe("Tag suggestion queries", () => {
         matchKind: "alias",
       }),
     );
+  });
+
+  test("resolves route slugs to live Tag Knowledge Types", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(async (ctx) => {
+      const { userId } = await insertAllowedUser(ctx, "route-resolution");
+      await insertTag(ctx, {
+        canonicalKey: "the-wind-in-the-willows-kenneth-grahame",
+        knowledgeType: "book",
+        label: "The Wind In The Willows Kenneth Grahame",
+      });
+
+      return { userId };
+    });
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    const resolvedTags = await authed.query(
+      api.tagSuggestions.resolveRouteActiveTags,
+      { tagKeys: ["the-wind-in-the-willows-kenneth-grahame"] },
+    );
+
+    expect(resolvedTags).toEqual([
+      expect.objectContaining({
+        canonicalKey: "the-wind-in-the-willows-kenneth-grahame",
+        href: "/goto/the-wind-in-the-willows-kenneth-grahame",
+        id: "the-wind-in-the-willows-kenneth-grahame",
+        knowledgeType: "book",
+        label: "The Wind In The Willows Kenneth Grahame",
+      }),
+    ]);
   });
 
   test("does not suggest private Tags from inaccessible users or organizations", async () => {
@@ -173,6 +209,36 @@ describe("Tag suggestion queries", () => {
       "outside-grade-9-unit",
     );
   });
+
+  test("tailors recommended Tags for represented literature pages without co-tags", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedLiteratureRecommendationRows);
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    const suggestions = await authed.query(
+      api.tagSuggestions.listKnowledgeNavigatorRecommendedTags,
+      {
+        activeTags: [
+          {
+            canonicalKey: "the-wind-in-the-willows-kenneth-grahame",
+            href: "/goto/the-wind-in-the-willows-kenneth-grahame",
+            id: "the-wind-in-the-willows-kenneth-grahame",
+            knowledgeType: "words",
+            label: "The Wind In The Willows Kenneth Grahame",
+          },
+        ],
+        limit: 5,
+      },
+    );
+
+    expect(suggestions.map((suggestion) => suggestion.id)).not.toContain(
+      "the-wind-in-the-willows-kenneth-grahame",
+    );
+    expect(suggestions[0]).toMatchObject({
+      id: "the-reluctant-dragon-kenneth-grahame",
+      label: "The Reluctant Dragon",
+    });
+  });
 });
 
 async function seedSuggestionRows(ctx: MutationCtx) {
@@ -189,6 +255,16 @@ async function seedSuggestionRows(ctx: MutationCtx) {
   });
   await insertAlias(ctx, city.tagId, "City of God", "book");
   await insertAlias(ctx, question.tagId, "Micah's Crusades Question", "question");
+  const cityEntryId = await insertRepresentedEntry(ctx, city);
+  await ctx.db.insert("entryRepresentations", {
+    entryId: cityEntryId,
+    representationKind: "externalUrl",
+    representationRole: "thumbnail",
+    externalUrl: "https://images.example/city-of-god.png",
+    isPrimary: false,
+    createdAt: 1,
+    updatedAt: 1,
+  });
 
   return { userId };
 }
@@ -385,6 +461,72 @@ async function seedRecommendedRows(ctx: MutationCtx) {
   return { userId };
 }
 
+async function seedLiteratureRecommendationRows(ctx: MutationCtx) {
+  const { userId } = await insertAllowedUser(ctx, "literature-recommendations");
+  const windInTheWillows = await insertTag(ctx, {
+    canonicalKey: "the-wind-in-the-willows-kenneth-grahame",
+    knowledgeType: "book",
+    label: "The Wind in the Willows",
+  });
+  const reluctantDragon = await insertTag(ctx, {
+    canonicalKey: "the-reluctant-dragon-kenneth-grahame",
+    knowledgeType: "shortStory",
+    label: "The Reluctant Dragon",
+  });
+  const unrelatedRecentBook = await insertTag(ctx, {
+    canonicalKey: "recent-unrelated-book",
+    knowledgeType: "book",
+    label: "Recent Unrelated Book",
+  });
+
+  const windEntryId = await insertRepresentedEntry(ctx, windInTheWillows, {
+    searchText:
+      "The Wind in the Willows Kenneth Grahame animal fantasy children's classic novel",
+    updatedAt: 10,
+  });
+  await insertBookEntryDetail(ctx, windEntryId, {
+    approxGradeMax: 7,
+    approxGradeMin: 4,
+    author: "Kenneth Grahame",
+    genres: ["animal fantasy", "children's classic", "novel"],
+    historicalTimeframeEndYear: 1908,
+    historicalTimeframeStartYear: 1900,
+  });
+
+  const reluctantDragonEntryId = await insertRepresentedEntry(ctx, reluctantDragon, {
+    searchText:
+      "The Reluctant Dragon Kenneth Grahame children's literature fantasy short story",
+    updatedAt: 9,
+  });
+  await insertShortStoryEntryDetail(ctx, reluctantDragonEntryId, {
+    approxGradeMax: 6,
+    approxGradeMin: 3,
+    author: "Kenneth Grahame",
+    genres: ["children's literature", "fantasy", "short story"],
+    historicalTimeframeEndYear: 1898,
+    historicalTimeframeStartYear: 1898,
+  });
+
+  const unrelatedRecentEntryId = await insertRepresentedEntry(
+    ctx,
+    unrelatedRecentBook,
+    {
+      searchText: "Recent Unrelated Book engineering handbook",
+      updatedAt: 100,
+    },
+  );
+  await insertBookEntryDetail(ctx, unrelatedRecentEntryId, {
+    approxGradeMax: 12,
+    approxGradeMin: 9,
+    author: "Other Author",
+    genres: ["technical manual"],
+    historicalTimeframeEndYear: 2000,
+    historicalTimeframeStartYear: 2000,
+  });
+
+  return { userId };
+}
+
 async function insertAllowedUser(ctx: MutationCtx, slug: string) {
   const userId = await insertUser(ctx, slug);
   const personReferentId = await ctx.db.insert("referents", {
@@ -500,6 +642,8 @@ async function insertRepresentedEntry(
   },
   entry: {
     createdByUserId?: Id<"users">;
+    searchText?: string;
+    updatedAt?: number;
     visibilityKind?: Doc<"knowledgeEntries">["visibilityKind"];
     visibilityTargetKey?: string;
   } = {},
@@ -514,7 +658,7 @@ async function insertRepresentedEntry(
     primaryTagId: tag.tagId,
     title: tag.label,
     previewText: `${tag.label} preview`,
-    searchText: tag.label,
+    searchText: entry.searchText ?? tag.label,
     primaryTagLabel: tag.label,
     contextPreviewTagLabels: [],
     visibilityKind,
@@ -525,7 +669,7 @@ async function insertRepresentedEntry(
       ? {}
       : { createdByUserId: entry.createdByUserId ?? tag.createdByUserId }),
     createdAt: 1,
-    updatedAt: 1,
+    updatedAt: entry.updatedAt ?? 1,
   });
   const taggedByUserId = entry.createdByUserId ?? tag.createdByUserId;
   await ctx.db.insert("entryTags", {
@@ -538,3 +682,28 @@ async function insertRepresentedEntry(
 
   return entryId;
 }
+
+async function insertBookEntryDetail(
+  ctx: MutationCtx,
+  entryId: Id<"knowledgeEntries">,
+  detail: LiteratureTestDetail,
+) {
+  await ctx.db.insert("bookEntries", { entryId, ...detail });
+}
+
+async function insertShortStoryEntryDetail(
+  ctx: MutationCtx,
+  entryId: Id<"knowledgeEntries">,
+  detail: LiteratureTestDetail,
+) {
+  await ctx.db.insert("shortStoryEntries", { entryId, ...detail });
+}
+
+type LiteratureTestDetail = {
+  approxGradeMax: number;
+  approxGradeMin: number;
+  author: string;
+  genres: string[];
+  historicalTimeframeEndYear: number;
+  historicalTimeframeStartYear: number;
+};

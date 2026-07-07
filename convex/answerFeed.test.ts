@@ -15,6 +15,9 @@ const modules = {
   "./lib/contextExpertiseScoring.ts": () =>
     import("./lib/contextExpertiseScoring"),
   "./lib/humanWeightEvidence.ts": () => import("./lib/humanWeightEvidence"),
+  "./lib/fileRepresentationRoles.ts": () =>
+    import("./lib/fileRepresentationRoles"),
+  "./lib/referentThumbnails.ts": () => import("./lib/referentThumbnails"),
   "./lib/typeBehavior.ts": () => import("./lib/typeBehavior"),
 };
 
@@ -111,6 +114,45 @@ describe("Answer Feed backend adapter", () => {
     expect(nonWeightBearingItem.entry).not.toHaveProperty("humanWeight");
     expect(nonWeightBearingItem.entry).not.toHaveProperty("evidenceMaturity");
     expect(nonWeightBearingItem.entry).not.toHaveProperty("humanWeightCredit");
+  });
+
+  test("includes thumbnail-rich Tag snapshots when context Tags have thumbnails", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedAnswerFeedRows);
+    await t.run(async (ctx) => {
+      await insertThumbnailForTag(
+        ctx,
+        seed.tags.romans,
+        "https://images.example/romans-8.png",
+      );
+    });
+
+    const feedItems = await t.query(api.answerFeed.listForActiveTags, {
+      activeTagIds: [seed.tags.romans, seed.tags.holySpirit],
+      answerLimit: 10,
+      slotLimit: 10,
+    });
+    const highWeightItem = feedItems.find(
+      (item) =>
+        item.kind === "answer" &&
+        item.entry.title === "High Weight Matching Lesson",
+    );
+    if (highWeightItem?.kind !== "answer") {
+      throw new Error("Expected High Weight Matching Lesson in feed.");
+    }
+
+    expect(highWeightItem.entry.contextPreviewTagLabels).toEqual([
+      "Romans 8:28",
+      "Holy Spirit",
+    ]);
+    expect(highWeightItem.entry.contextPreviewTags).toContainEqual(
+      expect.objectContaining({
+        href: "/scripture/romans-8-28",
+        id: "romans-8-28",
+        label: "Romans 8:28",
+        thumbnailUrl: "https://images.example/romans-8.png",
+      }),
+    );
   });
 
   test("falls back to matching contributors when no Context Expertise aggregates exist", async () => {
@@ -1832,6 +1874,52 @@ async function insertEntry(
   }
 
   return entryId;
+}
+
+async function insertThumbnailForTag(
+  ctx: MutationCtx,
+  tagId: Id<"tags">,
+  externalUrl: string,
+) {
+  const tag = await ctx.db.get(tagId);
+  if (!tag) {
+    throw new Error("Missing tag for thumbnail fixture.");
+  }
+
+  const knowledgeType = (
+    tag.knowledgeType === "biblePassage" ? "words" : tag.knowledgeType
+  ) as Doc<"knowledgeEntries">["knowledgeType"];
+  const entryId = await ctx.db.insert("knowledgeEntries", {
+    knowledgeType,
+    representedReferentId: tag.referentId,
+    primaryTagId: tag._id,
+    title: `${tag.label} thumbnail source`,
+    previewText: `${tag.label} thumbnail preview.`,
+    searchText: `${tag.label} thumbnail`,
+    primaryTagLabel: tag.label,
+    contextPreviewTagLabels: [],
+    visibilityKind: "public",
+    visibilityTargetKey: "public",
+    discoverabilityKind: "public",
+    discoverabilityTargetKey: "public",
+    createdAt: BASE_TIME,
+    updatedAt: BASE_TIME + 100,
+  });
+  await ctx.db.insert("entryTags", {
+    entryId,
+    tagId: tag._id,
+    tagPurpose: "represented",
+    taggedAt: BASE_TIME,
+  });
+  await ctx.db.insert("entryRepresentations", {
+    entryId,
+    representationKind: "externalUrl",
+    representationRole: "thumbnail",
+    externalUrl,
+    isPrimary: false,
+    createdAt: BASE_TIME,
+    updatedAt: BASE_TIME,
+  });
 }
 
 async function insertSlot(

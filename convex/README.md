@@ -96,6 +96,9 @@ official Convex Resend component. Use internal functions only; public functions
 should first write durable product state, then enqueue email from an internal
 mutation or scheduled internal mutation.
 
+The protocol is recorded in
+`docs/adr/0012-route-application-email-through-convex-emailer-protocol.md`.
+
 ```ts
 import { internal } from "./_generated/api";
 

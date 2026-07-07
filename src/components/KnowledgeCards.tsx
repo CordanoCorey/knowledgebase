@@ -11,6 +11,7 @@ import { useId, useState, type FormEvent, type MouseEvent } from "react";
 import {
   formatKnowledgeTypeLabel,
   getApplicableHumanWeight,
+  type ActiveTag,
   type ContributorSummary,
   type HumanWeightFeedbackInput,
   type HumanWeightFeedbackKind,
@@ -142,6 +143,7 @@ export function KnowledgeEntryCard({
               className="kb-inline-tag-link"
               label={entry.primaryTagLabel}
               onNavigateToHref={onNavigateToHref}
+              tag={entry.primaryTag}
             />
           </dd>
         </div>
@@ -173,6 +175,7 @@ export function KnowledgeEntryCard({
         emptyLabel="No context Tags"
         labels={entry.contextPreviewTagLabels}
         onNavigateToHref={onNavigateToHref}
+        tags={entry.contextPreviewTags}
         title={`${entry.title} context Tags`}
       />
 
@@ -389,6 +392,7 @@ export function KnowledgeSlotCard({
         emptyLabel="No context Tags"
         labels={slot.contextPreviewTagLabels}
         onNavigateToHref={onNavigateToHref}
+        tags={slot.contextPreviewTags}
         title={`${slot.title} context Tags`}
       />
     </article>
@@ -399,23 +403,33 @@ function TagList({
   emptyLabel,
   labels,
   onNavigateToHref,
+  tags,
   title,
 }: {
   emptyLabel: string;
   labels: string[];
   onNavigateToHref?: (href: string) => void;
+  tags?: ActiveTag[];
   title: string;
 }) {
+  const tagItems: TagListItem[] =
+    tags && tags.length > 0
+      ? mergeRichTagsWithLabels(tags, labels)
+      : labels.map((label) => ({
+          label,
+        }));
+
   return (
     <div className="kb-card-tags" aria-label={title}>
       <Tag aria-hidden="true" />
-      {labels.length > 0 ? (
-        labels.map((label) => (
+      {tagItems.length > 0 ? (
+        tagItems.map((tag) => (
           <ReferentTagLink
             className="kb-referent-tag-link"
-            key={label}
-            label={label}
+            key={isRichTag(tag) ? tag.id : tag.label}
+            label={tag.label}
             onNavigateToHref={onNavigateToHref}
+            tag={isRichTag(tag) ? tag : undefined}
           />
         ))
       ) : (
@@ -425,8 +439,30 @@ function TagList({
   );
 }
 
+type TagListItem = ActiveTag | { label: string };
+
 function formatCardDate(timestamp: number) {
   return CARD_DATE_FORMATTER.format(new Date(timestamp));
+}
+
+function mergeRichTagsWithLabels(
+  tags: ActiveTag[],
+  labels: string[],
+): TagListItem[] {
+  const richLabels = new Set(tags.map((tag) => normalizeLabel(tag.label)));
+  const labelOnlyTags = labels
+    .filter((label) => !richLabels.has(normalizeLabel(label)))
+    .map((label) => ({ label }));
+
+  return [...tags, ...labelOnlyTags];
+}
+
+function isRichTag(tag: TagListItem): tag is ActiveTag {
+  return "id" in tag && "href" in tag && "knowledgeType" in tag;
+}
+
+function normalizeLabel(label: string) {
+  return label.trim().toLowerCase();
 }
 
 function joinClassNames(...classNames: Array<string | undefined>) {

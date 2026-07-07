@@ -97,6 +97,9 @@ describe("Human Weight Concern", () => {
 
   test("uses Type Behavior defaults when no expectation override is supplied", () => {
     expect(getTypeBehavior("words").humanWeight.expectation).toBe("expected");
+    expect(getTypeBehavior("announcement").humanWeight.expectation).toBe(
+      "expected",
+    );
     expect(getTypeBehavior("essay").humanWeight.expectation).toBe("expected");
     expect(getTypeBehavior("lesson").humanWeight.expectation).toBe("informative");
 
@@ -133,6 +136,9 @@ describe("Human Weight Concern", () => {
   test("defines the credited human role by Knowledge Type", () => {
     expect(getTypeBehavior("words").version).toBe("mvp-type-behavior-v4");
     expect(getTypeBehavior("words").humanWeight.creditBasis).toBe("contributor");
+    expect(getTypeBehavior("announcement").humanWeight.creditBasis).toBe(
+      "contributor",
+    );
     expect(getTypeBehavior("lesson").humanWeight.creditBasis).toBe(
       "contributor",
     );
@@ -191,6 +197,18 @@ describe("Type Behavior title input contract", () => {
       primaryInput: false,
     });
     expect(getTypeBehavior("lesson").composerDefaults.titleRequired).toBe(true);
+
+    expect(getComposerTitleBehavior("announcement")).toMatchObject({
+      generatedTitleKind: "none",
+      input: "required",
+      label: "Title",
+      primaryInput: false,
+    });
+    expect(getTypeBehavior("announcement")).toMatchObject({
+      composerDefaults: { titleRequired: true },
+      identity: { strategy: "generated" },
+      referentIdentityScope: { defaultScope: "organization" },
+    });
   });
 
   test("includes the title input contract in immutable Type Behavior snapshots", () => {

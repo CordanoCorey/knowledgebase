@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
 import { requireAppAccess, type AppAccessState } from "./lib/appAccess";
+import { getRepresentedReferentThumbnailUrl } from "./lib/referentThumbnails";
 
 // Tag suggestion queries favor deterministic, bounded candidates so text input
 // subscriptions stay responsive.
@@ -19,13 +20,56 @@ const MAX_RECOMMENDED_ENTRY_TAGS = 32;
 const MAX_RECOMMENDED_RECOGNITIONS_PER_SCOPE = 24;
 const MAX_RECOMMENDED_RECOGNITION_ORGANIZATIONS = 10;
 const MAX_RECOMMENDED_RECENT_ENTRIES = 40;
+const MAX_CONTEXT_REPRESENTED_ENTRIES_PER_TAG = 8;
+const MAX_LITERATURE_METADATA_SEARCH_TERMS = 4;
+const MAX_LITERATURE_METADATA_SEARCH_CANDIDATES_PER_TERM = 16;
+const MAX_ROUTE_ACTIVE_TAGS = 20;
+const MAX_ROUTE_TAG_MATCHES = 16;
+const MAX_ROUTE_REFERENT_TAGS = 8;
 const RELATED_RECOMMENDATION_SCORE = 120;
+const LITERATURE_METADATA_RECOMMENDATION_SCORE = 72;
 const USER_RECOGNITION_RECOMMENDATION_SCORE = 80;
 const ORGANIZATION_RECOGNITION_RECOMMENDATION_SCORE = 64;
 const RECENT_ACCESSIBLE_RECOMMENDATION_SCORE = 18;
+const GENERIC_LITERATURE_SEARCH_TERMS = new Set([
+  "anthology",
+  "book",
+  "essay",
+  "novel",
+  "poem",
+  "poetry",
+  "short story",
+  "song",
+]);
+
+const REFERENT_KNOWLEDGE_TYPES = [
+  "words",
+  "announcement",
+  "biblePassage",
+  "topic",
+  "series",
+  "question",
+  "quote",
+  "sermon",
+  "essay",
+  "poem",
+  "song",
+  "book",
+  "shortStory",
+  "lesson",
+  "comment",
+  "prayerRequest",
+  "event",
+  "rsvp",
+  "person",
+  "organization",
+  "group",
+  "place",
+] as const satisfies readonly Doc<"referents">["knowledgeType"][];
 
 const referentKnowledgeType = v.union(
   v.literal("words"),
+  v.literal("announcement"),
   v.literal("biblePassage"),
   v.literal("topic"),
   v.literal("series"),
@@ -55,9 +99,11 @@ const activeTagSnapshot = v.object({
   knowledgeType: referentKnowledgeType,
   label: v.string(),
   passageString: v.optional(v.string()),
+  thumbnailUrl: v.optional(v.string()),
 });
 
 const suggestionTag = activeTagSnapshot;
+const routeActiveTagResolution = v.union(activeTagSnapshot, v.null());
 
 const tagSuggestion = v.object({
   canonicalKey: v.string(),
@@ -76,6 +122,7 @@ type ActiveTagSnapshot = {
   knowledgeType: Doc<"referents">["knowledgeType"];
   label: string;
   passageString?: string;
+  thumbnailUrl?: string;
 };
 
 type TagSuggestion = {
@@ -93,6 +140,15 @@ type AllowedAccess = Extract<AppAccessState, { status: "allowed" }>;
 type SuggestionAccess = {
   organizationReferentIds: Set<Id<"referents">>;
   userId: Id<"users">;
+};
+
+type LiteratureDetail = {
+  approxGradeMax?: number | null;
+  approxGradeMin?: number | null;
+  author?: string | null;
+  genres?: string[];
+  historicalTimeframeEndYear?: number | null;
+  historicalTimeframeStartYear?: number | null;
 };
 
 type Candidate = {
@@ -171,6 +227,25 @@ export const listKnowledgeNavigatorRecommendedTags = query({
       activeTagIds,
       limit,
     });
+  },
+});
+
+export const resolveRouteActiveTags = query({
+  args: {
+    tagKeys: v.array(v.string()),
+  },
+  returns: v.array(routeActiveTagResolution),
+  handler: async (ctx, args): Promise<Array<ActiveTagSnapshot | null>> => {
+    const access = toSuggestionAccess(await requireAppAccess(ctx));
+    const tagKeys = normalizeRouteTagKeys(args.tagKeys);
+    const resolvedTags: Array<ActiveTagSnapshot | null> = [];
+
+    for (const tagKey of tagKeys) {
+      const tag = await resolveRouteTag(ctx, tagKey, access);
+      resolvedTags.push(tag ? await toActiveTagSnapshot(ctx, tag, access) : null);
+    }
+
+    return resolvedTags;
   },
 });
 
@@ -297,6 +372,118 @@ async function addContextRecommendationCandidates(
       }
     }
   }
+
+  await addRepresentedEntryMetadataRecommendationCandidates(
+    ctx,
+    candidates,
+    activeTagIds,
+    access,
+  );
+}
+
+async function addRepresentedEntryMetadataRecommendationCandidates(
+  ctx: QueryCtx,
+  candidates: Map<string, Candidate>,
+  activeTagIds: Set<Id<"tags">>,
+  access: SuggestionAccess,
+) {
+  for (const activeTagId of activeTagIds) {
+    const activeTag = await ctx.db.get(activeTagId);
+    if (!activeTag) {
+      continue;
+    }
+
+    const representedEntries = await ctx.db
+      .query("knowledgeEntries")
+      .withIndex("by_representedReferentId", (q) =>
+        q.eq("representedReferentId", activeTag.referentId),
+      )
+      .take(MAX_CONTEXT_REPRESENTED_ENTRIES_PER_TAG);
+
+    for (const representedEntry of representedEntries) {
+      if (!isEntryAccessible(representedEntry, access)) {
+        continue;
+      }
+
+      await addLiteratureMetadataRecommendationCandidates(
+        ctx,
+        candidates,
+        representedEntry,
+        activeTagIds,
+        access,
+      );
+    }
+  }
+}
+
+async function addLiteratureMetadataRecommendationCandidates(
+  ctx: QueryCtx,
+  candidates: Map<string, Candidate>,
+  activeEntry: Doc<"knowledgeEntries">,
+  activeTagIds: Set<Id<"tags">>,
+  access: SuggestionAccess,
+) {
+  const activeDetail = await getLiteratureDetail(ctx, activeEntry);
+  if (!activeDetail) {
+    return;
+  }
+
+  const searchTerms = getLiteratureMetadataSearchTerms(activeDetail);
+  if (searchTerms.length === 0) {
+    return;
+  }
+
+  const candidateScores = new Map<
+    string,
+    { score: number; tag: Doc<"tags"> }
+  >();
+
+  for (const [termIndex, searchTerm] of searchTerms.entries()) {
+    const entries = await ctx.db
+      .query("knowledgeEntries")
+      .withSearchIndex("search_searchText", (q) =>
+        q.search("searchText", searchTerm),
+      )
+      .take(MAX_LITERATURE_METADATA_SEARCH_CANDIDATES_PER_TERM);
+
+    for (const entry of entries) {
+      if (
+        entry._id === activeEntry._id ||
+        activeTagIds.has(entry.primaryTagId) ||
+        !isEntryAccessible(entry, access)
+      ) {
+        continue;
+      }
+
+      const candidateDetail = await getLiteratureDetail(ctx, entry);
+      if (!candidateDetail) {
+        continue;
+      }
+
+      const tag = await ctx.db.get(entry.primaryTagId);
+      if (!tag) {
+        continue;
+      }
+
+      const score =
+        LITERATURE_METADATA_RECOMMENDATION_SCORE +
+        getLiteratureMetadataSimilarityScore(
+          activeEntry,
+          activeDetail,
+          entry,
+          candidateDetail,
+        ) +
+        Math.max(0, MAX_LITERATURE_METADATA_SEARCH_TERMS - termIndex);
+      const current = candidateScores.get(tag._id);
+      if (!current || score > current.score) {
+        candidateScores.set(tag._id, { score, tag });
+      }
+    }
+  }
+
+  for (const { score, tag } of candidateScores.values()) {
+    addRecommendedCandidate(candidates, tag, score);
+  }
 }
 
 async function addRecognitionRecommendationCandidates(
@@ -414,6 +601,167 @@ function getContextRecommendationScore(
   );
 }
 
+async function getLiteratureDetail(
+  ctx: QueryCtx,
+  entry: Doc<"knowledgeEntries">,
+): Promise<LiteratureDetail | null> {
+  if (entry.knowledgeType === "book") {
+    return await ctx.db
+      .query("bookEntries")
+      .withIndex("by_entryId", (q) => q.eq("entryId", entry._id))
+      .unique();
+  }
+
+  if (entry.knowledgeType === "poem") {
+    return await ctx.db
+      .query("poemEntries")
+      .withIndex("by_entryId", (q) => q.eq("entryId", entry._id))
+      .unique();
+  }
+
+  if (entry.knowledgeType === "shortStory") {
+    return await ctx.db
+      .query("shortStoryEntries")
+      .withIndex("by_entryId", (q) => q.eq("entryId", entry._id))
+      .unique();
+  }
+
+  if (entry.knowledgeType === "song") {
+    return await ctx.db
+      .query("songEntries")
+      .withIndex("by_entryId", (q) => q.eq("entryId", entry._id))
+      .unique();
+  }
+
+  if (entry.knowledgeType === "series") {
+    return await ctx.db
+      .query("seriesEntries")
+      .withIndex("by_entryId", (q) => q.eq("entryId", entry._id))
+      .unique();
+  }
+
+  if (entry.knowledgeType === "essay") {
+    return await ctx.db
+      .query("essayEntries")
+      .withIndex("by_entryId", (q) => q.eq("entryId", entry._id))
+      .unique();
+  }
+
+  return null;
+}
+
+function getLiteratureMetadataSearchTerms(detail: LiteratureDetail) {
+  const terms: string[] = [];
+  addSearchTerm(terms, detail.author ?? "");
+
+  for (const genre of detail.genres ?? []) {
+    const normalizedGenre = normalizeComparableText(genre);
+    if (!normalizedGenre || GENERIC_LITERATURE_SEARCH_TERMS.has(normalizedGenre)) {
+      continue;
+    }
+
+    addSearchTerm(terms, genre);
+  }
+
+  if (terms.length === 0) {
+    for (const genre of detail.genres ?? []) {
+      addSearchTerm(terms, genre);
+    }
+  }
+
+  return terms.slice(0, MAX_LITERATURE_METADATA_SEARCH_TERMS);
+}
+
+function addSearchTerm(terms: string[], term: string) {
+  const normalizedTerm = normalizeComparableText(term);
+  if (
+    !normalizedTerm ||
+    terms.some((existing) => normalizeComparableText(existing) === normalizedTerm)
+  ) {
+    return;
+  }
+
+  terms.push(term);
+}
+
+function getLiteratureMetadataSimilarityScore(
+  activeEntry: Doc<"knowledgeEntries">,
+  activeDetail: LiteratureDetail,
+  candidateEntry: Doc<"knowledgeEntries">,
+  candidateDetail: LiteratureDetail,
+) {
+  let score = activeEntry.knowledgeType === candidateEntry.knowledgeType ? 8 : 0;
+
+  if (hasSameNonEmptyText(activeDetail.author, candidateDetail.author)) {
+    score += 80;
+  }
+
+  score += getGenreOverlapCount(activeDetail.genres, candidateDetail.genres) * 14;
+
+  if (
+    rangesOverlap(
+      activeDetail.approxGradeMin,
+      activeDetail.approxGradeMax,
+      candidateDetail.approxGradeMin,
+      candidateDetail.approxGradeMax,
+    )
+  ) {
+    score += 10;
+  }
+
+  if (
+    rangesOverlap(
+      activeDetail.historicalTimeframeStartYear,
+      activeDetail.historicalTimeframeEndYear,
+      candidateDetail.historicalTimeframeStartYear,
+      candidateDetail.historicalTimeframeEndYear,
+    )
+  ) {
+    score += 6;
+  }
+
+  return score;
+}
+
+function hasSameNonEmptyText(
+  left: string | null | undefined,
+  right: string | null | undefined,
+) {
+  const normalizedLeft = normalizeComparableText(left ?? "");
+  return (
+    normalizedLeft.length > 0 &&
+    normalizedLeft === normalizeComparableText(right ?? "")
+  );
+}
+
+function getGenreOverlapCount(
+  left: string[] | undefined,
+  right: string[] | undefined,
+) {
+  const rightGenres = new Set((right ?? []).map(normalizeComparableText));
+  return (left ?? []).filter((genre) =>
+    rightGenres.has(normalizeComparableText(genre)),
+  ).length;
+}
+
+function rangesOverlap(
+  leftMin: number | null | undefined,
+  leftMax: number | null | undefined,
+  rightMin: number | null | undefined,
+  rightMax: number | null | undefined,
+) {
+  if (
+    typeof leftMin !== "number" ||
+    typeof leftMax !== "number" ||
+    typeof rightMin !== "number" ||
+    typeof rightMax !== "number"
+  ) {
+    return false;
+  }
+
+  return leftMin <= rightMax && rightMin <= leftMax;
+}
+
 function getRankedRecognitionScore(baseScore: number, index: number) {
   return baseScore + Math.max(0, MAX_RECOMMENDED_RECOGNITIONS_PER_SCOPE - index);
 }
@@ -446,7 +794,7 @@ async function summarizeCandidates(
       activeTagIds.size === 0
         ? 0
         : await getContextCorrelationScore(ctx, candidate.tag._id, activeTagIds, access);
-    const summary = await toTagSuggestion(ctx, candidate);
+    const summary = await toTagSuggestion(ctx, candidate, access);
     if (!summary) {
       continue;
     }
@@ -461,6 +809,98 @@ async function summarizeCandidates(
     .sort(compareScoredSuggestions)
     .slice(0, limit)
     .map(({ score: _score, ...suggestion }) => suggestion);
+}
+
+function normalizeRouteTagKeys(tagKeys: string[]) {
+  if (tagKeys.length > MAX_ROUTE_ACTIVE_TAGS) {
+    throw new Error(
+      `Route active Tag resolution supports at most ${MAX_ROUTE_ACTIVE_TAGS} active Tags.`,
+    );
+  }
+
+  return tagKeys.map(normalizeLookupKey);
+}
+
+async function resolveRouteTag(
+  ctx: QueryCtx,
+  tagKey: string,
+  access: SuggestionAccess,
+) {
+  const directTags = await ctx.db
+    .query("tags")
+    .withIndex("by_lookupKey", (q) => q.eq("lookupKey", tagKey))
+    .take(MAX_ROUTE_TAG_MATCHES);
+  const directTag = await selectBestAccessibleRouteTag(ctx, directTags, access);
+  if (directTag) {
+    return directTag;
+  }
+
+  const canonicalTags: Doc<"tags">[] = [];
+  for (const knowledgeType of REFERENT_KNOWLEDGE_TYPES) {
+    const referent = await ctx.db
+      .query("referents")
+      .withIndex("by_knowledgeType_and_canonicalKey", (q) =>
+        q.eq("knowledgeType", knowledgeType).eq("canonicalKey", tagKey),
+      )
+      .first();
+    if (!referent) {
+      continue;
+    }
+
+    const referentTags = await ctx.db
+      .query("tags")
+      .withIndex("by_referentId", (q) => q.eq("referentId", referent._id))
+      .take(MAX_ROUTE_REFERENT_TAGS);
+    canonicalTags.push(...referentTags);
+  }
+
+  return await selectBestAccessibleRouteTag(ctx, canonicalTags, access);
+}
+
+async function selectBestAccessibleRouteTag(
+  ctx: QueryCtx,
+  tags: Doc<"tags">[],
+  access: SuggestionAccess,
+) {
+  let bestTag: Doc<"tags"> | null = null;
+  let bestScore = Number.NEGATIVE_INFINITY;
+
+  for (const tag of tags) {
+    const accessScore = await getTagAccessScore(ctx, tag, access);
+    if (accessScore === null) {
+      continue;
+    }
+
+    const score = accessScore + getRouteTagTypePriority(tag);
+    if (
+      bestTag === null ||
+      score > bestScore ||
+      (score === bestScore && compareStrings(tag.label, bestTag.label) < 0)
+    ) {
+      bestTag = tag;
+      bestScore = score;
+    }
+  }
+
+  return bestTag;
+}
+
+function getRouteTagTypePriority(tag: Doc<"tags">) {
+  return tag.knowledgeType === "words" ? 0 : 4;
+}
+
+async function toActiveTagSnapshot(
+  ctx: QueryCtx,
+  tag: Doc<"tags">,
+  access: SuggestionAccess,
+): Promise<ActiveTagSnapshot | null> {
+  const suggestion = await toTagSuggestion(ctx, {
+    matchKind: "label",
+    score: 0,
+    tag,
+  }, access);
+
+  return suggestion?.tag ?? null;
 }
 
 async function getTagAccessScore(
@@ -608,6 +1048,7 @@ function isVisibilityScopeAccessible(
 async function toTagSuggestion(
   ctx: QueryCtx,
   candidate: Candidate,
+  access: SuggestionAccess,
 ): Promise<TagSuggestion | null> {
   const referent = await ctx.db.get(candidate.tag.referentId);
   if (!referent) {
@@ -616,6 +1057,11 @@ async function toTagSuggestion(
 
   const id = candidate.tag.lookupKey;
   const canonicalKey = referent.canonicalKey || candidate.tag.lookupKey;
+  const thumbnailUrl = await getRepresentedReferentThumbnailUrl(
+    ctx,
+    candidate.tag.referentId,
+    { isEntryVisible: (entry) => isEntryAccessible(entry, access) },
+  );
   const tag = {
     canonicalKey,
     href: getTagHref(candidate.tag),
@@ -625,6 +1071,7 @@ async function toTagSuggestion(
     ...(candidate.tag.knowledgeType === "biblePassage"
       ? { passageString: candidate.tag.lookupKey }
       : {}),
+    ...(thumbnailUrl === undefined ? {} : { thumbnailUrl }),
   };
 
   return {
@@ -649,12 +1096,18 @@ async function resolveActiveTagIds(
     const lookupKey = normalizeLookupKey(
       activeTag.canonicalKey || activeTag.id || activeTag.label,
     );
-    const tag = await ctx.db
+    const typedTag = await ctx.db
       .query("tags")
       .withIndex("by_knowledgeType_and_lookupKey", (q) =>
         q.eq("knowledgeType", activeTag.knowledgeType).eq("lookupKey", lookupKey),
       )
       .first();
+    const tag =
+      typedTag ??
+      (await ctx.db
+        .query("tags")
+        .withIndex("by_lookupKey", (q) => q.eq("lookupKey", lookupKey))
+        .first());
     if (tag) {
       tagIds.add(tag._id);
     }

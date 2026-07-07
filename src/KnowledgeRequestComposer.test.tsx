@@ -227,6 +227,7 @@ describe("KnowledgeNavigatorQueryInput behavior", () => {
       id: "robinson-crusoe",
       knowledgeType: "book",
       label: "Robinson Crusoe",
+      thumbnailUrl: "https://images.example/robinson.jpg",
     };
     const view = renderComposer(
       <KnowledgeNavigatorQueryInput
@@ -257,6 +258,8 @@ describe("KnowledgeNavigatorQueryInput behavior", () => {
     if (!suggestionButton) {
       throw new Error("Expected Robinson Crusoe suggestion");
     }
+    expect(view.innerHTML).toContain("kb-referent-tag-thumbnail");
+    expect(view.innerHTML).toContain("https://images.example/robinson.jpg");
     act(() => suggestionButton.click());
 
     expect(mappedTags).toEqual([robinsonCrusoe]);

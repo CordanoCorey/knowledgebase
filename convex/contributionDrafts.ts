@@ -14,6 +14,7 @@ const MAX_SLOT_ID_LENGTH = 240;
 
 const entryKnowledgeType = v.union(
   v.literal("words"),
+  v.literal("announcement"),
   v.literal("topic"),
   v.literal("series"),
   v.literal("question"),

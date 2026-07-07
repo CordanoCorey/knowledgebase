@@ -26,6 +26,7 @@ type WordsOverviewDetail<TKnowledgeType extends KnowledgeType = "words"> = {
   wordsLayer: string;
 };
 
+type AnnouncementOverviewDetail = WordsOverviewDetail<"announcement">;
 type BiblePassageOverviewDetail = WordsOverviewDetail<"biblePassage">;
 type TopicOverviewDetail = WordsOverviewDetail<"topic">;
 type SeriesOverviewDetail = WordsOverviewDetail<"series">;
@@ -49,6 +50,7 @@ type PlaceOverviewDetail = WordsOverviewDetail<"place">;
 
 export const KNOWLEDGE_TYPE_OVERVIEWS = {
   words: WordsOverview,
+  announcement: AnnouncementOverview,
   biblePassage: BiblePassageOverview,
   topic: TopicOverview,
   series: SeriesOverview,
@@ -87,6 +89,22 @@ function WordsOverview({ referent }: KnowledgeTypeOverviewProps) {
     context: "Can stand alone or carry other Tags in its Knowledge Context.",
     detailFocusLabel: "Primary Shape",
     detailFocus: "Named textual knowledge.",
+  };
+
+  return <WordsOverviewBase detail={detail} referent={referent} />;
+}
+
+function AnnouncementOverview({ referent }: KnowledgeTypeOverviewProps) {
+  const detail: AnnouncementOverviewDetail = {
+    knowledgeType: "announcement",
+    summary: `${referent.label} is an organization-scoped post that reaches every active member's notification inbox.`,
+    wordsLayer: "Requires a title and body, with visibility scoped to one Organization.",
+    typedDetailLabel: "Announcement Detail",
+    typedDetail: "Stores the target Organization for notification fanout.",
+    contextLabel: "Context Role",
+    context: "Connects a posted update to the Organization that should receive it.",
+    detailFocusLabel: "Primary Shape",
+    detailFocus: "Organization notice.",
   };
 
   return <WordsOverviewBase detail={detail} referent={referent} />;

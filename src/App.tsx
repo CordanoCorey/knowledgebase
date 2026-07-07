@@ -10,6 +10,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
   type MouseEvent,
+  type RefObject,
   type ReactNode,
   type UIEvent,
 } from "react";
@@ -89,6 +90,7 @@ import { KnowledgeSlotCard } from "./components/KnowledgeCards";
 import { KnowledgeTypeBadge, KnowledgeTypeIcon } from "./components/KnowledgeTypeIcon";
 import { KnowledgeTypeOverview } from "./components/KnowledgeTypeOverview";
 import { LogeionBrand } from "./components/LogeionBrand";
+import { ReferentTagVisual } from "./components/ReferentTagLink";
 import { SmartStoragePlayground } from "./SmartStoragePlayground";
 import {
   ANSWER_FEED_FIXTURE,
@@ -168,6 +170,8 @@ type SystemRole = "systemAdmin";
 type SmartStorageRunReviewSummary = {
   contributionSubmissionId?: string;
   errorMessage?: string;
+  rawModelOutput?: string;
+  rawModelRequest?: string;
   smartStorageRunId: string;
   sourceId?: string;
   sourceIds: string[];
@@ -183,6 +187,8 @@ type PageId =
   | "organization-home"
   | "organization-settings"
   | "smart-storage-playground"
+  | "layout-prototype"
+  | "header-sidebar-prototype"
   | "analytics"
   | "profile"
   | "settings"
@@ -271,6 +277,7 @@ type NotificationFilter = "all" | "unread" | "knowledgeSlots" | "events";
 
 type NotificationKind =
   | "access"
+  | "announcement"
   | "answer"
   | "event"
   | "knowledgeSlot"
@@ -783,6 +790,24 @@ const ROUTES: RouteDefinition[] = [
     relatedRouteIds: ["dashboard", "explore-context"],
   },
   {
+    id: "layout-prototype",
+    label: "Layout Prototype",
+    href: "/playground/prototypes/layout",
+    pattern: "/playground/prototypes/layout?variant=",
+    icon: LayoutDashboard,
+    components: [],
+    relatedRouteIds: ["smart-storage-playground", "header-sidebar-prototype"],
+  },
+  {
+    id: "header-sidebar-prototype",
+    label: "Header Sidebar Prototype",
+    href: "/playground/prototypes/header-sidebar",
+    pattern: "/playground/prototypes/header-sidebar?variant=",
+    icon: Shield,
+    components: [],
+    relatedRouteIds: ["smart-storage-playground", "layout-prototype"],
+  },
+  {
     id: "profile",
     label: "Profile",
     href: "/profile",
@@ -848,7 +873,11 @@ const ROUTE_BY_ID = new Map(ROUTES.map((route) => [route.id, route]));
 const PRIMARY_ROUTE_IDS: PageId[] = ["dashboard"];
 const USER_ROUTE_IDS: PageId[] = ["todo-list", "calendar", "notifications"];
 const SYSTEM_ADMIN_ROUTE_IDS: PageId[] = ["system-admin"];
-const DEV_SYSTEM_ADMIN_ROUTE_IDS: PageId[] = ["smart-storage-playground"];
+const DEV_SYSTEM_ADMIN_ROUTE_IDS: PageId[] = [
+  "smart-storage-playground",
+  "layout-prototype",
+  "header-sidebar-prototype",
+];
 const SIDEBAR_VISIBLE_PIN_LIMIT = 3;
 
 const CALENDAR_MONTH_LABEL = "June 2026";
@@ -1051,6 +1080,7 @@ const NOTIFICATION_FILTERS: Array<{
 
 const NOTIFICATION_KIND_LABELS: Record<NotificationKind, string> = {
   access: "Access",
+  announcement: "Announcement",
   answer: "Answer",
   event: "Event",
   knowledgeSlot: "Request",
@@ -1601,14 +1631,6 @@ export default function App() {
     });
   }
 
-  if (isHeaderSidebarPrototypeRoute()) {
-    return <HeaderSidebarPrototype onToggleTheme={toggleTheme} theme={theme} />;
-  }
-
-  if (isLayoutPrototypeRoute()) {
-    return <LayoutPrototype onToggleTheme={toggleTheme} theme={theme} />;
-  }
-
   if (isLoading) {
     return (
       <main className="kb-auth-page" data-theme={theme} aria-busy="true">
@@ -1661,6 +1683,16 @@ export default function App() {
     appAccess.systemRole === "systemAdmin",
   );
 
+  if (isPrototypeRoute(routeState.route.id) && canUseDevSystemAdminRoute(appAccess)) {
+    return (
+      <PrototypeRoute
+        onToggleTheme={toggleTheme}
+        routeId={routeState.route.id}
+        theme={theme}
+      />
+    );
+  }
+
   return (
     <KnowledgebaseShell
       activePageId={routeState.route.id}
@@ -1692,10 +1724,11 @@ export default function App() {
 // receives typed route state instead of raw platform objects.
 function getRouteState(location: Location): RouteState {
   const pathname = normalizePathname(location.pathname);
+  const search = location.search;
   return {
-    route: matchRoute(pathname),
+    route: matchRoute(pathname, search),
     pathname,
-    search: location.search,
+    search,
   };
 }
 
@@ -1747,7 +1780,12 @@ function normalizePathname(pathname: string) {
   return pathname.replace(/\/+$/, "") || "/";
 }
 
-function matchRoute(pathname: string) {
+function matchRoute(pathname: string, search = "") {
+  const prototypeRouteId = getPrototypeRouteIdFromSearch(search);
+  if (prototypeRouteId !== null) {
+    return getRoute(prototypeRouteId);
+  }
+
   if (pathname === "/") {
     return getRoute("dashboard");
   }
@@ -1782,6 +1820,19 @@ function matchRoute(pathname: string) {
   return getRoute("dashboard");
 }
 
+function getPrototypeRouteIdFromSearch(search: string): PageId | null {
+  const prototypeId = new URLSearchParams(search).get("prototype");
+  if (prototypeId === "layout") {
+    return "layout-prototype";
+  }
+
+  if (prototypeId === "header-sidebar") {
+    return "header-sidebar-prototype";
+  }
+
+  return null;
+}
+
 function getRoute(pageId: PageId) {
   const route = ROUTE_BY_ID.get(pageId);
   if (!route) {
@@ -1801,20 +1852,6 @@ function readStoredTheme(): ThemePreference {
   } catch {
     return "light";
   }
-}
-
-function isLayoutPrototypeRoute() {
-  return (
-    !import.meta.env.PROD &&
-    new URLSearchParams(window.location.search).get("prototype") === "layout"
-  );
-}
-
-function isHeaderSidebarPrototypeRoute() {
-  return (
-    !import.meta.env.PROD &&
-    new URLSearchParams(window.location.search).get("prototype") === "header-sidebar"
-  );
 }
 
 // The shell owns reusable layout behavior; pages focus on their data and action
@@ -1857,6 +1894,7 @@ function KnowledgebaseShell({
   );
   const routeMotionClassName =
     routeMotionKey % 2 === 0 ? "kb-route-motion-a" : "kb-route-motion-b";
+  const showKnowledgePageDrawer = activePageId === "dashboard";
 
   useEffect(() => {
     if (
@@ -1905,8 +1943,10 @@ function KnowledgebaseShell({
         activePageId={activePageId}
         notificationUnreadCount={notificationUnreadCount}
         onNavigate={onNavigate}
+        pinnedKnowledgePages={pinnedKnowledgePages}
         onToggleTheme={onToggleTheme}
-        showDevSystemAdminRoutes={canUseSmartStoragePlayground(appAccess)}
+        routeState={routeState}
+        showDevSystemAdminRoutes={canUseDevSystemAdminRoute(appAccess)}
         showSystemAdminRoute={appAccess.systemRole === "systemAdmin"}
         theme={theme}
       />
@@ -1923,13 +1963,21 @@ function KnowledgebaseShell({
           onRootSearchSubmit={onRootSearchSubmit}
         />
         <div className="kb-host-content" onScroll={handleContentScroll}>
-          <div className="kb-workspace-shell">
-            <KnowledgePageDrawer
-              activePageId={activePageId}
-              onNavigate={onNavigate}
-              pinnedKnowledgePages={pinnedKnowledgePages}
-              routeState={routeState}
-            />
+          <div
+            className={
+              showKnowledgePageDrawer
+                ? "kb-workspace-shell"
+                : "kb-workspace-shell kb-workspace-shell-rail-only"
+            }
+          >
+            {showKnowledgePageDrawer ? (
+              <KnowledgePageDrawer
+                activePageId={activePageId}
+                onNavigate={onNavigate}
+                pinnedKnowledgePages={pinnedKnowledgePages}
+                routeState={routeState}
+              />
+            ) : null}
             <div className={`kb-route-transition ${routeMotionClassName}`}>
               {children}
             </div>
@@ -1978,7 +2026,9 @@ function Sidebar({
   activePageId,
   notificationUnreadCount,
   onNavigate,
+  pinnedKnowledgePages,
   onToggleTheme,
+  routeState,
   showDevSystemAdminRoutes,
   showSystemAdminRoute,
   theme,
@@ -1986,11 +2036,15 @@ function Sidebar({
   activePageId: PageId;
   notificationUnreadCount: number;
   onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+  pinnedKnowledgePages: SidebarPinnedKnowledgePage[];
   onToggleTheme: () => void;
+  routeState: RouteState;
   showDevSystemAdminRoutes: boolean;
   showSystemAdminRoute: boolean;
   theme: ThemePreference;
 }) {
+  const showPinnedRail = activePageId !== "dashboard" && pinnedKnowledgePages.length > 0;
+
   return (
     <aside className="kb-sidebar" aria-label="Primary navigation">
       <a
@@ -2002,6 +2056,15 @@ function Sidebar({
       >
         <BrandMark />
       </a>
+
+      {showPinnedRail ? (
+        <RailPinnedKnowledgePages
+          activePageId={activePageId}
+          onNavigate={onNavigate}
+          pinnedKnowledgePages={pinnedKnowledgePages}
+          routeState={routeState}
+        />
+      ) : null}
 
       <nav className="kb-nav-stack kb-user-route-nav" aria-label="User Views">
         {USER_ROUTE_IDS.map((pageId) => {
@@ -2098,6 +2161,50 @@ function Sidebar({
   );
 }
 
+function RailPinnedKnowledgePages({
+  activePageId,
+  onNavigate,
+  pinnedKnowledgePages,
+  routeState,
+}: {
+  activePageId: PageId;
+  onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+  pinnedKnowledgePages: SidebarPinnedKnowledgePage[];
+  routeState: RouteState;
+}) {
+  const visiblePinnedKnowledgePages = pinnedKnowledgePages.slice(
+    0,
+    SIDEBAR_VISIBLE_PIN_LIMIT,
+  );
+  const overflowPinnedKnowledgePages = pinnedKnowledgePages.slice(
+    SIDEBAR_VISIBLE_PIN_LIMIT,
+  );
+
+  return (
+    <nav className="kb-nav-stack kb-pinned-rail-nav" aria-label="Pinned Knowledge Pages">
+      {visiblePinnedKnowledgePages.map((pin) => (
+        <RailNavLink
+          active={isPinnedKnowledgePageActive(pin, activePageId, routeState)}
+          href={pin.href}
+          icon={pin.icon}
+          key={pin.id}
+          label={pin.label}
+          onNavigate={onNavigate}
+        />
+      ))}
+      {overflowPinnedKnowledgePages.length > 0 ? (
+        <PinnedKnowledgePageOverflowControl
+          activePageId={activePageId}
+          buttonClassName="kb-rail-button kb-rail-overflow-button"
+          onNavigate={onNavigate}
+          overflowPinnedKnowledgePages={overflowPinnedKnowledgePages}
+          routeState={routeState}
+        />
+      ) : null}
+    </nav>
+  );
+}
+
 function KnowledgePageDrawer({
   activePageId,
   onNavigate,
@@ -2155,21 +2262,181 @@ function KnowledgePageDrawer({
               />
             ))}
             {overflowPinnedKnowledgePages.length > 0 ? (
-              <button
-                aria-label={`${overflowPinnedKnowledgePages.length} more pinned Knowledge Pages`}
-                className="kb-sidebar-overflow"
-                title={overflowPinnedKnowledgePages
-                  .map((pin) => pin.organizationName)
-                  .join(", ")}
-                type="button"
-              >
-                +{overflowPinnedKnowledgePages.length}
-              </button>
+              <PinnedKnowledgePageOverflowControl
+                activePageId={activePageId}
+                buttonClassName="kb-sidebar-overflow"
+                onNavigate={onNavigate}
+                overflowPinnedKnowledgePages={overflowPinnedKnowledgePages}
+                routeState={routeState}
+              />
             ) : null}
           </div>
         ) : null}
       </nav>
     </aside>
+  );
+}
+
+function PinnedKnowledgePageOverflowControl({
+  activePageId,
+  buttonClassName,
+  onNavigate,
+  overflowPinnedKnowledgePages,
+  routeState,
+}: {
+  activePageId: PageId;
+  buttonClassName: string;
+  onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+  overflowPinnedKnowledgePages: SidebarPinnedKnowledgePage[];
+  routeState: RouteState;
+}) {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
+  const hiddenPinCount = overflowPinnedKnowledgePages.length;
+  const buttonLabel = `${hiddenPinCount} more pinned Knowledge Pages`;
+  const hiddenPinTitle = overflowPinnedKnowledgePages
+    .map((pin) => pin.organizationName)
+    .join(", ");
+
+  useEffect(() => {
+    if (!isDialogOpen) {
+      return;
+    }
+
+    dialogRef.current?.focus();
+
+    function handleKeyDown(event: globalThis.KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsDialogOpen(false);
+        buttonRef.current?.focus();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isDialogOpen]);
+
+  function handleCloseDialog() {
+    setIsDialogOpen(false);
+    buttonRef.current?.focus();
+  }
+
+  return (
+    <>
+      <button
+        aria-expanded={isDialogOpen}
+        aria-haspopup="dialog"
+        aria-label={buttonLabel}
+        className={buttonClassName}
+        onClick={() => setIsDialogOpen(true)}
+        ref={buttonRef}
+        title={hiddenPinTitle}
+        type="button"
+      >
+        +{hiddenPinCount}
+      </button>
+      {isDialogOpen ? (
+        <PinnedKnowledgePageOverflowDialog
+          activePageId={activePageId}
+          dialogRef={dialogRef}
+          onClose={handleCloseDialog}
+          onNavigate={onNavigate}
+          overflowPinnedKnowledgePages={overflowPinnedKnowledgePages}
+          routeState={routeState}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function PinnedKnowledgePageOverflowDialog({
+  activePageId,
+  dialogRef,
+  onClose,
+  onNavigate,
+  overflowPinnedKnowledgePages,
+  routeState,
+}: {
+  activePageId: PageId;
+  dialogRef: RefObject<HTMLElement | null>;
+  onClose: () => void;
+  onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+  overflowPinnedKnowledgePages: SidebarPinnedKnowledgePage[];
+  routeState: RouteState;
+}) {
+  function handleHiddenPinClick(
+    event: MouseEvent<HTMLAnchorElement>,
+    href: string,
+  ) {
+    onClose();
+    onNavigate(event, href);
+  }
+
+  return (
+    <div className="kb-pinned-overflow-dialog-backdrop" onMouseDown={onClose}>
+      <section
+        aria-labelledby="kb-pinned-overflow-dialog-heading"
+        aria-modal="true"
+        className="kb-pinned-overflow-dialog"
+        onMouseDown={(event) => event.stopPropagation()}
+        ref={dialogRef}
+        role="dialog"
+        tabIndex={-1}
+      >
+        <header>
+          <div>
+            <p className="kb-eyebrow">Pinned</p>
+            <h3 id="kb-pinned-overflow-dialog-heading">
+              Hidden Pinned Knowledge Pages
+            </h3>
+          </div>
+          <button
+            aria-label="Close hidden pinned Knowledge Pages"
+            className="kb-pinned-overflow-dialog-close"
+            onClick={onClose}
+            type="button"
+          >
+            <X aria-hidden="true" />
+          </button>
+        </header>
+        <nav
+          aria-label="Hidden pinned Knowledge Pages"
+          className="kb-pinned-overflow-list"
+        >
+          {overflowPinnedKnowledgePages.map((pin) => {
+            const Icon = pin.icon;
+            const active = isPinnedKnowledgePageActive(
+              pin,
+              activePageId,
+              routeState,
+            );
+
+            return (
+              <a
+                aria-current={active ? "page" : undefined}
+                aria-label={pin.label}
+                className={
+                  active
+                    ? "kb-pinned-overflow-link kb-pinned-overflow-link-active"
+                    : "kb-pinned-overflow-link"
+                }
+                href={pin.href}
+                key={pin.id}
+                onClick={(event) => handleHiddenPinClick(event, pin.href)}
+                title={`${pin.label} - ${pin.secondaryLabel}`}
+              >
+                <Icon aria-hidden="true" />
+                <span>
+                  <strong>{pin.label}</strong>
+                  <small>{pin.secondaryLabel}</small>
+                </span>
+              </a>
+            );
+          })}
+        </nav>
+      </section>
+    </div>
   );
 }
 
@@ -2479,6 +2746,10 @@ function TopBar({
                     onMouseEnter={() => setActiveSuggestionIndex(index)}
                     role="option"
                   >
+                    <ReferentTagVisual
+                      className="kb-search-suggestion-visual"
+                      tag={suggestion.tag}
+                    />
                     <span>{suggestion.label}</span>
                     <KnowledgeTypeBadge
                       className="kb-search-suggestion-type"
@@ -2522,7 +2793,7 @@ function PageScaffold({
   theme: ThemePreference;
 }) {
   const { route } = routeState;
-  const activeTags = getActiveTagsFromRoute(routeState);
+  const activeTags = useRouteActiveTags(routeState);
   if (route.id === "scripture") {
     return (
       <BiblePassagePage
@@ -2572,7 +2843,7 @@ function PageScaffold({
   }
 
   if (route.id === "smart-storage-playground") {
-    if (!canUseSmartStoragePlayground(appAccess)) {
+    if (!canUseDevSystemAdminRoute(appAccess)) {
       return <RouteUnavailablePage routeState={routeState} />;
     }
 
@@ -2582,6 +2853,10 @@ function PageScaffold({
         routeMeta={<RouteMeta routeState={routeState} />}
       />
     );
+  }
+
+  if (isPrototypeRoute(route.id)) {
+    return <RouteUnavailablePage routeState={routeState} />;
   }
 
   if (route.id === "calendar") {
@@ -2693,6 +2968,44 @@ function PageScaffold({
   );
 }
 
+type RouteActiveTagResolution = ActiveTag | null;
+
+function useRouteActiveTags(routeState: RouteState) {
+  const fallbackActiveTags = useMemo(
+    () => getActiveTagsFromRoute(routeState),
+    [routeState.pathname, routeState.search],
+  );
+  const liveResolvableTags = useMemo(
+    () =>
+      fallbackActiveTags.filter(
+        (tag) => tag.knowledgeType !== "biblePassage",
+      ),
+    [fallbackActiveTags],
+  );
+  const resolvedRouteActiveTags = useQuery(
+    api.tagSuggestions.resolveRouteActiveTags,
+    liveResolvableTags.length > 0
+      ? { tagKeys: liveResolvableTags.map((tag) => tag.id) }
+      : "skip",
+  ) as RouteActiveTagResolution[] | undefined;
+
+  return useMemo(() => {
+    if (!resolvedRouteActiveTags) {
+      return fallbackActiveTags;
+    }
+
+    let resolvedTagIndex = 0;
+    return fallbackActiveTags.map((fallbackTag) => {
+      if (fallbackTag.knowledgeType === "biblePassage") {
+        return fallbackTag;
+      }
+
+      const resolvedTag = resolvedRouteActiveTags[resolvedTagIndex++];
+      return resolvedTag ?? fallbackTag;
+    });
+  }, [fallbackActiveTags, resolvedRouteActiveTags]);
+}
+
 function isStandardKnowledgePageShellRoute(pageId: PageId) {
   return (
     pageId === "dashboard" ||
@@ -2702,8 +3015,32 @@ function isStandardKnowledgePageShellRoute(pageId: PageId) {
   );
 }
 
-function canUseSmartStoragePlayground(appAccess: AllowedAppAccess) {
+function canUseDevSystemAdminRoute(appAccess: AllowedAppAccess) {
   return appAccess.systemRole === "systemAdmin" && !import.meta.env.PROD;
+}
+
+function isPrototypeRoute(pageId: PageId) {
+  return pageId === "layout-prototype" || pageId === "header-sidebar-prototype";
+}
+
+function PrototypeRoute({
+  onToggleTheme,
+  routeId,
+  theme,
+}: {
+  onToggleTheme: () => void;
+  routeId: PageId;
+  theme: ThemePreference;
+}) {
+  if (routeId === "layout-prototype") {
+    return <LayoutPrototype onToggleTheme={onToggleTheme} theme={theme} />;
+  }
+
+  if (routeId === "header-sidebar-prototype") {
+    return <HeaderSidebarPrototype onToggleTheme={onToggleTheme} theme={theme} />;
+  }
+
+  return null;
 }
 
 function TodayAgenda({
@@ -3921,6 +4258,12 @@ function ComponentScaffold({
         ? {}
         : { externalUrls: input.externalUrls }),
       knowledgeType: input.knowledgeType,
+      ...(input.organizationReferentId === undefined
+        ? {}
+        : {
+            organizationReferentId:
+              input.organizationReferentId as Id<"referents">,
+          }),
       ...(input.slotId === undefined ? {} : { slotId: input.slotId }),
       title: input.title,
       ...(input.uploadedFiles === undefined
@@ -3993,6 +4336,12 @@ function ComponentScaffold({
       ...(modelResult.errorMessage === undefined
         ? {}
         : { errorMessage: modelResult.errorMessage }),
+      ...(modelResult.rawModelOutput === undefined
+        ? {}
+        : { rawModelOutput: modelResult.rawModelOutput }),
+      ...(modelResult.rawModelRequest === undefined
+        ? {}
+        : { rawModelRequest: modelResult.rawModelRequest }),
       smartStorageRunId: result.smartStorageRunId,
       sourceId: result.sourceId,
       sourceIds: result.sourceIds,
@@ -4067,6 +4416,12 @@ function ComponentScaffold({
         : { contributionSubmissionId: proposalResult.contributionSubmissionId }),
       currentProposal: proposalResult.currentProposal,
       id: proposalResult.smartStorageProposalId,
+      ...(proposalResult.rawModelOutput === undefined
+        ? {}
+        : { rawModelOutput: proposalResult.rawModelOutput }),
+      ...(proposalResult.rawModelRequest === undefined
+        ? {}
+        : { rawModelRequest: proposalResult.rawModelRequest }),
       smartStorageRunId: proposalResult.smartStorageRunId,
       sourceCitations: proposalResult.sourceCitations,
       sourceId: proposalResult.sourceId,
@@ -4351,6 +4706,12 @@ function ComponentScaffold({
             onPreviewExternalUrl={handlePreviewDraftExternalUrl}
             onStoreSmartly={handleStoreSmartlyContribution}
             onUploadFile={handleUploadSmartStorageFile}
+            organizationOptions={appAccess.organizations.map(
+              (organization) => ({
+                name: organization.name,
+                organizationReferentId: organization.organizationReferentId,
+              }),
+            )}
             selectedKnowledgeType={activeSelectedContributionKnowledgeType}
             slot={selectedSlot}
           />
@@ -4679,6 +5040,11 @@ function SmartStorageRunReviewPanel({
         <p className="kb-smart-run-error">{review.errorMessage}</p>
       ) : null}
 
+      <SmartStorageModelDebugPanel
+        rawModelOutput={review.rawModelOutput}
+        rawModelRequest={review.rawModelRequest}
+      />
+
       <footer className="kb-smart-proposal-actions">
         <button
           className="kb-card-action kb-card-action-primary"
@@ -4695,6 +5061,40 @@ function SmartStorageRunReviewPanel({
         </button>
       </footer>
     </section>
+  );
+}
+
+function SmartStorageModelDebugPanel({
+  rawModelOutput,
+  rawModelRequest,
+}: {
+  rawModelOutput?: string;
+  rawModelRequest?: string;
+}) {
+  if (!rawModelRequest && !rawModelOutput) {
+    return null;
+  }
+
+  return (
+    <details className="kb-smart-model-debug">
+      <summary>OpenAI Diagnostics</summary>
+      {rawModelRequest ? (
+        <section aria-label="OpenAI request body">
+          <h3>Request</h3>
+          <pre>
+            <code>{rawModelRequest}</code>
+          </pre>
+        </section>
+      ) : null}
+      {rawModelOutput ? (
+        <section aria-label="OpenAI response body">
+          <h3>Response</h3>
+          <pre>
+            <code>{rawModelOutput}</code>
+          </pre>
+        </section>
+      ) : null}
+    </details>
   );
 }
 
@@ -4838,7 +5238,7 @@ function SmartStorageProposalReviewPanel({
                 href={tag.href}
                 onClick={(event) => handleTagClick(event, tag.href)}
               >
-                <KnowledgeTypeIcon knowledgeType={tag.knowledgeType} />
+                <ReferentTagVisual tag={tag} />
                 <span>{tag.label}</span>
               </a>
             </li>
@@ -4925,6 +5325,11 @@ function SmartStorageProposalReviewPanel({
           })}
         </ul>
       ) : null}
+
+      <SmartStorageModelDebugPanel
+        rawModelOutput={proposal.rawModelOutput}
+        rawModelRequest={proposal.rawModelRequest}
+      />
 
       <footer className="kb-smart-proposal-actions">
         <button
@@ -5483,9 +5888,7 @@ function ProfilePage({
                     onClick={(event) => onNavigate(event, contextHref)}
                   >
                     {row.contextTags.length === 1 ? (
-                      <KnowledgeTypeIcon
-                        knowledgeType={row.contextTags[0].knowledgeType}
-                      />
+                      <ReferentTagVisual tag={row.contextTags[0]} />
                     ) : (
                       <Tag aria-hidden="true" />
                     )}
@@ -8865,7 +9268,10 @@ function KnowledgeNavigator({
                 title={`Remove ${tag.label}`}
                 type="button"
               >
-                <KnowledgeTypeIcon knowledgeType={tag.knowledgeType} />
+                <ReferentTagVisual
+                  className="kb-tag-chip-visual"
+                  tag={tag}
+                />
                 <span>{tag.label}</span>
                 <X aria-hidden="true" />
               </button>
@@ -8888,7 +9294,10 @@ function KnowledgeNavigator({
               title={`Add ${tag.label}`}
               type="button"
             >
-              <KnowledgeTypeIcon knowledgeType={tag.knowledgeType} />
+              <ReferentTagVisual
+                className="kb-tag-chip-visual"
+                tag={tag}
+              />
               <span>{tag.label}</span>
             </button>
           ))}

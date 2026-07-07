@@ -18,6 +18,9 @@ const modules = {
     import("./lib/contextExpertiseEvidence"),
   "./lib/contextExpertiseScoring.ts": () =>
     import("./lib/contextExpertiseScoring"),
+  "./lib/fileRepresentationRoles.ts": () =>
+    import("./lib/fileRepresentationRoles"),
+  "./lib/referentThumbnails.ts": () => import("./lib/referentThumbnails"),
   "./lib/typeBehavior.ts": () => import("./lib/typeBehavior"),
 };
 
@@ -781,6 +784,7 @@ describe("Context Expertise quote attribution Person search", () => {
           label: "C. S. Lewis",
           referentId: seed.people.csLewis.referentId,
           tagId: seed.people.csLewis.tagId,
+          thumbnailUrl: "https://images.example/cs-lewis.jpg",
         },
         {
           label: "Lewis Carroll",
@@ -2097,6 +2101,11 @@ async function seedQuoteAttributionPersonSearchRows(ctx: MutationCtx) {
     knowledgeType: "person",
     label: "C. S. Lewis",
   });
+  await insertThumbnailForTag(
+    ctx,
+    csLewis,
+    "https://images.example/cs-lewis.jpg",
+  );
   const lewisCarroll = await insertTag(ctx, {
     canonicalKey: "search-lewis-carroll",
     knowledgeType: "person",
@@ -3076,6 +3085,44 @@ async function insertTag(
   });
 
   return { ...tag, referentId, tagId };
+}
+
+async function insertThumbnailForTag(
+  ctx: MutationCtx,
+  tag: Awaited<ReturnType<typeof insertTag>>,
+  externalUrl: string,
+) {
+  const entryId = await ctx.db.insert("knowledgeEntries", {
+    contextPreviewTagLabels: [],
+    createdAt: BASE_TIME,
+    discoverabilityKind: "public",
+    discoverabilityTargetKey: "public",
+    knowledgeType: tag.knowledgeType === "biblePassage" ? "words" : tag.knowledgeType,
+    previewText: `${tag.label} thumbnail source.`,
+    primaryTagId: tag.tagId,
+    primaryTagLabel: tag.label,
+    representedReferentId: tag.referentId,
+    searchText: `${tag.label} thumbnail`,
+    title: `${tag.label} thumbnail source`,
+    updatedAt: BASE_TIME,
+    visibilityKind: "public",
+    visibilityTargetKey: "public",
+  });
+  await ctx.db.insert("entryTags", {
+    entryId,
+    tagId: tag.tagId,
+    tagPurpose: "represented",
+    taggedAt: BASE_TIME,
+  });
+  await ctx.db.insert("entryRepresentations", {
+    createdAt: BASE_TIME,
+    entryId,
+    externalUrl,
+    isPrimary: false,
+    representationKind: "externalUrl",
+    representationRole: "thumbnail",
+    updatedAt: BASE_TIME,
+  });
 }
 
 async function insertOrganization(

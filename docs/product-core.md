@@ -96,6 +96,10 @@ Knowledge Pages and User Views should remain distinct in navigation. Knowledge P
 
 Knowledge Pages should share a Knowledge Page Shell with compact page-specific identity. The top of each Knowledge Page should identify the page and expose essential page actions without turning Organization, Profile, Referent, Event, or other page-specific details into a large bespoke hero. The compact identity band may include a tiny Active Knowledge Context summary such as `Global Knowledge Context`, a single Tag label, or a Tag count, but the full interactive Active Tag set should remain in the left rail. Page-Specific Module links or controls may appear in or directly below the compact identity band as low-profile actions. Page-Specific Modules such as an Event guest list or Organization overview should appear as contained expandable sections, dialogs, or Page-Specific Subroutes such as Organization settings.
 
+Organization Knowledge Pages should remain knowledge-first at the top level. When the current User has a Role that allows operational action for the Organization, the Organization Knowledge Page may expose links to Page-Specific Subroutes with a more operations-dashboard feel, while keeping the main Organization Knowledge Page in the shared Knowledge Page Shell.
+
+Organization Knowledge Pages should remain primarily Organization-scoped Knowledge Pages rather than operations dashboards. When a User has a Role that permits school, church, family, or community administration or workflow action, the Organization Knowledge Page may expose role-gated Page-Specific Subroute links for operational work. Those subroutes may use more dashboard-like layouts, but the default Organization Knowledge Page should keep the shared Knowledge Page Shell and active Organization Tag as the main experience.
+
 The shared Knowledge Page Shell should avoid redundant generic headings when the page structure already makes the region clear. The Knowledge Navigator does not need its own header in the standard shell, Dashboard does not need a repeated `School Day` or `Today at Arche Classical Academy` heading above the working layout, and the Answer Feed does not need a separate `Answers` heading when it is already the primary feed region. Suggested Entry or Requested Entry placeholder panels should not appear below the Knowledge Navigator by default when there are no real requested entries.
 
 The left rail of the standard Knowledge Page Shell should stay focused on active Tags and a compact Knowledge Navigator Query Input for the current context. Active Tags should remain visible, while suggested or available Tags should stay compact, secondary, and capped so they support the Knowledge Navigator without becoming a large browse panel. The rail should not have a separate `Add Tags` control; the Knowledge Navigator Query Input should use typeahead suggestions for existing Tags that can be added to the Active Knowledge Context. Existing Tags of any Knowledge Type, including Question Tags, are eligible suggestions because every Knowledge Type has a Tag, but this input must not create new Tags or Questions. Selecting a suggested Tag should add that Tag to the context. Pressing Enter without selecting a suggested Tag should run a text search for matching Knowledge Entries within the current Knowledge Context rather than changing the Active Knowledge Context. Context search should filter the existing Answer Feed in place rather than navigating to a separate results page, and matching feed cards should still open their unique Referent Pages when selected. The Knowledge Navigator Query Input should not create Knowledge Entries, Knowledge Requests, Questions, Contributions, or Sources. Knowledge Slot or Requested Entry content belongs in the Answer Feed rather than in a separate rail panel because the Answer Feed is a mixed surface made of Knowledge Entries plus Knowledge Slots. Selecting a Knowledge Slot may put the Contribution Editor into a Knowledge Slot Fulfillment mode for that slot, but the slot itself should remain represented as a feed item.
@@ -223,6 +227,18 @@ Analytics should keep raw page visit events separately from aggregate visit stat
 
 Topic should be reserved for a named subject of discussion, such as `atonement`, `friendship`, or `Christian education`. Topic is an MVP Knowledge Type, but it should not mean the Context Page or Referent Page itself. A Topic Tag can be the active Tag for a Referent Page or one of multiple active Tags for a Context Page.
 
+Topic Referents should be globally canonical by default because they name subjects of discussion that can be recognized across Users and Organizations. Local wording, ministry-specific phrasing, or alternate terminology should usually become aliases, context Tags, or scoped Words or Series entries rather than separate Topic Referents. The app should create distinct Topic Referents only when the intended subjects are genuinely different, not merely because two Organizations use the same label differently.
+
+Topic should remain non-weight-bearing. A Topic label names a subject but does not itself express human substance or quality; Human Weight belongs to the Knowledge Entries that address, explain, argue about, illustrate, or apply the Topic. Topic pages may still rank their Answer Feed using the Human Weight and Feed Priority of entries tagged to the Topic.
+
+Topic should be allowed to exist as a Referent and Tag before any Knowledge Entry represents it. A represented Topic entry, when one exists, should require only the shared Knowledge Entry shape and may use a normal Entry Representation for a short description or curated overview. Topic should not require a definition, taxonomy placement, or type-specific detail fields up front because that would slow tagging and turn Topics into mini articles by default.
+
+Topic should be exportable as structural knowledge by default. A Topic export should include the label, canonical key, aliases, optional represented overview when one exists, and optionally visible tagged-entry metadata. It should not bundle the full contents of every tagged Knowledge Entry unless the User explicitly chooses to export the Topic's Knowledge Context or Answer Feed, and those nested exports must follow each entry's own Visibility Scope and Export Behavior.
+
+Topic Referent Pages should use the shared Knowledge Page Shell without a special Topic-specific module in the MVP, except for an optional compact overview or description when a represented Topic entry exists. The main Topic page surface should be the Contribution Editor, Knowledge Navigator, Answer Feed, shared Knowledge Type feed filters, and ordinary related Tag suggestions inferred from visible entries. Taxonomy trees, doctrine maps, and custom discussion boards should wait until a real workflow needs them.
+
+Smart Storage should eagerly suggest Topic Tags when it recognizes subjects, doctrines, themes, school subjects, or recurring concepts, but it should be cautious about creating new Topic Referents. Before proposing a new Topic, Smart Storage should check existing Topics and aliases for a match and prefer reusing the existing Topic when the intended subject is the same. New Topic proposals should be reviewable and should be created only when the subject is clear, useful as future context, and not already represented by an existing Topic.
+
 Doctrines should be represented as Topics in the MVP. Doctrine may become a more specific Knowledge Type later if the product needs confession-specific behavior, doctrinal positions, church statements, or theological taxonomies.
 
 Themes should be represented as Topics in the MVP. Literary or theological themes can become more specific later only if they need behavior that Topic cannot express.
@@ -262,6 +278,8 @@ Smart Storage is the AI-assisted process of preserving a Source, identifying rel
 Smart Storage is an optional contribution path rather than the only way to Contribute. When direct posting and Smart Storage are both available, the user should be able to choose between posting the entry as currently displayed and storing smartly for AI-assisted proposal generation.
 
 Smart Storage may use Factual Enrichment when a Source points to factual knowledge it does not itself contain, such as a fuzzy description of a known quotation. Factual Enrichment is encouraged for factual information, but it must produce a user-confirmable proposal rather than writing directly to the Gold Layer.
+
+Title-only Sources for recognizable public works or public entities may trigger Factual Enrichment when the Knowledge Type's Type Behavior allows public identity matching. The submitted title remains the Bronze Source, while enriched fields such as author, publication date, external provenance, and candidate thumbnail are Silver Layer proposal facts that require User confirmation before becoming Gold.
 
 Every enriched Factual Field in a Smart Storage Proposal should carry Factual Provenance whenever feasible. Factual Provenance may point to an external URL, to another Knowledge Entry, or to a model-only basis when no external evidence was checked.
 
@@ -367,6 +385,22 @@ Pre-submit uploaded files should be treated as temporary until attached to a dur
 
 The first implementation should include a small `temporaryUploads` table for browser-to-Convex uploads that have not yet been attached to a durable Contribution Submission. The table should include `storageId`, `uploadedByUserId`, `fileName`, `contentType`, `fileSizeBytes`, `uploadStatus`, `expiresAt`, `attachedContributionSubmissionId`, `createdAt`, and `updatedAt`. The initial upload status enum should be `uploaded`, `attached`, `expired`, and `deleted`. Keeping the temporary upload row after attach lets cleanup and audit code distinguish attached uploads from abandoned uploads.
 
+### Convex File Upload Protocol
+
+All Knowledge Entry file uploads should use the same Convex direct-upload protocol, whether the file is a document, manuscript, slide deck, transcript, audio recording, video recording, image, thumbnail, or generic supporting file.
+
+1. The client asks an authenticated Convex mutation for an upload URL. In the current implementation this is `api.smartStorage.generateUploadUrl`, which verifies app access and returns `ctx.storage.generateUploadUrl()`. File bytes must not pass through ordinary Convex mutations and must not be stored in application documents.
+2. The client posts the selected browser `File` or `Blob` directly to the returned upload URL with the best available content type, using `file.type || "application/octet-stream"` when the browser does not provide a type. Convex returns a `storageId`; later application mutations should pass that storage ID rather than the bytes.
+3. After the storage POST succeeds, the client immediately creates a temporary upload record, currently through `api.smartStorage.createTemporaryUploadRecord`, with `storageId`, bounded `fileName`, optional `contentType`, optional `fileSizeBytes`, and optional `languageCode`. The mutation must validate the ID with `v.id("_storage")`, load storage metadata with `ctx.db.system.get("_storage", storageId)`, prefer Convex storage metadata when present, and reject missing or deleted storage. Do not use deprecated storage metadata APIs.
+4. Direct `Post` or `Comment`, Smart Storage `Store`, thumbnail assignment, and later file-upload flows should submit only `storageId`, `temporaryUploadId`, and bounded metadata. The attaching mutation must confirm that the temporary upload belongs to the current user, has `uploadStatus: "uploaded"`, and has the same `storageId` as the submitted file before marking it `attached`.
+5. Direct post paths create `entryRepresentations` with `representationKind: "storageFile"`. Smart Storage paths create Bronze Sources with `sourceKind: "uploadedFile"` and preserve the storage ID even when extraction, preview, transcription, or proposal generation fails.
+6. Abandoned uploads remain temporary until attached. Cleanup should expire or delete unattached temporary upload rows and call `ctx.storage.delete(storageId)`. Cleanup must skip attached uploads.
+7. Display, download, preview, and thumbnail URLs should be produced only by authorized Convex functions with `ctx.storage.getUrl(storageId)`. Treat a `null` URL as missing or deleted storage.
+
+File media format is not a Knowledge Type. After upload, the application should infer Representation Role from stored metadata, file name, selected Knowledge Type, source kind, and user intent using the shared file-role helper rather than one-off MIME checks in each upload surface. Initial file role inference should recognize slide decks as `slides`, transcript files as `transcript`, manuscript files as `manuscript`, audio and video as `recording`, image thumbnails as `thumbnail`, and otherwise fall back to `supportingMaterial` or `unspecified` according to Type Behavior. Proposal review should still let the User correct the inferred role before acceptance.
+
+Tests for new upload surfaces should cover authenticated upload URL generation, temporary upload creation from a stored `Blob`, missing or deleted storage rejection, owner/status/storage ID mismatch rejection, successful attachment, cleanup behavior, and representative file categories for the file types the application intends to store: manuscripts or documents, slides, transcripts, audio, video, images or thumbnails, and generic supporting files. Convex tests should include any imported helper modules in the `convexTest` module map and should tolerate local test-environment metadata gaps by asserting the server-side fallback behavior.
+
 When the User submits through the Smart Storage path, preserving the durable Contribution Submission should automatically queue the first Smart Storage Run. Direct post, upload-only, save-draft, or other non-Smart-Storage paths should not queue Smart Storage unless the User explicitly opts in later.
 
 The first multi-Source Smart Storage spine slice did not include a full save-draft workflow for Contribution Submissions. The later Contribution Editor draft slice may persist a Composer Draft before submission, including rich-text document JSON, derived plain text, selected Knowledge Type, title, and placement identity. Composer Draft saves must not create Knowledge Entries, Contribution Submissions, Sources, Smart Storage Runs, or Smart Storage Proposals, and failed submissions should leave the draft available. Durable uploaded-file draft persistence and abandoned-upload cleanup remain separate lifecycle work.
@@ -447,6 +481,14 @@ Task and Todo are not MVP Knowledge Types. Calls to action that request future K
 
 Question is an MVP Knowledge Type because questions provide valuable information about which parts of a Knowledge Context need to be connected. A user may ask a transient Knowledge Request, but a Question can also be represented as a Knowledge Entry within the Knowledge Context it maps to, helping reveal the shape of the Question Space.
 
+Question Referent identity should be based on normalized question text plus Knowledge Context rather than question text alone. The same wording can ask meaningfully different things in different contexts, such as a general theology context versus a specific Bible Passage or Lesson context. Duplicate checks should compare normalized wording, active Tags, Visibility Scope, and Referent Identity Scope, then suggest possible existing Questions for review rather than silently merging them.
+
+A minimum valid Question entry should require the shared Knowledge Entry shape plus `questionText`. The question text should be the primary title-like input and should supply the durable identity together with the Question's Knowledge Context. Optional body text or details may clarify the Question, but a Question should not require an Answer, assignee, due date, or Knowledge Slot.
+
+Question should be weight-bearing with an informative Human Weight Expectation by default. A Question can express human judgment, attention, and framing, but low Human Weight should not usually be a concern by itself. Human Weight should credit the contributor or known asker of the Question, while Knowledge Entries contributed as Answers within that Question's Knowledge Context retain their own separate Human Weight.
+
+Question should be exportable. A Question export should include question text, optional details, Knowledge Context Tags, metadata, and optionally visible Answer Feed or Answer metadata. Exporting full Answer contents should be explicit and should include only Answers that are visible to the exporting User and exportable under each Answer entry's own Export Behavior.
+
 Question Template should be deferred as a Knowledge Type. Reusable request or slot templates introduce authoring and reuse behavior beyond the MVP.
 
 Template is not an MVP Knowledge Type. Templates are reusable authoring structures for creating other entries, questions, slots, lessons, or related workflows.
@@ -487,7 +529,7 @@ Entry-adjacent actions should remain workflow, user, or delivery state rather th
 
 ## MVP Direction
 
-The MVP Knowledge Type set is locked as: Words, Bible Passage, Topic, Series, Question, Quote, Sermon, Essay, Poem, Song, Book, Short Story, Lesson, Comment, Prayer Request, Event, RSVP, Person, Organization, Group, and Place. New Knowledge Types should be deferred unless they prove required for one of the MVP loops.
+The MVP Knowledge Type set is locked as: Words, Announcement, Bible Passage, Topic, Series, Question, Quote, Sermon, Essay, Poem, Song, Book, Short Story, Lesson, Comment, Prayer Request, Event, RSVP, Person, Organization, Group, and Place. New Knowledge Types should be deferred unless they prove required for one of the MVP loops.
 
 Bible Passage is an MVP Knowledge Type for Referents and Tags, but it is not an authorable Knowledge Entry type in the MVP. Scripture text belongs to the Bible structure and Bible verse text tables, while user-created entries such as notes, sermons, lessons, comments, or questions reference Bible Passage Tags in their Knowledge Context.
 
@@ -496,6 +538,14 @@ Bible Passage Referent identity should be based on normalized canonical passage 
 The Contribution Editor should not offer Bible Passage as an authorable Knowledge Type in the MVP. User-authored material about Scripture should be contributed as another Knowledge Type with Bible Passage Tags in its Knowledge Context, while seeded Scripture structure and vetted verse text remain outside Gold Layer authoring.
 
 Bible Passage Referent Pages should visibly present Scripture with full Soul rating attributed to God alone. That rating belongs to Scripture itself and does not become Human Weight Evidence for a translation, seed source, User, or user-authored Knowledge Entry that references the passage.
+
+Bible Passage should be exportable with translation-rights boundaries. Export may include canonical citation, normalized passage ranges, canonical structure, links, Tags, and Knowledge Context metadata. Verse text should be included only for Bible Translations the application is allowed to provide, such as public-domain or properly licensed text. User-authored Knowledge Entries tagged to the passage should export under their own Knowledge Type rules rather than as part of the Bible Passage Referent itself.
+
+Bible Passage Referent Pages should be Scripture-first pages rather than generic overview pages. They should present the passage text prominently when verse text is available, with compact controls for translation selection, passage range or citation display, copy or export, and cross-reference or context actions. They should not show a generic Bible Passage Overview module by default. The normal Answer Feed should remain available for Sermons, Lessons, Questions, Quotes, Comments, and other Knowledge Entries tagged to the passage.
+
+Bible Passage Referents should not have human Roles in the MVP. God alone is credited for Scripture's full Soul rating. Human relationships such as translator, editor, or publisher belong to Bible Translation metadata, while preacher, teacher, quoter, commentator, and similar roles belong to Knowledge Entries that reference the passage.
+
+Smart Storage should treat Bible Passage recognition as the highest-priority Tag recognition behavior. It should detect Scripture citations in Sources, normalize citation variants into Bible Passage Tags, support intentionally combined passage ranges, and preserve ambiguous citations for User review rather than guessing silently. Smart Storage should propose Bible Passage Tags, not Bible Passage Knowledge Entries; if a Source is mostly Scripture text, the review flow should still identify the user-authored Knowledge Type being contributed, such as Quote, Lesson, Sermon, Words, or Question.
 
 Sermon Clip should be deferred unless a later workflow needs quote-like Type Behavior specifically for sermon media.
 
@@ -510,6 +560,20 @@ Sacrament and Ordinance should be deferred as Knowledge Types. In the MVP, bapti
 Offering and Donation should be deferred as Knowledge Types. They imply payments, finance, receipts, stewardship records, and sensitive permissions beyond the MVP.
 
 Reading Plan should be deferred as a separate Knowledge Type. In the MVP, a reading plan can be represented as a Series of Bible Passages, Books, Lessons, and Knowledge Slots until scheduling or progress behavior becomes distinct.
+
+Series Referent identity should be based on title plus intended sequence context rather than title alone. Many Series are local to a User, Organization, Group, class, sermon arc, or ministry rhythm, such as `Romans Study` or `Fall Apologetics`; these should default to scoped Referent Identity Scope. Public or published Series may use broader identity scope when Smart Storage or the User identifies them as public works or widely recognizable collections. Duplicate checks should compare title, Referent Identity Scope, and series kind or purpose when available.
+
+A minimum valid Series entry should require the shared Knowledge Entry shape and may begin with zero members when it represents a planned sequence. Series membership should grow through ordered `seriesItems` that can point to existing Knowledge Entries, Tags, or Knowledge Slots, so a Series can contain completed items, referential waypoints, and requested future entries. A Series should not require every member Knowledge Entry to exist at creation time.
+
+Series should be weight-bearing with an informative Human Weight Expectation by default. A Series can express human judgment through selection, sequencing, and framing, but low Human Weight should not usually be a concern by itself. Human Weight for the Series should credit the contributor or curator of the Series, while member Knowledge Entries retain their own separate Human Weight.
+
+Series should be exportable. A Series export should include Series metadata, overview or Entry Representations, ordered member list, labels, positions, and visible member metadata. Exporting full member contents should be explicit and should include only members that are both visible to the exporting User and exportable under the member's own Export Behavior.
+
+Series Knowledge Pages should include a page-specific ordered sequence module. The module should show members in order, support empty or planned items, identify whether each item is an existing Knowledge Entry, Tag, or Knowledge Slot, and allow authorized Users to add, reorder, remove, or fulfill members. The shared Knowledge Page Shell and Answer Feed should remain available, but the ordered sequence is the distinctive Series page content.
+
+Series should not define type-specific Person Roles in the MVP. Contributor or curator can be represented through shared entry metadata, permissions, and Membership context. Public author, editor, or publisher roles for Series should wait until a concrete published-Series workflow needs attribution beyond normal contribution and curation.
+
+Smart Storage should recognize Sources that describe a sequence, plan, curriculum arc, reading plan, sermon series, lesson series, or ordered list, and may propose a Series with ordered `seriesItems`. Acceptance should remain explicit because a Series can create durable relationships to entries, Tags, or Knowledge Slots. Smart Storage should not automatically convert every numbered or bulleted list into a Series without clear sequence intent and User confirmation.
 
 Progress is not a Knowledge Type. Progress is state on a User's relationship to a Knowledge Slot, Lesson, Series, future Reading Plan, or future Assessment.
 
@@ -693,7 +757,7 @@ Citation and Reference are not MVP Knowledge Types. Quote is the Knowledge Type 
 
 Page, Chapter, and Section should be deferred as Knowledge Types. They are structural locations within a work and can be represented through references, ranges, Quotes, or relationships until structural navigation becomes first-class.
 
-Announcement should be deferred as a Knowledge Type. Informational announcements can begin as Words, scheduled announcements as Events, and responsive announcements as Comments until broadcast behavior becomes first-class.
+Announcement is an MVP Knowledge Type for organization-scoped informational notices that need broadcast, archive, and surfaced-audience behavior. Scheduled announcements that are primarily gatherings should still be Events, responses to another entry should still be Comments, and generic unscoped text should still be Words.
 
 The MVP should prove the core loop:
 
