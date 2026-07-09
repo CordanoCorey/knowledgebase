@@ -187,6 +187,30 @@ const smartStorageProposalStatus = v.union(
   v.literal("stale"),
 );
 
+const smartStorageProposalRole = v.union(
+  v.literal("primary"),
+  v.literal("prerequisite"),
+  v.literal("secondary"),
+  v.literal("referenceResolution"),
+  v.literal("refresh"),
+  v.literal("reprocessing"),
+  v.literal("cleanup"),
+);
+
+const smartStorageProposalDependencyRequirementKind = v.union(
+  v.literal("referent"),
+  v.literal("field"),
+  v.literal("relationship"),
+  v.literal("primaryAnchor"),
+);
+
+const smartStorageProposalDependency = v.object({
+  requiredByProposalId: v.optional(v.id("smartStorageProposals")),
+  requirementKind: smartStorageProposalDependencyRequirementKind,
+  requirementKey: v.string(),
+  label: v.string(),
+});
+
 const proposalConfidence = v.union(
   v.literal("low"),
   v.literal("medium"),
@@ -1033,6 +1057,8 @@ export default defineSchema({
     sourceId: v.id("sources"),
     smartStorageRunId: v.id("smartStorageRuns"),
     status: smartStorageProposalStatus,
+    proposalRole: v.optional(smartStorageProposalRole),
+    dependency: v.optional(smartStorageProposalDependency),
     originalProposal: smartStorageProposedEntry,
     currentProposal: smartStorageProposedEntry,
     smartStorageContractVersionId: v.optional(

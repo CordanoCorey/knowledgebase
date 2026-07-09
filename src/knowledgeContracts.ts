@@ -502,13 +502,50 @@ export type SmartStorageSessionProposalCounts = {
 export type SmartStorageSessionProposalRole =
   | "primary"
   | "prerequisite"
-  | "secondary";
+  | "secondary"
+  | "referenceResolution"
+  | "refresh"
+  | "reprocessing"
+  | "cleanup";
+
+export type SmartStorageProposalDependencyRequirementKind =
+  | "referent"
+  | "field"
+  | "relationship"
+  | "primaryAnchor";
+
+export type SmartStorageProposalDependencySummary = {
+  label: string;
+  requiredByProposalId?: string;
+  requirementKey: string;
+  requirementKind: SmartStorageProposalDependencyRequirementKind;
+};
+
+export type SmartStorageProposalAcceptabilityStatus =
+  | "ready"
+  | "blocked"
+  | "needsResolution"
+  | "accepted"
+  | "closed";
+
+export type SmartStorageProposalBlockedReason =
+  | "prerequisitesPending"
+  | "primaryAnchorRequired"
+  | "resolutionRequired";
+
+export type SmartStorageProposalAcceptabilitySummary = {
+  blockedByProposalIds: string[];
+  reason?: SmartStorageProposalBlockedReason;
+  status: SmartStorageProposalAcceptabilityStatus;
+};
 
 export type SmartStorageSessionProposalSummary = {
   acceptReady: boolean;
+  acceptability: SmartStorageProposalAcceptabilitySummary;
   contributionSubmissionId?: string;
   createdAt: number;
   currentProposal: SmartStorageProposedEntrySummary;
+  dependency?: SmartStorageProposalDependencySummary;
   id: string;
   role: SmartStorageSessionProposalRole;
   smartStorageRunId: string;

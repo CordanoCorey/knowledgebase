@@ -339,7 +339,19 @@ type SmartStorageSessionState =
 type SmartStorageSessionProposalRole =
   | "primary"
   | "prerequisite"
-  | "secondary";
+  | "secondary"
+  | "referenceResolution"
+  | "refresh"
+  | "reprocessing"
+  | "cleanup";
+type SmartStorageProposalAcceptabilitySummary = {
+  blockedByProposalIds: Id<"smartStorageProposals">[];
+  reason?:
+    | "prerequisitesPending"
+    | "primaryAnchorRequired"
+    | "resolutionRequired";
+  status: "ready" | "blocked" | "needsResolution" | "accepted" | "closed";
+};
 
 const referentKnowledgeType = v.union(
   v.literal("words"),
@@ -546,7 +558,45 @@ const smartStorageSessionProposalRole = v.union(
   v.literal("primary"),
   v.literal("prerequisite"),
   v.literal("secondary"),
+  v.literal("referenceResolution"),
+  v.literal("refresh"),
+  v.literal("reprocessing"),
+  v.literal("cleanup"),
 );
+
+const smartStorageProposalDependencyRequirementKind = v.union(
+  v.literal("referent"),
+  v.literal("field"),
+  v.literal("relationship"),
+  v.literal("primaryAnchor"),
+);
+
+const smartStorageProposalDependencySummary = v.object({
+  requiredByProposalId: v.optional(v.id("smartStorageProposals")),
+  requirementKind: smartStorageProposalDependencyRequirementKind,
+  requirementKey: v.string(),
+  label: v.string(),
+});
+
+const smartStorageProposalAcceptabilityStatus = v.union(
+  v.literal("ready"),
+  v.literal("blocked"),
+  v.literal("needsResolution"),
+  v.literal("accepted"),
+  v.literal("closed"),
+);
+
+const smartStorageProposalBlockedReason = v.union(
+  v.literal("prerequisitesPending"),
+  v.literal("primaryAnchorRequired"),
+  v.literal("resolutionRequired"),
+);
+
+const smartStorageProposalAcceptabilitySummary = v.object({
+  blockedByProposalIds: v.array(v.id("smartStorageProposals")),
+  reason: v.optional(smartStorageProposalBlockedReason),
+  status: smartStorageProposalAcceptabilityStatus,
+});
 
 const contributorSummary = v.object({
   id: v.string(),
@@ -594,9 +644,11 @@ const smartStorageSessionProposalCounts = v.object({
 
 const smartStorageSessionProposalSummary = v.object({
   acceptReady: v.boolean(),
+  acceptability: smartStorageProposalAcceptabilitySummary,
   contributionSubmissionId: v.optional(v.id("contributionSubmissions")),
   createdAt: v.number(),
   currentProposal: smartStorageProposedEntry,
+  dependency: v.optional(smartStorageProposalDependencySummary),
   id: v.id("smartStorageProposals"),
   role: smartStorageSessionProposalRole,
   smartStorageRunId: v.id("smartStorageRuns"),
@@ -832,36 +884,55 @@ export const getSessionSummary = query({
       primaryProposal,
       prerequisiteProposalDocs,
     );
-    const primaryAcceptReady =
-      primaryProposal !== undefined &&
-      primaryProposal.status === "drafted" &&
-      prerequisiteProposalDocs.length === 0;
     const primaryProposalSummary =
       primaryProposal === undefined
         ? undefined
         : await toSmartStorageSessionProposalSummary(ctx, {
-            acceptReady: primaryAcceptReady,
+            acceptability: getSmartStorageProposalAcceptability({
+              acceptedPrimaryEntry,
+              primaryProposal,
+              proposal: primaryProposal,
+              proposalsAscending,
+              role: "primary",
+            }),
             proposal: primaryProposal,
             role: "primary",
           });
     const prerequisiteProposals = [];
     for (const proposal of prerequisiteProposalDocs) {
+      const role = getSmartStorageProposalRole(proposal, {
+        primaryProposal,
+      });
       prerequisiteProposals.push(
         await toSmartStorageSessionProposalSummary(ctx, {
-          acceptReady: proposal.status === "drafted",
+          acceptability: getSmartStorageProposalAcceptability({
+            acceptedPrimaryEntry,
+            primaryProposal,
+            proposal,
+            proposalsAscending,
+            role,
+          }),
           proposal,
-          role: "prerequisite",
+          role,
         }),
       );
     }
     const pendingSecondaryProposals = [];
     for (const proposal of pendingSecondaryProposalDocs) {
+      const role = getSmartStorageProposalRole(proposal, {
+        primaryProposal,
+      });
       pendingSecondaryProposals.push(
         await toSmartStorageSessionProposalSummary(ctx, {
-          acceptReady:
-            acceptedPrimaryEntry !== null && proposal.status === "drafted",
+          acceptability: getSmartStorageProposalAcceptability({
+            acceptedPrimaryEntry,
+            primaryProposal,
+            proposal,
+            proposalsAscending,
+            role,
+          }),
           proposal,
-          role: "secondary",
+          role,
         }),
       );
     }
@@ -1583,6 +1654,7 @@ export const completeModelRunWithProposal = internalMutation({
         sourceId: primarySourceId,
         smartStorageRunId: run._id,
         status: "drafted",
+        proposalRole: "primary",
         originalProposal: normalizedProposal,
         currentProposal: cloneDraftProposal(normalizedProposal),
         ...(run.smartStorageContractVersionId === undefined
@@ -2391,6 +2463,7 @@ export const generateDraftProposalForRun = mutation({
         sourceId: primarySourceId,
         smartStorageRunId: run._id,
         status: "drafted",
+        proposalRole: "primary",
         originalProposal,
         currentProposal,
         ...(run.smartStorageContractVersionId === undefined
@@ -2501,6 +2574,41 @@ export const acceptScaffoldProposal = mutation({
       throw new Error("Proposal and Run belong to different Contribution Submissions.");
     }
 
+    const submission = await ctx.db.get(proposal.contributionSubmissionId);
+    if (!submission) {
+      throw new Error("Contribution Submission not found.");
+    }
+    const sessionProposals = await listSessionProposals(
+      ctx,
+      proposal.contributionSubmissionId,
+    );
+    const proposalsAscending = [...sessionProposals].sort(
+      (left, right) => left.createdAt - right.createdAt,
+    );
+    const primaryProposal = selectPrimaryProposal(
+      submission,
+      proposalsAscending,
+    );
+    const acceptedPrimaryEntry =
+      primaryProposal?.status === "accepted"
+        ? await findAcceptedEntryForProposal(ctx, primaryProposal)
+        : null;
+    const role = getSmartStorageProposalRole(proposal, {
+      primaryProposal,
+    });
+    assertSmartStorageProposalAcceptableForAcceptance({
+      acceptability: getSmartStorageProposalAcceptability({
+        acceptedPrimaryEntry,
+        primaryProposal,
+        proposal,
+        proposalsAscending,
+        role,
+      }),
+      proposal,
+      role,
+      targetExistingEntryId: args.targetExistingEntryId,
+    });
+
     const now = Date.now();
     const proposedEntry = proposal.currentProposal;
     if (proposedEntry.knowledgeType === "announcement") {
@@ -2577,6 +2685,10 @@ export const acceptScaffoldProposal = mutation({
           contributionSubmissionId: proposal.contributionSubmissionId,
           now,
           proposalId: proposal._id,
+          submissionStatus: getAcceptedContributionSubmissionStatus({
+            acceptedPrimaryEntry,
+            role,
+          }),
         });
 
         const updatedEntry = await ctx.db.get(existingEntry._id);
@@ -2608,7 +2720,6 @@ export const acceptScaffoldProposal = mutation({
       };
     }
 
-    const submission = await ctx.db.get(proposal.contributionSubmissionId);
     const contextTags = await resolveContextTags(
       ctx,
       normalizeContextTags(proposedEntry.contextTags),
@@ -2746,6 +2857,10 @@ export const acceptScaffoldProposal = mutation({
       contributionSubmissionId: proposal.contributionSubmissionId,
       now,
       proposalId: proposal._id,
+      submissionStatus: getAcceptedContributionSubmissionStatus({
+        acceptedPrimaryEntry,
+        role,
+      }),
     });
 
     const entry = await ctx.db.get(entryId);
@@ -3480,7 +3595,7 @@ async function markSubmissionReviewReadyIfPresent(
 }
 
 async function listSessionProposals(
-  ctx: QueryCtx,
+  ctx: MutationCtx | QueryCtx,
   contributionSubmissionId: Id<"contributionSubmissions">,
 ) {
   const statuses: SmartStorageProposalStatus[] = [
@@ -3545,6 +3660,13 @@ function selectPrimaryProposal(
   contributionSubmission: Doc<"contributionSubmissions">,
   proposalsAscending: Doc<"smartStorageProposals">[],
 ) {
+  const explicitPrimaryCandidates = proposalsAscending.filter(
+    (proposal) => proposal.proposalRole === "primary",
+  );
+  if (explicitPrimaryCandidates.length > 0) {
+    return selectPreferredSessionProposal(explicitPrimaryCandidates);
+  }
+
   const primaryTypeCandidates = proposalsAscending.filter(
     (proposal) =>
       proposal.currentProposal.knowledgeType ===
@@ -3555,11 +3677,38 @@ function selectPrimaryProposal(
       ? primaryTypeCandidates
       : proposalsAscending;
 
+  return selectPreferredSessionProposal(candidates);
+}
+
+function selectPreferredSessionProposal(
+  candidates: Doc<"smartStorageProposals">[],
+) {
   return (
     candidates.find((proposal) => proposal.status === "accepted") ??
     candidates.find((proposal) => isOpenSmartStorageProposal(proposal)) ??
     candidates[0]
   );
+}
+
+function getSmartStorageProposalRole(
+  proposal: Doc<"smartStorageProposals">,
+  {
+    primaryProposal,
+  }: {
+    primaryProposal: Doc<"smartStorageProposals"> | undefined;
+  },
+): SmartStorageSessionProposalRole {
+  if (proposal.proposalRole !== undefined) {
+    return proposal.proposalRole;
+  }
+  if (proposal._id === primaryProposal?._id) {
+    return "primary";
+  }
+  if (proposal.status === "needsResolution") {
+    return "prerequisite";
+  }
+
+  return "secondary";
 }
 
 function selectPrerequisiteProposals(
@@ -3571,11 +3720,38 @@ function selectPrerequisiteProposals(
     return [];
   }
 
-  return proposalsAscending.filter(
-    (proposal) =>
-      proposal._id !== primaryProposal?._id &&
-      proposal.status === "needsResolution",
-  );
+  return selectUnsatisfiedPrerequisiteProposals(
+    proposalsAscending,
+    primaryProposal,
+  ).filter((proposal) => isOpenSmartStorageProposal(proposal));
+}
+
+function selectUnsatisfiedPrerequisiteProposals(
+  proposalsAscending: Doc<"smartStorageProposals">[],
+  primaryProposal: Doc<"smartStorageProposals"> | undefined,
+) {
+  return proposalsAscending.filter((proposal) => {
+    if (proposal._id === primaryProposal?._id) {
+      return false;
+    }
+    if (
+      getSmartStorageProposalRole(proposal, { primaryProposal }) !==
+      "prerequisite"
+    ) {
+      return false;
+    }
+    if (proposal.status === "accepted") {
+      return false;
+    }
+    if (primaryProposal === undefined) {
+      return true;
+    }
+
+    return (
+      proposal.dependency?.requiredByProposalId === undefined ||
+      proposal.dependency.requiredByProposalId === primaryProposal._id
+    );
+  });
 }
 
 function selectPendingSecondaryProposals(
@@ -3591,8 +3767,146 @@ function selectPendingSecondaryProposals(
     (proposal) =>
       proposal._id !== primaryProposal?._id &&
       !prerequisiteIds.has(proposal._id) &&
+      getSmartStorageProposalRole(proposal, { primaryProposal }) !==
+        "prerequisite" &&
       isOpenSmartStorageProposal(proposal),
   );
+}
+
+function getSmartStorageProposalAcceptability({
+  acceptedPrimaryEntry,
+  primaryProposal,
+  proposal,
+  proposalsAscending,
+  role,
+}: {
+  acceptedPrimaryEntry: Doc<"knowledgeEntries"> | null;
+  primaryProposal: Doc<"smartStorageProposals"> | undefined;
+  proposal: Doc<"smartStorageProposals">;
+  proposalsAscending: Doc<"smartStorageProposals">[];
+  role: SmartStorageSessionProposalRole;
+}): SmartStorageProposalAcceptabilitySummary {
+  if (proposal.status === "accepted") {
+    return {
+      blockedByProposalIds: [],
+      status: "accepted",
+    };
+  }
+
+  if (isClosedSmartStorageProposalStatus(proposal.status)) {
+    return {
+      blockedByProposalIds: [],
+      status: "closed",
+    };
+  }
+
+  if (role === "primary") {
+    const unsatisfiedPrerequisites = selectUnsatisfiedPrerequisiteProposals(
+      proposalsAscending,
+      proposal,
+    );
+    if (unsatisfiedPrerequisites.length > 0) {
+      return {
+        blockedByProposalIds: unsatisfiedPrerequisites.map(
+          (prerequisite) => prerequisite._id,
+        ),
+        reason: "prerequisitesPending",
+        status: "blocked",
+      };
+    }
+  } else if (role === "prerequisite") {
+    if (!isPrerequisiteDependencyAcceptable(proposal)) {
+      return {
+        blockedByProposalIds: [],
+        reason: "resolutionRequired",
+        status: "blocked",
+      };
+    }
+  } else if (acceptedPrimaryEntry === null) {
+    return {
+      blockedByProposalIds:
+        primaryProposal === undefined ? [] : [primaryProposal._id],
+      reason: "primaryAnchorRequired",
+      status: "blocked",
+    };
+  }
+
+  if (proposal.status === "needsResolution") {
+    return {
+      blockedByProposalIds: [],
+      reason: "resolutionRequired",
+      status: "needsResolution",
+    };
+  }
+
+  return {
+    blockedByProposalIds: [],
+    status: "ready",
+  };
+}
+
+function isPrerequisiteDependencyAcceptable(
+  proposal: Doc<"smartStorageProposals">,
+) {
+  return (
+    proposal.dependency?.requirementKind === "referent" ||
+    proposal.dependency?.requirementKind === "field" ||
+    proposal.dependency?.requirementKind === "relationship"
+  );
+}
+
+function assertSmartStorageProposalAcceptableForAcceptance({
+  acceptability,
+  proposal,
+  role,
+  targetExistingEntryId,
+}: {
+  acceptability: SmartStorageProposalAcceptabilitySummary;
+  proposal: Doc<"smartStorageProposals">;
+  role: SmartStorageSessionProposalRole;
+  targetExistingEntryId?: Id<"knowledgeEntries">;
+}) {
+  if (acceptability.status === "ready") {
+    return;
+  }
+  if (
+    acceptability.status === "needsResolution" &&
+    targetExistingEntryId !== undefined
+  ) {
+    return;
+  }
+  if (role === "prerequisite" && !isPrerequisiteDependencyAcceptable(proposal)) {
+    throw new Error(
+      "Prerequisite Smart Storage Proposal must declare a referent, field, or relationship dependency before acceptance.",
+    );
+  }
+  if (acceptability.reason === "primaryAnchorRequired") {
+    throw new Error(
+      "Primary anchor must exist before accepting this Smart Storage Proposal.",
+    );
+  }
+  if (acceptability.reason === "prerequisitesPending") {
+    throw new Error(
+      "Required prerequisite proposals must be accepted before accepting the primary proposal.",
+    );
+  }
+  if (acceptability.reason === "resolutionRequired") {
+    throw new Error("Smart Storage Proposal must be resolved before acceptance.");
+  }
+
+  throw new Error("Smart Storage Proposal is not open for acceptance.");
+}
+
+function getAcceptedContributionSubmissionStatus({
+  acceptedPrimaryEntry,
+  role,
+}: {
+  acceptedPrimaryEntry: Doc<"knowledgeEntries"> | null;
+  role: SmartStorageSessionProposalRole;
+}): Doc<"contributionSubmissions">["submissionStatus"] {
+  return role === "prerequisite" && acceptedPrimaryEntry === null
+    ? "partiallyAccepted"
+    : "accepted";
 }
 
 function isOpenSmartStorageProposal(proposal: Doc<"smartStorageProposals">) {
@@ -3707,11 +4021,11 @@ function toSmartStorageSessionRunSummary(run: Doc<"smartStorageRuns">) {
 async function toSmartStorageSessionProposalSummary(
   ctx: QueryCtx,
   {
-    acceptReady,
+    acceptability,
     proposal,
     role,
   }: {
-    acceptReady: boolean;
+    acceptability: SmartStorageProposalAcceptabilitySummary;
     proposal: Doc<"smartStorageProposals">;
     role: SmartStorageSessionProposalRole;
   },
@@ -3723,12 +4037,16 @@ async function toSmartStorageSessionProposalSummary(
       : sourceCitations.map((citation) => citation.sourceId);
 
   return {
-    acceptReady,
+    acceptReady: acceptability.status === "ready",
+    acceptability,
     ...(proposal.contributionSubmissionId === undefined
       ? {}
       : { contributionSubmissionId: proposal.contributionSubmissionId }),
     createdAt: proposal.createdAt,
     currentProposal: proposal.currentProposal,
+    ...(proposal.dependency === undefined
+      ? {}
+      : { dependency: proposal.dependency }),
     id: proposal._id,
     role,
     smartStorageRunId: proposal.smartStorageRunId,
@@ -3741,7 +4059,7 @@ async function toSmartStorageSessionProposalSummary(
 }
 
 async function findAcceptedEntryForProposal(
-  ctx: QueryCtx,
+  ctx: MutationCtx | QueryCtx,
   proposal: Doc<"smartStorageProposals">,
 ) {
   const allowedSourceIds = await loadAllowedProposalSourceIds(ctx, {
@@ -5000,10 +5318,12 @@ async function markProposalAccepted(
     contributionSubmissionId,
     now,
     proposalId,
+    submissionStatus,
   }: {
     contributionSubmissionId?: Id<"contributionSubmissions">;
     now: number;
     proposalId: Id<"smartStorageProposals">;
+    submissionStatus: Doc<"contributionSubmissions">["submissionStatus"];
   },
 ) {
   await ctx.db.patch(proposalId, {
@@ -5012,7 +5332,7 @@ async function markProposalAccepted(
   });
   if (contributionSubmissionId !== undefined) {
     await ctx.db.patch(contributionSubmissionId, {
-      submissionStatus: "accepted",
+      submissionStatus,
       updatedAt: now,
     });
   }

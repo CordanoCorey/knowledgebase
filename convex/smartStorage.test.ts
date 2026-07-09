@@ -1295,6 +1295,336 @@ describe("Smart Storage contribution spine", () => {
     expect(primaryReadySession.primaryProposal?.sourceCitations).toHaveLength(2);
   });
 
+  test("returns explicit role, dependency, and acceptability metadata in a Session summary", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const startResult = await authed.mutation(
+      api.smartStorage.startFromContribution,
+      getLessonSmartStorageInput(),
+    );
+    const primaryResult = await authed.mutation(
+      api.smartStorage.generateDraftProposalForRun,
+      {
+        smartStorageRunId: startResult.smartStorageRunId,
+      },
+    );
+
+    const { prerequisiteProposalId, secondaryProposalId } = await t.run(
+      async (ctx) => {
+        const now = Date.now() + 1;
+        const prerequisiteProposal = {
+          knowledgeType: "topic" as const,
+          title: "Courage referent setup",
+          bodyPreview: "Confirm the Courage topic before accepting the lesson.",
+          contextTags: getJoshuaContextTags(),
+          proposalConfidence: "medium" as const,
+          rationale: "The primary lesson depends on the Courage topic.",
+        };
+        const secondaryProposal = getLegacyProposedEntry({
+          bodyPreview: "A later secondary review item.",
+          title: "Secondary Courage Notes",
+        });
+        const prerequisiteProposalId = await ctx.db.insert(
+          "smartStorageProposals",
+          {
+            contributionSubmissionId: startResult.contributionSubmissionId,
+            sourceId: startResult.sourceId,
+            smartStorageRunId: startResult.smartStorageRunId,
+            status: "drafted",
+            proposalRole: "prerequisite",
+            dependency: {
+              requiredByProposalId: primaryResult.smartStorageProposalId,
+              requirementKind: "referent",
+              requirementKey: "topic:courage",
+              label: "Courage topic",
+            },
+            originalProposal: prerequisiteProposal,
+            currentProposal: prerequisiteProposal,
+            createdByUserId: userId,
+            createdAt: now,
+            updatedAt: now,
+          },
+        );
+        const secondaryProposalId = await ctx.db.insert(
+          "smartStorageProposals",
+          {
+            contributionSubmissionId: startResult.contributionSubmissionId,
+            sourceId: startResult.sourceId,
+            smartStorageRunId: startResult.smartStorageRunId,
+            status: "drafted",
+            proposalRole: "secondary",
+            originalProposal: secondaryProposal,
+            currentProposal: secondaryProposal,
+            createdByUserId: userId,
+            createdAt: now + 1,
+            updatedAt: now + 1,
+          },
+        );
+
+        return { prerequisiteProposalId, secondaryProposalId };
+      },
+    );
+
+    const session = await querySessionSummary(
+      authed,
+      startResult.contributionSubmissionId,
+    );
+
+    expect(session).toMatchObject({
+      primaryProposal: {
+        acceptReady: false,
+        acceptability: {
+          blockedByProposalIds: [prerequisiteProposalId],
+          reason: "prerequisitesPending",
+          status: "blocked",
+        },
+        id: primaryResult.smartStorageProposalId,
+        role: "primary",
+      },
+      prerequisiteProposals: [
+        {
+          acceptReady: true,
+          acceptability: {
+            blockedByProposalIds: [],
+            status: "ready",
+          },
+          dependency: {
+            label: "Courage topic",
+            requiredByProposalId: primaryResult.smartStorageProposalId,
+            requirementKey: "topic:courage",
+            requirementKind: "referent",
+          },
+          id: prerequisiteProposalId,
+          role: "prerequisite",
+        },
+      ],
+      pendingSecondaryProposals: [
+        {
+          acceptReady: false,
+          acceptability: {
+            blockedByProposalIds: [primaryResult.smartStorageProposalId],
+            reason: "primaryAnchorRequired",
+            status: "blocked",
+          },
+          id: secondaryProposalId,
+          role: "secondary",
+        },
+      ],
+      state: "awaitingPrerequisites",
+    });
+  });
+
+  test("rejects accepting secondary proposals before the primary anchor exists", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const startResult = await authed.mutation(
+      api.smartStorage.startFromContribution,
+      getLessonSmartStorageInput(),
+    );
+    await authed.mutation(api.smartStorage.generateDraftProposalForRun, {
+      smartStorageRunId: startResult.smartStorageRunId,
+    });
+    const secondaryProposalId = await t.run(async (ctx) => {
+      const now = Date.now() + 1;
+      const secondaryProposal = getLegacyProposedEntry({
+        bodyPreview: "A later secondary review item.",
+        title: "Secondary Courage Notes",
+      });
+
+      return await ctx.db.insert("smartStorageProposals", {
+        contributionSubmissionId: startResult.contributionSubmissionId,
+        sourceId: startResult.sourceId,
+        smartStorageRunId: startResult.smartStorageRunId,
+        status: "drafted",
+        proposalRole: "secondary",
+        originalProposal: secondaryProposal,
+        currentProposal: secondaryProposal,
+        createdByUserId: userId,
+        createdAt: now,
+        updatedAt: now,
+      });
+    });
+
+    await expect(
+      authed.mutation(api.smartStorage.acceptScaffoldProposal, {
+        smartStorageProposalId: secondaryProposalId,
+      }),
+    ).rejects.toThrow(
+      "Primary anchor must exist before accepting this Smart Storage Proposal.",
+    );
+
+    const rowState = await t.run(async (ctx) => ({
+      entries: await ctx.db
+        .query("knowledgeEntries")
+        .withIndex("by_createdByUserId", (q) => q.eq("createdByUserId", userId))
+        .collect(),
+      proposal: await ctx.db.get(secondaryProposalId),
+    }));
+    expect(
+      rowState.entries.filter((entry) => entry.title === "Secondary Courage Notes"),
+    ).toEqual([]);
+    expect(rowState.proposal).toEqual(
+      expect.objectContaining({
+        status: "drafted",
+      }),
+    );
+  });
+
+  test("allows accepting secondary proposals after the primary anchor exists", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const startResult = await authed.mutation(
+      api.smartStorage.startFromContribution,
+      getLessonSmartStorageInput(),
+    );
+    const primaryResult = await authed.mutation(
+      api.smartStorage.generateDraftProposalForRun,
+      {
+        smartStorageRunId: startResult.smartStorageRunId,
+      },
+    );
+    await authed.mutation(api.smartStorage.acceptScaffoldProposal, {
+      smartStorageProposalId: primaryResult.smartStorageProposalId,
+    });
+    const secondaryProposalId = await t.run(async (ctx) => {
+      const now = Date.now() + 1;
+      const secondaryProposal = getLegacyProposedEntry({
+        bodyPreview: "A later secondary review item.",
+        title: "Secondary Courage Notes",
+      });
+
+      return await ctx.db.insert("smartStorageProposals", {
+        contributionSubmissionId: startResult.contributionSubmissionId,
+        sourceId: startResult.sourceId,
+        smartStorageRunId: startResult.smartStorageRunId,
+        status: "drafted",
+        proposalRole: "secondary",
+        originalProposal: secondaryProposal,
+        currentProposal: secondaryProposal,
+        createdByUserId: userId,
+        createdAt: now,
+        updatedAt: now,
+      });
+    });
+
+    const acceptedSecondary = await authed.mutation(
+      api.smartStorage.acceptScaffoldProposal,
+      {
+        smartStorageProposalId: secondaryProposalId,
+      },
+    );
+
+    expect(acceptedSecondary).toMatchObject({
+      acceptanceStatus: "accepted",
+      status: "accepted",
+    });
+    const rowState = await t.run(async (ctx) => ({
+      contributionSubmission: await ctx.db.get(
+        startResult.contributionSubmissionId,
+      ),
+      secondaryProposal: await ctx.db.get(secondaryProposalId),
+    }));
+    expect(rowState.contributionSubmission).toEqual(
+      expect.objectContaining({
+        submissionStatus: "accepted",
+      }),
+    );
+    expect(rowState.secondaryProposal).toEqual(
+      expect.objectContaining({
+        status: "accepted",
+      }),
+    );
+  });
+
+  test("allows accepting a prerequisite before its blocked primary proposal", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const startResult = await authed.mutation(
+      api.smartStorage.startFromContribution,
+      getLessonSmartStorageInput(),
+    );
+    const primaryResult = await authed.mutation(
+      api.smartStorage.generateDraftProposalForRun,
+      {
+        smartStorageRunId: startResult.smartStorageRunId,
+      },
+    );
+    const prerequisiteProposalId = await t.run(async (ctx) => {
+      const now = Date.now() + 1;
+      const prerequisiteProposal = {
+        knowledgeType: "topic" as const,
+        title: "Courage referent setup",
+        bodyPreview: "Confirm the Courage topic before accepting the lesson.",
+        contextTags: getJoshuaContextTags(),
+        proposalConfidence: "medium" as const,
+        rationale: "The primary lesson depends on the Courage topic.",
+      };
+
+      return await ctx.db.insert("smartStorageProposals", {
+        contributionSubmissionId: startResult.contributionSubmissionId,
+        sourceId: startResult.sourceId,
+        smartStorageRunId: startResult.smartStorageRunId,
+        status: "drafted",
+        proposalRole: "prerequisite",
+        dependency: {
+          requiredByProposalId: primaryResult.smartStorageProposalId,
+          requirementKind: "referent",
+          requirementKey: "topic:courage",
+          label: "Courage topic",
+        },
+        originalProposal: prerequisiteProposal,
+        currentProposal: prerequisiteProposal,
+        createdByUserId: userId,
+        createdAt: now,
+        updatedAt: now,
+      });
+    });
+
+    const acceptedPrerequisite = await authed.mutation(
+      api.smartStorage.acceptScaffoldProposal,
+      {
+        smartStorageProposalId: prerequisiteProposalId,
+      },
+    );
+    expect(acceptedPrerequisite).toMatchObject({
+      acceptanceStatus: "accepted",
+      status: "accepted",
+    });
+
+    const session = await querySessionSummary(
+      authed,
+      startResult.contributionSubmissionId,
+    );
+    expect(session).toMatchObject({
+      primaryProposal: {
+        acceptReady: true,
+        acceptability: {
+          blockedByProposalIds: [],
+          status: "ready",
+        },
+        id: primaryResult.smartStorageProposalId,
+        role: "primary",
+      },
+      prerequisiteProposals: [],
+      state: "primaryReady",
+    });
+
+    const acceptedPrimary = await authed.mutation(
+      api.smartStorage.acceptScaffoldProposal,
+      {
+        smartStorageProposalId: primaryResult.smartStorageProposalId,
+      },
+    );
+    expect(acceptedPrimary).toMatchObject({
+      acceptanceStatus: "accepted",
+      status: "accepted",
+    });
+  });
+
   test.each([
     {
       configureModelRun: () => {
