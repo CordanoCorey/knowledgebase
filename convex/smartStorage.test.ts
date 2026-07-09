@@ -1222,6 +1222,345 @@ describe("Smart Storage contribution spine", () => {
     expect(proposalRows).toHaveLength(1);
   });
 
+  test("summarizes a queued Session and then a primary-ready Proposal", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const startResult = await authed.mutation(
+      api.smartStorage.startFromContribution,
+      getLessonSmartStorageInput({
+        externalUrls: [{ url: "https://example.com/courage" }],
+      }),
+    );
+
+    const preparingSession = await querySessionSummary(
+      authed,
+      startResult.contributionSubmissionId,
+    );
+
+    expect(preparingSession).toMatchObject({
+      activeRun: {
+        id: startResult.smartStorageRunId,
+        status: "queued",
+      },
+      isComplete: false,
+      latestRun: {
+        id: startResult.smartStorageRunId,
+        status: "queued",
+      },
+      proposalCountsByStatus: {
+        total: 0,
+      },
+      sourceCounts: {
+        externalUrl: 1,
+        pastedText: 1,
+        total: 2,
+      },
+      state: "preparingPrimaryProposal",
+    });
+    expect(preparingSession.primaryProposal).toBeUndefined();
+    expect(preparingSession.pendingSecondaryProposals).toEqual([]);
+
+    const proposalResult = await authed.mutation(
+      api.smartStorage.generateDraftProposalForRun,
+      {
+        smartStorageRunId: startResult.smartStorageRunId,
+      },
+    );
+    const primaryReadySession = await querySessionSummary(
+      authed,
+      startResult.contributionSubmissionId,
+    );
+
+    expect(primaryReadySession).toMatchObject({
+      isComplete: false,
+      latestRun: {
+        id: startResult.smartStorageRunId,
+        status: "succeeded",
+      },
+      proposalCountsByStatus: {
+        drafted: 1,
+        total: 1,
+      },
+      state: "primaryReady",
+    });
+    expect(primaryReadySession.activeRun).toBeUndefined();
+    expect(primaryReadySession.primaryProposal).toMatchObject({
+      acceptReady: true,
+      id: proposalResult.smartStorageProposalId,
+      role: "primary",
+      sourceIds: startResult.sourceIds,
+      status: "drafted",
+    });
+    expect(primaryReadySession.primaryProposal?.sourceCitations).toHaveLength(2);
+  });
+
+  test.each([
+    {
+      configureModelRun: () => {
+        vi.stubEnv("OPENAI_API_KEY", "");
+        vi.stubGlobal("fetch", vi.fn());
+      },
+      runStatus: "failed",
+    },
+    {
+      configureModelRun: () => {
+        vi.stubEnv("OPENAI_API_KEY", "test-openai-key");
+        vi.stubGlobal(
+          "fetch",
+          vi.fn(async () =>
+            new Response(JSON.stringify({ output: [] }), { status: 200 }),
+          ),
+        );
+      },
+      runStatus: "noProposal",
+    },
+  ] as const)(
+    "keeps $runStatus model outcomes reviewable in the Session summary",
+    async ({ configureModelRun, runStatus }) => {
+      configureModelRun();
+      const t = convexTest({ schema, modules });
+      const userId = await t.run(insertAllowedUser);
+      const authed = t.withIdentity({ subject: `${userId}|test-session` });
+      const startResult = await authed.mutation(
+        api.smartStorage.startFromContribution,
+        getLessonSmartStorageInput(),
+      );
+
+      await authed.action(api.smartStorage.executeModelRun, {
+        smartStorageRunId: startResult.smartStorageRunId,
+      });
+
+      const session = await querySessionSummary(
+        authed,
+        startResult.contributionSubmissionId,
+      );
+      expect(session).toMatchObject({
+        isComplete: false,
+        latestRun: {
+          status: runStatus,
+        },
+        proposalCountsByStatus: {
+          total: 0,
+        },
+        sourceCounts: {
+          total: 1,
+        },
+        state: "primaryReady",
+      });
+      expect(session.primaryProposal).toBeUndefined();
+    },
+  );
+
+  test("derives awaitingPrerequisites when the primary Proposal needs resolution", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    await t.run((ctx) =>
+      insertRepresentedLessonEntryForTest(ctx, {
+        canonicalUserId: userId,
+        createdByUserId: userId,
+        title: "Courage in Joshua",
+      }),
+    );
+    const startResult = await authed.mutation(
+      api.smartStorage.startFromContribution,
+      getLessonSmartStorageInput(),
+    );
+    const proposalResult = await authed.mutation(
+      api.smartStorage.generateDraftProposalForRun,
+      {
+        smartStorageRunId: startResult.smartStorageRunId,
+      },
+    );
+
+    const targetExists = await authed.mutation(
+      api.smartStorage.acceptScaffoldProposal,
+      {
+        smartStorageProposalId: proposalResult.smartStorageProposalId,
+      },
+    );
+
+    expect(targetExists).toMatchObject({
+      acceptanceStatus: "targetExists",
+      status: "needsResolution",
+    });
+    const session = await querySessionSummary(
+      authed,
+      startResult.contributionSubmissionId,
+    );
+    expect(session).toMatchObject({
+      isComplete: false,
+      primaryProposal: {
+        acceptReady: false,
+        id: proposalResult.smartStorageProposalId,
+        role: "primary",
+        status: "needsResolution",
+      },
+      proposalCountsByStatus: {
+        needsResolution: 1,
+        total: 1,
+      },
+      state: "awaitingPrerequisites",
+    });
+    expect(session.acceptedPrimaryEntry).toBeUndefined();
+  });
+
+  test("derives primarySaved and reviewPending from an accepted primary anchor", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+    const startResult = await authed.mutation(
+      api.smartStorage.startFromContribution,
+      getLessonSmartStorageInput(),
+    );
+    const proposalResult = await authed.mutation(
+      api.smartStorage.generateDraftProposalForRun,
+      {
+        smartStorageRunId: startResult.smartStorageRunId,
+      },
+    );
+
+    const accepted = await authed.mutation(api.smartStorage.acceptScaffoldProposal, {
+      smartStorageProposalId: proposalResult.smartStorageProposalId,
+    });
+    const savedSession = await querySessionSummary(
+      authed,
+      startResult.contributionSubmissionId,
+    );
+
+    expect(savedSession).toMatchObject({
+      acceptedPrimaryEntry: {
+        id: accepted.entryId,
+        title: "Courage in Joshua",
+      },
+      isComplete: true,
+      primaryProposal: {
+        acceptReady: false,
+        id: proposalResult.smartStorageProposalId,
+        role: "primary",
+        status: "accepted",
+      },
+      state: "primarySaved",
+    });
+
+    const secondaryProposalId = await t.run(async (ctx) => {
+      const now = Date.now() + 1;
+      const secondaryProposal = getLegacyProposedEntry({
+        bodyPreview: "A later secondary review item.",
+        title: "Secondary Courage Notes",
+      });
+
+      return await ctx.db.insert("smartStorageProposals", {
+        contributionSubmissionId: startResult.contributionSubmissionId,
+        sourceId: startResult.sourceId,
+        smartStorageRunId: startResult.smartStorageRunId,
+        status: "drafted",
+        originalProposal: secondaryProposal,
+        currentProposal: secondaryProposal,
+        createdByUserId: userId,
+        createdAt: now,
+        updatedAt: now,
+      });
+    });
+
+    const reviewPendingSession = await querySessionSummary(
+      authed,
+      startResult.contributionSubmissionId,
+    );
+    expect(reviewPendingSession).toMatchObject({
+      isComplete: false,
+      pendingSecondaryProposals: [
+        {
+          acceptReady: true,
+          id: secondaryProposalId,
+          role: "secondary",
+          status: "drafted",
+        },
+      ],
+      proposalCountsByStatus: {
+        accepted: 1,
+        drafted: 1,
+        total: 2,
+      },
+      state: "reviewPending",
+    });
+  });
+
+  test("derives complete, cancelled, and source-preservation edge states", async () => {
+    const t = convexTest({ schema, modules });
+    const userId = await t.run(insertAllowedUser);
+    const authed = t.withIdentity({ subject: `${userId}|test-session` });
+
+    const preservingSubmissionId = await t.run(async (ctx) => {
+      const contributionSubmissionId = await insertContributionSubmissionForTest(
+        ctx,
+        userId,
+        "Pending source preservation",
+      );
+      await ctx.db.patch(contributionSubmissionId, {
+        submissionStatus: "processing",
+      });
+      return contributionSubmissionId;
+    });
+    await expectSessionState(authed, preservingSubmissionId, "preservingSources");
+
+    const failedPreservationSubmissionId = await t.run((ctx) =>
+      insertContributionSubmissionForTest(
+        ctx,
+        userId,
+        "Failed source preservation",
+      ),
+    );
+    await expectSessionState(
+      authed,
+      failedPreservationSubmissionId,
+      "sourcePreservationFailed",
+    );
+
+    const cancelledSubmissionId = await t.run(async (ctx) => {
+      const contributionSubmissionId = await insertContributionSubmissionForTest(
+        ctx,
+        userId,
+        "Cancelled source preservation",
+      );
+      await ctx.db.patch(contributionSubmissionId, {
+        submissionStatus: "cancelled",
+      });
+      return contributionSubmissionId;
+    });
+    await expectSessionState(authed, cancelledSubmissionId, "cancelled");
+
+    const startResult = await authed.mutation(
+      api.smartStorage.startFromContribution,
+      getLessonSmartStorageInput({ title: "Rejected Courage Proposal" }),
+    );
+    const proposalResult = await authed.mutation(
+      api.smartStorage.generateDraftProposalForRun,
+      {
+        smartStorageRunId: startResult.smartStorageRunId,
+      },
+    );
+    await t.run(async (ctx) => {
+      await ctx.db.patch(proposalResult.smartStorageProposalId, {
+        status: "rejected",
+      });
+    });
+
+    const completeSession = await querySessionSummary(
+      authed,
+      startResult.contributionSubmissionId,
+    );
+    expect(completeSession).toMatchObject({
+      isComplete: true,
+      proposalCountsByStatus: {
+        rejected: 1,
+        total: 1,
+      },
+      state: "complete",
+    });
+  });
+
   test("executes a model Run and creates a validated Proposal", async () => {
     vi.stubEnv("OPENAI_API_KEY", "test-openai-key");
     vi.stubEnv("OPENAI_SMART_STORAGE_MODEL", "gpt-test-smart-storage");
@@ -3520,6 +3859,29 @@ async function createDraftProposal(
   return await authed.mutation(api.smartStorage.generateDraftProposalForRun, {
     smartStorageRunId: startResult.smartStorageRunId,
   });
+}
+
+async function querySessionSummary(
+  authed: ReturnType<ReturnType<typeof convexTest>["withIdentity"]>,
+  contributionSubmissionId: Id<"contributionSubmissions">,
+) {
+  const session = await authed.query(api.smartStorage.getSessionSummary, {
+    contributionSubmissionId,
+  });
+  if (session === null) {
+    throw new Error("Expected Smart Storage Session summary.");
+  }
+
+  return session;
+}
+
+async function expectSessionState(
+  authed: ReturnType<ReturnType<typeof convexTest>["withIdentity"]>,
+  contributionSubmissionId: Id<"contributionSubmissions">,
+  expectedState: string,
+) {
+  const session = await querySessionSummary(authed, contributionSubmissionId);
+  expect(session.state).toBe(expectedState);
 }
 
 async function getRunFailureState(

@@ -448,6 +448,106 @@ export type SmartStorageProposalReviewSummary = {
   targetExistingEntryId?: string;
 };
 
+export type SmartStorageRunStatus =
+  | "queued"
+  | "running"
+  | "succeeded"
+  | "noProposal"
+  | "failed"
+  | "superseded";
+
+export type SmartStorageProposalStatus =
+  | "drafted"
+  | "needsResolution"
+  | "accepted"
+  | "rejected"
+  | "stale";
+
+export type SmartStorageSessionState =
+  | "preservingSources"
+  | "preparingPrimaryProposal"
+  | "primaryReady"
+  | "awaitingPrerequisites"
+  | "primarySaved"
+  | "reviewPending"
+  | "complete"
+  | "cancelled"
+  | "sourcePreservationFailed";
+
+export type SmartStorageSessionSourceCounts = {
+  externalUrl: number;
+  manualEntry: number;
+  pastedText: number;
+  total: number;
+  uploadedFile: number;
+};
+
+export type SmartStorageSessionRunSummary = {
+  completedAt?: number;
+  errorMessage?: string;
+  id: string;
+  status: SmartStorageRunStatus;
+  updatedAt: number;
+};
+
+export type SmartStorageSessionProposalCounts = {
+  accepted: number;
+  drafted: number;
+  needsResolution: number;
+  rejected: number;
+  stale: number;
+  total: number;
+};
+
+export type SmartStorageSessionProposalRole =
+  | "primary"
+  | "prerequisite"
+  | "secondary";
+
+export type SmartStorageSessionProposalSummary = {
+  acceptReady: boolean;
+  contributionSubmissionId?: string;
+  createdAt: number;
+  currentProposal: SmartStorageProposedEntrySummary;
+  id: string;
+  role: SmartStorageSessionProposalRole;
+  smartStorageRunId: string;
+  sourceCitations: SmartStorageProposalSourceCitationSummary[];
+  sourceId: string;
+  sourceIds: string[];
+  status: SmartStorageProposalStatus;
+  updatedAt: number;
+};
+
+export type SmartStorageSessionSummary = {
+  acceptedPrimaryEntry?: KnowledgeEntrySummary;
+  activeRun?: SmartStorageSessionRunSummary;
+  contributionSubmission: {
+    bodyPreview: string;
+    createdAt: number;
+    id: string;
+    primaryIntendedKnowledgeType: AuthorableKnowledgeType;
+    status:
+      | "submitted"
+      | "processing"
+      | "reviewReady"
+      | "partiallyAccepted"
+      | "accepted"
+      | "rejected"
+      | "cancelled";
+    title: string;
+    updatedAt: number;
+  };
+  isComplete: boolean;
+  latestRun?: SmartStorageSessionRunSummary;
+  pendingSecondaryProposals: SmartStorageSessionProposalSummary[];
+  prerequisiteProposals: SmartStorageSessionProposalSummary[];
+  primaryProposal?: SmartStorageSessionProposalSummary;
+  proposalCountsByStatus: SmartStorageSessionProposalCounts;
+  sourceCounts: SmartStorageSessionSourceCounts;
+  state: SmartStorageSessionState;
+};
+
 export type ContributionResult = {
   contributionSubmissionId?: string;
   entryId?: string;

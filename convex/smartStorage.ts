@@ -7,6 +7,7 @@ import {
   internalQuery,
   internalMutation,
   mutation,
+  query,
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
@@ -61,6 +62,8 @@ const MAX_TEMPORARY_UPLOAD_CLEANUP_BATCH_SIZE = 25;
 const DEFAULT_MIGRATION_BATCH_SIZE = 50;
 const MAX_MIGRATION_BATCH_SIZE = 100;
 const MAX_MIGRATION_PROPOSALS_PER_RUN = 20;
+const MAX_SESSION_RUNS = 50;
+const MAX_SESSION_PROPOSALS_PER_STATUS = 50;
 const MAX_MODEL_SOURCE_TEXT_LENGTH = 4_000;
 const MAX_MODEL_INPUT_LENGTH = 24_000;
 const MAX_MODEL_ERROR_LENGTH = 500;
@@ -322,6 +325,21 @@ type ModelRunExecutionResult = {
   smartStorageRunId: Id<"smartStorageRuns">;
   status: "drafted" | "failed" | "noProposal";
 };
+type SmartStorageProposalStatus = Doc<"smartStorageProposals">["status"];
+type SmartStorageSessionState =
+  | "preservingSources"
+  | "preparingPrimaryProposal"
+  | "primaryReady"
+  | "awaitingPrerequisites"
+  | "primarySaved"
+  | "reviewPending"
+  | "complete"
+  | "cancelled"
+  | "sourcePreservationFailed";
+type SmartStorageSessionProposalRole =
+  | "primary"
+  | "prerequisite"
+  | "secondary";
 
 const referentKnowledgeType = v.union(
   v.literal("words"),
@@ -485,6 +503,51 @@ const proposalSourceCitationSummary = v.object({
   sourceId: v.id("sources"),
 });
 
+const contributionSubmissionStatus = v.union(
+  v.literal("submitted"),
+  v.literal("processing"),
+  v.literal("reviewReady"),
+  v.literal("partiallyAccepted"),
+  v.literal("accepted"),
+  v.literal("rejected"),
+  v.literal("cancelled"),
+);
+
+const smartStorageRunStatus = v.union(
+  v.literal("queued"),
+  v.literal("running"),
+  v.literal("succeeded"),
+  v.literal("noProposal"),
+  v.literal("failed"),
+  v.literal("superseded"),
+);
+
+const smartStorageProposalStatus = v.union(
+  v.literal("drafted"),
+  v.literal("needsResolution"),
+  v.literal("accepted"),
+  v.literal("rejected"),
+  v.literal("stale"),
+);
+
+const smartStorageSessionState = v.union(
+  v.literal("preservingSources"),
+  v.literal("preparingPrimaryProposal"),
+  v.literal("primaryReady"),
+  v.literal("awaitingPrerequisites"),
+  v.literal("primarySaved"),
+  v.literal("reviewPending"),
+  v.literal("complete"),
+  v.literal("cancelled"),
+  v.literal("sourcePreservationFailed"),
+);
+
+const smartStorageSessionProposalRole = v.union(
+  v.literal("primary"),
+  v.literal("prerequisite"),
+  v.literal("secondary"),
+);
+
 const contributorSummary = v.object({
   id: v.string(),
   name: v.string(),
@@ -502,6 +565,68 @@ const knowledgeEntrySummary = v.object({
   humanWeight: v.optional(v.number()),
   href: v.string(),
   updatedAt: v.number(),
+});
+
+const smartStorageSessionSourceCounts = v.object({
+  externalUrl: v.number(),
+  manualEntry: v.number(),
+  pastedText: v.number(),
+  total: v.number(),
+  uploadedFile: v.number(),
+});
+
+const smartStorageSessionRunSummary = v.object({
+  completedAt: v.optional(v.number()),
+  errorMessage: v.optional(v.string()),
+  id: v.id("smartStorageRuns"),
+  status: smartStorageRunStatus,
+  updatedAt: v.number(),
+});
+
+const smartStorageSessionProposalCounts = v.object({
+  accepted: v.number(),
+  drafted: v.number(),
+  needsResolution: v.number(),
+  rejected: v.number(),
+  stale: v.number(),
+  total: v.number(),
+});
+
+const smartStorageSessionProposalSummary = v.object({
+  acceptReady: v.boolean(),
+  contributionSubmissionId: v.optional(v.id("contributionSubmissions")),
+  createdAt: v.number(),
+  currentProposal: smartStorageProposedEntry,
+  id: v.id("smartStorageProposals"),
+  role: smartStorageSessionProposalRole,
+  smartStorageRunId: v.id("smartStorageRuns"),
+  sourceCitations: v.array(proposalSourceCitationSummary),
+  sourceId: v.id("sources"),
+  sourceIds: v.array(v.id("sources")),
+  status: smartStorageProposalStatus,
+  updatedAt: v.number(),
+});
+
+const smartStorageSessionSummary = v.object({
+  acceptedPrimaryEntry: v.optional(knowledgeEntrySummary),
+  activeRun: v.optional(smartStorageSessionRunSummary),
+  contributionSubmission: v.object({
+    bodyPreview: v.string(),
+    createdAt: v.number(),
+    id: v.id("contributionSubmissions"),
+    primaryIntendedKnowledgeType: entryKnowledgeType,
+    status: contributionSubmissionStatus,
+    title: v.string(),
+    updatedAt: v.number(),
+  }),
+  isComplete: v.boolean(),
+  latestRun: v.optional(smartStorageSessionRunSummary),
+  pendingSecondaryProposals: v.array(smartStorageSessionProposalSummary),
+  prerequisiteProposals: v.array(smartStorageSessionProposalSummary),
+  primaryProposal: v.optional(smartStorageSessionProposalSummary),
+  proposalCountsByStatus: smartStorageSessionProposalCounts,
+  sourceCounts: smartStorageSessionSourceCounts,
+  state: smartStorageSessionState,
 });
 
 const temporaryUploadCleanupStatus = v.union(
@@ -635,6 +760,158 @@ const modelRunExecutionInput = v.object({
     typeBehaviorSnapshotVersion: v.optional(v.string()),
   }),
   sources: v.array(modelRunExecutionSource),
+});
+
+export const getSessionSummary = query({
+  args: {
+    contributionSubmissionId: v.id("contributionSubmissions"),
+  },
+  returns: v.union(smartStorageSessionSummary, v.null()),
+  handler: async (ctx, args) => {
+    const access = await requireAppAccess(ctx);
+    const contributionSubmission = await ctx.db.get(
+      args.contributionSubmissionId,
+    );
+    if (!contributionSubmission) {
+      return null;
+    }
+    if (contributionSubmission.submittedByUserId !== access.userId) {
+      throw new Error("Unauthorized");
+    }
+
+    const sources = await ctx.db
+      .query("sources")
+      .withIndex("by_contributionSubmissionId_and_submittedAt", (q) =>
+        q.eq("contributionSubmissionId", args.contributionSubmissionId),
+      )
+      .take(MAX_SOURCES_PER_SUBMISSION);
+    const runs = await ctx.db
+      .query("smartStorageRuns")
+      .withIndex("by_contributionSubmissionId_and_createdAt", (q) =>
+        q.eq("contributionSubmissionId", args.contributionSubmissionId),
+      )
+      .order("desc")
+      .take(MAX_SESSION_RUNS);
+    const proposals = await listSessionProposals(
+      ctx,
+      args.contributionSubmissionId,
+    );
+    const proposalsAscending = [...proposals].sort(
+      (left, right) => left.createdAt - right.createdAt,
+    );
+    const latestRun = runs[0];
+    const activeRun = runs.find((run) => isActiveSmartStorageRun(run));
+    const sourceCounts = countSessionSources(sources);
+    const proposalCountsByStatus = countSessionProposals(proposals);
+    const primaryProposal = selectPrimaryProposal(
+      contributionSubmission,
+      proposalsAscending,
+    );
+    const acceptedPrimaryEntry =
+      primaryProposal?.status === "accepted"
+        ? await findAcceptedEntryForProposal(ctx, primaryProposal)
+        : null;
+    const acceptedPrimaryEntrySummary =
+      acceptedPrimaryEntry === null
+        ? undefined
+        : summarizeEntry(
+            acceptedPrimaryEntry,
+            await getContributorSummary(
+              ctx,
+              acceptedPrimaryEntry.createdByUserId ??
+                contributionSubmission.submittedByUserId,
+            ),
+          );
+    const prerequisiteProposalDocs = selectPrerequisiteProposals(
+      proposalsAscending,
+      primaryProposal,
+      acceptedPrimaryEntry !== null,
+    );
+    const pendingSecondaryProposalDocs = selectPendingSecondaryProposals(
+      proposalsAscending,
+      primaryProposal,
+      prerequisiteProposalDocs,
+    );
+    const primaryAcceptReady =
+      primaryProposal !== undefined &&
+      primaryProposal.status === "drafted" &&
+      prerequisiteProposalDocs.length === 0;
+    const primaryProposalSummary =
+      primaryProposal === undefined
+        ? undefined
+        : await toSmartStorageSessionProposalSummary(ctx, {
+            acceptReady: primaryAcceptReady,
+            proposal: primaryProposal,
+            role: "primary",
+          });
+    const prerequisiteProposals = [];
+    for (const proposal of prerequisiteProposalDocs) {
+      prerequisiteProposals.push(
+        await toSmartStorageSessionProposalSummary(ctx, {
+          acceptReady: proposal.status === "drafted",
+          proposal,
+          role: "prerequisite",
+        }),
+      );
+    }
+    const pendingSecondaryProposals = [];
+    for (const proposal of pendingSecondaryProposalDocs) {
+      pendingSecondaryProposals.push(
+        await toSmartStorageSessionProposalSummary(ctx, {
+          acceptReady:
+            acceptedPrimaryEntry !== null && proposal.status === "drafted",
+          proposal,
+          role: "secondary",
+        }),
+      );
+    }
+    const isComplete = isSmartStorageSessionComplete({
+      proposals,
+      runs,
+    });
+    const state = deriveSmartStorageSessionState({
+      activeRun,
+      acceptedPrimaryEntry,
+      isComplete,
+      latestRun,
+      pendingSecondaryProposalCount: pendingSecondaryProposals.length,
+      prerequisiteProposalCount: prerequisiteProposals.length,
+      primaryProposal,
+      sourceCount: sourceCounts.total,
+      submissionStatus: contributionSubmission.submissionStatus,
+    });
+
+    return {
+      ...(acceptedPrimaryEntrySummary === undefined
+        ? {}
+        : { acceptedPrimaryEntry: acceptedPrimaryEntrySummary }),
+      ...(activeRun === undefined
+        ? {}
+        : { activeRun: toSmartStorageSessionRunSummary(activeRun) }),
+      contributionSubmission: {
+        bodyPreview: contributionSubmission.primaryIntendedBodyPreview,
+        createdAt: contributionSubmission.createdAt,
+        id: contributionSubmission._id,
+        primaryIntendedKnowledgeType:
+          contributionSubmission.primaryIntendedKnowledgeType,
+        status: contributionSubmission.submissionStatus,
+        title: contributionSubmission.primaryIntendedTitle,
+        updatedAt: contributionSubmission.updatedAt,
+      },
+      isComplete,
+      ...(latestRun === undefined
+        ? {}
+        : { latestRun: toSmartStorageSessionRunSummary(latestRun) }),
+      pendingSecondaryProposals,
+      prerequisiteProposals,
+      ...(primaryProposalSummary === undefined
+        ? {}
+        : { primaryProposal: primaryProposalSummary }),
+      proposalCountsByStatus,
+      sourceCounts,
+      state,
+    };
+  },
 });
 
 export const createTemporaryUploadRecord = mutation({
@@ -3202,6 +3479,311 @@ async function markSubmissionReviewReadyIfPresent(
   });
 }
 
+async function listSessionProposals(
+  ctx: QueryCtx,
+  contributionSubmissionId: Id<"contributionSubmissions">,
+) {
+  const statuses: SmartStorageProposalStatus[] = [
+    "drafted",
+    "needsResolution",
+    "accepted",
+    "rejected",
+    "stale",
+  ];
+  const proposals: Doc<"smartStorageProposals">[] = [];
+
+  for (const status of statuses) {
+    proposals.push(
+      ...(await ctx.db
+        .query("smartStorageProposals")
+        .withIndex("by_contributionSubmissionId_and_status_and_createdAt", (q) =>
+          q
+            .eq("contributionSubmissionId", contributionSubmissionId)
+            .eq("status", status),
+        )
+        .take(MAX_SESSION_PROPOSALS_PER_STATUS)),
+    );
+  }
+
+  return proposals;
+}
+
+function countSessionSources(sources: Doc<"sources">[]) {
+  const counts = {
+    externalUrl: 0,
+    manualEntry: 0,
+    pastedText: 0,
+    total: sources.length,
+    uploadedFile: 0,
+  };
+
+  for (const source of sources) {
+    counts[source.sourceKind] += 1;
+  }
+
+  return counts;
+}
+
+function countSessionProposals(proposals: Doc<"smartStorageProposals">[]) {
+  const counts = {
+    accepted: 0,
+    drafted: 0,
+    needsResolution: 0,
+    rejected: 0,
+    stale: 0,
+    total: proposals.length,
+  };
+
+  for (const proposal of proposals) {
+    counts[proposal.status] += 1;
+  }
+
+  return counts;
+}
+
+function selectPrimaryProposal(
+  contributionSubmission: Doc<"contributionSubmissions">,
+  proposalsAscending: Doc<"smartStorageProposals">[],
+) {
+  const primaryTypeCandidates = proposalsAscending.filter(
+    (proposal) =>
+      proposal.currentProposal.knowledgeType ===
+      contributionSubmission.primaryIntendedKnowledgeType,
+  );
+  const candidates =
+    primaryTypeCandidates.length > 0
+      ? primaryTypeCandidates
+      : proposalsAscending;
+
+  return (
+    candidates.find((proposal) => proposal.status === "accepted") ??
+    candidates.find((proposal) => isOpenSmartStorageProposal(proposal)) ??
+    candidates[0]
+  );
+}
+
+function selectPrerequisiteProposals(
+  proposalsAscending: Doc<"smartStorageProposals">[],
+  primaryProposal: Doc<"smartStorageProposals"> | undefined,
+  acceptedPrimaryEntryExists: boolean,
+) {
+  if (acceptedPrimaryEntryExists) {
+    return [];
+  }
+
+  return proposalsAscending.filter(
+    (proposal) =>
+      proposal._id !== primaryProposal?._id &&
+      proposal.status === "needsResolution",
+  );
+}
+
+function selectPendingSecondaryProposals(
+  proposalsAscending: Doc<"smartStorageProposals">[],
+  primaryProposal: Doc<"smartStorageProposals"> | undefined,
+  prerequisiteProposals: Doc<"smartStorageProposals">[],
+) {
+  const prerequisiteIds = new Set(
+    prerequisiteProposals.map((proposal) => proposal._id),
+  );
+
+  return proposalsAscending.filter(
+    (proposal) =>
+      proposal._id !== primaryProposal?._id &&
+      !prerequisiteIds.has(proposal._id) &&
+      isOpenSmartStorageProposal(proposal),
+  );
+}
+
+function isOpenSmartStorageProposal(proposal: Doc<"smartStorageProposals">) {
+  return proposal.status === "drafted" || proposal.status === "needsResolution";
+}
+
+function isClosedSmartStorageProposalStatus(status: SmartStorageProposalStatus) {
+  return status === "accepted" || status === "rejected" || status === "stale";
+}
+
+function isActiveSmartStorageRun(run: Doc<"smartStorageRuns">) {
+  return run.status === "queued" || run.status === "running";
+}
+
+function isSmartStorageSessionComplete({
+  proposals,
+  runs,
+}: {
+  proposals: Doc<"smartStorageProposals">[];
+  runs: Doc<"smartStorageRuns">[];
+}) {
+  return (
+    proposals.length > 0 &&
+    runs.every((run) => !isActiveSmartStorageRun(run)) &&
+    proposals.every((proposal) =>
+      isClosedSmartStorageProposalStatus(proposal.status),
+    )
+  );
+}
+
+function deriveSmartStorageSessionState({
+  activeRun,
+  acceptedPrimaryEntry,
+  isComplete,
+  latestRun,
+  pendingSecondaryProposalCount,
+  prerequisiteProposalCount,
+  primaryProposal,
+  sourceCount,
+  submissionStatus,
+}: {
+  activeRun: Doc<"smartStorageRuns"> | undefined;
+  acceptedPrimaryEntry: Doc<"knowledgeEntries"> | null;
+  isComplete: boolean;
+  latestRun: Doc<"smartStorageRuns"> | undefined;
+  pendingSecondaryProposalCount: number;
+  prerequisiteProposalCount: number;
+  primaryProposal: Doc<"smartStorageProposals"> | undefined;
+  sourceCount: number;
+  submissionStatus: Doc<"contributionSubmissions">["submissionStatus"];
+}): SmartStorageSessionState {
+  if (submissionStatus === "cancelled") {
+    return "cancelled";
+  }
+
+  if (sourceCount === 0) {
+    return submissionStatus === "submitted" || submissionStatus === "processing"
+      ? "preservingSources"
+      : "sourcePreservationFailed";
+  }
+
+  if (activeRun !== undefined) {
+    return "preparingPrimaryProposal";
+  }
+
+  if (
+    prerequisiteProposalCount > 0 ||
+    primaryProposal?.status === "needsResolution"
+  ) {
+    return "awaitingPrerequisites";
+  }
+
+  if (
+    primaryProposal !== undefined &&
+    isOpenSmartStorageProposal(primaryProposal)
+  ) {
+    return "primaryReady";
+  }
+
+  if (
+    primaryProposal === undefined &&
+    (latestRun?.status === "failed" || latestRun?.status === "noProposal")
+  ) {
+    return "primaryReady";
+  }
+
+  if (acceptedPrimaryEntry !== null && pendingSecondaryProposalCount > 0) {
+    return "reviewPending";
+  }
+
+  if (acceptedPrimaryEntry !== null) {
+    return "primarySaved";
+  }
+
+  if (isComplete) {
+    return "complete";
+  }
+
+  return "preservingSources";
+}
+
+function toSmartStorageSessionRunSummary(run: Doc<"smartStorageRuns">) {
+  return {
+    ...(run.completedAt === undefined ? {} : { completedAt: run.completedAt }),
+    ...(run.errorMessage === undefined ? {} : { errorMessage: run.errorMessage }),
+    id: run._id,
+    status: run.status,
+    updatedAt: run.updatedAt,
+  };
+}
+
+async function toSmartStorageSessionProposalSummary(
+  ctx: QueryCtx,
+  {
+    acceptReady,
+    proposal,
+    role,
+  }: {
+    acceptReady: boolean;
+    proposal: Doc<"smartStorageProposals">;
+    role: SmartStorageSessionProposalRole;
+  },
+) {
+  const sourceCitations = await listProposalSourceCitations(ctx, proposal._id);
+  const sourceIds =
+    sourceCitations.length === 0
+      ? [proposal.sourceId]
+      : sourceCitations.map((citation) => citation.sourceId);
+
+  return {
+    acceptReady,
+    ...(proposal.contributionSubmissionId === undefined
+      ? {}
+      : { contributionSubmissionId: proposal.contributionSubmissionId }),
+    createdAt: proposal.createdAt,
+    currentProposal: proposal.currentProposal,
+    id: proposal._id,
+    role,
+    smartStorageRunId: proposal.smartStorageRunId,
+    sourceCitations,
+    sourceId: proposal.sourceId,
+    sourceIds,
+    status: proposal.status,
+    updatedAt: proposal.updatedAt,
+  };
+}
+
+async function findAcceptedEntryForProposal(
+  ctx: QueryCtx,
+  proposal: Doc<"smartStorageProposals">,
+) {
+  const allowedSourceIds = await loadAllowedProposalSourceIds(ctx, {
+    fallbackSourceId: proposal.sourceId,
+    proposalId: proposal._id,
+  });
+  const entries: Doc<"knowledgeEntries">[] = [];
+  const seenEntryIds = new Set<Id<"knowledgeEntries">>();
+
+  for (const sourceId of allowedSourceIds) {
+    const outputs = await ctx.db
+      .query("sourceOutputs")
+      .withIndex("by_sourceId_and_entryId", (q) => q.eq("sourceId", sourceId))
+      .take(MAX_SOURCES_PER_SUBMISSION);
+
+    for (const output of outputs) {
+      if (seenEntryIds.has(output.entryId)) {
+        continue;
+      }
+      seenEntryIds.add(output.entryId);
+
+      const entry = await ctx.db.get(output.entryId);
+      if (
+        entry &&
+        entry.knowledgeType === proposal.currentProposal.knowledgeType
+      ) {
+        entries.push(entry);
+      }
+    }
+  }
+
+  return (
+    entries.find(
+      (entry) =>
+        normalizeLookupKey(entry.title) ===
+        normalizeLookupKey(proposal.currentProposal.title),
+    ) ??
+    entries[0] ??
+    null
+  );
+}
+
 function getOpenAiApiKey() {
   return process.env.OPENAI_API_KEY?.trim() ?? "";
 }
@@ -3695,7 +4277,7 @@ async function listRunSources(
 }
 
 async function listRunSourceIds(
-  ctx: MutationCtx,
+  ctx: MutationCtx | QueryCtx,
   run: Doc<"smartStorageRuns">,
 ) {
   return (await listRunSources(ctx, run)).map((source) => source._id);
@@ -3822,7 +4404,7 @@ function buildSourceCitation(source: Doc<"sources">) {
 }
 
 async function listProposalSourceCitations(
-  ctx: MutationCtx,
+  ctx: MutationCtx | QueryCtx,
   proposalId: Id<"smartStorageProposals">,
 ) {
   const rows = await ctx.db
@@ -4041,7 +4623,7 @@ async function loadSelectedProposalSources(
 }
 
 async function loadAllowedProposalSourceIds(
-  ctx: MutationCtx,
+  ctx: MutationCtx | QueryCtx,
   {
     fallbackSourceId,
     proposalId,
@@ -4575,7 +5157,7 @@ function summarizeEntry(
 }
 
 async function getContributorSummary(
-  ctx: MutationCtx,
+  ctx: MutationCtx | QueryCtx,
   userId: Id<"users">,
 ) {
   const user = await ctx.db.get(userId);
