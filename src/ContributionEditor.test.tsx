@@ -372,6 +372,38 @@ describe("Contribution Editor rendering", () => {
     expect(markup).toContain('aria-required="true"');
   });
 
+  test("Quote and Prayer Request editors hide redundant Title fields", () => {
+    const quoteMarkup = renderToStaticMarkup(
+      <ContributionEditor
+        allowedContributionTypes={["quote"]}
+        context={[romansTag, csLewisTag]}
+        onSubmitSource={() => ({ status: "submitted" })}
+        selectedKnowledgeType="quote"
+      />,
+    );
+    expect(quoteMarkup).toContain('data-knowledge-type="quote"');
+    expect(quoteMarkup).not.toContain(">Title<");
+    expect(quoteMarkup).not.toContain("Add title");
+    expect(quoteMarkup).not.toContain('type="text"');
+    expect(quoteMarkup).toContain('class="kb-contribution-rich-text"');
+
+    const prayerRequestMarkup = renderToStaticMarkup(
+      <ContributionEditor
+        allowedContributionTypes={["prayerRequest"]}
+        context={[romansTag]}
+        onSubmitSource={() => ({ status: "submitted" })}
+        selectedKnowledgeType="prayerRequest"
+      />,
+    );
+    expect(prayerRequestMarkup).toContain(
+      'data-knowledge-type="prayerRequest"',
+    );
+    expect(prayerRequestMarkup).not.toContain(">Title<");
+    expect(prayerRequestMarkup).not.toContain("Add title");
+    expect(prayerRequestMarkup).not.toContain('type="text"');
+    expect(prayerRequestMarkup).toContain('class="kb-contribution-rich-text"');
+  });
+
   test("Words is titleless by default but can reveal an optional Title", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
@@ -632,6 +664,34 @@ describe("Contribution Editor payload and sources", () => {
       body: "Raw chapel notes\nSecond line should stay in the body.",
       knowledgeType: "words",
       title: "Raw chapel notes",
+    });
+  });
+
+  test("hidden body-preview types derive stored labels from body text", () => {
+    const quoteInput = createContributionInput({
+      body: "Courage is every virtue at the testing point.",
+      context: [romansTag, csLewisTag],
+      knowledgeType: "quote",
+      title: "This stale title should be ignored",
+    });
+
+    expect(quoteInput).toMatchObject({
+      body: "Courage is every virtue at the testing point.",
+      knowledgeType: "quote",
+      title: "Courage is every virtue at the testing point.",
+    });
+
+    const prayerRequestInput = createContributionInput({
+      body: "Please pray for wisdom during finals.\nSecond line stays in body.",
+      context: [romansTag],
+      knowledgeType: "prayerRequest",
+      title: "This stale title should be ignored",
+    });
+
+    expect(prayerRequestInput).toMatchObject({
+      body: "Please pray for wisdom during finals.\nSecond line stays in body.",
+      knowledgeType: "prayerRequest",
+      title: "Please pray for wisdom during finals.",
     });
   });
 

@@ -474,7 +474,7 @@ describe("ReviewSlotCard", () => {
         sourceProposalId: reviewSlotFixture.smartStorageProposalId,
         suggestionKind: "staleProposalRefresh",
         targetContractSnapshotVersion: "mvp-smart-storage-contract-v3",
-        targetTypeBehaviorSnapshotVersion: "mvp-type-behavior-v4",
+        targetTypeBehaviorSnapshotVersion: "mvp-type-behavior-v5",
       },
       role: "refresh",
       status: "stale",

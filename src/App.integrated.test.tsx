@@ -2041,7 +2041,7 @@ vi.mock("convex/react", () => ({
         sourceProposalId,
         suggestionKind: "staleProposalRefresh",
         targetContractSnapshotVersion: "mvp-smart-storage-contract-v3",
-        targetTypeBehaviorSnapshotVersion: "mvp-type-behavior-v4",
+        targetTypeBehaviorSnapshotVersion: "mvp-type-behavior-v5",
       };
       const refreshedSlot = createMockSmartStorageReviewSlot({
         bodyPreview: "Review this proposal under the current contract.",
@@ -4107,7 +4107,7 @@ describe("MVP Explore/Contribute loop", () => {
           sourceProposalId: "smart-storage-proposal-secondary-quote",
           suggestionKind: "staleProposalRefresh",
           targetContractSnapshotVersion: "mvp-smart-storage-contract-v3",
-          targetTypeBehaviorSnapshotVersion: "mvp-type-behavior-v4",
+          targetTypeBehaviorSnapshotVersion: "mvp-type-behavior-v5",
         },
         role: "refresh",
         status: "stale",

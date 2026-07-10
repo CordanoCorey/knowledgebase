@@ -1585,7 +1585,9 @@ function createContributionInputTitle({
   }
 
   if (titleBehavior.generatedTitleKind === "bodyPreview") {
-    return trimmedTitle || createWordsTitle(body);
+    return titleBehavior.input === "addable" && trimmedTitle
+      ? trimmedTitle
+      : createBodyPreviewTitle(body, knowledgeType);
   }
 
   return trimmedTitle;
@@ -1944,14 +1946,17 @@ function removeUrlFromText(text: string, url: string) {
     .trimStart();
 }
 
-function createWordsTitle(body: string) {
+function createBodyPreviewTitle(
+  body: string,
+  knowledgeType: AuthorableKnowledgeType,
+) {
   const firstLine = body
     .split(/\r?\n/)
     .map((line) => line.trim())
     .find(Boolean);
   const source = firstLine ?? body.trim().replace(/\s+/g, " ");
 
-  return limitContributionTitle(source || "Words");
+  return limitContributionTitle(source || formatKnowledgeTypeLabel(knowledgeType));
 }
 
 function limitContributionTitle(text: string) {
