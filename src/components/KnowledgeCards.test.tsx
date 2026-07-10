@@ -4,10 +4,15 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { KnowledgeEntryCard, KnowledgeSlotCard } from "./KnowledgeCards";
+import {
+  KnowledgeEntryCard,
+  KnowledgeSlotCard,
+  ReviewSlotCard,
+} from "./KnowledgeCards";
 import type {
   KnowledgeEntrySummary,
   KnowledgeSlotSummary,
+  SmartStorageReviewSlotSummary,
 } from "../knowledgeContracts";
 
 const entryFixture: KnowledgeEntrySummary = {
@@ -37,6 +42,42 @@ const slotFixture: KnowledgeSlotSummary = {
   targetLabel: "Youth teachers",
   dueAt: Date.UTC(2026, 1, 1, 12),
   href: "/slots/slot-romans-8-lesson",
+};
+
+const reviewSlotFixture: SmartStorageReviewSlotSummary = {
+  acceptReady: true,
+  acceptability: {
+    blockedByProposalIds: [],
+    status: "ready",
+  },
+  bodyPreview: "Review the extracted quote before it becomes a Knowledge Entry.",
+  canAssign: false,
+  contextPreviewTagLabels: ["Romans 8", "Suffering and hope"],
+  contributionSubmissionId: "contribution-submission-romans-8",
+  createdAt: Date.UTC(2026, 0, 15, 13),
+  evidenceSummary: "1 evidence citation",
+  group: {
+    href: "/entries/entry-romans-8-lesson",
+    id: "entry-romans-8-lesson",
+    kind: "primaryEntry",
+    title: "Middle school discussion guide: Hope in the Spirit",
+  },
+  href: "/smart-storage/contribution-submission-romans-8?proposalId=proposal-romans-8-quote",
+  id: "review-slot:proposal-romans-8-quote",
+  originSession: {
+    href: "/smart-storage/contribution-submission-romans-8",
+    id: "contribution-submission-romans-8",
+    title: "Romans 8 lesson source",
+  },
+  proposedKnowledgeType: "quote",
+  reviewScopeLabel: "Private review",
+  role: "secondary",
+  smartStorageProposalId: "proposal-romans-8-quote",
+  smartStorageRunId: "smart-storage-run-romans-8",
+  sourceCount: 1,
+  status: "drafted",
+  title: "Hope and suffering quote",
+  updatedAt: Date.UTC(2026, 0, 15, 14),
 };
 
 let container: HTMLDivElement | null = null;
@@ -72,6 +113,39 @@ describe("KnowledgeEntryCard", () => {
     expect(markup).toContain('href="/scripture/romans-8"');
     expect(markup).toContain('href="/goto/suffering-and-hope"');
     expect(markup).toContain('href="/goto/youth-lesson"');
+  });
+
+  it("features thumbnail-rich primary and context Tags", () => {
+    const markup = renderToStaticMarkup(
+      <KnowledgeEntryCard
+        entry={{
+          ...entryFixture,
+          primaryTag: {
+            canonicalKey: "romans-8",
+            href: "/scripture/romans-8",
+            id: "romans-8",
+            knowledgeType: "biblePassage",
+            label: "Romans 8",
+            passageString: "romans-8",
+            thumbnailUrl: "https://images.example/romans-8.jpg",
+          },
+          contextPreviewTags: [
+            {
+              canonicalKey: "suffering-and-hope",
+              href: "/goto/suffering-and-hope",
+              id: "suffering-and-hope",
+              knowledgeType: "topic",
+              label: "Suffering and hope",
+              thumbnailUrl: "https://images.example/suffering.jpg",
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(markup).toContain('src="https://images.example/romans-8.jpg"');
+    expect(markup).toContain('src="https://images.example/suffering.jpg"');
+    expect(markup).toContain("kb-referent-tag-thumbnail");
   });
 
   it("does not render Human Weight for non-weight-bearing entries", () => {
@@ -269,6 +343,206 @@ describe("KnowledgeSlotCard", () => {
   });
 });
 
+describe("ReviewSlotCard", () => {
+  it("renders Smart Storage review work with Knowledge Slot-like card grammar", () => {
+    const markup = renderToStaticMarkup(
+      <ReviewSlotCard reviewSlot={reviewSlotFixture} />,
+    );
+
+    expect(markup).toContain("Review Slot");
+    expect(markup).toContain("Hope and suffering quote");
+    expect(markup).toContain("Quote");
+    expect(markup).toContain("Ready to review");
+    expect(markup).toContain("Secondary review");
+    expect(markup).toContain("Review proposed Quote");
+    expect(markup).toContain(reviewSlotFixture.bodyPreview);
+    expect(markup).toContain("Private review");
+    expect(markup).toContain("Unassigned");
+    expect(markup).toContain("1 evidence citation");
+    expect(markup).toContain("Jan 15, 2026");
+    expect(markup).toContain("Romans 8");
+    expect(markup).toContain("Suffering and hope");
+    expect(markup).toContain("Review Quote");
+    expect(markup).toContain(
+      'href="/smart-storage/contribution-submission-romans-8?proposalId=proposal-romans-8-quote"',
+    );
+  });
+
+  it("uses the resume handler for the review CTA", () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const onResume = vi.fn();
+
+    act(() => {
+      root?.render(
+        <ReviewSlotCard onResume={onResume} reviewSlot={reviewSlotFixture} />,
+      );
+    });
+
+    const cta = getLinkByText(container, "Review Quote");
+    let clickResult = true;
+    act(() => {
+      clickResult = cta.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true }),
+      );
+    });
+
+    expect(clickResult).toBe(false);
+    expect(onResume).toHaveBeenCalledTimes(1);
+    expect(onResume).toHaveBeenCalledWith(reviewSlotFixture);
+  });
+
+  it("distinguishes Known Referent matches from new-entry reference resolutions", () => {
+    const knownMatchMarkup = renderToStaticMarkup(
+      <ReviewSlotCard
+        reviewSlot={{
+          ...reviewSlotFixture,
+          proposedKnowledgeType: "topic",
+          referenceResolution: {
+            candidateTag: {
+              canonicalKey: "mercy",
+              href: "/goto/mercy",
+              id: "mercy",
+              knowledgeType: "topic",
+              label: "Mercy",
+            },
+            candidateTagId: "tag-mercy",
+            mode: "knownReferentMatch",
+            outcome: "pending",
+            requiredTag: {
+              canonicalKey: "mercy",
+              href: "/goto/mercy",
+              id: "mercy",
+              knowledgeType: "topic",
+              label: "Mercy",
+            },
+          },
+          role: "referenceResolution",
+          title: "Resolve Mercy topic",
+        }}
+      />,
+    );
+    const newEntryMarkup = renderToStaticMarkup(
+      <ReviewSlotCard
+        reviewSlot={{
+          ...reviewSlotFixture,
+          proposedKnowledgeType: "person",
+          referenceResolution: {
+            mode: "newEntryProposal",
+            outcome: "pending",
+            requiredTag: {
+              canonicalKey: "rev-thomas-walker",
+              href: "/goto/rev-thomas-walker",
+              id: "rev-thomas-walker",
+              knowledgeType: "person",
+              label: "Rev. Thomas Walker",
+            },
+          },
+          role: "referenceResolution",
+          title: "Create Rev. Thomas Walker",
+        }}
+      />,
+    );
+
+    expect(knownMatchMarkup).toContain("Reference resolution");
+    expect(knownMatchMarkup).toContain("Known Referent match: Mercy");
+    expect(newEntryMarkup).toContain(
+      "New Entry creates Referent: Person - Rev. Thomas Walker",
+    );
+  });
+
+  it("renders refresh origin, reason, and actions for stale Review Slots", async () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const onDismissRefresh = vi.fn(async () => undefined);
+    const onRequestRefresh = vi.fn(async () => undefined);
+    const staleRefreshSlot: SmartStorageReviewSlotSummary = {
+      ...reviewSlotFixture,
+      acceptReady: false,
+      acceptability: {
+        blockedByProposalIds: [],
+        status: "closed",
+      },
+      refresh: {
+        candidateKey: "proposal:proposal-romans-8-quote|refresh",
+        origin: "contractRefresh",
+        originLabel: "Refresh",
+        reason:
+          "This proposal was generated under an older Smart Storage Contract.",
+        sourceProposalId: reviewSlotFixture.smartStorageProposalId,
+        suggestionKind: "staleProposalRefresh",
+        targetContractSnapshotVersion: "mvp-smart-storage-contract-v3",
+        targetTypeBehaviorSnapshotVersion: "mvp-type-behavior-v4",
+      },
+      role: "refresh",
+      status: "stale",
+    };
+
+    act(() => {
+      root?.render(
+        <ReviewSlotCard
+          onDismissRefresh={onDismissRefresh}
+          onRequestRefresh={onRequestRefresh}
+          reviewSlot={staleRefreshSlot}
+        />,
+      );
+    });
+
+    expect(container.textContent).toContain("Review Slot - Refresh");
+    expect(container.textContent).toContain("Refresh review");
+    expect(container.textContent).toContain(
+      "This proposal was generated under an older Smart Storage Contract.",
+    );
+
+    await clickButton(getButtonByText(container, "Request Refresh"));
+    await clickButton(getButtonByText(container, "Dismiss"));
+
+    expect(onRequestRefresh).toHaveBeenCalledWith(staleRefreshSlot);
+    expect(onDismissRefresh).toHaveBeenCalledWith(staleRefreshSlot);
+  });
+
+  it("submits a reviewer assignment when assignment is allowed", async () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const onAssign = vi.fn(async () => undefined);
+
+    act(() => {
+      root?.render(
+        <ReviewSlotCard
+          onAssign={onAssign}
+          reviewSlot={{
+            ...reviewSlotFixture,
+            assignment: {
+              assignedAt: Date.UTC(2026, 0, 15, 14),
+              assignedByUserId: "owner-user",
+              targetKind: "user",
+              targetLabel: "Ada Reviewer",
+              targetUserId: "reviewer-user",
+            },
+            canAssign: true,
+          }}
+        />,
+      );
+    });
+
+    const input = getInput(container, "Reviewer user ID");
+    await setInputValue(input, "new-reviewer-user");
+    await clickButton(getButtonByText(container, "Send"));
+
+    expect(onAssign).toHaveBeenCalledTimes(1);
+    expect(onAssign).toHaveBeenCalledWith(
+      expect.objectContaining({
+        smartStorageProposalId: reviewSlotFixture.smartStorageProposalId,
+      }),
+      "new-reviewer-user",
+    );
+    expect(container.textContent).toContain("Ada Reviewer");
+  });
+});
+
 function getLinkByText(element: HTMLElement, text: string) {
   const link = Array.from(element.querySelectorAll("a")).find(
     (candidate) => candidate.textContent === text,
@@ -298,12 +572,37 @@ function getButtonByText(element: HTMLElement, text: string) {
   return button;
 }
 
+function getInput(element: HTMLElement, label: string) {
+  const labels = Array.from(element.querySelectorAll("label"));
+  const matchingLabel = labels.find((candidate) =>
+    candidate.textContent?.includes(label),
+  );
+  const input = matchingLabel?.querySelector("input");
+  if (!(input instanceof HTMLInputElement)) {
+    throw new Error(`Missing input labelled "${label}"`);
+  }
+
+  return input;
+}
+
 async function clickButton(button: HTMLButtonElement) {
   await act(async () => {
     button.dispatchEvent(
       new MouseEvent("click", { bubbles: true, cancelable: true }),
     );
     await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
+async function setInputValue(input: HTMLInputElement, value: string) {
+  await act(async () => {
+    const valueSetter = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )?.set;
+    valueSetter?.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
     await Promise.resolve();
   });
 }

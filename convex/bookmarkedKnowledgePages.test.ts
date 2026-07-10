@@ -36,6 +36,7 @@ type ProfileBookmark = {
   label: string;
   organizationKind: string;
   organizationReferentId: Id<"referents">;
+  pageKind?: string;
   pageKey: string;
   secondaryLabel: string;
 };
@@ -50,6 +51,35 @@ describe("Bookmarked Knowledge Pages", () => {
     ) as ProfileBookmark[];
 
     expect(bookmarks).toEqual([]);
+  });
+
+  test("bookmarks a generic Scripture Knowledge Page for the current user", async () => {
+    const { authed } = await seedAllowedUser();
+
+    const bookmark = await authed.mutation(
+      api.bookmarkedKnowledgePages.bookmarkKnowledgePage,
+      {
+        href: "/scripture/matthew-5-9",
+        label: "Matthew 5:9",
+        pageKey: "scripture:matthew-5-9",
+        pageKind: "scripture",
+        secondaryLabel: "Bible Passage",
+      },
+    ) as ProfileBookmark;
+
+    expect(bookmark).toMatchObject({
+      href: "/scripture/matthew-5-9",
+      label: "Matthew 5:9",
+      pageKind: "scripture",
+      pageKey: "scripture:matthew-5-9",
+      secondaryLabel: "Bible Passage",
+    });
+
+    const bookmarks = await authed.query(
+      api.bookmarkedKnowledgePages.listForProfile,
+      {},
+    ) as ProfileBookmark[];
+    expect(bookmarks).toEqual([expect.objectContaining({ pageKey: bookmark.pageKey })]);
   });
 
   test("bookmarks an accessible Organization Knowledge Page for the current user", async () => {

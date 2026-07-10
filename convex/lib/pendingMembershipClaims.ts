@@ -73,7 +73,7 @@ export async function claimPendingOrganizationMembershipsForVerifiedEmail(
     return emptyClaimResult();
   }
 
-  const personReferentId = await upsertUserProfile(
+  const profile = await upsertUserProfile(
     ctx,
     user,
     normalizedEmail,
@@ -111,7 +111,7 @@ export async function claimPendingOrganizationMembershipsForVerifiedEmail(
       }
 
       const personConsolidationReviewId = await recordPersonConsolidationReview(ctx, {
-        candidatePersonReferentId: personReferentId,
+        candidatePersonReferentId: profile.personReferentId,
         claimedContactValue: normalizedEmail,
         claimSource: options.claimSource,
         membershipId: pendingMembership._id,
@@ -168,9 +168,14 @@ export async function claimPendingOrganizationMembershipsForVerifiedEmail(
         membershipId: existingUserMembership._id,
         organizationReferentId,
         pendingPersonReferentId: pendingPersonReferent._id,
-        resultingPersonReferentId: personReferentId,
+        resultingPersonReferentId: profile.personReferentId,
         updatedAt: now,
         verifiedContactIdentityId: options.verifiedContactIdentityId,
+      });
+      await upsertOrganizationTagRecognition(ctx, {
+        organizationReferentId,
+        tagId: profile.personTagId,
+        updatedAt: now,
       });
       claimedMemberships.push({
         membershipId: existingUserMembership._id,
@@ -183,7 +188,12 @@ export async function claimPendingOrganizationMembershipsForVerifiedEmail(
     await ctx.db.patch(pendingMembership._id, {
       memberUserId: user._id,
       membershipStatus: "active",
-      personReferentId,
+      personReferentId: profile.personReferentId,
+      updatedAt: now,
+    });
+    await upsertOrganizationTagRecognition(ctx, {
+      organizationReferentId,
+      tagId: profile.personTagId,
       updatedAt: now,
     });
     await recordMembershipClaim(ctx, {
@@ -193,7 +203,7 @@ export async function claimPendingOrganizationMembershipsForVerifiedEmail(
       membershipId: pendingMembership._id,
       organizationReferentId,
       pendingPersonReferentId: pendingPersonReferent._id,
-      resultingPersonReferentId: personReferentId,
+      resultingPersonReferentId: profile.personReferentId,
       updatedAt: now,
       verifiedContactIdentityId: options.verifiedContactIdentityId,
     });
@@ -250,25 +260,14 @@ async function isAutoClaimablePendingPerson(
       q.eq("representedReferentId", pendingPersonReferent._id),
     )
     .take(MAX_PERSON_ENTRIES_PER_REFERENT);
-  if (entries.length !== 1) {
+  if (entries.length > 1) {
     return false;
   }
 
-  const personEntry = entries[0];
-  if (
-    personEntry.knowledgeType !== "person" ||
-    personEntry.title !== email ||
-    personEntry.previewText !== email ||
-    personEntry.searchText !== `${email} ${email}` ||
-    personEntry.primaryTagLabel !== email ||
-    personEntry.contextPreviewTagLabels.length !== 0 ||
-    personEntry.createdByUserId !== undefined ||
-    personEntry.publicPreviewText !== undefined
-  ) {
-    return false;
-  }
-
-  const primaryTag = await ctx.db.get(personEntry.primaryTagId);
+  const primaryTag = await getPrimaryTagForReferent(
+    ctx,
+    pendingPersonReferent._id,
+  );
   if (
     !primaryTag ||
     primaryTag.knowledgeType !== "person" ||
@@ -280,12 +279,29 @@ async function isAutoClaimablePendingPerson(
     return false;
   }
 
-  const personEntries = await ctx.db
-    .query("personEntries")
-    .withIndex("by_entryId", (q) => q.eq("entryId", personEntry._id))
-    .take(2);
-  if (personEntries.length !== 1) {
-    return false;
+  const personEntry = entries[0];
+  if (personEntry !== undefined) {
+    if (
+      personEntry.knowledgeType !== "person" ||
+      personEntry.title !== email ||
+      personEntry.previewText !== email ||
+      personEntry.searchText !== `${email} ${email}` ||
+      personEntry.primaryTagLabel !== email ||
+      personEntry.primaryTagId !== primaryTag._id ||
+      personEntry.contextPreviewTagLabels.length !== 0 ||
+      personEntry.createdByUserId !== undefined ||
+      personEntry.publicPreviewText !== undefined
+    ) {
+      return false;
+    }
+
+    const personEntries = await ctx.db
+      .query("personEntries")
+      .withIndex("by_entryId", (q) => q.eq("entryId", personEntry._id))
+      .take(2);
+    if (personEntries.length !== 1) {
+      return false;
+    }
   }
 
   for (const membershipStatus of NON_CLAIMABLE_MEMBERSHIP_STATUSES) {
@@ -383,6 +399,18 @@ async function getMembershipByUserAndOrganization(
     .take(10);
 
   return memberships[0] ?? null;
+}
+
+async function getPrimaryTagForReferent(
+  ctx: MutationCtx,
+  referentId: Id<"referents">,
+) {
+  const tags = await ctx.db
+    .query("tags")
+    .withIndex("by_referentId", (q) => q.eq("referentId", referentId))
+    .take(10);
+
+  return tags.find((tag) => tag.knowledgeType === "person") ?? null;
 }
 
 async function recordMembershipClaim(
@@ -502,7 +530,16 @@ async function upsertUserProfile(
     .withIndex("by_userId", (q) => q.eq("userId", user._id))
     .unique();
   if (existingProfile) {
-    return existingProfile.personReferentId;
+    if (existingProfile.personEntryId !== undefined) {
+      await ctx.db.patch(existingProfile._id, {
+        personEntryId: undefined,
+        updatedAt: now,
+      });
+    }
+    return {
+      personReferentId: existingProfile.personReferentId,
+      personTagId: existingProfile.personTagId,
+    };
   }
 
   const name = normalizeName(user.name ?? email) || email;
@@ -518,34 +555,25 @@ async function upsertUserProfile(
     lookupKey: canonicalKey,
     referentId: personReferentId,
   });
-  const personEntryId = await upsertKnowledgeEntry(ctx, {
-    knowledgeType: "person",
-    previewText: email,
-    primaryTagId: personTagId,
-    primaryTagLabel: name,
-    representedReferentId: personReferentId,
+  await upsertPersonReferentDetail(ctx, {
+    referentId: personReferentId,
     searchText: `${name} ${email}`,
-    title: name,
-    updatedAt: now,
   });
-  const personEntry = await ctx.db
-    .query("personEntries")
-    .withIndex("by_entryId", (q) => q.eq("entryId", personEntryId))
-    .unique();
-  if (!personEntry) {
-    await ctx.db.insert("personEntries", { entryId: personEntryId });
-  }
+  await upsertUserTagRecognition(ctx, {
+    tagId: personTagId,
+    updatedAt: now,
+    userId: user._id,
+  });
 
   await ctx.db.insert("userProfiles", {
     createdAt: now,
-    personEntryId,
     personReferentId,
     personTagId,
     updatedAt: now,
     userId: user._id,
   });
 
-  return personReferentId;
+  return { personReferentId, personTagId };
 }
 
 async function upsertReferent(
@@ -612,84 +640,93 @@ async function upsertPrimaryTag(
   return existingTag._id;
 }
 
-async function upsertKnowledgeEntry(
+async function upsertPersonReferentDetail(
   ctx: MutationCtx,
-  entry: {
-    knowledgeType: Doc<"knowledgeEntries">["knowledgeType"];
-    previewText: string;
-    primaryTagId: Id<"tags">;
-    primaryTagLabel: string;
-    representedReferentId: Id<"referents">;
+  detail: {
+    referentId: Id<"referents">;
     searchText: string;
-    title: string;
+  },
+) {
+  const existingDetail = await ctx.db
+    .query("personReferentDetails")
+    .withIndex("by_referentId", (q) => q.eq("referentId", detail.referentId))
+    .unique();
+  if (!existingDetail) {
+    await ctx.db.insert("personReferentDetails", detail);
+    return;
+  }
+
+  if (existingDetail.searchText !== detail.searchText) {
+    await ctx.db.patch(existingDetail._id, {
+      searchText: detail.searchText,
+    });
+  }
+}
+
+async function upsertUserTagRecognition(
+  ctx: MutationCtx,
+  recognition: {
+    tagId: Id<"tags">;
+    updatedAt: number;
+    userId: Id<"users">;
+  },
+) {
+  const existingRecognition = await ctx.db
+    .query("tagRecognitions")
+    .withIndex("by_userId_and_tagId", (q) =>
+      q.eq("userId", recognition.userId).eq("tagId", recognition.tagId),
+    )
+    .unique();
+  if (!existingRecognition) {
+    await ctx.db.insert("tagRecognitions", {
+      lastInteractedAt: recognition.updatedAt,
+      recognizedAt: recognition.updatedAt,
+      recognizerKind: "user",
+      tagId: recognition.tagId,
+      userId: recognition.userId,
+    });
+    return;
+  }
+
+  await ctx.db.patch(existingRecognition._id, {
+    lastInteractedAt: recognition.updatedAt,
+    recognizerKind: "user",
+    userId: recognition.userId,
+  });
+}
+
+async function upsertOrganizationTagRecognition(
+  ctx: MutationCtx,
+  recognition: {
+    organizationReferentId: Id<"referents">;
+    tagId: Id<"tags">;
     updatedAt: number;
   },
 ) {
-  const existingEntry = await getKnowledgeEntryByReferent(
-    ctx,
-    entry.representedReferentId,
-    entry.knowledgeType,
-  );
-  const nextEntry = {
-    contextPreviewTagLabels: [],
-    discoverabilityKind: "public" as const,
-    discoverabilityTargetKey: "public",
-    knowledgeType: entry.knowledgeType,
-    previewText: entry.previewText,
-    primaryTagId: entry.primaryTagId,
-    primaryTagLabel: entry.primaryTagLabel,
-    representedReferentId: entry.representedReferentId,
-    searchText: entry.searchText,
-    title: entry.title,
-    visibilityKind: "public" as const,
-    visibilityTargetKey: "public",
-  };
-
-  if (!existingEntry) {
-    return await ctx.db.insert("knowledgeEntries", {
-      ...nextEntry,
-      createdAt: entry.updatedAt,
-      updatedAt: entry.updatedAt,
-    });
-  }
-
-  const patch: Partial<Doc<"knowledgeEntries">> = {};
-  if (existingEntry.title !== nextEntry.title) {
-    patch.title = nextEntry.title;
-  }
-  if (existingEntry.previewText !== nextEntry.previewText) {
-    patch.previewText = nextEntry.previewText;
-  }
-  if (existingEntry.searchText !== nextEntry.searchText) {
-    patch.searchText = nextEntry.searchText;
-  }
-  if (existingEntry.primaryTagId !== nextEntry.primaryTagId) {
-    patch.primaryTagId = nextEntry.primaryTagId;
-  }
-  if (existingEntry.primaryTagLabel !== nextEntry.primaryTagLabel) {
-    patch.primaryTagLabel = nextEntry.primaryTagLabel;
-  }
-  if (hasPatch(patch)) {
-    patch.updatedAt = entry.updatedAt;
-    await ctx.db.patch(existingEntry._id, patch);
-  }
-
-  return existingEntry._id;
-}
-
-async function getKnowledgeEntryByReferent(
-  ctx: MutationCtx,
-  representedReferentId: Id<"referents">,
-  knowledgeType: Doc<"knowledgeEntries">["knowledgeType"],
-) {
-  const entries = await ctx.db
-    .query("knowledgeEntries")
-    .withIndex("by_representedReferentId", (q) =>
-      q.eq("representedReferentId", representedReferentId),
+  const existingRecognition = await ctx.db
+    .query("tagRecognitions")
+    .withIndex("by_organizationReferentId_and_tagId", (q) =>
+      q
+        .eq("organizationReferentId", recognition.organizationReferentId)
+        .eq("tagId", recognition.tagId),
     )
-    .take(MAX_PERSON_ENTRIES_PER_REFERENT);
+    .unique();
+  if (!existingRecognition) {
+    await ctx.db.insert("tagRecognitions", {
+      lastInteractedAt: recognition.updatedAt,
+      organizationReferentId: recognition.organizationReferentId,
+      recognizedAt: recognition.updatedAt,
+      recognizerKind: "organization",
+      tagId: recognition.tagId,
+    });
+    return;
+  }
 
-  return entries.find((entry) => entry.knowledgeType === knowledgeType) ?? null;
+  await ctx.db.patch(existingRecognition._id, {
+    lastInteractedAt: recognition.updatedAt,
+    organizationReferentId: recognition.organizationReferentId,
+    recognizerKind: "organization",
+  });
 }
 
 function normalizeName(value: string) {

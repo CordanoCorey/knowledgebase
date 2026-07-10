@@ -13,12 +13,15 @@ import {
   createKnowledgeRequestDraft,
   NAVIGATOR_TAG_FIXTURES,
   resolveTag,
+  resolveTagLabel,
 } from "./knowledgeContext";
+import { parseBiblePassageReference } from "../convex/lib/scriptureReferences";
 import {
   type ActiveTag,
   type KnowledgeRequestDraft,
 } from "./knowledgeContracts";
 import { KnowledgeTypeBadge } from "./components/KnowledgeTypeIcon";
+import { ReferentTagVisual } from "./components/ReferentTagLink";
 
 // The navigator composer models "ask/search/map to tags" as plain draft state
 // so UI interactions and pure mapping helpers can evolve independently.
@@ -302,6 +305,10 @@ export function KnowledgeNavigatorQueryInput({
               role="option"
               type="button"
             >
+              <ReferentTagVisual
+                className="kb-request-suggestion-visual"
+                tag={suggestion.tag}
+              />
               <span>{suggestion.tag.label}</span>
               <KnowledgeTypeBadge
                 className="kb-request-suggestion-type"
@@ -354,6 +361,12 @@ export function getKnowledgeNavigatorQuerySuggestions(
       tag,
     });
     suggestedTagIds.add(tag.id);
+  }
+
+  const parsedPassage = parseBiblePassageReference(requestText);
+  if (parsedPassage) {
+    addSuggestion(resolveTagLabel(parsedPassage.label), "label");
+    return suggestions.slice(0, limit);
   }
 
   for (const tag of NAVIGATOR_TAG_FIXTURES) {
@@ -441,6 +454,11 @@ export function mapKnowledgeRequestToTags(
     (tags, tag) => addActiveTag(tags, tag),
     [],
   );
+  const parsedPassage = parseBiblePassageReference(requestText);
+  if (parsedPassage) {
+    mappedTags = addActiveTag(mappedTags, resolveTagLabel(parsedPassage.label));
+    return mappedTags;
+  }
 
   for (const rule of KNOWLEDGE_REQUEST_TAG_RULES) {
     if (rule.patterns.some((pattern) => pattern.test(normalizedText))) {

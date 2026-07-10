@@ -40,6 +40,7 @@ import {
   type AuthorableKnowledgeType,
   type ContributionInput,
   type ContributionMode,
+  type ContributionOrganizationOption,
   type ContributionPreview,
   type ContributionResult,
   type DraftLinkPreviewResult,
@@ -94,6 +95,7 @@ export type ContributionEditorProps = ContributionKnowledgeTypeSources & {
   onPostDirect?: ContributionSubmitHandler;
   onStoreSmartly?: ContributionSubmitHandler;
   onSubmitSource?: ContributionSubmitHandler;
+  organizationOptions?: readonly ContributionOrganizationOption[];
   parentEntryTitle?: string;
 };
 
@@ -175,6 +177,7 @@ export function ContributionEditor({
   onPostDirect,
   onStoreSmartly,
   onSubmitSource,
+  organizationOptions = [],
   parentEntryTitle,
   selectedKnowledgeType,
   slot,
@@ -188,6 +191,8 @@ export function ContributionEditor({
   const [isAddableTitleVisible, setIsAddableTitleVisible] = useState(
     initialTitle.trim().length > 0,
   );
+  const [selectedOrganizationReferentId, setSelectedOrganizationReferentId] =
+    useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<
     SmartStorageUploadedFileInput[]
   >([]);
@@ -219,6 +224,11 @@ export function ContributionEditor({
     activeKnowledgeType,
     guidedContributionType,
   );
+  const activeAnnouncementOrganization = getActiveAnnouncementOrganization({
+    knowledgeType: activeKnowledgeType,
+    organizationOptions,
+    selectedOrganizationReferentId,
+  });
   const activeTitleBehavior = getComposerTitleBehavior(activeKnowledgeType);
   const supportsSmartStorageSources = activeGuidedContributionType === null;
   const detectedExternalUrls = supportsSmartStorageSources
@@ -253,6 +263,7 @@ export function ContributionEditor({
     hasExplicitWordsTitle,
     hasSupplementalSources,
     knowledgeType: activeKnowledgeType,
+    announcementOrganization: activeAnnouncementOrganization,
     parentEntryTitle,
     slot,
     title,
@@ -271,6 +282,7 @@ export function ContributionEditor({
   const secondaryMode = getAlternateContributionMode(contributionPreview.mode);
   const showsSecondarySubmit =
     activeGuidedContributionType === null &&
+    activeKnowledgeType !== "announcement" &&
     !isSmartStorageForced({
       hasExplicitWordsTitle,
       knowledgeType: activeKnowledgeType,
@@ -478,12 +490,20 @@ export function ContributionEditor({
   }
 
   async function submitContribution(mode: ContributionMode) {
+    if (
+      activeKnowledgeType === "announcement" &&
+      activeAnnouncementOrganization === undefined
+    ) {
+      return;
+    }
+
     const input = createContributionInput({
       body,
       context,
       externalUrls,
       guidedContributionType: activeGuidedContributionType,
       knowledgeType: activeKnowledgeType,
+      announcementOrganization: activeAnnouncementOrganization,
       parentEntryTitle,
       slot,
       title,
@@ -630,6 +650,33 @@ export function ContributionEditor({
         Add title
       </button>
     ) : null;
+  const organizationField =
+    activeKnowledgeType === "announcement" ? (
+      <label className="kb-contribution-field kb-contribution-organization-field">
+        <span>Organization</span>
+        <select
+          aria-label="Announcement Organization"
+          onChange={(event) =>
+            setSelectedOrganizationReferentId(event.currentTarget.value)
+          }
+          required
+          value={activeAnnouncementOrganization?.organizationReferentId ?? ""}
+        >
+          {organizationOptions.length === 0 ? (
+            <option value="">No organization available</option>
+          ) : (
+            organizationOptions.map((organization) => (
+              <option
+                key={organization.organizationReferentId}
+                value={organization.organizationReferentId}
+              >
+                {organization.name}
+              </option>
+            ))
+          )}
+        </select>
+      </label>
+    ) : null;
 
   function handleBodyChange(nextValue: RichTextContributionValue) {
     setBody(nextValue.bodyPlainText);
@@ -714,6 +761,7 @@ export function ContributionEditor({
         {sourceTools}
         <div className="kb-contribution-metadata-row">
           {typeField}
+          {organizationField}
           {primaryField === "title" ? bodyField : titleField}
           {addTitleButton}
           {modeChip}
@@ -721,7 +769,11 @@ export function ContributionEditor({
 
         <button
           className="kb-contribution-submit"
-          disabled={submissionState.kind === "submitting"}
+          disabled={
+            submissionState.kind === "submitting" ||
+            (activeKnowledgeType === "announcement" &&
+              activeAnnouncementOrganization === undefined)
+          }
           type="submit"
         >
           {submissionState.kind === "submitting" ? (
@@ -1258,6 +1310,10 @@ export function resolveContributionMode({
   knowledgeType?: AuthorableKnowledgeType;
   slot?: KnowledgeSlotSummary;
 }): ContributionMode {
+  if (knowledgeType === "announcement") {
+    return "direct";
+  }
+
   if (guidedContributionType) {
     return "direct";
   }
@@ -1283,6 +1339,7 @@ export function resolveContributionMode({
 }
 
 export function createContributionPreview({
+  announcementOrganization,
   body,
   context,
   defaultMode,
@@ -1294,6 +1351,7 @@ export function createContributionPreview({
   slot,
   title = "",
 }: {
+  announcementOrganization?: ContributionOrganizationOption;
   body: string;
   context: ActiveTag[];
   defaultMode?: ContributionMode;
@@ -1332,6 +1390,12 @@ export function createContributionPreview({
       value: formatContributionContextPreview(context),
     },
   ];
+  if (knowledgeType === "announcement" && announcementOrganization) {
+    attributes.push({
+      label: "Organization",
+      value: announcementOrganization.name,
+    });
+  }
   const quotedPersonTag = getSingleQuotedPersonContextTag({
     context,
     knowledgeType,
@@ -1441,6 +1505,7 @@ function getUrlsFromKey(urlKey: string) {
 // Convert transient editor state into the backend-safe contribution contract.
 // Optional fields are omitted instead of passed as undefined Convex values.
 export function createContributionInput({
+  announcementOrganization,
   body,
   contributionNote,
   context,
@@ -1452,6 +1517,7 @@ export function createContributionInput({
   title = "",
   uploadedFiles = [],
 }: {
+  announcementOrganization?: ContributionOrganizationOption;
   body: string;
   contributionNote?: string;
   context: ActiveTag[];
@@ -1483,6 +1549,12 @@ export function createContributionInput({
     contextTags: context,
     ...(externalUrls.length > 0 ? { externalUrls } : {}),
     knowledgeType,
+    ...(knowledgeType === "announcement" && announcementOrganization
+      ? {
+          organizationReferentId:
+            announcementOrganization.organizationReferentId,
+        }
+      : {}),
     slotId: slot?.id,
     title: createContributionInputTitle({
       body: bodyText,
@@ -1564,6 +1636,22 @@ function getContributionFieldConfig(
       bodyLabel: "Comment",
       bodyPlaceholder: "Write a comment...",
       bodyPreviewLabel: "Preview",
+      bodyRequired: true,
+      showsBodyField: true,
+      showsTitleField,
+      titleBehavior,
+      titleLabel: titleBehavior.label,
+      titlePlaceholder,
+      titlePreviewLabel,
+      titleRequired: showsTitleField,
+    };
+  }
+
+  if (knowledgeType === "announcement") {
+    return {
+      bodyLabel: "Announcement",
+      bodyPlaceholder: "Write the announcement...",
+      bodyPreviewLabel: "Message",
       bodyRequired: true,
       showsBodyField: true,
       showsTitleField,
@@ -1675,6 +1763,10 @@ function getContributionSubmitLabel(
     return "Comment";
   }
 
+  if (knowledgeType === "announcement") {
+    return "Post Announcement";
+  }
+
   if (knowledgeType === "words") {
     return "Post";
   }
@@ -1767,6 +1859,27 @@ function getAllowedContributionTypes(
   return allowedTypes.length > 0 ? allowedTypes : ["words"];
 }
 
+function getActiveAnnouncementOrganization({
+  knowledgeType,
+  organizationOptions,
+  selectedOrganizationReferentId,
+}: {
+  knowledgeType: AuthorableKnowledgeType;
+  organizationOptions: readonly ContributionOrganizationOption[];
+  selectedOrganizationReferentId: string | null;
+}) {
+  if (knowledgeType !== "announcement") {
+    return undefined;
+  }
+
+  return (
+    organizationOptions.find(
+      (organization) =>
+        organization.organizationReferentId === selectedOrganizationReferentId,
+    ) ?? organizationOptions[0]
+  );
+}
+
 function isSmartStorageForced({
   hasExplicitWordsTitle,
   knowledgeType,
@@ -1774,6 +1887,10 @@ function isSmartStorageForced({
   hasExplicitWordsTitle?: boolean;
   knowledgeType: AuthorableKnowledgeType;
 }) {
+  if (knowledgeType === "announcement") {
+    return false;
+  }
+
   const titleBehavior = getComposerTitleBehavior(knowledgeType);
 
   return (

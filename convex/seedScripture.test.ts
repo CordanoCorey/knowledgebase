@@ -156,6 +156,7 @@ describe("KJV Scripture seed data", () => {
     expect(john316.verses[0]).toMatchObject({
       bookCode: "JHN",
       chapterNumber: 3,
+      href: "/scripture/john-3-16",
       ordinal: 26137,
       text: cleanVerseText(kjvVerses["John 3:16"]),
       verseNumber: 16,
@@ -171,11 +172,13 @@ describe("KJV Scripture seed data", () => {
     expect(romans8.hasText).toBe(true);
     expect(romans8.verses).toHaveLength(39);
     expect(romans8.verses[0]).toMatchObject({
+      href: "/scripture/romans-8-1",
       ordinal: 28118,
       text: cleanVerseText(kjvVerses["Romans 8:1"]),
       verseNumber: 1,
     });
     expect(romans8.verses.at(-1)).toMatchObject({
+      href: "/scripture/romans-8-39",
       ordinal: 28156,
       text: cleanVerseText(kjvVerses["Romans 8:39"]),
       verseNumber: 39,

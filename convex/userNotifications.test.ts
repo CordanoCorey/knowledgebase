@@ -26,7 +26,13 @@ type SeedActionTestResult = {
 
 type InboxNotification = {
   id: Id<"userNotifications">;
-  kind: "access" | "answer" | "event" | "knowledgeSlot" | "subscription";
+  kind:
+    | "access"
+    | "announcement"
+    | "answer"
+    | "event"
+    | "knowledgeSlot"
+    | "subscription";
   receivedAt: number;
   status: "read" | "unread";
   title: string;
@@ -307,7 +313,13 @@ function getSeededUser(
 async function insertNotification(
   t: ReturnType<typeof convexTest>,
   input: {
-    kind: "access" | "answer" | "event" | "knowledgeSlot" | "subscription";
+    kind:
+      | "access"
+      | "announcement"
+      | "answer"
+      | "event"
+      | "knowledgeSlot"
+      | "subscription";
     receivedAt: number;
     status: "read" | "unread";
     title: string;

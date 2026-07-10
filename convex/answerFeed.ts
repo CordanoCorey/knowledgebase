@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
 import { requireAppAccess } from "./lib/appAccess";
+import { getRepresentedReferentThumbnailUrl } from "./lib/referentThumbnails";
 import {
   applyContextExpertiseContextMatch,
   getContextExpertiseAggregateScore,
@@ -45,6 +46,7 @@ const MAX_EXPERT_DETAIL_CONTRIBUTION_LIMIT = 10;
 
 const referentKnowledgeType = v.union(
   v.literal("words"),
+  v.literal("announcement"),
   v.literal("biblePassage"),
   v.literal("topic"),
   v.literal("series"),
@@ -69,6 +71,7 @@ const referentKnowledgeType = v.union(
 
 const authorableKnowledgeType = v.union(
   v.literal("words"),
+  v.literal("announcement"),
   v.literal("topic"),
   v.literal("series"),
   v.literal("question"),
@@ -123,6 +126,7 @@ const activeTagSnapshot = v.object({
   knowledgeType: referentKnowledgeType,
   label: v.string(),
   passageString: v.optional(v.string()),
+  thumbnailUrl: v.optional(v.string()),
 });
 
 const knowledgeEntrySummary = v.object({
@@ -136,7 +140,9 @@ const knowledgeEntrySummary = v.object({
   knowledgeType: authorableKnowledgeType,
   previewText: v.string(),
   primaryTagLabel: v.string(),
+  primaryTag: v.optional(activeTagSnapshot),
   contextPreviewTagLabels: v.array(v.string()),
+  contextPreviewTags: v.optional(v.array(activeTagSnapshot)),
   humanWeight: v.optional(v.number()),
   evidenceMaturity: v.optional(v.number()),
   humanWeightConcern: v.optional(humanWeightConcernSummary),
@@ -195,6 +201,7 @@ const knowledgeSlotSummary = v.object({
   promptText: v.optional(v.string()),
   status: knowledgeSlotStatus,
   contextPreviewTagLabels: v.array(v.string()),
+  contextPreviewTags: v.optional(v.array(activeTagSnapshot)),
   targetLabel: v.string(),
   dueAt: v.optional(v.number()),
   href: v.string(),
@@ -310,7 +317,9 @@ type KnowledgeEntrySummary = {
   knowledgeType: Doc<"knowledgeEntries">["knowledgeType"];
   previewText: string;
   primaryTagLabel: string;
+  primaryTag?: ActiveTagSnapshot;
   contextPreviewTagLabels: string[];
+  contextPreviewTags?: ActiveTagSnapshot[];
   humanWeight?: number;
   evidenceMaturity?: number;
   humanWeightConcern?: HumanWeightConcernSummary;
@@ -327,6 +336,7 @@ type KnowledgeSlotSummary = {
   promptText?: string;
   status: Doc<"knowledgeSlots">["status"];
   contextPreviewTagLabels: string[];
+  contextPreviewTags?: ActiveTagSnapshot[];
   targetLabel: string;
   dueAt?: number;
   href: string;
@@ -340,6 +350,7 @@ type ActiveTagSnapshot = {
   knowledgeType: Doc<"referents">["knowledgeType"];
   label: string;
   passageString?: string;
+  thumbnailUrl?: string;
 };
 
 export const listForActiveTags = query({
@@ -956,6 +967,12 @@ async function summarizeEntry(
     contributor,
   );
   const quoteAttribution = await getQuoteAttributionSummary(ctx, entry);
+  const primaryTag = await getEntryPrimaryTagSnapshot(ctx, entry);
+  const contextPreviewTags = await getEntryContextPreviewTags(ctx, entry._id);
+  const shouldIncludePrimaryTag = primaryTag?.thumbnailUrl !== undefined;
+  const shouldIncludeContextPreviewTags = contextPreviewTags.some(
+    (tag) => tag.thumbnailUrl !== undefined,
+  );
 
   return {
     contributor,
@@ -964,7 +981,9 @@ async function summarizeEntry(
     knowledgeType: entry.knowledgeType,
     previewText: entry.previewText,
     primaryTagLabel: entry.primaryTagLabel,
+    ...(shouldIncludePrimaryTag && primaryTag !== null ? { primaryTag } : {}),
     contextPreviewTagLabels: entry.contextPreviewTagLabels,
+    ...(shouldIncludeContextPreviewTags ? { contextPreviewTags } : {}),
     ...(humanWeight === undefined ? {} : { humanWeight }),
     ...(evidenceSummary === undefined
       ? {}
@@ -974,6 +993,69 @@ async function summarizeEntry(
     ...(quoteAttribution === undefined ? {} : { quoteAttribution }),
     href: `/entries/${entry._id}`,
     updatedAt: entry.updatedAt,
+  };
+}
+
+async function getEntryPrimaryTagSnapshot(
+  ctx: QueryCtx,
+  entry: Doc<"knowledgeEntries">,
+) {
+  const tag = await ctx.db.get(entry.primaryTagId);
+  return tag ? await toActiveTagSnapshot(ctx, tag) : null;
+}
+
+async function getEntryContextPreviewTags(
+  ctx: QueryCtx,
+  entryId: Id<"knowledgeEntries">,
+) {
+  const entryTags = await ctx.db
+    .query("entryTags")
+    .withIndex("by_entryId_and_tagPurpose", (q) =>
+      q.eq("entryId", entryId).eq("tagPurpose", "context"),
+    )
+    .take(MAX_CONTEXT_PREVIEW_TAG_LABELS);
+  const tags: ActiveTagSnapshot[] = [];
+
+  for (const entryTag of entryTags) {
+    const tag = await ctx.db.get(entryTag.tagId);
+    if (!tag) {
+      continue;
+    }
+
+    const snapshot = await toActiveTagSnapshot(ctx, tag);
+    if (snapshot) {
+      tags.push(snapshot);
+    }
+  }
+
+  return tags;
+}
+
+async function toActiveTagSnapshot(
+  ctx: QueryCtx,
+  tag: Doc<"tags">,
+): Promise<ActiveTagSnapshot | null> {
+  const referent = await ctx.db.get(tag.referentId);
+  if (!referent) {
+    return null;
+  }
+
+  const canonicalKey = referent.canonicalKey || tag.lookupKey;
+  const thumbnailUrl = await getRepresentedReferentThumbnailUrl(
+    ctx,
+    tag.referentId,
+  );
+
+  return {
+    canonicalKey,
+    href: getTagHref(tag, canonicalKey),
+    id: tag.lookupKey,
+    knowledgeType: tag.knowledgeType,
+    label: tag.label,
+    ...(tag.knowledgeType === "biblePassage"
+      ? { passageString: tag.lookupKey }
+      : {}),
+    ...(thumbnailUrl === undefined ? {} : { thumbnailUrl }),
   };
 }
 
@@ -2413,20 +2495,26 @@ async function summarizeSlot(
   ctx: QueryCtx,
   slot: Doc<"knowledgeSlots">,
 ): Promise<KnowledgeSlotSummary> {
+  const contextPreviewTags = await getSlotContextPreviewTags(ctx, slot._id);
+  const shouldIncludeContextPreviewTags = contextPreviewTags.some(
+    (tag) => tag.thumbnailUrl !== undefined,
+  );
+
   return {
     id: slot._id,
     title: slot.title,
     requestedKnowledgeType: slot.requestedKnowledgeType,
     ...(slot.promptText === undefined ? {} : { promptText: slot.promptText }),
     status: slot.status,
-    contextPreviewTagLabels: await getSlotContextPreviewTagLabels(ctx, slot._id),
+    contextPreviewTagLabels: contextPreviewTags.map((tag) => tag.label),
+    ...(shouldIncludeContextPreviewTags ? { contextPreviewTags } : {}),
     targetLabel: await getSlotTargetLabel(ctx, slot),
     ...(slot.dueAt === undefined ? {} : { dueAt: slot.dueAt }),
     href: `/slots/${slot._id}`,
   };
 }
 
-async function getSlotContextPreviewTagLabels(
+async function getSlotContextPreviewTags(
   ctx: QueryCtx,
   slotId: Id<"knowledgeSlots">,
 ) {
@@ -2434,16 +2522,19 @@ async function getSlotContextPreviewTagLabels(
     .query("slotTags")
     .withIndex("by_slotId_and_tagId", (q) => q.eq("slotId", slotId))
     .take(MAX_CONTEXT_PREVIEW_TAG_LABELS);
-  const labels = [];
+  const tags: ActiveTagSnapshot[] = [];
 
   for (const slotTag of slotTags) {
     const tag = await ctx.db.get(slotTag.tagId);
     if (tag) {
-      labels.push(tag.label);
+      const snapshot = await toActiveTagSnapshot(ctx, tag);
+      if (snapshot) {
+        tags.push(snapshot);
+      }
     }
   }
 
-  return labels;
+  return tags;
 }
 
 async function getSlotTargetLabel(
@@ -2585,6 +2676,14 @@ function compareStrings(left: string, right: string) {
 
 function getActiveTagLookupKey(tag: ActiveTagSnapshot) {
   return normalizeLookupKey(tag.canonicalKey || tag.id || tag.label);
+}
+
+function getTagHref(tag: Doc<"tags">, canonicalKey: string) {
+  if (tag.knowledgeType === "biblePassage") {
+    return `/scripture/${encodeURIComponent(canonicalKey)}`;
+  }
+
+  return `/goto/${encodeURIComponent(canonicalKey)}`;
 }
 
 function normalizeLookupKey(value: string) {

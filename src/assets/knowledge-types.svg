@@ -8,6 +8,14 @@
     </g>
   </symbol>
 
+  <symbol id="kt-announcement" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8">
+      <path d="M5 11.5h3.5l8-4.5v10l-8-4.5H5z" />
+      <path d="M8.5 12.5l1.35 5.25H12" />
+      <path d="M18.5 10.25a3.25 3.25 0 0 1 0 3.5" />
+    </g>
+  </symbol>
+
   <symbol id="kt-bible-passage" viewBox="0 0 24 24">
     <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8">
       <path d="M4.5 5.5h5.25A3.25 3.25 0 0 1 13 8.75v10.5a3.25 3.25 0 0 0-3.25-2.75H4.5z" />

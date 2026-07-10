@@ -22,7 +22,8 @@
     "context-expertise:legacy-aggregates:cleanup:dry-run": "node scripts/cleanup-context-expertise-legacy-aggregates.mjs dry-run",
     "context-expertise:legacy-aggregates:cleanup": "node scripts/cleanup-context-expertise-legacy-aggregates.mjs run",
     "seed:scripture": "node scripts/seed-scripture.mjs",
-    "seed:organizations": "node scripts/seed-organizations.mjs"
+    "seed:organizations": "node scripts/seed-organizations.mjs",
+    "seed:literature": "node scripts/seed-literature.mjs"
   },
   "dependencies": {
     "@auth/core": "^0.41.2",

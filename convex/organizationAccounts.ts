@@ -17,7 +17,7 @@ import {
 import { notifyPersonConsolidationReviewClaimant } from "./lib/userNotificationWrites";
 
 // Organization account setup and membership management create the minimum
-// referent, entry, membership, and notification state for an organization space.
+// reference, membership, and notification state for an organization space.
 const MAX_ORGANIZATION_ENTRIES_PER_REFERENT = 10;
 const MAX_ORGANIZATION_MEMBERS = 100;
 const organizationKind = v.union(
@@ -86,7 +86,8 @@ const organizationMember = v.object({
 const organizationMembershipSettings = v.object({
   members: v.array(organizationMember),
   name: v.string(),
-  organizationEntryId: v.id("organizationEntries"),
+  organizationDetailId: v.optional(v.id("organizationReferentDetails")),
+  organizationEntryId: v.optional(v.id("organizationEntries")),
   organizationKind,
   organizationReferentId: v.id("referents"),
 });
@@ -107,7 +108,7 @@ const withdrawnPendingOrganizationMember = v.object({
   membershipStatus: v.literal("inactive"),
 });
 
-type OrganizationKind = Doc<"organizationEntries">["organizationKind"];
+type OrganizationKind = "school" | "church" | "family" | "community";
 type OrganizationAccountCtx = MutationCtx | QueryCtx;
 
 export const createOrganizationAccount = mutation({
@@ -119,12 +120,13 @@ export const createOrganizationAccount = mutation({
     canonicalKey: v.string(),
     href: v.string(),
     name: v.string(),
-    organizationEntryId: v.id("organizationEntries"),
+    organizationDetailId: v.optional(v.id("organizationReferentDetails")),
+    organizationEntryId: v.optional(v.id("organizationEntries")),
     organizationKind,
     organizationReferentId: v.id("referents"),
   }),
   handler: async (ctx, args) => {
-    const access = await requireSystemAdmin(ctx);
+    await requireSystemAdmin(ctx);
     const now = Date.now();
     const name = normalizeName(args.name);
     if (!name) {
@@ -146,7 +148,6 @@ export const createOrganizationAccount = mutation({
       knowledgeType: "organization",
     });
     const primaryTagId = await ctx.db.insert("tags", {
-      createdByUserId: access.userId,
       knowledgeType: "organization",
       label: name,
       lookupKey: canonicalKey,
@@ -155,42 +156,26 @@ export const createOrganizationAccount = mutation({
     const previewText = `${formatOrganizationKind(
       args.organizationKind,
     )} organization.`;
-    const entryId = await ctx.db.insert("knowledgeEntries", {
-      contextPreviewTagLabels: [],
+    const organizationDetailId = await ctx.db.insert("organizationReferentDetails", {
       createdAt: now,
-      createdByUserId: access.userId,
-      discoverabilityKind: "public",
-      discoverabilityTargetKey: "public",
-      knowledgeType: "organization",
-      previewText,
-      primaryTagId,
-      primaryTagLabel: name,
-      publicPreviewText: previewText,
-      representedReferentId: organizationReferentId,
-      searchText: `${name} ${args.organizationKind}`,
-      title: name,
-      updatedAt: now,
-      visibilityKind: "public",
-      visibilityTargetKey: "public",
-    });
-    await ctx.db.insert("entryTags", {
-      entryId,
-      taggedAt: now,
-      taggedByUserId: access.userId,
-      tagId: primaryTagId,
-      tagPurpose: "represented",
-    });
-    const organizationEntryId = await ctx.db.insert("organizationEntries", {
-      entryId,
       isActive: true,
       organizationKind: args.organizationKind,
+      previewText,
+      referentId: organizationReferentId,
+      searchText: `${name} ${args.organizationKind}`,
+      updatedAt: now,
+    });
+    await upsertOrganizationTagRecognition(ctx, {
+      organizationReferentId,
+      tagId: primaryTagId,
+      updatedAt: now,
     });
 
     return {
       canonicalKey,
       href: `/organizations/${canonicalKey}`,
       name,
-      organizationEntryId,
+      organizationDetailId,
       organizationKind: args.organizationKind,
       organizationReferentId,
     };
@@ -249,15 +234,20 @@ export const addOrganizationMember = mutation({
     const user = await getUserByEmail(ctx, email);
     const now = Date.now();
     if (!user) {
-      const personReferentId = await upsertPendingMemberPerson(
+      const pendingPerson = await upsertPendingMemberPerson(
         ctx,
         email,
         now,
       );
       const membershipId = await upsertPendingOrganizationMembership(ctx, {
         organizationReferentId: organization.organizationReferentId,
-        personReferentId,
+        personReferentId: pendingPerson.personReferentId,
         role: args.role,
+        updatedAt: now,
+      });
+      await upsertOrganizationTagRecognition(ctx, {
+        organizationReferentId: organization.organizationReferentId,
+        tagId: pendingPerson.personTagId,
         updatedAt: now,
       });
       const membership = await ctx.db.get(membershipId);
@@ -272,7 +262,7 @@ export const addOrganizationMember = mutation({
       await ctx.db.patch(user._id, { isActive: true });
     }
 
-    const personReferentId = await upsertUserProfile(ctx, user, email, now);
+    const profile = await upsertUserProfile(ctx, user, email, now);
     const pendingMembership = await getPendingOrganizationMembershipByContactEmail(
       ctx,
       email,
@@ -282,8 +272,13 @@ export const addOrganizationMember = mutation({
       memberUserId: user._id,
       organizationReferentId: organization.organizationReferentId,
       pendingMembershipId: pendingMembership?._id,
-      personReferentId,
+      personReferentId: profile.personReferentId,
       role: args.role,
+      updatedAt: now,
+    });
+    await upsertOrganizationTagRecognition(ctx, {
+      organizationReferentId: organization.organizationReferentId,
+      tagId: profile.personTagId,
       updatedAt: now,
     });
     const membership = await ctx.db.get(membershipId);
@@ -607,20 +602,43 @@ async function getActiveOrganizationByRouteId(
     return null;
   }
 
+  const organizationDetail = await getActiveOrganizationDetailByReferent(
+    ctx,
+    referent._id,
+  );
+  if (organizationDetail) {
+    return {
+      name: referent.canonicalName,
+      organizationDetailId: organizationDetail._id,
+      organizationKind: organizationDetail.organizationKind,
+      organizationReferentId: referent._id,
+    };
+  }
+
   const organizationEntry = await getActiveOrganizationEntryByReferent(
     ctx,
     referent._id,
   );
-  if (!organizationEntry) {
-    return null;
-  }
+  return organizationEntry === null
+    ? null
+    : {
+        name: organizationEntry.entry.title,
+        organizationEntryId: organizationEntry.organizationEntry._id,
+        organizationKind: organizationEntry.organizationEntry.organizationKind,
+        organizationReferentId: referent._id,
+      };
+}
 
-  return {
-    name: organizationEntry.entry.title,
-    organizationEntryId: organizationEntry.organizationEntry._id,
-    organizationKind: organizationEntry.organizationEntry.organizationKind,
-    organizationReferentId: referent._id,
-  };
+async function getActiveOrganizationDetailByReferent(
+  ctx: OrganizationAccountCtx,
+  organizationReferentId: Id<"referents">,
+) {
+  const detail = await ctx.db
+    .query("organizationReferentDetails")
+    .withIndex("by_referentId", (q) => q.eq("referentId", organizationReferentId))
+    .unique();
+
+  return detail && detail.isActive !== false ? detail : null;
 }
 
 async function getActiveOrganizationEntryByReferent(
@@ -734,7 +752,16 @@ async function upsertUserProfile(
     .withIndex("by_userId", (q) => q.eq("userId", user._id))
     .unique();
   if (existingProfile) {
-    return existingProfile.personReferentId;
+    if (existingProfile.personEntryId !== undefined) {
+      await ctx.db.patch(existingProfile._id, {
+        personEntryId: undefined,
+        updatedAt: now,
+      });
+    }
+    return {
+      personReferentId: existingProfile.personReferentId,
+      personTagId: existingProfile.personTagId,
+    };
   }
 
   const name = normalizeName(user.name ?? email) || email;
@@ -750,34 +777,25 @@ async function upsertUserProfile(
     lookupKey: canonicalKey,
     referentId: personReferentId,
   });
-  const personEntryId = await upsertKnowledgeEntry(ctx, {
-    knowledgeType: "person",
-    previewText: email,
-    primaryTagId: personTagId,
-    primaryTagLabel: name,
-    representedReferentId: personReferentId,
+  await upsertPersonReferentDetail(ctx, {
+    referentId: personReferentId,
     searchText: `${name} ${email}`,
-    title: name,
-    updatedAt: now,
   });
-  const personEntry = await ctx.db
-    .query("personEntries")
-    .withIndex("by_entryId", (q) => q.eq("entryId", personEntryId))
-    .unique();
-  if (!personEntry) {
-    await ctx.db.insert("personEntries", { entryId: personEntryId });
-  }
+  await upsertUserTagRecognition(ctx, {
+    tagId: personTagId,
+    updatedAt: now,
+    userId: user._id,
+  });
 
   await ctx.db.insert("userProfiles", {
     createdAt: now,
-    personEntryId,
     personReferentId,
     personTagId,
     updatedAt: now,
     userId: user._id,
   });
 
-  return personReferentId;
+  return { personReferentId, personTagId };
 }
 
 async function upsertPendingMemberPerson(
@@ -798,25 +816,12 @@ async function upsertPendingMemberPerson(
     lookupKey: canonicalKey,
     referentId: personReferentId,
   });
-  const personEntryId = await upsertKnowledgeEntry(ctx, {
-    knowledgeType: "person",
-    previewText: email,
-    primaryTagId: personTagId,
-    primaryTagLabel: name,
-    representedReferentId: personReferentId,
+  await upsertPersonReferentDetail(ctx, {
+    referentId: personReferentId,
     searchText: `${name} ${email}`,
-    title: name,
-    updatedAt: now,
   });
-  const personEntry = await ctx.db
-    .query("personEntries")
-    .withIndex("by_entryId", (q) => q.eq("entryId", personEntryId))
-    .unique();
-  if (!personEntry) {
-    await ctx.db.insert("personEntries", { entryId: personEntryId });
-  }
 
-  return personReferentId;
+  return { personReferentId, personTagId };
 }
 
 async function upsertOrganizationMembership(
@@ -1071,84 +1076,93 @@ async function upsertPrimaryTag(
   return existingTag._id;
 }
 
-async function upsertKnowledgeEntry(
+async function upsertPersonReferentDetail(
   ctx: MutationCtx,
-  entry: {
-    knowledgeType: Doc<"knowledgeEntries">["knowledgeType"];
-    previewText: string;
-    primaryTagId: Id<"tags">;
-    primaryTagLabel: string;
-    representedReferentId: Id<"referents">;
+  detail: {
+    referentId: Id<"referents">;
     searchText: string;
-    title: string;
+  },
+) {
+  const existingDetail = await ctx.db
+    .query("personReferentDetails")
+    .withIndex("by_referentId", (q) => q.eq("referentId", detail.referentId))
+    .unique();
+  if (!existingDetail) {
+    await ctx.db.insert("personReferentDetails", detail);
+    return;
+  }
+
+  if (existingDetail.searchText !== detail.searchText) {
+    await ctx.db.patch(existingDetail._id, {
+      searchText: detail.searchText,
+    });
+  }
+}
+
+async function upsertUserTagRecognition(
+  ctx: MutationCtx,
+  recognition: {
+    tagId: Id<"tags">;
+    updatedAt: number;
+    userId: Id<"users">;
+  },
+) {
+  const existingRecognition = await ctx.db
+    .query("tagRecognitions")
+    .withIndex("by_userId_and_tagId", (q) =>
+      q.eq("userId", recognition.userId).eq("tagId", recognition.tagId),
+    )
+    .unique();
+  if (!existingRecognition) {
+    await ctx.db.insert("tagRecognitions", {
+      lastInteractedAt: recognition.updatedAt,
+      recognizedAt: recognition.updatedAt,
+      recognizerKind: "user",
+      tagId: recognition.tagId,
+      userId: recognition.userId,
+    });
+    return;
+  }
+
+  await ctx.db.patch(existingRecognition._id, {
+    lastInteractedAt: recognition.updatedAt,
+    recognizerKind: "user",
+    userId: recognition.userId,
+  });
+}
+
+async function upsertOrganizationTagRecognition(
+  ctx: MutationCtx,
+  recognition: {
+    organizationReferentId: Id<"referents">;
+    tagId: Id<"tags">;
     updatedAt: number;
   },
 ) {
-  const existingEntry = await getKnowledgeEntryByReferent(
-    ctx,
-    entry.representedReferentId,
-    entry.knowledgeType,
-  );
-  const nextEntry = {
-    contextPreviewTagLabels: [],
-    discoverabilityKind: "public" as const,
-    discoverabilityTargetKey: "public",
-    knowledgeType: entry.knowledgeType,
-    previewText: entry.previewText,
-    primaryTagId: entry.primaryTagId,
-    primaryTagLabel: entry.primaryTagLabel,
-    representedReferentId: entry.representedReferentId,
-    searchText: entry.searchText,
-    title: entry.title,
-    visibilityKind: "public" as const,
-    visibilityTargetKey: "public",
-  };
-
-  if (!existingEntry) {
-    return await ctx.db.insert("knowledgeEntries", {
-      ...nextEntry,
-      createdAt: entry.updatedAt,
-      updatedAt: entry.updatedAt,
-    });
-  }
-
-  const patch: Partial<Doc<"knowledgeEntries">> = {};
-  if (existingEntry.title !== nextEntry.title) {
-    patch.title = nextEntry.title;
-  }
-  if (existingEntry.previewText !== nextEntry.previewText) {
-    patch.previewText = nextEntry.previewText;
-  }
-  if (existingEntry.searchText !== nextEntry.searchText) {
-    patch.searchText = nextEntry.searchText;
-  }
-  if (existingEntry.primaryTagId !== nextEntry.primaryTagId) {
-    patch.primaryTagId = nextEntry.primaryTagId;
-  }
-  if (existingEntry.primaryTagLabel !== nextEntry.primaryTagLabel) {
-    patch.primaryTagLabel = nextEntry.primaryTagLabel;
-  }
-  if (hasPatch(patch)) {
-    patch.updatedAt = entry.updatedAt;
-    await ctx.db.patch(existingEntry._id, patch);
-  }
-
-  return existingEntry._id;
-}
-
-async function getKnowledgeEntryByReferent(
-  ctx: OrganizationAccountCtx,
-  representedReferentId: Id<"referents">,
-  knowledgeType: Doc<"knowledgeEntries">["knowledgeType"],
-) {
-  const entries = await ctx.db
-    .query("knowledgeEntries")
-    .withIndex("by_representedReferentId", (q) =>
-      q.eq("representedReferentId", representedReferentId),
+  const existingRecognition = await ctx.db
+    .query("tagRecognitions")
+    .withIndex("by_organizationReferentId_and_tagId", (q) =>
+      q
+        .eq("organizationReferentId", recognition.organizationReferentId)
+        .eq("tagId", recognition.tagId),
     )
-    .take(MAX_ORGANIZATION_ENTRIES_PER_REFERENT);
+    .unique();
+  if (!existingRecognition) {
+    await ctx.db.insert("tagRecognitions", {
+      lastInteractedAt: recognition.updatedAt,
+      organizationReferentId: recognition.organizationReferentId,
+      recognizedAt: recognition.updatedAt,
+      recognizerKind: "organization",
+      tagId: recognition.tagId,
+    });
+    return;
+  }
 
-  return entries.find((entry) => entry.knowledgeType === knowledgeType) ?? null;
+  await ctx.db.patch(existingRecognition._id, {
+    lastInteractedAt: recognition.updatedAt,
+    organizationReferentId: recognition.organizationReferentId,
+    recognizerKind: "organization",
+  });
 }
 
 function getOrganizationMemberSummary(

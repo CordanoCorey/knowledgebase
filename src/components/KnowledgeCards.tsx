@@ -1,22 +1,29 @@
 import {
   BookOpen,
   CalendarDays,
+  ClipboardCheck,
+  Database,
   FolderPlus,
   MessageSquare,
+  RotateCcw,
   Send,
   Tag,
   UserCircle,
+  X,
 } from "lucide-react";
 import { useId, useState, type FormEvent, type MouseEvent } from "react";
 import {
   formatKnowledgeTypeLabel,
   getApplicableHumanWeight,
+  type ActiveTag,
   type ContributorSummary,
   type HumanWeightFeedbackInput,
   type HumanWeightFeedbackKind,
   type KnowledgeEntrySummary,
   type KnowledgeSlotStatus,
   type KnowledgeSlotSummary,
+  type SmartStorageProposalAcceptabilityStatus,
+  type SmartStorageReviewSlotSummary,
   isWeightBearingKnowledgeType,
 } from "../knowledgeContracts";
 import { KnowledgeTypeBadge, KnowledgeTypeIcon } from "./KnowledgeTypeIcon";
@@ -40,11 +47,39 @@ type KnowledgeSlotCardProps = {
   slot: KnowledgeSlotSummary;
 };
 
+type ReviewSlotCardProps = {
+  className?: string;
+  onAssign?: (
+    reviewSlot: SmartStorageReviewSlotSummary,
+    targetUserId: string,
+  ) => Promise<void> | void;
+  onNavigateToHref?: (href: string) => void;
+  onDismissRefresh?: (
+    reviewSlot: SmartStorageReviewSlotSummary,
+  ) => Promise<void> | void;
+  onRequestRefresh?: (
+    reviewSlot: SmartStorageReviewSlotSummary,
+  ) => Promise<void> | void;
+  onResume?: (reviewSlot: SmartStorageReviewSlotSummary) => void;
+  reviewSlot: SmartStorageReviewSlotSummary;
+};
+
 const SLOT_STATUS_LABELS: Record<KnowledgeSlotStatus, string> = {
   open: "Open request",
   fulfilled: "Complete",
   cancelled: "Cancelled",
   overdue: "Past due",
+};
+
+const REVIEW_SLOT_STATUS_LABELS: Record<
+  SmartStorageProposalAcceptabilityStatus,
+  string
+> = {
+  accepted: "Accepted",
+  blocked: "Blocked",
+  closed: "Closed",
+  needsResolution: "Needs resolution",
+  ready: "Ready to review",
 };
 
 const CARD_DATE_FORMATTER = new Intl.DateTimeFormat("en", {
@@ -142,6 +177,7 @@ export function KnowledgeEntryCard({
               className="kb-inline-tag-link"
               label={entry.primaryTagLabel}
               onNavigateToHref={onNavigateToHref}
+              tag={entry.primaryTag}
             />
           </dd>
         </div>
@@ -173,6 +209,7 @@ export function KnowledgeEntryCard({
         emptyLabel="No context Tags"
         labels={entry.contextPreviewTagLabels}
         onNavigateToHref={onNavigateToHref}
+        tags={entry.contextPreviewTags}
         title={`${entry.title} context Tags`}
       />
 
@@ -389,33 +426,342 @@ export function KnowledgeSlotCard({
         emptyLabel="No context Tags"
         labels={slot.contextPreviewTagLabels}
         onNavigateToHref={onNavigateToHref}
+        tags={slot.contextPreviewTags}
         title={`${slot.title} context Tags`}
       />
     </article>
   );
 }
 
+export function ReviewSlotCard({
+  className,
+  onAssign,
+  onDismissRefresh,
+  onNavigateToHref,
+  onRequestRefresh,
+  onResume,
+  reviewSlot,
+}: ReviewSlotCardProps) {
+  const [assignmentTargetUserId, setAssignmentTargetUserId] = useState("");
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [isDismissingRefresh, setIsDismissingRefresh] = useState(false);
+  const [isRequestingRefresh, setIsRequestingRefresh] = useState(false);
+  const proposedTypeLabel = formatKnowledgeTypeLabel(
+    reviewSlot.proposedKnowledgeType,
+  );
+  const statusLabel = REVIEW_SLOT_STATUS_LABELS[reviewSlot.acceptability.status];
+  const canAssign = reviewSlot.canAssign && onAssign !== undefined;
+  const canRequestRefresh =
+    reviewSlot.refresh !== undefined && onRequestRefresh !== undefined;
+  const canDismissRefresh =
+    reviewSlot.refresh !== undefined && onDismissRefresh !== undefined;
+
+  function handleResumeClick(event: MouseEvent<HTMLAnchorElement>) {
+    if (!onResume) {
+      return;
+    }
+
+    event.preventDefault();
+    onResume(reviewSlot);
+  }
+
+  async function handleAssignSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!canAssign) {
+      return;
+    }
+
+    const targetUserId = assignmentTargetUserId.trim();
+    if (!targetUserId) {
+      return;
+    }
+
+    setIsAssigning(true);
+    try {
+      await onAssign(reviewSlot, targetUserId);
+      setAssignmentTargetUserId("");
+    } finally {
+      setIsAssigning(false);
+    }
+  }
+
+  async function handleRequestRefresh() {
+    if (!canRequestRefresh) {
+      return;
+    }
+
+    setIsRequestingRefresh(true);
+    try {
+      await onRequestRefresh(reviewSlot);
+    } finally {
+      setIsRequestingRefresh(false);
+    }
+  }
+
+  async function handleDismissRefresh() {
+    if (!canDismissRefresh) {
+      return;
+    }
+
+    setIsDismissingRefresh(true);
+    try {
+      await onDismissRefresh(reviewSlot);
+    } finally {
+      setIsDismissingRefresh(false);
+    }
+  }
+
+  return (
+    <article
+      aria-labelledby={`review-slot-${reviewSlot.id}-title`}
+      className={joinClassNames(
+        "kb-knowledge-card kb-slot-card kb-review-slot-card",
+        className,
+      )}
+      data-status={reviewSlot.acceptability.status}
+    >
+      <header className="kb-card-header">
+        <div className="kb-card-title-block">
+          <p className="kb-card-eyebrow">
+            Review Slot
+            {reviewSlot.refresh ? ` - ${reviewSlot.refresh.originLabel}` : ""}
+          </p>
+          <h3 id={`review-slot-${reviewSlot.id}-title`}>
+            <a href={reviewSlot.href}>{reviewSlot.title}</a>
+          </h3>
+        </div>
+        <KnowledgeTypeBadge
+          className="kb-card-type"
+          knowledgeType={reviewSlot.proposedKnowledgeType}
+        />
+        <span className="kb-slot-status">{statusLabel}</span>
+      </header>
+
+      <section
+        aria-labelledby={`review-slot-${reviewSlot.id}-work-title`}
+        className="kb-slot-missing-content kb-review-slot-work"
+      >
+        <div className="kb-slot-missing-header">
+          <span
+            className="kb-slot-missing-icon"
+            data-knowledge-type={reviewSlot.proposedKnowledgeType}
+          >
+            <ClipboardCheck aria-hidden="true" />
+          </span>
+          <div className="kb-slot-missing-title">
+            <span>{formatReviewSlotRole(reviewSlot.role)}</span>
+            <strong id={`review-slot-${reviewSlot.id}-work-title`}>
+              Review proposed {proposedTypeLabel}
+            </strong>
+          </div>
+        </div>
+
+        <p className="kb-slot-missing-copy">{reviewSlot.bodyPreview}</p>
+
+        {reviewSlot.referenceResolution ? (
+          <p className="kb-review-slot-reference-resolution">
+            {formatReviewSlotReferenceResolution(reviewSlot)}
+          </p>
+        ) : null}
+
+        {reviewSlot.refresh ? (
+          <p className="kb-review-slot-refresh-reason">
+            {reviewSlot.refresh.reason}
+          </p>
+        ) : null}
+
+        <footer className="kb-card-footer kb-slot-card-footer">
+          {reviewSlot.status === "stale" && canRequestRefresh ? (
+            <button
+              className="kb-card-action kb-card-action-primary"
+              disabled={isRequestingRefresh}
+              onClick={() => void handleRequestRefresh()}
+              type="button"
+            >
+              <RotateCcw aria-hidden="true" />
+              <span>
+                {isRequestingRefresh
+                  ? "Refreshing"
+                  : `Request ${reviewSlot.refresh?.originLabel ?? "Refresh"}`}
+              </span>
+            </button>
+          ) : (
+            <a
+              className="kb-card-action kb-card-action-primary"
+              href={reviewSlot.href}
+              onClick={handleResumeClick}
+            >
+              <ClipboardCheck aria-hidden="true" />
+              Review {proposedTypeLabel}
+            </a>
+          )}
+          {canDismissRefresh ? (
+            <button
+              className="kb-card-action"
+              disabled={isDismissingRefresh}
+              onClick={() => void handleDismissRefresh()}
+              type="button"
+            >
+              <X aria-hidden="true" />
+              <span>{isDismissingRefresh ? "Dismissing" : "Dismiss"}</span>
+            </button>
+          ) : null}
+          {canAssign ? (
+            <form
+              aria-label={`Assign ${reviewSlot.title}`}
+              className="kb-review-slot-assign-form"
+              onSubmit={(event) => void handleAssignSubmit(event)}
+            >
+              <label>
+                <span>Reviewer user ID</span>
+                <input
+                  onChange={(event) =>
+                    setAssignmentTargetUserId(event.currentTarget.value)
+                  }
+                  type="text"
+                  value={assignmentTargetUserId}
+                />
+              </label>
+              <button disabled={isAssigning || !assignmentTargetUserId.trim()} type="submit">
+                <Send aria-hidden="true" />
+                <span>{isAssigning ? "Sending" : "Send"}</span>
+              </button>
+            </form>
+          ) : null}
+        </footer>
+      </section>
+
+      <dl className="kb-card-meta kb-review-slot-meta">
+        <div>
+          <dt>
+            <BookOpen aria-hidden="true" />
+            Group
+          </dt>
+          <dd>
+            <a
+              href={reviewSlot.group.href}
+              onClick={(event) => handleInlineNavigation(event, reviewSlot.group.href)}
+            >
+              {reviewSlot.group.title}
+            </a>
+          </dd>
+        </div>
+        <div>
+          <dt>
+            <UserCircle aria-hidden="true" />
+            Review Scope
+          </dt>
+          <dd>{reviewSlot.reviewScopeLabel}</dd>
+        </div>
+        <div>
+          <dt>
+            <Send aria-hidden="true" />
+            Assigned To
+          </dt>
+          <dd>{reviewSlot.assignment?.targetLabel ?? "Unassigned"}</dd>
+        </div>
+        <div>
+          <dt>
+            <Database aria-hidden="true" />
+            Evidence
+          </dt>
+          <dd>{reviewSlot.evidenceSummary}</dd>
+        </div>
+        <div>
+          <dt>
+            <CalendarDays aria-hidden="true" />
+            Updated
+          </dt>
+          <dd>{formatCardDate(reviewSlot.updatedAt)}</dd>
+        </div>
+      </dl>
+
+      <TagList
+        emptyLabel="No proposed context Tags"
+        labels={reviewSlot.contextPreviewTagLabels}
+        onNavigateToHref={onNavigateToHref}
+        tags={reviewSlot.contextPreviewTags}
+        title={`${reviewSlot.title} proposed context Tags`}
+      />
+    </article>
+  );
+
+  function handleInlineNavigation(
+    event: MouseEvent<HTMLAnchorElement>,
+    href: string,
+  ) {
+    if (!onNavigateToHref) {
+      return;
+    }
+
+    event.preventDefault();
+    onNavigateToHref(href);
+  }
+}
+
+function formatReviewSlotRole(role: SmartStorageReviewSlotSummary["role"]) {
+  const labels = {
+    cleanup: "Cleanup review",
+    primary: "Primary review",
+    prerequisite: "Prerequisite review",
+    referenceResolution: "Reference resolution",
+    refresh: "Refresh review",
+    reprocessing: "Reprocessing review",
+    secondary: "Secondary review",
+  } satisfies Record<SmartStorageReviewSlotSummary["role"], string>;
+
+  return labels[role];
+}
+
+function formatReviewSlotReferenceResolution(
+  reviewSlot: SmartStorageReviewSlotSummary,
+) {
+  const resolution = reviewSlot.referenceResolution;
+  if (!resolution) {
+    return "";
+  }
+
+  if (resolution.mode === "knownReferentMatch") {
+    const tag = resolution.resolvedTag ?? resolution.candidateTag ?? resolution.requiredTag;
+    return `Known Referent match: ${tag.label}`;
+  }
+
+  return `New Entry creates Referent: ${formatKnowledgeTypeLabel(
+    resolution.requiredTag.knowledgeType,
+  )} - ${resolution.requiredTag.label}`;
+}
+
 function TagList({
   emptyLabel,
   labels,
   onNavigateToHref,
+  tags,
   title,
 }: {
   emptyLabel: string;
   labels: string[];
   onNavigateToHref?: (href: string) => void;
+  tags?: ActiveTag[];
   title: string;
 }) {
+  const tagItems: TagListItem[] =
+    tags && tags.length > 0
+      ? mergeRichTagsWithLabels(tags, labels)
+      : labels.map((label) => ({
+          label,
+        }));
+
   return (
     <div className="kb-card-tags" aria-label={title}>
       <Tag aria-hidden="true" />
-      {labels.length > 0 ? (
-        labels.map((label) => (
+      {tagItems.length > 0 ? (
+        tagItems.map((tag) => (
           <ReferentTagLink
             className="kb-referent-tag-link"
-            key={label}
-            label={label}
+            key={isRichTag(tag) ? tag.id : tag.label}
+            label={tag.label}
             onNavigateToHref={onNavigateToHref}
+            tag={isRichTag(tag) ? tag : undefined}
           />
         ))
       ) : (
@@ -425,8 +771,30 @@ function TagList({
   );
 }
 
+type TagListItem = ActiveTag | { label: string };
+
 function formatCardDate(timestamp: number) {
   return CARD_DATE_FORMATTER.format(new Date(timestamp));
+}
+
+function mergeRichTagsWithLabels(
+  tags: ActiveTag[],
+  labels: string[],
+): TagListItem[] {
+  const richLabels = new Set(tags.map((tag) => normalizeLabel(tag.label)));
+  const labelOnlyTags = labels
+    .filter((label) => !richLabels.has(normalizeLabel(label)))
+    .map((label) => ({ label }));
+
+  return [...tags, ...labelOnlyTags];
+}
+
+function isRichTag(tag: TagListItem): tag is ActiveTag {
+  return "id" in tag && "href" in tag && "knowledgeType" in tag;
+}
+
+function normalizeLabel(label: string) {
+  return label.trim().toLowerCase();
 }
 
 function joinClassNames(...classNames: Array<string | undefined>) {

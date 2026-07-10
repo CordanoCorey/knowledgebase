@@ -9,6 +9,11 @@ import schema from "./schema";
 
 const modules = {
   ...import.meta.glob("./_generated/*.*s"),
+  "./lib/fileRepresentationRoles.ts": () =>
+    import("./lib/fileRepresentationRoles"),
+  "./lib/referentThumbnails.ts": () => import("./lib/referentThumbnails"),
+  "./lib/scriptureReferences.ts": () => import("./lib/scriptureReferences"),
+  "./lib/scriptureSearch.ts": () => import("./lib/scriptureSearch"),
   "./rootSearch.ts": () => import("./rootSearch"),
 };
 
@@ -43,6 +48,7 @@ describe("Root Search results", () => {
         href: "/goto/the-city-of-god",
         id: "the-city-of-god",
         label: "The City of God",
+        thumbnailUrl: expect.any(String),
       },
       thumbnailUrl: expect.any(String),
     });
@@ -109,6 +115,83 @@ describe("Root Search results", () => {
       scopeLabel: "Global",
     });
     expect(result?.matchedEntryPreview).toBeUndefined();
+  });
+
+  test("returns reference-detail organization results without entry previews", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedOrganizationReferenceRows);
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    const results = await authed.query(api.rootSearch.listRootSearchResults, {
+      query: "school",
+      limit: 5,
+    });
+
+    const result = results.find(
+      (searchResult) => searchResult.id === "arche-classical-academy",
+    );
+    expect(result).toMatchObject({
+      canonicalKey: "arche-classical-academy",
+      href: "/goto/arche-classical-academy",
+      knowledgeType: "organization",
+      label: "Arche Classical Academy",
+    });
+    expect(result?.matchedEntryPreview).toBeUndefined();
+  });
+
+  test("returns parseable Bible Passage results from seeded Scripture structure", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(async (ctx) => {
+      const { userId } = await insertAllowedUser(ctx, "scripture-result");
+      await insertMalachi4Structure(ctx);
+
+      return { userId };
+    });
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    const results = await authed.query(api.rootSearch.listRootSearchResults, {
+      query: "Malachi 4",
+      limit: 5,
+    });
+
+    expect(results[0]).toMatchObject({
+      canonicalKey: "malachi-4",
+      href: "/scripture/malachi-4",
+      id: "malachi-4",
+      knowledgeType: "biblePassage",
+      label: "Malachi 4",
+      scopeLabel: "Global",
+      tag: {
+        canonicalKey: "malachi-4",
+        href: "/scripture/malachi-4",
+        id: "malachi-4",
+        knowledgeType: "biblePassage",
+        label: "Malachi 4",
+        passageString: "malachi-4",
+      },
+    });
+
+    const rangeResults = await authed.query(api.rootSearch.listRootSearchResults, {
+      query: "Malachi 4:3-5",
+      limit: 5,
+    });
+
+    expect(rangeResults[0]).toMatchObject({
+      canonicalKey: "malachi-4-3-5",
+      href: "/scripture/malachi-4-3-5",
+      id: "malachi-4-3-5",
+      knowledgeType: "biblePassage",
+      label: "Malachi 4:3-5",
+      scopeLabel: "Global",
+      tag: {
+        canonicalKey: "malachi-4-3-5",
+        href: "/scripture/malachi-4-3-5",
+        id: "malachi-4-3-5",
+        knowledgeType: "biblePassage",
+        label: "Malachi 4:3-5",
+        passageString: "malachi-4-3-5",
+      },
+    });
   });
 
   test("returns alias and Question Tag-only Referent Page results", async () => {
@@ -293,6 +376,26 @@ async function seedTagOnlyRows(ctx: MutationCtx) {
   return { userId };
 }
 
+async function seedOrganizationReferenceRows(ctx: MutationCtx) {
+  const { userId } = await insertAllowedUser(ctx, "organization-reference");
+  const organization = await insertTag(ctx, {
+    canonicalKey: "arche-classical-academy",
+    knowledgeType: "organization",
+    label: "Arche Classical Academy",
+  });
+  await ctx.db.insert("organizationReferentDetails", {
+    createdAt: 1,
+    isActive: true,
+    organizationKind: "school",
+    previewText: "School organization.",
+    referentId: organization.referentId,
+    searchText: "Arche Classical Academy school School organization.",
+    updatedAt: 1,
+  });
+
+  return { userId };
+}
+
 async function seedAliasRows(ctx: MutationCtx) {
   const { userId } = await insertAllowedUser(ctx, "alias");
   const question = await insertTag(ctx, {
@@ -467,6 +570,36 @@ async function insertAlias(
     aliasKind: "alternateName",
     createdAt: 1,
   });
+}
+
+async function insertMalachi4Structure(ctx: MutationCtx) {
+  const bookId = await ctx.db.insert("bibleBooks", {
+    bookOrder: 39,
+    chapterCount: 4,
+    code: "MAL",
+    name: "Malachi",
+    shortName: "Mal",
+    testament: "old",
+  });
+
+  await ctx.db.insert("bibleChapters", {
+    bookCode: "MAL",
+    bookId,
+    chapterNumber: 4,
+    endOrdinal: 23145,
+    startOrdinal: 23140,
+    verseCount: 6,
+  });
+
+  for (let verseNumber = 1; verseNumber <= 6; verseNumber += 1) {
+    await ctx.db.insert("bibleVerses", {
+      bookCode: "MAL",
+      bookId,
+      chapterNumber: 4,
+      ordinal: 23139 + verseNumber,
+      verseNumber,
+    });
+  }
 }
 
 async function insertRepresentedEntry(

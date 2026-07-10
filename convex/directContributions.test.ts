@@ -18,6 +18,7 @@ const modules = {
   "./lib/fileRepresentationRoles.ts": () =>
     import("./lib/fileRepresentationRoles"),
   "./lib/humanWeightEvidence.ts": () => import("./lib/humanWeightEvidence"),
+  "./lib/referentThumbnails.ts": () => import("./lib/referentThumbnails"),
   "./lib/typeBehavior.ts": () => import("./lib/typeBehavior"),
 };
 
@@ -1152,6 +1153,174 @@ describe("Direct Contributions", () => {
     );
   });
 
+  test("posts Announcements to one Organization and notifies every active member", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(async (ctx) => {
+      const base = await seedAllowedUserWithJoshuaTag(ctx);
+      const secondMember = await insertOrganizationMember(ctx, {
+        email: "faculty.member@example.com",
+        name: "Faculty Member",
+        organizationReferentId: base.organizationReferentId,
+      });
+      const inactiveMember = await insertOrganizationMember(ctx, {
+        email: "former.member@example.com",
+        membershipStatus: "inactive",
+        name: "Former Member",
+        organizationReferentId: base.organizationReferentId,
+      });
+      const outsideUserId = await insertActiveUser(ctx, {
+        email: "outside.member@example.com",
+        name: "Outside Member",
+      });
+
+      return {
+        ...base,
+        inactiveMemberUserId: inactiveMember.userId,
+        outsideUserId,
+        secondMemberUserId: secondMember.userId,
+      };
+    });
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    const result = await authed.mutation(
+      api.directContributions.postDirectContribution,
+      {
+        body: "Chapel moves to the north hall at 10:15 tomorrow.",
+        contextTags: [
+          {
+            canonicalKey: "joshua-1-6-9",
+            href: "/scripture/joshua-1-6-9",
+            id: "joshua-1-6-9",
+            knowledgeType: "biblePassage",
+            label: "Joshua 1:6-9",
+            passageString: "Joshua 1:6-9",
+          },
+        ],
+        knowledgeType: "announcement",
+        organizationReferentId: seed.organizationReferentId,
+        title: "Chapel location change",
+      },
+    );
+
+    expect(result.entry).toMatchObject({
+      contextPreviewTagLabels: ["Arche Classical Academy", "Joshua 1:6-9"],
+      humanWeight: 82,
+      knowledgeType: "announcement",
+      previewText: "Chapel moves to the north hall at 10:15 tomorrow.",
+      title: "Chapel location change",
+    });
+
+    const state = await t.run(async (ctx) => ({
+      announcementEntry: await ctx.db
+        .query("announcementEntries")
+        .withIndex("by_entryId", (q) => q.eq("entryId", result.entryId))
+        .unique(),
+      entry: await ctx.db.get(result.entryId),
+      notifications: await ctx.db.query("userNotifications").collect(),
+      representedReferent: await ctx.db.get(result.representedReferentId),
+    }));
+
+    expect(state.entry).toEqual(
+      expect.objectContaining({
+        discoverabilityKind: "organization",
+        discoverabilityTargetKey: seed.organizationReferentId,
+        knowledgeType: "announcement",
+        visibilityKind: "organization",
+        visibilityTargetKey: seed.organizationReferentId,
+      }),
+    );
+    expect(state.representedReferent).toEqual(
+      expect.objectContaining({
+        canonicalName: "Chapel location change",
+        knowledgeType: "announcement",
+      }),
+    );
+    expect(state.announcementEntry).toEqual(
+      expect.objectContaining({
+        entryId: result.entryId,
+        organizationReferentId: seed.organizationReferentId,
+      }),
+    );
+    expect(
+      state.notifications.map((notification) => notification.userId).sort(),
+    ).toEqual([seed.secondMemberUserId, seed.userId].sort());
+    expect(
+      state.notifications.map((notification) => notification.userId),
+    ).not.toContain(seed.inactiveMemberUserId);
+    expect(
+      state.notifications.map((notification) => notification.userId),
+    ).not.toContain(seed.outsideUserId);
+    expect(state.notifications).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          body: "Chapel moves to the north hall at 10:15 tomorrow.",
+          contextHref: `/entries/${result.entryId}`,
+          contextLabel: "Arche Classical Academy",
+          notificationKind: "announcement",
+          notificationStatus: "unread",
+          sourceKind: "announcement",
+          sourceSubscriptionKey: `announcement:${result.entryId}:user:${seed.userId}`,
+          targetReferentId: seed.organizationReferentId,
+          title: "Chapel location change",
+          userId: seed.userId,
+        }),
+        expect.objectContaining({
+          sourceSubscriptionKey: `announcement:${result.entryId}:user:${seed.secondMemberUserId}`,
+          userId: seed.secondMemberUserId,
+        }),
+      ]),
+    );
+  });
+
+  test("requires Announcements to name an accessible Organization", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(async (ctx) => {
+      const base = await seedAllowedUserWithJoshuaTag(ctx);
+      const outsideOrganization = await insertTag(ctx, {
+        canonicalKey: "outside-academy",
+        knowledgeType: "organization",
+        label: "Outside Academy",
+      });
+
+      return {
+        ...base,
+        outsideOrganizationReferentId: outsideOrganization.referentId,
+      };
+    });
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    await expect(
+      authed.mutation(api.directContributions.postDirectContribution, {
+        body: "Missing organization.",
+        contextTags: [],
+        knowledgeType: "announcement",
+        title: "No target organization",
+      }),
+    ).rejects.toThrow("Announcement Organization is required");
+
+    await expect(
+      authed.mutation(api.directContributions.postDirectContribution, {
+        body: "Wrong organization.",
+        contextTags: [],
+        knowledgeType: "announcement",
+        organizationReferentId: seed.outsideOrganizationReferentId,
+        title: "Wrong target organization",
+      }),
+    ).rejects.toThrow("active Organizations");
+
+    await expect(
+      authed.mutation(api.directContributions.postDirectContribution, {
+        body: "Non-announcement.",
+        contextTags: [],
+        knowledgeType: "words",
+        organizationReferentId: seed.organizationReferentId,
+        title: "Words with target organization",
+      }),
+    ).rejects.toThrow("only supported for Announcement contributions");
+
+    expect(await countEntries(t)).toBe(1);
+  });
+
   test("rejects direct Slot fulfillment when the Knowledge Type does not match", async () => {
     const t = convexTest({ schema, modules });
     const seed = await t.run(seedAllowedUserWithJoshuaTag);
@@ -1341,6 +1510,7 @@ async function seedAllowedUserWithJoshuaTag(ctx: MutationCtx) {
 
   return {
     joshuaTagId: joshua.tagId,
+    organizationReferentId: allowedUser.organizationReferentId,
     organizationTagId: allowedUser.organizationTagId,
     personTagId: allowedUser.personTagId,
     userId: allowedUser.userId,
@@ -1394,17 +1564,61 @@ async function insertAllowedUser(ctx: MutationCtx) {
   });
 
   return {
+    organizationReferentId: organization.referentId,
     organizationTagId: organization.tagId,
     personTagId: person.tagId,
     userId,
   };
 }
 
-async function insertActiveUser(ctx: MutationCtx) {
-  return await ctx.db.insert("users", {
+async function insertOrganizationMember(
+  ctx: MutationCtx,
+  member: {
+    email: string;
+    membershipStatus?: Doc<"memberships">["membershipStatus"];
+    name: string;
+    organizationReferentId: Id<"referents">;
+  },
+) {
+  const now = Date.now();
+  const userId = await insertActiveUser(ctx, {
+    email: member.email,
+    name: member.name,
+  });
+  const person = await insertTag(ctx, {
+    canonicalKey: slugify(member.name),
+    knowledgeType: "person",
+    label: member.name,
+  });
+  await ctx.db.insert("memberships", {
+    personReferentId: person.referentId,
+    memberUserId: userId,
+    targetKind: "organization",
+    organizationReferentId: member.organizationReferentId,
+    membershipStatus: member.membershipStatus ?? "active",
+    memberRole: "member",
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  return {
+    personReferentId: person.referentId,
+    personTagId: person.tagId,
+    userId,
+  };
+}
+
+async function insertActiveUser(
+  ctx: MutationCtx,
+  user: { email: string; name: string } = {
     email: "direct.contributor@example.com",
-    isActive: true,
     name: "Direct Contributor",
+  },
+) {
+  return await ctx.db.insert("users", {
+    email: user.email,
+    isActive: true,
+    name: user.name,
   });
 }
 
@@ -1437,6 +1651,14 @@ async function insertTag(
   });
 
   return { referentId, tagId };
+}
+
+function slugify(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 async function insertSlot(

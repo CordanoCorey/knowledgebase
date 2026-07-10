@@ -2,13 +2,19 @@
 
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import schema from "./schema";
 
 const modules = {
   ...import.meta.glob("./_generated/*.*s"),
+  "./lib/fileRepresentationRoles.ts": () =>
+    import("./lib/fileRepresentationRoles"),
+  "./lib/referentThumbnails.ts": () => import("./lib/referentThumbnails"),
+  "./lib/scriptureReferences.ts": () => import("./lib/scriptureReferences"),
+  "./lib/scriptureSearch.ts": () => import("./lib/scriptureSearch"),
+  "./seedLiterature.ts": () => import("./seedLiterature"),
   "./tagSuggestions.ts": () => import("./tagSuggestions"),
 };
 
@@ -28,6 +34,9 @@ describe("Tag suggestion queries", () => {
         id: "the-city-of-god",
         knowledgeType: "book",
         label: "The City of God",
+        tag: expect.objectContaining({
+          thumbnailUrl: "https://images.example/city-of-god.png",
+        }),
       }),
     );
 
@@ -44,6 +53,93 @@ describe("Tag suggestion queries", () => {
         matchKind: "alias",
       }),
     );
+  });
+
+  test("suggests reference-only Person Tags from carried reference detail", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedPersonReferenceSuggestionRows);
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    const suggestions = await authed.query(
+      api.tagSuggestions.listKnowledgeNavigatorTagSuggestions,
+      {
+        activeTags: [],
+        query: "profile@example.com",
+        limit: 5,
+      },
+    );
+
+    expect(suggestions).toContainEqual(
+      expect.objectContaining({
+        href: "/goto/user-profile-example-com",
+        id: "user-profile-example-com",
+        knowledgeType: "person",
+        label: "Profile Person",
+      }),
+    );
+  });
+
+  test("suggests valid Bible passages from seeded Scripture structure", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(async (ctx) => {
+      const { userId } = await insertAllowedUser(ctx, "scripture-suggestion");
+      await insertMalachi4Structure(ctx);
+
+      return { userId };
+    });
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    const suggestions = await authed.query(
+      api.tagSuggestions.listRootSearchTagSuggestions,
+      { query: "Malachi 4", limit: 5 },
+    );
+
+    expect(suggestions[0]).toMatchObject({
+      canonicalKey: "malachi-4",
+      href: "/scripture/malachi-4",
+      id: "malachi-4",
+      knowledgeType: "biblePassage",
+      label: "Malachi 4",
+      matchKind: "label",
+      tag: {
+        canonicalKey: "malachi-4",
+        href: "/scripture/malachi-4",
+        id: "malachi-4",
+        knowledgeType: "biblePassage",
+        label: "Malachi 4",
+        passageString: "malachi-4",
+      },
+    });
+  });
+
+  test("resolves route slugs to live Tag Knowledge Types", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(async (ctx) => {
+      const { userId } = await insertAllowedUser(ctx, "route-resolution");
+      await insertTag(ctx, {
+        canonicalKey: "the-wind-in-the-willows-kenneth-grahame",
+        knowledgeType: "book",
+        label: "The Wind In The Willows Kenneth Grahame",
+      });
+
+      return { userId };
+    });
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    const resolvedTags = await authed.query(
+      api.tagSuggestions.resolveRouteActiveTags,
+      { tagKeys: ["the-wind-in-the-willows-kenneth-grahame"] },
+    );
+
+    expect(resolvedTags).toEqual([
+      expect.objectContaining({
+        canonicalKey: "the-wind-in-the-willows-kenneth-grahame",
+        href: "/goto/the-wind-in-the-willows-kenneth-grahame",
+        id: "the-wind-in-the-willows-kenneth-grahame",
+        knowledgeType: "book",
+        label: "The Wind In The Willows Kenneth Grahame",
+      }),
+    ]);
   });
 
   test("does not suggest private Tags from inaccessible users or organizations", async () => {
@@ -173,6 +269,134 @@ describe("Tag suggestion queries", () => {
       "outside-grade-9-unit",
     );
   });
+
+  test("tailors recommended Tags for represented literature pages without co-tags", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedLiteratureRecommendationRows);
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    const suggestions = await authed.query(
+      api.tagSuggestions.listKnowledgeNavigatorRecommendedTags,
+      {
+        activeTags: [
+          {
+            canonicalKey: "the-wind-in-the-willows-kenneth-grahame",
+            href: "/goto/the-wind-in-the-willows-kenneth-grahame",
+            id: "the-wind-in-the-willows-kenneth-grahame",
+            knowledgeType: "words",
+            label: "The Wind In The Willows Kenneth Grahame",
+          },
+        ],
+        limit: 5,
+      },
+    );
+
+    expect(suggestions.map((suggestion) => suggestion.id)).not.toContain(
+      "the-wind-in-the-willows-kenneth-grahame",
+    );
+    expect(suggestions[0]).toMatchObject({
+      id: "the-reluctant-dragon-kenneth-grahame",
+      label: "The Reluctant Dragon",
+    });
+  });
+
+  test("recommends related tag-only literature Referents for active book pages", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedTagOnlyLiteratureRecommendationRows);
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    const suggestions = await authed.query(
+      api.tagSuggestions.listKnowledgeNavigatorRecommendedTags,
+      {
+        activeTags: [
+          {
+            canonicalKey: "pride-and-prejudice-jane-austen",
+            href: "/goto/pride-and-prejudice-jane-austen",
+            id: "pride-and-prejudice-jane-austen",
+            knowledgeType: "book",
+            label: "Pride and Prejudice",
+          },
+        ],
+        limit: 5,
+      },
+    );
+
+    expect(suggestions.map((suggestion) => suggestion.id)).not.toContain(
+      "pride-and-prejudice-jane-austen",
+    );
+    expect(suggestions[0]).toMatchObject({
+      id: "sense-and-sensibility-jane-austen",
+      label: "Sense and Sensibility",
+    });
+  });
+
+  test("recommends nearby Scripture references for active Bible Passage routes before defaults", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedScriptureRecommendationRows);
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    const suggestions = await authed.query(
+      api.tagSuggestions.listKnowledgeNavigatorRecommendedTags,
+      {
+        activeTags: [
+          {
+            canonicalKey: "romans-8-28",
+            href: "/scripture/romans-8-28",
+            id: "romans-8-28",
+            knowledgeType: "biblePassage",
+            label: "Romans 8:28",
+            passageString: "romans-8-28",
+          },
+        ],
+        limit: 5,
+      },
+    );
+
+    expect(suggestions.map((suggestion) => suggestion.id)).not.toContain(
+      "romans-8-28",
+    );
+    expect(suggestions.slice(0, 3).map((suggestion) => suggestion.id)).toEqual([
+      "romans-8-29",
+      "romans-8-27",
+      "romans-8",
+    ]);
+    expect(suggestions.map((suggestion) => suggestion.id)).toContain(
+      "default-community",
+    );
+  });
+
+  test("recommends authored works for active Person referent pages before defaults", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(seedPersonAuthoredWorkRecommendationRows);
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    const suggestions = await authed.query(
+      api.tagSuggestions.listKnowledgeNavigatorRecommendedTags,
+      {
+        activeTags: [
+          {
+            canonicalKey: "daniel-defoe",
+            href: "/goto/daniel-defoe",
+            id: "daniel-defoe",
+            knowledgeType: "person",
+            label: "Daniel Defoe",
+          },
+        ],
+        limit: 5,
+      },
+    );
+
+    expect(suggestions.map((suggestion) => suggestion.id)).not.toContain(
+      "daniel-defoe",
+    );
+    expect(suggestions[0]).toMatchObject({
+      id: "robinson-crusoe-daniel-defoe",
+      label: "Robinson Crusoe",
+    });
+    expect(suggestions.map((suggestion) => suggestion.id)).toContain(
+      "default-community",
+    );
+  });
 });
 
 async function seedSuggestionRows(ctx: MutationCtx) {
@@ -189,6 +413,31 @@ async function seedSuggestionRows(ctx: MutationCtx) {
   });
   await insertAlias(ctx, city.tagId, "City of God", "book");
   await insertAlias(ctx, question.tagId, "Micah's Crusades Question", "question");
+  const cityEntryId = await insertRepresentedEntry(ctx, city);
+  await ctx.db.insert("entryRepresentations", {
+    entryId: cityEntryId,
+    representationKind: "externalUrl",
+    representationRole: "thumbnail",
+    externalUrl: "https://images.example/city-of-god.png",
+    isPrimary: false,
+    createdAt: 1,
+    updatedAt: 1,
+  });
+
+  return { userId };
+}
+
+async function seedPersonReferenceSuggestionRows(ctx: MutationCtx) {
+  const { userId } = await insertAllowedUser(ctx, "person-reference-suggestions");
+  const person = await insertTag(ctx, {
+    canonicalKey: "user-profile-example-com",
+    knowledgeType: "person",
+    label: "Profile Person",
+  });
+  await ctx.db.insert("personReferentDetails", {
+    referentId: person.referentId,
+    searchText: "Profile Person profile@example.com",
+  });
 
   return { userId };
 }
@@ -385,6 +634,246 @@ async function seedRecommendedRows(ctx: MutationCtx) {
   return { userId };
 }
 
+async function seedLiteratureRecommendationRows(ctx: MutationCtx) {
+  const { userId } = await insertAllowedUser(ctx, "literature-recommendations");
+  const windInTheWillows = await insertTag(ctx, {
+    canonicalKey: "the-wind-in-the-willows-kenneth-grahame",
+    knowledgeType: "book",
+    label: "The Wind in the Willows",
+  });
+  const reluctantDragon = await insertTag(ctx, {
+    canonicalKey: "the-reluctant-dragon-kenneth-grahame",
+    knowledgeType: "shortStory",
+    label: "The Reluctant Dragon",
+  });
+  const unrelatedRecentBook = await insertTag(ctx, {
+    canonicalKey: "recent-unrelated-book",
+    knowledgeType: "book",
+    label: "Recent Unrelated Book",
+  });
+
+  const windEntryId = await insertRepresentedEntry(ctx, windInTheWillows, {
+    searchText:
+      "The Wind in the Willows Kenneth Grahame animal fantasy children's classic novel",
+    updatedAt: 10,
+  });
+  await insertBookEntryDetail(ctx, windEntryId, {
+    approxGradeMax: 7,
+    approxGradeMin: 4,
+    author: "Kenneth Grahame",
+    genres: ["animal fantasy", "children's classic", "novel"],
+    historicalTimeframeEndYear: 1908,
+    historicalTimeframeStartYear: 1900,
+  });
+
+  const reluctantDragonEntryId = await insertRepresentedEntry(ctx, reluctantDragon, {
+    searchText:
+      "The Reluctant Dragon Kenneth Grahame children's literature fantasy short story",
+    updatedAt: 9,
+  });
+  await insertShortStoryEntryDetail(ctx, reluctantDragonEntryId, {
+    approxGradeMax: 6,
+    approxGradeMin: 3,
+    author: "Kenneth Grahame",
+    genres: ["children's literature", "fantasy", "short story"],
+    historicalTimeframeEndYear: 1898,
+    historicalTimeframeStartYear: 1898,
+  });
+
+  const unrelatedRecentEntryId = await insertRepresentedEntry(
+    ctx,
+    unrelatedRecentBook,
+    {
+      searchText: "Recent Unrelated Book engineering handbook",
+      updatedAt: 100,
+    },
+  );
+  await insertBookEntryDetail(ctx, unrelatedRecentEntryId, {
+    approxGradeMax: 12,
+    approxGradeMin: 9,
+    author: "Other Author",
+    genres: ["technical manual"],
+    historicalTimeframeEndYear: 2000,
+    historicalTimeframeStartYear: 2000,
+  });
+
+  return { userId };
+}
+
+async function seedTagOnlyLiteratureRecommendationRows(ctx: MutationCtx) {
+  const { userId } = await insertAllowedUser(
+    ctx,
+    "tag-only-literature-recommendations",
+  );
+
+  await ctx.runMutation(internal.seedLiterature.upsertLiteraryWorks, {
+    works: [
+      {
+        canonicalKey: "pride-and-prejudice-jane-austen",
+        detail: {
+          approxGradeMax: 12,
+          approxGradeMin: 9,
+          approxWordCountK: 122,
+          author: "Jane Austen",
+          genres: ["novel", "regency fiction"],
+          historicalTimeframeEndYear: 1812,
+          historicalTimeframeStartYear: 1797,
+          lexileMeasure: 1190,
+          publisher: "T. Egerton",
+          settingLocation: "England",
+          yearPublished: "1813",
+        },
+        knowledgeType: "book",
+        title: "Pride and Prejudice",
+      },
+      {
+        canonicalKey: "sense-and-sensibility-jane-austen",
+        detail: {
+          approxGradeMax: 12,
+          approxGradeMin: 9,
+          approxWordCountK: 119,
+          author: "Jane Austen",
+          genres: ["novel", "regency fiction"],
+          historicalTimeframeEndYear: 1811,
+          historicalTimeframeStartYear: 1792,
+          lexileMeasure: 1180,
+          publisher: "T. Egerton",
+          settingLocation: "England",
+          yearPublished: "1811",
+        },
+        knowledgeType: "book",
+        title: "Sense and Sensibility",
+      },
+      {
+        canonicalKey: "robinson-crusoe-daniel-defoe",
+        detail: {
+          approxGradeMax: 9,
+          approxGradeMin: 6,
+          approxWordCountK: 100,
+          author: "Daniel Defoe",
+          genres: ["adventure", "novel"],
+          historicalTimeframeEndYear: 1686,
+          historicalTimeframeStartYear: 1659,
+          lexileMeasure: 920,
+          publisher: "W. Taylor",
+          settingLocation: "Caribbean",
+          yearPublished: "1719",
+        },
+        knowledgeType: "book",
+        title: "Robinson Crusoe",
+      },
+    ],
+  });
+
+  return { userId };
+}
+
+async function seedScriptureRecommendationRows(ctx: MutationCtx) {
+  const { userId } = await insertAllowedUser(ctx, "scripture-recommendations");
+  await seedRomans8Structure(ctx);
+
+  const defaultCommunity = await insertTag(ctx, {
+    canonicalKey: "default-community",
+    knowledgeType: "group",
+    label: "Default Community",
+  });
+  await ctx.db.insert("tagRecognitions", {
+    tagId: defaultCommunity.tagId,
+    recognizerKind: "user",
+    userId,
+    recognizedAt: 1,
+    lastInteractedAt: 5,
+  });
+
+  return { userId };
+}
+
+async function seedRomans8Structure(ctx: MutationCtx) {
+  const bookId = await ctx.db.insert("bibleBooks", {
+    chapterCount: 16,
+    code: "ROM",
+    name: "Romans",
+    shortName: "Rom",
+    testament: "new",
+    bookOrder: 45,
+  });
+  await ctx.db.insert("bibleChapters", {
+    bookCode: "ROM",
+    bookId,
+    chapterNumber: 8,
+    endOrdinal: 28156,
+    startOrdinal: 28118,
+    verseCount: 39,
+  });
+
+  for (let verseNumber = 1; verseNumber <= 39; verseNumber += 1) {
+    await ctx.db.insert("bibleVerses", {
+      bookCode: "ROM",
+      bookId,
+      chapterNumber: 8,
+      ordinal: 28117 + verseNumber,
+      verseNumber,
+    });
+  }
+}
+
+async function seedPersonAuthoredWorkRecommendationRows(ctx: MutationCtx) {
+  const { userId } = await insertAllowedUser(
+    ctx,
+    "person-authored-work-recommendations",
+  );
+
+  await ctx.runMutation(internal.seedLiterature.upsertLiteraryWorks, {
+    works: [
+      {
+        authorReferences: [
+          {
+            canonicalKey: "daniel-defoe",
+            detail: {
+              birthDate: "1661?",
+              deathDate: "24 April 1731",
+              subjects: ["English writer"],
+            },
+            name: "Daniel Defoe",
+            role: "author",
+          },
+        ],
+        canonicalKey: "robinson-crusoe-daniel-defoe",
+        detail: {
+          approxGradeMax: 9,
+          approxGradeMin: 6,
+          approxWordCountK: 100,
+          author: "Daniel Defoe",
+          genres: ["adventure", "novel"],
+          historicalTimeframeEndYear: 1686,
+          historicalTimeframeStartYear: 1659,
+          lexileMeasure: 920,
+          publisher: "W. Taylor",
+          settingLocation: "Caribbean",
+          yearPublished: "1719",
+        },
+        knowledgeType: "book",
+        title: "Robinson Crusoe",
+      },
+    ],
+  });
+
+  const defaultCommunity = await insertTag(ctx, {
+    canonicalKey: "default-community",
+    knowledgeType: "group",
+    label: "Default Community",
+  });
+  await ctx.db.insert("tagRecognitions", {
+    tagId: defaultCommunity.tagId,
+    recognizerKind: "user",
+    userId,
+    recognizedAt: 1,
+    lastInteractedAt: 5,
+  });
+
+  return { userId };
+}
+
 async function insertAllowedUser(ctx: MutationCtx, slug: string) {
   const userId = await insertUser(ctx, slug);
   const personReferentId = await ctx.db.insert("referents", {
@@ -489,6 +978,36 @@ async function insertAlias(
   });
 }
 
+async function insertMalachi4Structure(ctx: MutationCtx) {
+  const bookId = await ctx.db.insert("bibleBooks", {
+    bookOrder: 39,
+    chapterCount: 4,
+    code: "MAL",
+    name: "Malachi",
+    shortName: "Mal",
+    testament: "old",
+  });
+
+  await ctx.db.insert("bibleChapters", {
+    bookCode: "MAL",
+    bookId,
+    chapterNumber: 4,
+    endOrdinal: 23145,
+    startOrdinal: 23140,
+    verseCount: 6,
+  });
+
+  for (let verseNumber = 1; verseNumber <= 6; verseNumber += 1) {
+    await ctx.db.insert("bibleVerses", {
+      bookCode: "MAL",
+      bookId,
+      chapterNumber: 4,
+      ordinal: 23139 + verseNumber,
+      verseNumber,
+    });
+  }
+}
+
 async function insertRepresentedEntry(
   ctx: MutationCtx,
   tag: {
@@ -500,6 +1019,8 @@ async function insertRepresentedEntry(
   },
   entry: {
     createdByUserId?: Id<"users">;
+    searchText?: string;
+    updatedAt?: number;
     visibilityKind?: Doc<"knowledgeEntries">["visibilityKind"];
     visibilityTargetKey?: string;
   } = {},
@@ -514,7 +1035,7 @@ async function insertRepresentedEntry(
     primaryTagId: tag.tagId,
     title: tag.label,
     previewText: `${tag.label} preview`,
-    searchText: tag.label,
+    searchText: entry.searchText ?? tag.label,
     primaryTagLabel: tag.label,
     contextPreviewTagLabels: [],
     visibilityKind,
@@ -525,7 +1046,7 @@ async function insertRepresentedEntry(
       ? {}
       : { createdByUserId: entry.createdByUserId ?? tag.createdByUserId }),
     createdAt: 1,
-    updatedAt: 1,
+    updatedAt: entry.updatedAt ?? 1,
   });
   const taggedByUserId = entry.createdByUserId ?? tag.createdByUserId;
   await ctx.db.insert("entryTags", {
@@ -538,3 +1059,28 @@ async function insertRepresentedEntry(
 
   return entryId;
 }
+
+async function insertBookEntryDetail(
+  ctx: MutationCtx,
+  entryId: Id<"knowledgeEntries">,
+  detail: LiteratureTestDetail,
+) {
+  await ctx.db.insert("bookEntries", { entryId, ...detail });
+}
+
+async function insertShortStoryEntryDetail(
+  ctx: MutationCtx,
+  entryId: Id<"knowledgeEntries">,
+  detail: LiteratureTestDetail,
+) {
+  await ctx.db.insert("shortStoryEntries", { entryId, ...detail });
+}
+
+type LiteratureTestDetail = {
+  approxGradeMax: number;
+  approxGradeMin: number;
+  author: string;
+  genres: string[];
+  historicalTimeframeEndYear: number;
+  historicalTimeframeStartYear: number;
+};

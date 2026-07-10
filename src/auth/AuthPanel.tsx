@@ -121,7 +121,7 @@ export function AuthPanel({
     try {
       await signIn("google", { redirectTo: getRedirectTo() });
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Google sign-in failed");
+      setError(getAuthErrorMessage(caughtError, "Google sign-in failed"));
       setPendingProvider(null);
     }
   }
@@ -168,7 +168,7 @@ export function AuthPanel({
         setSentTo(email);
       }
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Sign-in failed");
+      setError(getAuthErrorMessage(caughtError, "Sign-in failed"));
     } finally {
       setPendingProvider(null);
     }
@@ -447,6 +447,24 @@ function AuthEmailField({ disabled }: { disabled: boolean }) {
       </div>
     </label>
   );
+}
+
+function getAuthErrorMessage(caughtError: unknown, fallback: string) {
+  const message = caughtError instanceof Error ? caughtError.message : "";
+
+  if (/InvalidSecret|InvalidAccountId/.test(message)) {
+    return "Email or password is incorrect. Check the temporary password and try again.";
+  }
+
+  if (/JWT_PRIVATE_KEY|JWKS/.test(message)) {
+    return "Local authentication is missing its signing keys.";
+  }
+
+  if (/Email is already in use by another user/.test(message)) {
+    return "Email is already in use by another user.";
+  }
+
+  return message || fallback;
 }
 
 function AuthPasswordField({

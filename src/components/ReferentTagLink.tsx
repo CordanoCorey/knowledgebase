@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactNode } from "react";
+import type { ElementType, MouseEvent, ReactNode } from "react";
 import {
   getReferentTagHref,
   resolveTagLabel,
@@ -45,10 +45,46 @@ export function ReferentTagLink({
       onClick={handleClick}
       title={`Open ${referentTag.label}`}
     >
-      {showIcon ? (
-        <KnowledgeTypeIcon knowledgeType={referentTag.knowledgeType} />
-      ) : null}
+      <ReferentTagVisual showIcon={showIcon} tag={referentTag} />
       {children ?? <span>{referentTag.label}</span>}
     </a>
   );
+}
+
+export function ReferentTagVisual({
+  className,
+  fallbackIcon: FallbackIcon,
+  showIcon = true,
+  tag,
+}: {
+  className?: string;
+  fallbackIcon?: ElementType<{ "aria-hidden"?: "true"; className?: string }>;
+  showIcon?: boolean;
+  tag: ActiveTag;
+}) {
+  if (tag.thumbnailUrl) {
+    return (
+      <span
+        aria-hidden="true"
+        className={joinClassNames("kb-referent-tag-thumbnail", className)}
+      >
+        <img alt="" src={tag.thumbnailUrl} />
+      </span>
+    );
+  }
+
+  if (FallbackIcon) {
+    return <FallbackIcon aria-hidden="true" className={className} />;
+  }
+
+  return showIcon ? (
+    <KnowledgeTypeIcon
+      className={className}
+      knowledgeType={tag.knowledgeType}
+    />
+  ) : null;
+}
+
+function joinClassNames(...classNames: Array<string | undefined>) {
+  return classNames.filter(Boolean).join(" ");
 }

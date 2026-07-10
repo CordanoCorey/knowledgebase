@@ -393,6 +393,11 @@ async function buildVerseRows(
       bookName: book?.name ?? verse.bookCode,
       bookShortName: book?.shortName ?? verse.bookCode,
       chapterNumber: verse.chapterNumber,
+      href: getVerseHref(
+        book?.name ?? verse.bookCode,
+        verse.chapterNumber,
+        verse.verseNumber,
+      ),
       ordinal: verse.ordinal,
       text: textByOrdinal.get(verse.ordinal) ?? null,
       verseNumber: verse.verseNumber,
@@ -400,4 +405,24 @@ async function buildVerseRows(
   }
 
   return verseRows;
+}
+
+function getVerseHref(
+  bookName: string,
+  chapterNumber: number,
+  verseNumber: number,
+) {
+  return `/scripture/${encodeURIComponent(
+    [
+      bookName
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, ""),
+      chapterNumber,
+      verseNumber,
+    ]
+      .filter(Boolean)
+      .join("-"),
+  )}`;
 }

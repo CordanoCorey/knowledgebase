@@ -433,6 +433,68 @@ describe("Contribution Editor rendering", () => {
     expect(markup).toContain("Smart Storage");
   });
 
+  test("Announcement editor requires an Organization target and posts directly", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    let submittedInput: ContributionInput | undefined;
+
+    try {
+      await act(async () => {
+        root.render(
+          <ContributionEditor
+            allowedContributionTypes={["announcement"]}
+            context={[romansTag]}
+            onPostDirect={(input) => {
+              submittedInput = input;
+              return { status: "submitted" };
+            }}
+            onStoreSmartly={() => {
+              throw new Error("Smart Storage should not be used.");
+            }}
+            organizationOptions={[
+              {
+                name: "Arche Classical Academy",
+                organizationReferentId: "org-arche",
+              },
+              {
+                name: "Veritas School",
+                organizationReferentId: "org-veritas",
+              },
+            ]}
+            selectedKnowledgeType="announcement"
+          />,
+        );
+      });
+
+      const editor = getContributionEditor(container);
+      expect(editor.textContent).toContain("Organization");
+      expect(editor.textContent).toContain("Post Announcement");
+      expect(editor.textContent).not.toContain("Store");
+
+      await setInputValue(getTextInput(editor), "Chapel location change");
+      await setTextareaValue(
+        getTextarea(editor),
+        "Chapel moves to the north hall at 10:15 tomorrow.",
+      );
+      await setSelectValue(getSelect(editor, "Announcement Organization"), "org-veritas");
+      await click(getButton(editor, "Post Announcement"));
+
+      expect(submittedInput).toMatchObject({
+        body: "Chapel moves to the north hall at 10:15 tomorrow.",
+        contextTags: [romansTag],
+        knowledgeType: "announcement",
+        organizationReferentId: "org-veritas",
+        title: "Chapel location change",
+      });
+    } finally {
+      await act(async () => {
+        root.unmount();
+      });
+      container.remove();
+    }
+  });
+
   test("guided Group creation asks only for the Group name in direct mode", () => {
     const markup = renderToStaticMarkup(
       <ContributionEditor
@@ -570,6 +632,43 @@ describe("Contribution Editor payload and sources", () => {
       body: "Raw chapel notes\nSecond line should stay in the body.",
       knowledgeType: "words",
       title: "Raw chapel notes",
+    });
+  });
+
+  test("announcement payload carries its Organization target and preview attribute", () => {
+    const organization = {
+      name: "Arche Classical Academy",
+      organizationReferentId: "org-arche",
+    };
+    const input = createContributionInput({
+      announcementOrganization: organization,
+      body: "Chapel moves to the north hall at 10:15 tomorrow.",
+      context: [romansTag],
+      knowledgeType: "announcement",
+      title: "Chapel location change",
+    });
+    const preview = createContributionPreview({
+      announcementOrganization: organization,
+      body: "Chapel moves to the north hall at 10:15 tomorrow.",
+      context: [romansTag],
+      knowledgeType: "announcement",
+      title: "Chapel location change",
+    });
+
+    expect(input).toMatchObject({
+      body: "Chapel moves to the north hall at 10:15 tomorrow.",
+      contextTags: [romansTag],
+      knowledgeType: "announcement",
+      organizationReferentId: "org-arche",
+      title: "Chapel location change",
+    });
+    expect(preview).toMatchObject({
+      mode: "direct",
+      submitLabel: "Post Announcement",
+    });
+    expect(preview.attributes).toContainEqual({
+      label: "Organization",
+      value: "Arche Classical Academy",
     });
   });
 
@@ -1193,6 +1292,26 @@ function getFileInput(container: Element) {
   return input;
 }
 
+function getTextInput(container: Element) {
+  const input = container.querySelector('input[type="text"]');
+  if (!(input instanceof HTMLInputElement)) {
+    throw new Error("Missing text input");
+  }
+
+  return input;
+}
+
+function getSelect(container: Element, label: string) {
+  const select = Array.from(container.querySelectorAll("select")).find(
+    (candidate) => candidate.getAttribute("aria-label") === label,
+  );
+  if (!(select instanceof HTMLSelectElement)) {
+    throw new Error(`Missing select: ${label}`);
+  }
+
+  return select;
+}
+
 function getButton(container: Element, label: string) {
   const button = Array.from(container.querySelectorAll("button")).find(
     (candidate) =>
@@ -1224,6 +1343,30 @@ async function setTextareaValue(textarea: HTMLTextAreaElement, value: string) {
     )?.set;
     valueSetter?.call(textarea, value);
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    await Promise.resolve();
+  });
+}
+
+async function setInputValue(input: HTMLInputElement, value: string) {
+  await act(async () => {
+    const valueSetter = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )?.set;
+    valueSetter?.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await Promise.resolve();
+  });
+}
+
+async function setSelectValue(select: HTMLSelectElement, value: string) {
+  await act(async () => {
+    const valueSetter = Object.getOwnPropertyDescriptor(
+      HTMLSelectElement.prototype,
+      "value",
+    )?.set;
+    valueSetter?.call(select, value);
+    select.dispatchEvent(new Event("change", { bubbles: true }));
     await Promise.resolve();
   });
 }

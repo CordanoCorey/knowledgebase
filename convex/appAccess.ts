@@ -5,7 +5,8 @@ import { getCurrentAppAccess } from "./lib/appAccess";
 // Public access query returns a discriminated union instead of leaking auth
 // implementation details to React components.
 const allowedOrganization = v.object({
-  organizationEntryId: v.id("organizationEntries"),
+  organizationDetailId: v.optional(v.id("organizationReferentDetails")),
+  organizationEntryId: v.optional(v.id("organizationEntries")),
   organizationKind: v.union(
     v.literal("school"),
     v.literal("church"),
