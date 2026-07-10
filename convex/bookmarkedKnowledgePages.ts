@@ -19,14 +19,40 @@ const organizationKind = v.union(
   v.literal("community"),
 );
 
+const genericKnowledgePageKind = v.union(
+  v.literal("dashboard"),
+  v.literal("scripture"),
+  v.literal("referent"),
+  v.literal("context"),
+  v.literal("search"),
+);
+
+const knowledgePageKind = v.union(
+  v.literal("organization"),
+  v.literal("dashboard"),
+  v.literal("scripture"),
+  v.literal("referent"),
+  v.literal("context"),
+  v.literal("search"),
+);
+
+const genericKnowledgePageInput = {
+  href: v.string(),
+  label: v.string(),
+  pageKey: v.string(),
+  pageKind: genericKnowledgePageKind,
+  secondaryLabel: v.optional(v.string()),
+};
+
 const profileBookmarkedKnowledgePage = v.object({
   createdAt: v.number(),
   href: v.string(),
   id: v.string(),
   label: v.string(),
-  organizationKind,
-  organizationName: v.string(),
-  organizationReferentId: v.id("referents"),
+  organizationKind: v.optional(organizationKind),
+  organizationName: v.optional(v.string()),
+  organizationReferentId: v.optional(v.id("referents")),
+  pageKind: knowledgePageKind,
   pageKey: v.string(),
   secondaryLabel: v.string(),
   updatedAt: v.number(),
@@ -34,14 +60,22 @@ const profileBookmarkedKnowledgePage = v.object({
 
 type OrganizationKind = Doc<"organizationEntries">["organizationKind"];
 type BookmarkRecord = Doc<"bookmarkedKnowledgePages">;
+type KnowledgePageRelationshipKind =
+  | "organization"
+  | "dashboard"
+  | "scripture"
+  | "referent"
+  | "context"
+  | "search";
 type ProfileBookmarkedKnowledgePage = {
   createdAt: number;
   href: string;
   id: string;
   label: string;
-  organizationKind: OrganizationKind;
-  organizationName: string;
-  organizationReferentId: Id<"referents">;
+  organizationKind?: OrganizationKind;
+  organizationName?: string;
+  organizationReferentId?: Id<"referents">;
+  pageKind: KnowledgePageRelationshipKind;
   pageKey: string;
   secondaryLabel: string;
   updatedAt: number;
@@ -150,6 +184,44 @@ export const bookmarkOrganizationPage = mutation({
   },
 });
 
+export const bookmarkKnowledgePage = mutation({
+  args: genericKnowledgePageInput,
+  returns: profileBookmarkedKnowledgePage,
+  handler: async (ctx, args): Promise<ProfileBookmarkedKnowledgePage> => {
+    const access = await requireAppAccess(ctx);
+    const page = normalizeGenericKnowledgePageInput(args);
+    const now = Date.now();
+    const existing = await getBookmarkByPageKey(ctx, access.userId, page.pageKey);
+    const bookmark = buildGenericKnowledgePageBookmark(page, now);
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        hrefSnapshot: bookmark.href,
+        labelSnapshot: bookmark.label,
+        lastReferencedAt: now,
+        pageKind: bookmark.pageKind,
+        pageKey: bookmark.pageKey,
+        secondaryLabelSnapshot: bookmark.secondaryLabel,
+        updatedAt: now,
+      });
+    } else {
+      await ctx.db.insert("bookmarkedKnowledgePages", {
+        createdAt: now,
+        hrefSnapshot: bookmark.href,
+        labelSnapshot: bookmark.label,
+        lastReferencedAt: now,
+        pageKey: bookmark.pageKey,
+        pageKind: bookmark.pageKind,
+        secondaryLabelSnapshot: bookmark.secondaryLabel,
+        updatedAt: now,
+        userId: access.userId,
+      });
+    }
+
+    return bookmark;
+  },
+});
+
 export const removeBookmark = mutation({
   args: {
     pageKey: v.string(),
@@ -199,6 +271,7 @@ function buildOrganizationBookmark(
     organizationKind: organization.organizationKind,
     organizationName: organization.name,
     organizationReferentId: organization.organizationReferentId,
+    pageKind: "organization",
     pageKey: getOrganizationPageKey(organization.organizationReferentId),
     secondaryLabel: formatOrganizationKind(organization.organizationKind),
     updatedAt: now,
@@ -210,29 +283,44 @@ function toProfileBookmark(
   organizationsByReferentId: Map<Id<"referents">, AllowedOrganization>,
 ): ProfileBookmarkedKnowledgePage | null {
   if (
-    record.pageKind !== "organization" ||
-    record.organizationReferentId === undefined
+    record.pageKind === "organization" &&
+    record.organizationReferentId !== undefined
   ) {
-    return null;
+    const organization = organizationsByReferentId.get(record.organizationReferentId);
+    if (!organization) {
+      return null;
+    }
+
+    return {
+      createdAt: record.createdAt,
+      href: getOrganizationHref(organization.organizationReferentId),
+      id: organization.organizationReferentId,
+      label: organization.name || record.labelSnapshot,
+      organizationKind: organization.organizationKind,
+      organizationName: organization.name || record.labelSnapshot,
+      organizationReferentId: organization.organizationReferentId,
+      pageKind: "organization",
+      pageKey: record.pageKey,
+      secondaryLabel:
+        record.secondaryLabelSnapshot ??
+        formatOrganizationKind(organization.organizationKind),
+      updatedAt: record.updatedAt,
+    };
   }
 
-  const organization = organizationsByReferentId.get(record.organizationReferentId);
-  if (!organization) {
+  if (record.pageKind === "organization") {
     return null;
   }
 
   return {
     createdAt: record.createdAt,
-    href: getOrganizationHref(organization.organizationReferentId),
-    id: organization.organizationReferentId,
-    label: organization.name || record.labelSnapshot,
-    organizationKind: organization.organizationKind,
-    organizationName: organization.name || record.labelSnapshot,
-    organizationReferentId: organization.organizationReferentId,
+    href: record.hrefSnapshot,
+    id: record.pageKey,
+    label: record.labelSnapshot,
+    pageKind: record.pageKind,
     pageKey: record.pageKey,
     secondaryLabel:
-      record.secondaryLabelSnapshot ??
-      formatOrganizationKind(organization.organizationKind),
+      record.secondaryLabelSnapshot ?? formatGenericKnowledgePageKind(record.pageKind),
     updatedAt: record.updatedAt,
   };
 }
@@ -305,4 +393,85 @@ function getOrganizationHref(organizationReferentId: Id<"referents">) {
 
 function formatOrganizationKind(kind: OrganizationKind) {
   return kind.charAt(0).toUpperCase() + kind.slice(1);
+}
+
+type GenericKnowledgePageInput = {
+  href: string;
+  label: string;
+  pageKey: string;
+  pageKind: Exclude<KnowledgePageRelationshipKind, "organization">;
+  secondaryLabel?: string;
+};
+
+function normalizeGenericKnowledgePageInput(
+  input: GenericKnowledgePageInput,
+): Required<GenericKnowledgePageInput> {
+  const pageKey = input.pageKey.trim();
+  const label = input.label.trim();
+  const href = input.href.trim();
+  const secondaryLabel =
+    input.secondaryLabel?.trim() || formatGenericKnowledgePageKind(input.pageKind);
+
+  if (!pageKey) {
+    throw new Error("Invalid Knowledge Page key");
+  }
+  if (!label) {
+    throw new Error("Invalid Knowledge Page label");
+  }
+  if (!href.startsWith("/") || href.startsWith("//")) {
+    throw new Error("Invalid Knowledge Page href");
+  }
+  if (!isGenericPageKeyValidForKind(input.pageKind, pageKey)) {
+    throw new Error("Invalid Knowledge Page key");
+  }
+
+  return {
+    href,
+    label,
+    pageKey,
+    pageKind: input.pageKind,
+    secondaryLabel,
+  };
+}
+
+function buildGenericKnowledgePageBookmark(
+  page: Required<GenericKnowledgePageInput>,
+  now: number,
+): ProfileBookmarkedKnowledgePage {
+  return {
+    createdAt: now,
+    href: page.href,
+    id: page.pageKey,
+    label: page.label,
+    pageKind: page.pageKind,
+    pageKey: page.pageKey,
+    secondaryLabel: page.secondaryLabel,
+    updatedAt: now,
+  };
+}
+
+function formatGenericKnowledgePageKind(
+  kind: Exclude<KnowledgePageRelationshipKind, "organization">,
+) {
+  if (kind === "dashboard") {
+    return "Dashboard";
+  }
+  if (kind === "scripture") {
+    return "Bible Passage";
+  }
+  if (kind === "referent") {
+    return "Referent Page";
+  }
+  if (kind === "context") {
+    return "Context Page";
+  }
+
+  return "Search";
+}
+
+function isGenericPageKeyValidForKind(
+  kind: Exclude<KnowledgePageRelationshipKind, "organization">,
+  pageKey: string,
+) {
+  return pageKey.startsWith(`${kind}:`);
 }

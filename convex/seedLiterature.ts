@@ -7,9 +7,8 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 
-const DEFAULT_CONTEXT_TAG_LABELS: string[] = [];
-const MAX_PREVIEW_LENGTH = 500;
-const MAX_SEARCH_TEXT_LENGTH = 2_000;
+const MAX_SEEDED_ENTRIES_PER_REFERENT = 10;
+const MAX_ENTRY_TAGS_PER_DELETED_ENTRY = 40;
 
 const literatureKnowledgeType = v.union(
   v.literal("book"),
@@ -25,18 +24,66 @@ const literatureDetailInput = v.object({
   approxGradeMin: v.union(v.number(), v.null()),
   approxWordCountK: v.union(v.number(), v.null()),
   author: v.union(v.string(), v.null()),
+  description: v.optional(v.union(v.string(), v.null())),
+  descriptionSourceName: v.optional(v.union(v.string(), v.null())),
+  descriptionSourceUrl: v.optional(v.union(v.string(), v.null())),
   genres: v.array(v.string()),
+  googleBooksVolumeId: v.optional(v.union(v.string(), v.null())),
   historicalTimeframeEndYear: v.union(v.number(), v.null()),
   historicalTimeframeStartYear: v.union(v.number(), v.null()),
   lexileMeasure: v.union(v.number(), v.null()),
+  openLibraryCoverId: v.optional(v.union(v.string(), v.null())),
+  openLibraryWorkKey: v.optional(v.union(v.string(), v.null())),
   publisher: v.union(v.string(), v.null()),
   settingLocation: v.union(v.string(), v.null()),
+  subjects: v.optional(v.array(v.string())),
+  thumbnailSourceName: v.optional(v.union(v.string(), v.null())),
+  thumbnailSourceUrl: v.optional(v.union(v.string(), v.null())),
+  thumbnailUrl: v.optional(v.union(v.string(), v.null())),
+  wikipediaTitle: v.optional(v.union(v.string(), v.null())),
   yearPublished: v.union(v.string(), v.null()),
 });
 
+const literatureAuthorRole = v.union(
+  v.literal("author"),
+  v.literal("editor"),
+  v.literal("translator"),
+  v.literal("compiler"),
+  v.literal("illustrator"),
+  v.literal("contributor"),
+);
+
+const personDetailInput = v.object({
+  birthDate: v.optional(v.union(v.string(), v.null())),
+  deathDate: v.optional(v.union(v.string(), v.null())),
+  description: v.optional(v.union(v.string(), v.null())),
+  descriptionSourceName: v.optional(v.union(v.string(), v.null())),
+  descriptionSourceUrl: v.optional(v.union(v.string(), v.null())),
+  openLibraryAuthorKey: v.optional(v.union(v.string(), v.null())),
+  subjects: v.optional(v.array(v.string())),
+  thumbnailSourceName: v.optional(v.union(v.string(), v.null())),
+  thumbnailSourceUrl: v.optional(v.union(v.string(), v.null())),
+  thumbnailUrl: v.optional(v.union(v.string(), v.null())),
+  wikipediaTitle: v.optional(v.union(v.string(), v.null())),
+});
+
+const authorReferenceInput = v.object({
+  canonicalKey: v.string(),
+  detail: v.optional(personDetailInput),
+  name: v.string(),
+  role: literatureAuthorRole,
+});
+
 const literatureSeedInput = v.object({
+  authorReferences: v.optional(v.array(authorReferenceInput)),
   canonicalKey: v.string(),
   detail: literatureDetailInput,
+  knowledgeType: literatureKnowledgeType,
+  title: v.string(),
+});
+
+const literatureSeedIdentityInput = v.object({
+  canonicalKey: v.string(),
   knowledgeType: literatureKnowledgeType,
   title: v.string(),
 });
@@ -49,26 +96,78 @@ type LiteratureKnowledgeType =
   | "series"
   | "essay";
 
+type SeededReferentKnowledgeType = LiteratureKnowledgeType | "person";
+
 type LiteratureDetail = {
   approxGradeMax: number | null;
   approxGradeMin: number | null;
   approxWordCountK: number | null;
   author: string | null;
+  description?: string | null;
+  descriptionSourceName?: string | null;
+  descriptionSourceUrl?: string | null;
   genres: string[];
+  googleBooksVolumeId?: string | null;
   historicalTimeframeEndYear: number | null;
   historicalTimeframeStartYear: number | null;
   lexileMeasure: number | null;
+  openLibraryCoverId?: string | null;
+  openLibraryWorkKey?: string | null;
   publisher: string | null;
   settingLocation: string | null;
+  subjects?: string[];
+  thumbnailSourceName?: string | null;
+  thumbnailSourceUrl?: string | null;
+  thumbnailUrl?: string | null;
+  wikipediaTitle?: string | null;
   yearPublished: string | null;
 };
 
+type PersonDetail = {
+  birthDate?: string | null;
+  deathDate?: string | null;
+  description?: string | null;
+  descriptionSourceName?: string | null;
+  descriptionSourceUrl?: string | null;
+  openLibraryAuthorKey?: string | null;
+  subjects?: string[];
+  thumbnailSourceName?: string | null;
+  thumbnailSourceUrl?: string | null;
+  thumbnailUrl?: string | null;
+  wikipediaTitle?: string | null;
+};
+
+type LiteratureAuthorRole =
+  | "author"
+  | "editor"
+  | "translator"
+  | "compiler"
+  | "illustrator"
+  | "contributor";
+
+type AuthorReference = {
+  canonicalKey: string;
+  detail?: PersonDetail;
+  name: string;
+  role: LiteratureAuthorRole;
+};
+
+type NormalizedAuthorReference = AuthorReference & {
+  authorOrder: number;
+};
+
 type LiteratureSeed = {
+  authorReferences?: AuthorReference[];
   canonicalKey: string;
   detail: LiteratureDetail;
   knowledgeType: LiteratureKnowledgeType;
   title: string;
 };
+
+type LiteratureSeedIdentity = Pick<
+  LiteratureSeed,
+  "canonicalKey" | "knowledgeType" | "title"
+>;
 
 type SeedStats = {
   inserted: number;
@@ -76,12 +175,24 @@ type SeedStats = {
   updated: number;
 };
 
+type DeleteStats = {
+  deleted: number;
+};
+
 type SeedResult = {
-  details: SeedStats;
-  entries: SeedStats;
-  entryTags: SeedStats;
+  authorDetails: SeedStats;
+  authorReferences: SeedStats;
+  authorReferents: SeedStats;
+  authorTags: SeedStats;
   referents: SeedStats;
+  referentDetails: SeedStats;
   tags: SeedStats;
+};
+
+type CleanupResult = {
+  details: DeleteStats;
+  entries: DeleteStats;
+  entryTags: DeleteStats;
 };
 
 type UpsertResult<TId extends string> = {
@@ -90,17 +201,21 @@ type UpsertResult<TId extends string> = {
 };
 type UpsertState = "inserted" | "skipped" | "updated";
 
+// The literature corpus is a referent preload. It intentionally does not create
+// Knowledge Entries: a work becomes a Knowledge Entry only when users contribute
+// or approve actual knowledge about that referent.
 export const upsertLiteraryWorks = internalMutation({
   args: {
     works: v.array(literatureSeedInput),
   },
   handler: async (ctx, args): Promise<SeedResult> => {
-    const now = Date.now();
     const stats: SeedResult = {
-      details: emptyStats(),
-      entries: emptyStats(),
-      entryTags: emptyStats(),
+      authorDetails: emptyStats(),
+      authorReferences: emptyStats(),
+      authorReferents: emptyStats(),
+      authorTags: emptyStats(),
       referents: emptyStats(),
+      referentDetails: emptyStats(),
       tags: emptyStats(),
     };
 
@@ -120,30 +235,95 @@ export const upsertLiteraryWorks = internalMutation({
       });
       count(stats.tags, tagResult.state);
 
-      const entryResult = await upsertKnowledgeEntry(ctx, {
+      const detailResult = await upsertLiteratureReferentDetail(ctx, {
         detail: work.detail,
         knowledgeType: work.knowledgeType,
-        primaryTagId: tagResult.id,
-        primaryTagLabel: work.title,
-        representedReferentId: referentResult.id,
+        referentId: referentResult.id,
         title: work.title,
-        updatedAt: now,
       });
-      count(stats.entries, entryResult.state);
+      count(stats.referentDetails, detailResult.state);
 
-      const entryTagState = await upsertRepresentedEntryTag(ctx, {
-        entryId: entryResult.id,
-        now,
-        tagId: tagResult.id,
-      });
-      count(stats.entryTags, entryTagState);
+      for (const authorReference of getWorkAuthorReferences(work)) {
+        const authorReferentResult = await upsertReferent(ctx, {
+          canonicalKey: authorReference.canonicalKey,
+          canonicalName: authorReference.name,
+          knowledgeType: "person",
+        });
+        count(stats.authorReferents, authorReferentResult.state);
 
-      const detailState = await upsertTypeDetail(ctx, {
-        detail: work.detail,
-        entryId: entryResult.id,
-        knowledgeType: work.knowledgeType,
-      });
-      count(stats.details, detailState);
+        const authorTagResult = await upsertPrimaryTag(ctx, {
+          knowledgeType: "person",
+          label: authorReference.name,
+          lookupKey: authorReference.canonicalKey,
+          referentId: authorReferentResult.id,
+        });
+        count(stats.authorTags, authorTagResult.state);
+
+        const authorDetailResult = await upsertPersonReferentDetail(ctx, {
+          detail: authorReference.detail,
+          name: authorReference.name,
+          referentId: authorReferentResult.id,
+        });
+        count(stats.authorDetails, authorDetailResult.state);
+
+        const authorReferenceResult = await upsertLiteratureAuthorReference(ctx, {
+          authorName: authorReference.name,
+          authorOrder: authorReference.authorOrder,
+          personReferentId: authorReferentResult.id,
+          role: authorReference.role,
+          workReferentId: referentResult.id,
+        });
+        count(stats.authorReferences, authorReferenceResult.state);
+      }
+    }
+
+    return stats;
+  },
+});
+
+export const deleteLegacySeededLiteratureKnowledgeEntries = internalMutation({
+  args: {
+    works: v.array(literatureSeedIdentityInput),
+  },
+  handler: async (ctx, args): Promise<CleanupResult> => {
+    const stats: CleanupResult = {
+      details: { deleted: 0 },
+      entries: { deleted: 0 },
+      entryTags: { deleted: 0 },
+    };
+
+    for (const work of args.works) {
+      const referent = await getReferentByKey(
+        ctx,
+        work.knowledgeType,
+        work.canonicalKey,
+      );
+      if (!referent) {
+        continue;
+      }
+
+      const entries = await getLegacySeededKnowledgeEntries(
+        ctx,
+        referent._id,
+        work,
+      );
+      for (const entry of entries) {
+        if (await deleteTypeDetail(ctx, work.knowledgeType, entry._id)) {
+          stats.details.deleted += 1;
+        }
+
+        const entryTags = await ctx.db
+          .query("entryTags")
+          .withIndex("by_entryId_and_tagId", (q) => q.eq("entryId", entry._id))
+          .take(MAX_ENTRY_TAGS_PER_DELETED_ENTRY);
+        for (const entryTag of entryTags) {
+          await ctx.db.delete(entryTag._id);
+          stats.entryTags.deleted += 1;
+        }
+
+        await ctx.db.delete(entry._id);
+        stats.entries.deleted += 1;
+      }
     }
 
     return stats;
@@ -156,13 +336,18 @@ export const verifyLiteratureSeedBatch = internalQuery({
       v.object({
         canonicalKey: v.string(),
         knowledgeType: literatureKnowledgeType,
+        title: v.string(),
       }),
     ),
   },
   handler: async (ctx, args) => {
     const missing: Array<{
       canonicalKey: string;
-      missing: "referent" | "entry" | "detail";
+      missing: "referent" | "referentDetail" | "tag";
+    }> = [];
+    const unexpectedSeedEntries: Array<{
+      canonicalKey: string;
+      entryId: Id<"knowledgeEntries">;
     }> = [];
 
     for (const work of args.works) {
@@ -176,30 +361,44 @@ export const verifyLiteratureSeedBatch = internalQuery({
         continue;
       }
 
-      const entry = await getKnowledgeEntryByReferent(
+      const tag = await getPrimaryTagByKey(
         ctx,
-        referent._id,
         work.knowledgeType,
+        work.canonicalKey,
       );
-      if (!entry) {
-        missing.push({ canonicalKey: work.canonicalKey, missing: "entry" });
-        continue;
+      if (!tag || tag.referentId !== referent._id) {
+        missing.push({ canonicalKey: work.canonicalKey, missing: "tag" });
       }
 
-      const detail = await getTypeDetailByEntryId(
+      const detail = await getLiteratureReferentDetailByReferentId(
         ctx,
-        work.knowledgeType,
-        entry._id,
+        referent._id,
       );
       if (!detail) {
-        missing.push({ canonicalKey: work.canonicalKey, missing: "detail" });
+        missing.push({
+          canonicalKey: work.canonicalKey,
+          missing: "referentDetail",
+        });
+      }
+
+      const entries = await getLegacySeededKnowledgeEntries(
+        ctx,
+        referent._id,
+        work,
+      );
+      for (const entry of entries) {
+        unexpectedSeedEntries.push({
+          canonicalKey: work.canonicalKey,
+          entryId: entry._id,
+        });
       }
     }
 
     return {
       checked: args.works.length,
       missing,
-      ok: missing.length === 0,
+      ok: missing.length === 0 && unexpectedSeedEntries.length === 0,
+      unexpectedSeedEntries,
     };
   },
 });
@@ -209,7 +408,7 @@ async function upsertReferent(
   referent: {
     canonicalKey: string;
     canonicalName: string;
-    knowledgeType: LiteratureKnowledgeType;
+    knowledgeType: SeededReferentKnowledgeType;
   },
 ): Promise<UpsertResult<Id<"referents">>> {
   const existingReferent = await getReferentByKey(
@@ -239,18 +438,17 @@ async function upsertReferent(
 async function upsertPrimaryTag(
   ctx: MutationCtx,
   tag: {
-    knowledgeType: LiteratureKnowledgeType;
+    knowledgeType: SeededReferentKnowledgeType;
     label: string;
     lookupKey: string;
     referentId: Id<"referents">;
   },
 ): Promise<UpsertResult<Id<"tags">>> {
-  const existingTag = await ctx.db
-    .query("tags")
-    .withIndex("by_knowledgeType_and_lookupKey", (q) =>
-      q.eq("knowledgeType", tag.knowledgeType).eq("lookupKey", tag.lookupKey),
-    )
-    .unique();
+  const existingTag = await getPrimaryTagByKey(
+    ctx,
+    tag.knowledgeType,
+    tag.lookupKey,
+  );
   if (!existingTag) {
     return { id: await ctx.db.insert("tags", tag), state: "inserted" };
   }
@@ -270,210 +468,199 @@ async function upsertPrimaryTag(
   return { id: existingTag._id, state: "skipped" };
 }
 
-async function upsertKnowledgeEntry(
+async function upsertLiteratureReferentDetail(
   ctx: MutationCtx,
-  entry: {
+  detail: {
     detail: LiteratureDetail;
     knowledgeType: LiteratureKnowledgeType;
-    primaryTagId: Id<"tags">;
-    primaryTagLabel: string;
-    representedReferentId: Id<"referents">;
+    referentId: Id<"referents">;
     title: string;
-    updatedAt: number;
   },
-): Promise<UpsertResult<Id<"knowledgeEntries">>> {
-  const existingEntry = await getKnowledgeEntryByReferent(
+): Promise<UpsertResult<Id<"literatureReferentDetails">>> {
+  const existingDetail = await getLiteratureReferentDetailByReferentId(
     ctx,
-    entry.representedReferentId,
-    entry.knowledgeType,
+    detail.referentId,
   );
-  const previewText = buildPreviewText(entry.title, entry.detail);
-  const nextEntry = {
-    contextPreviewTagLabels: DEFAULT_CONTEXT_TAG_LABELS,
-    discoverabilityKind: "public" as const,
-    discoverabilityTargetKey: "public",
-    knowledgeType: entry.knowledgeType,
-    previewText,
-    primaryTagId: entry.primaryTagId,
-    primaryTagLabel: entry.primaryTagLabel,
-    publicPreviewText: previewText,
-    representedReferentId: entry.representedReferentId,
-    searchText: buildSearchText(entry.title, entry.detail),
-    title: entry.title,
-    visibilityKind: "public" as const,
-    visibilityTargetKey: "public",
+  const normalizedDetail = normalizeLiteratureDetail(detail.detail);
+  const nextDetail = {
+    ...normalizedDetail,
+    knowledgeType: detail.knowledgeType,
+    referentId: detail.referentId,
+    searchText: buildSearchText(detail.title, normalizedDetail),
   };
 
-  if (!existingEntry) {
+  if (!existingDetail) {
     return {
-      id: await ctx.db.insert("knowledgeEntries", {
-        ...nextEntry,
-        createdAt: entry.updatedAt,
-        updatedAt: entry.updatedAt,
+      id: await ctx.db.insert("literatureReferentDetails", nextDetail),
+      state: "inserted",
+    };
+  }
+
+  const patch = getLiteratureReferentDetailPatch(existingDetail, nextDetail);
+  if (hasPatch(patch)) {
+    await ctx.db.patch(existingDetail._id, patch);
+    return { id: existingDetail._id, state: "updated" };
+  }
+
+  return { id: existingDetail._id, state: "skipped" };
+}
+
+async function upsertPersonReferentDetail(
+  ctx: MutationCtx,
+  detail: {
+    detail?: PersonDetail;
+    name: string;
+    referentId: Id<"referents">;
+  },
+): Promise<UpsertResult<Id<"personReferentDetails">>> {
+  const existingDetail = await getPersonReferentDetailByReferentId(
+    ctx,
+    detail.referentId,
+  );
+  const normalizedDetail = normalizePersonDetail(detail.detail);
+  const nextDetail = {
+    ...normalizedDetail,
+    referentId: detail.referentId,
+    searchText: buildPersonSearchText(detail.name, normalizedDetail),
+  };
+
+  if (!existingDetail) {
+    return {
+      id: await ctx.db.insert("personReferentDetails", nextDetail),
+      state: "inserted",
+    };
+  }
+
+  const patch = getPersonReferentDetailPatch(existingDetail, nextDetail);
+  if (hasPatch(patch)) {
+    await ctx.db.patch(existingDetail._id, patch);
+    return { id: existingDetail._id, state: "updated" };
+  }
+
+  return { id: existingDetail._id, state: "skipped" };
+}
+
+async function upsertLiteratureAuthorReference(
+  ctx: MutationCtx,
+  reference: {
+    authorName: string;
+    authorOrder: number;
+    personReferentId: Id<"referents">;
+    role: LiteratureAuthorRole;
+    workReferentId: Id<"referents">;
+  },
+): Promise<UpsertResult<Id<"literatureAuthorReferences">>> {
+  const existingReference = await getLiteratureAuthorReference(
+    ctx,
+    reference.workReferentId,
+    reference.personReferentId,
+  );
+  const now = Date.now();
+  if (!existingReference) {
+    return {
+      id: await ctx.db.insert("literatureAuthorReferences", {
+        ...reference,
+        createdAt: now,
+        updatedAt: now,
       }),
       state: "inserted",
     };
   }
 
-  const patch: Partial<Doc<"knowledgeEntries">> = {};
-  if (existingEntry.title !== nextEntry.title) {
-    patch.title = nextEntry.title;
+  const patch: Partial<Doc<"literatureAuthorReferences">> = {};
+  if (existingReference.authorName !== reference.authorName) {
+    patch.authorName = reference.authorName;
   }
-  if (existingEntry.previewText !== nextEntry.previewText) {
-    patch.previewText = nextEntry.previewText;
+  if (existingReference.authorOrder !== reference.authorOrder) {
+    patch.authorOrder = reference.authorOrder;
   }
-  if (existingEntry.searchText !== nextEntry.searchText) {
-    patch.searchText = nextEntry.searchText;
-  }
-  if (existingEntry.primaryTagId !== nextEntry.primaryTagId) {
-    patch.primaryTagId = nextEntry.primaryTagId;
-  }
-  if (existingEntry.primaryTagLabel !== nextEntry.primaryTagLabel) {
-    patch.primaryTagLabel = nextEntry.primaryTagLabel;
-  }
-  if (existingEntry.publicPreviewText !== nextEntry.publicPreviewText) {
-    patch.publicPreviewText = nextEntry.publicPreviewText;
+  if (existingReference.role !== reference.role) {
+    patch.role = reference.role;
   }
   if (hasPatch(patch)) {
-    patch.updatedAt = entry.updatedAt;
-    await ctx.db.patch(existingEntry._id, patch);
-    return { id: existingEntry._id, state: "updated" };
+    await ctx.db.patch(existingReference._id, {
+      ...patch,
+      updatedAt: now,
+    });
+    return { id: existingReference._id, state: "updated" };
   }
 
-  return { id: existingEntry._id, state: "skipped" };
+  return { id: existingReference._id, state: "skipped" };
 }
 
-async function upsertRepresentedEntryTag(
-  ctx: MutationCtx,
-  {
-    entryId,
-    now,
-    tagId,
-  }: {
-    entryId: Id<"knowledgeEntries">;
-    now: number;
-    tagId: Id<"tags">;
-  },
-): Promise<UpsertState> {
-  const existingEntryTag = await ctx.db
-    .query("entryTags")
-    .withIndex("by_entryId_and_tagId", (q) =>
-      q.eq("entryId", entryId).eq("tagId", tagId),
+async function getLiteratureReferentDetailByReferentId(
+  ctx: QueryCtx | MutationCtx,
+  referentId: Id<"referents">,
+) {
+  return await ctx.db
+    .query("literatureReferentDetails")
+    .withIndex("by_referentId", (q) => q.eq("referentId", referentId))
+    .unique();
+}
+
+async function getPersonReferentDetailByReferentId(
+  ctx: QueryCtx | MutationCtx,
+  referentId: Id<"referents">,
+) {
+  return await ctx.db
+    .query("personReferentDetails")
+    .withIndex("by_referentId", (q) => q.eq("referentId", referentId))
+    .unique();
+}
+
+async function getLiteratureAuthorReference(
+  ctx: QueryCtx | MutationCtx,
+  workReferentId: Id<"referents">,
+  personReferentId: Id<"referents">,
+) {
+  return await ctx.db
+    .query("literatureAuthorReferences")
+    .withIndex("by_workReferentId_and_personReferentId", (q) =>
+      q
+        .eq("workReferentId", workReferentId)
+        .eq("personReferentId", personReferentId),
     )
     .unique();
-  if (!existingEntryTag) {
-    await ctx.db.insert("entryTags", {
-      entryId,
-      tagId,
-      tagPurpose: "represented",
-      taggedAt: now,
-    });
-    return "inserted";
-  }
-
-  if (existingEntryTag.tagPurpose !== "represented") {
-    await ctx.db.patch(existingEntryTag._id, { tagPurpose: "represented" });
-    return "updated";
-  }
-
-  return "skipped";
 }
 
-async function upsertTypeDetail(
-  ctx: MutationCtx,
-  {
-    detail,
-    entryId,
-    knowledgeType,
-  }: {
-    detail: LiteratureDetail;
-    entryId: Id<"knowledgeEntries">;
-    knowledgeType: LiteratureKnowledgeType;
-  },
-): Promise<UpsertState> {
-  if (knowledgeType === "book") {
-    const existing = await getBookEntryByEntryId(ctx, entryId);
-    if (!existing) {
-      await ctx.db.insert("bookEntries", { entryId, ...detail });
-      return "inserted";
-    }
-    return await patchLiteratureDetail(ctx, existing, detail);
-  }
+type LiteratureReferentDetail = {
+  knowledgeType: LiteratureKnowledgeType;
+  referentId: Id<"referents">;
+  searchText: string;
+} & LiteratureDetail;
 
-  if (knowledgeType === "poem") {
-    const existing = await getPoemEntryByEntryId(ctx, entryId);
-    if (!existing) {
-      await ctx.db.insert("poemEntries", { entryId, ...detail });
-      return "inserted";
-    }
-    return await patchLiteratureDetail(ctx, existing, detail);
-  }
+type LiteratureReferentDetailPatch = Partial<
+  Omit<LiteratureReferentDetail, "referentId">
+>;
 
-  if (knowledgeType === "shortStory") {
-    const existing = await getShortStoryEntryByEntryId(ctx, entryId);
-    if (!existing) {
-      await ctx.db.insert("shortStoryEntries", { entryId, ...detail });
-      return "inserted";
-    }
-    return await patchLiteratureDetail(ctx, existing, detail);
-  }
+type PersonReferentDetail = {
+  referentId: Id<"referents">;
+  searchText: string;
+} & Required<PersonDetail>;
 
-  if (knowledgeType === "song") {
-    const existing = await getSongEntryByEntryId(ctx, entryId);
-    if (!existing) {
-      await ctx.db.insert("songEntries", { entryId, ...detail });
-      return "inserted";
-    }
-    return await patchLiteratureDetail(ctx, existing, detail);
-  }
+type PersonReferentDetailPatch = Partial<
+  Omit<PersonReferentDetail, "referentId">
+>;
 
-  if (knowledgeType === "series") {
-    const existing = await getSeriesEntryByEntryId(ctx, entryId);
-    if (!existing) {
-      await ctx.db.insert("seriesEntries", { entryId, ...detail });
-      return "inserted";
-    }
-    return await patchLiteratureDetail(ctx, existing, detail);
-  }
-
-  const existing = await getEssayEntryByEntryId(ctx, entryId);
-  if (!existing) {
-    await ctx.db.insert("essayEntries", { entryId, ...detail });
-    return "inserted";
-  }
-  return await patchLiteratureDetail(ctx, existing, detail);
-}
-
-async function patchLiteratureDetail(
-  ctx: MutationCtx,
-  existing: LiteratureDetailRow,
-  detail: LiteratureDetail,
-): Promise<UpsertState> {
-  const patch = getLiteratureDetailPatch(existing, detail);
-  if (!hasPatch(patch)) {
-    return "skipped";
-  }
-
-  await ctx.db.patch(existing._id, patch);
-  return "updated";
-}
-
-type LiteratureDetailRow = {
-  _id:
-    | Id<"bookEntries">
-    | Id<"poemEntries">
-    | Id<"shortStoryEntries">
-    | Id<"songEntries">
-    | Id<"seriesEntries">
-    | Id<"essayEntries">;
-} & Partial<LiteratureDetail>;
-
-function getLiteratureDetailPatch(
-  existing: Partial<LiteratureDetail>,
-  next: LiteratureDetail,
+function getLiteratureReferentDetailPatch(
+  existing: Partial<LiteratureReferentDetail>,
+  next: LiteratureReferentDetail,
 ) {
-  const patch: Partial<LiteratureDetail> = {};
-  for (const field of literatureDetailFields) {
+  const patch: LiteratureReferentDetailPatch = {};
+  for (const field of literatureReferentDetailPatchFields) {
+    if (!sameValue(existing[field], next[field])) {
+      patch[field] = next[field] as never;
+    }
+  }
+  return patch;
+}
+
+function getPersonReferentDetailPatch(
+  existing: Partial<PersonReferentDetail>,
+  next: PersonReferentDetail,
+) {
+  const patch: PersonReferentDetailPatch = {};
+  for (const field of personReferentDetailPatchFields) {
     if (!sameValue(existing[field], next[field])) {
       patch[field] = next[field] as never;
     }
@@ -483,7 +670,7 @@ function getLiteratureDetailPatch(
 
 async function getReferentByKey(
   ctx: QueryCtx | MutationCtx,
-  knowledgeType: LiteratureKnowledgeType,
+  knowledgeType: SeededReferentKnowledgeType,
   canonicalKey: string,
 ) {
   return await ctx.db
@@ -494,23 +681,66 @@ async function getReferentByKey(
     .unique();
 }
 
-async function getKnowledgeEntryByReferent(
+async function getPrimaryTagByKey(
+  ctx: QueryCtx | MutationCtx,
+  knowledgeType: SeededReferentKnowledgeType,
+  lookupKey: string,
+) {
+  return await ctx.db
+    .query("tags")
+    .withIndex("by_knowledgeType_and_lookupKey", (q) =>
+      q.eq("knowledgeType", knowledgeType).eq("lookupKey", lookupKey),
+    )
+    .unique();
+}
+
+async function getLegacySeededKnowledgeEntries(
   ctx: QueryCtx | MutationCtx,
   representedReferentId: Id<"referents">,
-  knowledgeType: LiteratureKnowledgeType,
+  work: LiteratureSeedIdentity,
 ) {
   const entries = await ctx.db
     .query("knowledgeEntries")
     .withIndex("by_representedReferentId", (q) =>
       q.eq("representedReferentId", representedReferentId),
     )
-    .take(10);
+    .take(MAX_SEEDED_ENTRIES_PER_REFERENT);
 
-  return entries.find((entry) => entry.knowledgeType === knowledgeType) ?? null;
+  return entries.filter((entry) => isLegacySeededKnowledgeEntry(entry, work));
+}
+
+function isLegacySeededKnowledgeEntry(
+  entry: Doc<"knowledgeEntries">,
+  work: LiteratureSeedIdentity,
+) {
+  return (
+    entry.createdByUserId === undefined &&
+    entry.knowledgeType === work.knowledgeType &&
+    entry.title === work.title &&
+    entry.primaryTagLabel === work.title &&
+    entry.visibilityKind === "public" &&
+    entry.visibilityTargetKey === "public" &&
+    entry.discoverabilityKind === "public" &&
+    entry.discoverabilityTargetKey === "public"
+  );
+}
+
+async function deleteTypeDetail(
+  ctx: MutationCtx,
+  knowledgeType: LiteratureKnowledgeType,
+  entryId: Id<"knowledgeEntries">,
+) {
+  const detail = await getTypeDetailByEntryId(ctx, knowledgeType, entryId);
+  if (!detail) {
+    return false;
+  }
+
+  await ctx.db.delete(detail._id);
+  return true;
 }
 
 async function getTypeDetailByEntryId(
-  ctx: QueryCtx,
+  ctx: QueryCtx | MutationCtx,
   knowledgeType: LiteratureKnowledgeType,
   entryId: Id<"knowledgeEntries">,
 ) {
@@ -592,16 +822,6 @@ async function getEssayEntryByEntryId(
     .unique();
 }
 
-function buildPreviewText(title: string, detail: LiteratureDetail) {
-  const pieces = [
-    detail.author ? `by ${detail.author}` : "",
-    detail.yearPublished ? `published ${detail.yearPublished}` : "",
-  ].filter(Boolean);
-  const summary =
-    pieces.length > 0 ? `${title}, ${pieces.join(", ")}.` : `${title}.`;
-  return limitString(summary, MAX_PREVIEW_LENGTH);
-}
-
 function buildSearchText(title: string, detail: LiteratureDetail) {
   return limitString(
     [
@@ -610,11 +830,32 @@ function buildSearchText(title: string, detail: LiteratureDetail) {
       detail.yearPublished,
       detail.publisher,
       detail.settingLocation,
+      detail.description,
+      detail.openLibraryWorkKey,
+      detail.wikipediaTitle,
       ...detail.genres,
+      ...(detail.subjects ?? []),
     ]
       .filter((part) => typeof part === "string" && part.trim() !== "")
       .join(" "),
-    MAX_SEARCH_TEXT_LENGTH,
+    2_000,
+  );
+}
+
+function buildPersonSearchText(name: string, detail: Required<PersonDetail>) {
+  return limitString(
+    [
+      name,
+      detail.birthDate,
+      detail.deathDate,
+      detail.description,
+      detail.openLibraryAuthorKey,
+      detail.wikipediaTitle,
+      ...(detail.subjects ?? []),
+    ]
+      .filter((part) => typeof part === "string" && part.trim() !== "")
+      .join(" "),
+    2_000,
   );
 }
 
@@ -622,23 +863,217 @@ function limitString(value: string, maxLength: number) {
   return value.length <= maxLength ? value : value.slice(0, maxLength).trim();
 }
 
-const literatureDetailFields = [
+function normalizeLiteratureDetail(
+  detail: LiteratureDetail,
+): Required<LiteratureDetail> {
+  return {
+    approxGradeMax: detail.approxGradeMax,
+    approxGradeMin: detail.approxGradeMin,
+    approxWordCountK: detail.approxWordCountK,
+    author: detail.author,
+    description: detail.description ?? null,
+    descriptionSourceName: detail.descriptionSourceName ?? null,
+    descriptionSourceUrl: detail.descriptionSourceUrl ?? null,
+    genres: detail.genres,
+    googleBooksVolumeId: detail.googleBooksVolumeId ?? null,
+    historicalTimeframeEndYear: detail.historicalTimeframeEndYear,
+    historicalTimeframeStartYear: detail.historicalTimeframeStartYear,
+    lexileMeasure: detail.lexileMeasure,
+    openLibraryCoverId: detail.openLibraryCoverId ?? null,
+    openLibraryWorkKey: detail.openLibraryWorkKey ?? null,
+    publisher: detail.publisher,
+    settingLocation: detail.settingLocation,
+    subjects: detail.subjects ?? [],
+    thumbnailSourceName: detail.thumbnailSourceName ?? null,
+    thumbnailSourceUrl: detail.thumbnailSourceUrl ?? null,
+    thumbnailUrl: detail.thumbnailUrl ?? null,
+    wikipediaTitle: detail.wikipediaTitle ?? null,
+    yearPublished: detail.yearPublished,
+  };
+}
+
+function normalizePersonDetail(detail: PersonDetail | undefined): Required<PersonDetail> {
+  return {
+    birthDate: detail?.birthDate ?? null,
+    deathDate: detail?.deathDate ?? null,
+    description: detail?.description ?? null,
+    descriptionSourceName: detail?.descriptionSourceName ?? null,
+    descriptionSourceUrl: detail?.descriptionSourceUrl ?? null,
+    openLibraryAuthorKey: detail?.openLibraryAuthorKey ?? null,
+    subjects: detail?.subjects ?? [],
+    thumbnailSourceName: detail?.thumbnailSourceName ?? null,
+    thumbnailSourceUrl: detail?.thumbnailSourceUrl ?? null,
+    thumbnailUrl: detail?.thumbnailUrl ?? null,
+    wikipediaTitle: detail?.wikipediaTitle ?? null,
+  };
+}
+
+function getWorkAuthorReferences(work: LiteratureSeed) {
+  const explicitReferences = work.authorReferences ?? [];
+  if (explicitReferences.length > 0) {
+    return normalizeAuthorReferences(explicitReferences);
+  }
+
+  return normalizeAuthorReferences(parseFallbackAuthorReferences(work.detail.author));
+}
+
+function normalizeAuthorReferences(
+  authorReferences: AuthorReference[],
+): NormalizedAuthorReference[] {
+  const seenCanonicalKeys = new Set<string>();
+  const normalized: NormalizedAuthorReference[] = [];
+
+  for (const authorReference of authorReferences) {
+    const name = authorReference.name.trim();
+    const canonicalKey =
+      normalizeCanonicalKey(authorReference.canonicalKey) ??
+      normalizeCanonicalKey(name);
+    if (!name || !canonicalKey || seenCanonicalKeys.has(canonicalKey)) {
+      continue;
+    }
+
+    seenCanonicalKeys.add(canonicalKey);
+    normalized.push({
+      ...authorReference,
+      authorOrder: normalized.length,
+      canonicalKey,
+      name,
+      role: authorReference.role,
+    });
+  }
+
+  return normalized;
+}
+
+function parseFallbackAuthorReferences(author: string | null): AuthorReference[] {
+  if (!author || isSkippedAuthorName(author)) {
+    return [];
+  }
+
+  const role = inferAuthorRole(author);
+  const normalizedAuthor = author
+    .replace(/\banonymous\b/gi, "")
+    .replace(/\((?:editor|editors|translator|compiler|illustrator)\)/gi, "")
+    .replace(/\b(?:editor|editors|translator|compiler|illustrator)\b/gi, "")
+    .replace(/\btrans\.\s*/gi, "")
+    .replace(/\btranslated by\s*/gi, "")
+    .trim();
+  const parts = splitAuthorNames(normalizedAuthor);
+
+  return parts
+    .filter((name) => !isSkippedAuthorName(name))
+    .map((name) => ({
+      canonicalKey: normalizeCanonicalKey(name) ?? "",
+      name,
+      role,
+    }));
+}
+
+function splitAuthorNames(author: string) {
+  return author
+    .replace(/\s*\/\s*/g, ";")
+    .replace(/\s*&\s*/g, " and ")
+    .split(/\s*;\s*|\s+\band\b\s+/i)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function inferAuthorRole(author: string): LiteratureAuthorRole {
+  const normalizedAuthor = author.toLowerCase();
+  if (normalizedAuthor.includes("editor")) {
+    return "editor";
+  }
+  if (normalizedAuthor.includes("translator")) {
+    return "translator";
+  }
+  if (/\btrans\./i.test(author) || normalizedAuthor.includes("translated by")) {
+    return "translator";
+  }
+  if (normalizedAuthor.includes("compiler")) {
+    return "compiler";
+  }
+  if (normalizedAuthor.includes("illustrator")) {
+    return "illustrator";
+  }
+  return "author";
+}
+
+function isSkippedAuthorName(author: string) {
+  const normalizedAuthor = author.trim().toLowerCase();
+  return (
+    normalizedAuthor === "" ||
+    normalizedAuthor === "anonymous" ||
+    normalizedAuthor === "unknown" ||
+    normalizedAuthor === "various" ||
+    normalizedAuthor === "various authors" ||
+    normalizedAuthor === "traditional" ||
+    normalizedAuthor.includes("folklore") ||
+    normalizedAuthor.includes("mythology") ||
+    normalizedAuthor.includes("public domain")
+  );
+}
+
+function normalizeCanonicalKey(value: string) {
+  const canonicalKey = value
+    .trim()
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return canonicalKey || null;
+}
+
+const literatureReferentDetailPatchFields = [
   "approxGradeMax",
   "approxGradeMin",
   "approxWordCountK",
   "author",
+  "description",
+  "descriptionSourceName",
+  "descriptionSourceUrl",
   "genres",
+  "googleBooksVolumeId",
   "historicalTimeframeEndYear",
   "historicalTimeframeStartYear",
+  "knowledgeType",
   "lexileMeasure",
+  "openLibraryCoverId",
+  "openLibraryWorkKey",
   "publisher",
+  "searchText",
   "settingLocation",
+  "subjects",
+  "thumbnailSourceName",
+  "thumbnailSourceUrl",
+  "thumbnailUrl",
+  "wikipediaTitle",
   "yearPublished",
-] as const satisfies readonly (keyof LiteratureDetail)[];
+] as const satisfies readonly (keyof LiteratureReferentDetailPatch)[];
+
+const personReferentDetailPatchFields = [
+  "birthDate",
+  "deathDate",
+  "description",
+  "descriptionSourceName",
+  "descriptionSourceUrl",
+  "openLibraryAuthorKey",
+  "searchText",
+  "subjects",
+  "thumbnailSourceName",
+  "thumbnailSourceUrl",
+  "thumbnailUrl",
+  "wikipediaTitle",
+] as const satisfies readonly (keyof PersonReferentDetailPatch)[];
 
 function sameValue(
-  left: LiteratureDetail[keyof LiteratureDetail] | undefined,
-  right: LiteratureDetail[keyof LiteratureDetail],
+  left:
+    | LiteratureReferentDetailPatch[keyof LiteratureReferentDetailPatch]
+    | PersonReferentDetailPatch[keyof PersonReferentDetailPatch]
+    | undefined,
+  right:
+    | LiteratureReferentDetailPatch[keyof LiteratureReferentDetailPatch]
+    | PersonReferentDetailPatch[keyof PersonReferentDetailPatch],
 ) {
   if (Array.isArray(left) || Array.isArray(right)) {
     return (

@@ -31,10 +31,12 @@ type SidebarPin = {
   label: string;
   organizationKind: string;
   organizationReferentId: Id<"referents">;
+  pageKind?: string;
   pageKey: string;
   pinSource: "defaultSeed" | "manual";
   secondaryLabel: string;
   sortOrder: number;
+  thumbnailUrl?: string;
 };
 
 describe("Pinned Knowledge Pages", () => {
@@ -78,6 +80,35 @@ describe("Pinned Knowledge Pages", () => {
     expect(pins.every((pin) => pin.pinSource === "defaultSeed")).toBe(true);
   });
 
+  test("pins a generic Scripture Knowledge Page for the current user", async () => {
+    const { authed } = await seedAllowedUser();
+
+    await authed.mutation(api.pinnedKnowledgePages.pinKnowledgePage, {
+      href: "/scripture/matthew-5-9",
+      label: "Matthew 5:9",
+      pageKey: "scripture:matthew-5-9",
+      pageKind: "scripture",
+      secondaryLabel: "Bible Passage",
+    });
+
+    const pins = await authed.query(
+      api.pinnedKnowledgePages.listForSidebar,
+      {},
+    ) as SidebarPin[];
+    expect(pins).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          href: "/scripture/matthew-5-9",
+          label: "Matthew 5:9",
+          pageKind: "scripture",
+          pageKey: "scripture:matthew-5-9",
+          pinSource: "manual",
+          secondaryLabel: "Bible Passage",
+        }),
+      ]),
+    );
+  });
+
   test("caps default seeds to one Organization per kind and keeps manual pins", async () => {
     const { authed, t, userId } = await seedAllowedUser();
     const secondSchool = await t.run((ctx) =>
@@ -116,6 +147,33 @@ describe("Pinned Knowledge Pages", () => {
       { label: "Arche Classical Academy", pinSource: "defaultSeed" },
       { label: "Second School", pinSource: "manual" },
     ]);
+  });
+
+  test("includes representative thumbnail URLs on visible Organization pins", async () => {
+    const { authed, t } = await seedAllowedUser();
+    const initialPins = await authed.query(
+      api.pinnedKnowledgePages.listForSidebar,
+      {},
+    ) as SidebarPin[];
+    const archePin = getPin(initialPins, "Arche Classical Academy");
+
+    await t.run((ctx) =>
+      insertThumbnailForReferent(
+        ctx,
+        archePin.organizationReferentId,
+        "https://images.example/arche-classical-academy.jpg",
+      ),
+    );
+
+    const pins = await authed.query(
+      api.pinnedKnowledgePages.listForSidebar,
+      {},
+    ) as SidebarPin[];
+
+    expect(getPin(pins, "Arche Classical Academy").thumbnailUrl).toBe(
+      "https://images.example/arche-classical-academy.jpg",
+    );
+    expect(getPin(pins, "Ruler of Kings Church").thumbnailUrl).toBeUndefined();
   });
 
   test("lists every default Organization pin for system admins", async () => {
@@ -354,4 +412,63 @@ async function insertOrganization(
   });
 
   return referentId;
+}
+
+async function insertThumbnailForReferent(
+  ctx: MutationCtx,
+  referentId: Id<"referents">,
+  externalUrl: string,
+) {
+  let entry = (
+    await ctx.db
+      .query("knowledgeEntries")
+      .withIndex("by_representedReferentId", (q) =>
+        q.eq("representedReferentId", referentId),
+      )
+      .take(1)
+  )[0];
+  if (!entry) {
+    const primaryTag = (
+      await ctx.db
+        .query("tags")
+        .withIndex("by_referentId", (q) => q.eq("referentId", referentId))
+        .take(1)
+    )[0];
+    if (!primaryTag) {
+      throw new Error("Missing primary tag for thumbnail fixture.");
+    }
+
+    const now = Date.now();
+    const entryId = await ctx.db.insert("knowledgeEntries", {
+      knowledgeType: "organization",
+      representedReferentId: referentId,
+      primaryTagId: primaryTag._id,
+      title: primaryTag.label,
+      previewText: `${primaryTag.label} thumbnail fixture.`,
+      searchText: primaryTag.label,
+      primaryTagLabel: primaryTag.label,
+      contextPreviewTagLabels: [],
+      createdAt: now,
+      updatedAt: now,
+      visibilityKind: "public",
+      visibilityTargetKey: "public",
+      discoverabilityKind: "public",
+      discoverabilityTargetKey: "public",
+    });
+    const createdEntry = await ctx.db.get(entryId);
+    if (!createdEntry) {
+      throw new Error("Missing represented entry for thumbnail fixture.");
+    }
+    entry = createdEntry;
+  }
+
+  await ctx.db.insert("entryRepresentations", {
+    entryId: entry._id,
+    representationKind: "externalUrl",
+    representationRole: "thumbnail",
+    externalUrl,
+    isPrimary: false,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  });
 }

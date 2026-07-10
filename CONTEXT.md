@@ -372,6 +372,10 @@ _Avoid_: Retagging, duplicate tag
 The thing a Tag points to, identified by both name and Knowledge Type so similarly named things remain distinct. A Referent may exist before any Knowledge Entry represents it.
 _Avoid_: Entity, item, entry
 
+**Known Referent**:
+A Referent and canonical Tag already recognized by the application, whether seeded by system data, created by account or domain workflows, or created through an accepted Knowledge Entry. A Known Referent can be referenced without creating a new Knowledge Entry for it.
+_Avoid_: Knowledge Entry, seeded entry, reference entry
+
 **Represented Referent**:
 The same-typed Referent a Knowledge Entry uniquely expresses or records. A Referent may have at most one Knowledge Entry that represents it.
 _Avoid_: Primary Referent, subject, entity
@@ -432,6 +436,10 @@ _Avoid_: Todo, assignment, prompt, bounty, call to action
 The act or resulting state of satisfying a Knowledge Slot by contributing the requested Knowledge Entry. A fulfilled Knowledge Slot points to the Knowledge Entry that satisfies it.
 _Avoid_: Completion, submission, done
 
+**Review Slot**:
+A user-facing task projection of a pending Smart Storage Proposal, shown with Knowledge Slot-like card and to-do behavior while preserving the Smart Storage Proposal as the durable Silver Layer review object. A Review Slot may ask the user to accept a proposed entry, resolve a reference, assign review, refresh stale Silver material, or otherwise finish Smart Storage review work.
+_Avoid_: Knowledge Slot, Composer Draft, draft entry
+
 **Subscription**:
 A user's standing interest in activity within a Knowledge Context, Organization, Knowledge Slot, or Event.
 _Avoid_: Alert, follow, notification setting
@@ -451,6 +459,10 @@ _Avoid_: Bronze data, raw folder
 **Smart Storage**:
 The AI-assisted process of preserving a Source, identifying relevant Tags, and refining or enriching the Source toward one or more pieces of structured knowledge the application understands. Smart Storage can propose Gold Layer knowledge, but user confirmation is required before that knowledge becomes Gold.
 _Avoid_: Upload, import, ingestion
+
+**Smart Storage Session**:
+The user-facing lifecycle for one Smart Storage contribution, anchored by a Contribution Submission and including its Sources, Smart Storage Runs, Smart Storage Proposals, Review Slots, accepted Primary Intended Entry, and review status.
+_Avoid_: Contribution Submission, LLM run, upload session
 
 **Factual Enrichment**:
 The Smart Storage act of using external factual information to refine a Source when the Source points to knowledge it does not itself contain. Factual Enrichment is not measured by Human Weight unless it becomes part of a user-confirmed Knowledge Entry.
@@ -472,12 +484,20 @@ _Avoid_: Human Weight, truth score, AI quality score
 A durable Silver Layer candidate for creating or updating one Knowledge Entry from Smart Storage before user confirmation, expressed in Smart Storage Contract terms rather than persistence-specific write operations. A Smart Storage Proposal may be accepted, rejected, or edited before it affects Gold Layer knowledge.
 _Avoid_: Draft entry, AI answer, unconfirmed Knowledge Entry
 
+**Scaffold Proposal**:
+A conservative Smart Storage Proposal created by deterministic application logic when the model path fails, is unavailable, or intentionally falls back. A Scaffold Proposal preserves submitted material into the minimum reviewable shape without pretending advanced extraction or enrichment occurred.
+_Avoid_: Model proposal, Gold Layer entry, automatic import
+
+**Prerequisite Proposal**:
+A Smart Storage Proposal that must become Gold before another Smart Storage Proposal can be accepted because it creates or confirms a required Referent, field, or relationship for the dependent proposal.
+_Avoid_: Optional Review Slot, draft entry
+
 **Smart Storage Run**:
-A record of one Smart Storage attempt against a Source, preserving the contract versions, request-specific input snapshot, and raw model output that produced, failed to produce, or helped produce Smart Storage Proposals.
+A record of one Smart Storage attempt against a Contribution Submission, preserving the contract versions, request-specific input snapshot, and raw model output that produced, failed to produce, or helped produce Smart Storage Proposals.
 _Avoid_: LLM call, job log, parser output
 
 **Smart Storage Contract**:
-The versioned stable domain contract Smart Storage gives to an LLM so it can match Sources to Knowledge Types and propose structured knowledge. A Smart Storage Contract includes the reusable domain shape needed for recognition and proposal generation without exposing the raw persistence schema or request-specific input as the model's contract.
+The versioned stable domain contract Smart Storage gives to an LLM so it can match Sources to the Knowledge Types the application currently understands and propose structured knowledge. A Smart Storage Contract includes reusable recognition rules, Type Behavior summaries, proposal requirements, tagging rules, and enrichment expectations without exposing the raw persistence schema or request-specific input as the model's contract.
 _Avoid_: Database schema prompt, raw schema, implementation prompt
 
 **Reprocessing**:

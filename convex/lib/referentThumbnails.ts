@@ -29,7 +29,7 @@ export async function getRepresentedReferentThumbnailUrl(
     }
   }
 
-  return undefined;
+  return await getSeededReferentThumbnailUrl(ctx, referentId);
 }
 
 export async function getEntryThumbnailUrl(
@@ -99,4 +99,23 @@ function compareStrings(left: string, right: string) {
   }
 
   return 0;
+}
+
+async function getSeededReferentThumbnailUrl(
+  ctx: QueryCtx,
+  referentId: Id<"referents">,
+) {
+  const literatureDetail = await ctx.db
+    .query("literatureReferentDetails")
+    .withIndex("by_referentId", (q) => q.eq("referentId", referentId))
+    .unique();
+  if (literatureDetail?.thumbnailUrl) {
+    return literatureDetail.thumbnailUrl;
+  }
+
+  const personDetail = await ctx.db
+    .query("personReferentDetails")
+    .withIndex("by_referentId", (q) => q.eq("referentId", referentId))
+    .unique();
+  return personDetail?.thumbnailUrl ?? undefined;
 }

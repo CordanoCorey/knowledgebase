@@ -93,7 +93,7 @@ describe("classical Christian literature seed data", () => {
     }
   });
 
-  test("seeds idempotent entries with bibliography detail rows", async () => {
+  test("seeds idempotent referents and tags without knowledge entries", async () => {
     const t = convexTest({ schema, modules });
     const works = [
       "All Things Bright and Beautiful",
@@ -104,26 +104,30 @@ describe("classical Christian literature seed data", () => {
       "The Waste Land",
     ].map((title) => {
       const { schoolCanonPriority: _priority, ...work } = getSeedWork(title);
-      return work;
+      return addTestEnrichment(work);
     });
 
     await expect(
       t.mutation(internal.seedLiterature.upsertLiteraryWorks, { works }),
     ).resolves.toMatchObject({
-      details: { inserted: 6, skipped: 0, updated: 0 },
-      entries: { inserted: 6, skipped: 0, updated: 0 },
-      entryTags: { inserted: 6, skipped: 0, updated: 0 },
+      authorDetails: { inserted: 6, skipped: 0, updated: 0 },
+      authorReferences: { inserted: 6, skipped: 0, updated: 0 },
+      authorReferents: { inserted: 6, skipped: 0, updated: 0 },
+      authorTags: { inserted: 6, skipped: 0, updated: 0 },
       referents: { inserted: 6, skipped: 0, updated: 0 },
+      referentDetails: { inserted: 6, skipped: 0, updated: 0 },
       tags: { inserted: 6, skipped: 0, updated: 0 },
     });
 
     await expect(
       t.mutation(internal.seedLiterature.upsertLiteraryWorks, { works }),
     ).resolves.toMatchObject({
-      details: { inserted: 0, skipped: 6, updated: 0 },
-      entries: { inserted: 0, skipped: 6, updated: 0 },
-      entryTags: { inserted: 0, skipped: 6, updated: 0 },
+      authorDetails: { inserted: 0, skipped: 6, updated: 0 },
+      authorReferences: { inserted: 0, skipped: 6, updated: 0 },
+      authorReferents: { inserted: 0, skipped: 6, updated: 0 },
+      authorTags: { inserted: 0, skipped: 6, updated: 0 },
       referents: { inserted: 0, skipped: 6, updated: 0 },
+      referentDetails: { inserted: 0, skipped: 6, updated: 0 },
       tags: { inserted: 0, skipped: 6, updated: 0 },
     });
 
@@ -132,15 +136,17 @@ describe("classical Christian literature seed data", () => {
         works: works.map((work) => ({
           canonicalKey: work.canonicalKey,
           knowledgeType: work.knowledgeType,
+          title: work.title,
         })),
       }),
     ).resolves.toEqual({
       checked: 6,
       missing: [],
       ok: true,
+      unexpectedSeedEntries: [],
     });
 
-    const details = await t.run(async (ctx) => {
+    const seededRows = await t.run(async (ctx) => {
       const work = getSeedWork("Pompeii...Buried Alive!");
       const referent = await ctx.db
         .query("referents")
@@ -153,25 +159,81 @@ describe("classical Christian literature seed data", () => {
       if (!referent) {
         throw new Error("Missing seeded Pompeii referent.");
       }
+      const tag = await ctx.db
+        .query("tags")
+        .withIndex("by_knowledgeType_and_lookupKey", (q) =>
+          q
+            .eq("knowledgeType", work.knowledgeType)
+            .eq("lookupKey", work.canonicalKey),
+        )
+        .unique();
+      if (!tag) {
+        throw new Error("Missing seeded Pompeii tag.");
+      }
       const entries = await ctx.db
         .query("knowledgeEntries")
         .withIndex("by_representedReferentId", (q) =>
           q.eq("representedReferentId", referent._id),
         )
         .take(10);
-      const entry = entries.find((candidate) => candidate.knowledgeType === "book");
-      if (!entry) {
-        throw new Error("Missing seeded Pompeii entry.");
-      }
-      const detail = await ctx.db
-        .query("bookEntries")
-        .withIndex("by_entryId", (q) => q.eq("entryId", entry._id))
+      const referentDetail = await ctx.db
+        .query("literatureReferentDetails")
+        .withIndex("by_referentId", (q) => q.eq("referentId", referent._id))
         .unique();
-      return { detail, entry };
+      const authorReferences = await ctx.db
+        .query("literatureAuthorReferences")
+        .withIndex("by_workReferentId_and_authorOrder", (q) =>
+          q.eq("workReferentId", referent._id),
+        )
+        .take(10);
+      const authorReference = authorReferences[0];
+      const authorReferent = authorReference
+        ? await ctx.db.get(authorReference.personReferentId)
+        : null;
+      const authorDetail = authorReferent
+        ? await ctx.db
+            .query("personReferentDetails")
+            .withIndex("by_referentId", (q) =>
+              q.eq("referentId", authorReferent._id),
+            )
+            .unique()
+        : null;
+      const authorTag = authorReferent
+        ? await ctx.db
+            .query("tags")
+            .withIndex("by_knowledgeType_and_lookupKey", (q) =>
+              q
+                .eq("knowledgeType", "person")
+                .eq("lookupKey", authorReferent.canonicalKey),
+            )
+            .unique()
+        : null;
+      const details = await ctx.db.query("bookEntries").take(10);
+      return {
+        authorDetail,
+        authorReference,
+        authorReferent,
+        authorTag,
+        details,
+        entries,
+        referent,
+        referentDetail,
+        tag,
+      };
     });
 
-    expect(details.entry.title).toBe("Pompeii...Buried Alive!");
-    expect(details.detail).toMatchObject({
+    expect(seededRows.referent).toMatchObject({
+      canonicalKey: "pompeii-buried-alive-edith-kunhardt",
+      canonicalName: "Pompeii...Buried Alive!",
+      knowledgeType: "book",
+    });
+    expect(seededRows.tag).toMatchObject({
+      knowledgeType: "book",
+      label: "Pompeii...Buried Alive!",
+      lookupKey: "pompeii-buried-alive-edith-kunhardt",
+      referentId: seededRows.referent._id,
+    });
+    expect(seededRows.referentDetail).toMatchObject({
       approxGradeMax: 4,
       approxGradeMin: 2,
       approxWordCountK: 2,
@@ -179,14 +241,209 @@ describe("classical Christian literature seed data", () => {
       genres: ["children's literature", "history", "reference"],
       historicalTimeframeEndYear: 79,
       historicalTimeframeStartYear: 79,
+      knowledgeType: "book",
       publisher: "Random House",
+      referentId: seededRows.referent._id,
+      searchText: expect.stringContaining("Pompeii...Buried Alive!"),
       settingLocation: "Pompeii, Italy",
+      description: "A short public description for Pompeii.",
+      descriptionSourceName: "Open Library",
+      descriptionSourceUrl: "https://openlibrary.org/works/OL123W",
+      openLibraryCoverId: "123",
+      openLibraryWorkKey: "/works/OL123W",
+      subjects: ["Pompeii", "Vesuvius"],
+      thumbnailSourceName: "Open Library",
+      thumbnailSourceUrl: "https://openlibrary.org/works/OL123W",
+      thumbnailUrl: "https://covers.openlibrary.org/b/id/123-L.jpg",
       yearPublished: "1987",
     });
-    expect(details.detail).not.toHaveProperty("priority");
-    expect(details.detail).not.toHaveProperty("schoolCanonPriority");
+    expect(seededRows.authorReferent).toMatchObject({
+      canonicalKey: "edith-kunhardt",
+      canonicalName: "Edith Kunhardt",
+      knowledgeType: "person",
+    });
+    expect(seededRows.authorTag).toMatchObject({
+      knowledgeType: "person",
+      label: "Edith Kunhardt",
+      lookupKey: "edith-kunhardt",
+      referentId: seededRows.authorReferent?._id,
+    });
+    expect(seededRows.authorDetail).toMatchObject({
+      description: "Children's nonfiction author.",
+      descriptionSourceName: "Wikipedia",
+      descriptionSourceUrl: "https://en.wikipedia.org/wiki/Edith_Kunhardt",
+      searchText: expect.stringContaining("Edith Kunhardt"),
+      thumbnailSourceName: "Wikipedia",
+      thumbnailSourceUrl: "https://en.wikipedia.org/wiki/Edith_Kunhardt",
+      thumbnailUrl: "https://upload.wikimedia.org/edith.jpg",
+      wikipediaTitle: "Edith Kunhardt",
+    });
+    expect(seededRows.authorReference).toMatchObject({
+      authorName: "Edith Kunhardt",
+      authorOrder: 0,
+      personReferentId: seededRows.authorReferent?._id,
+      role: "author",
+      workReferentId: seededRows.referent._id,
+    });
+    expect(seededRows.referentDetail).not.toHaveProperty("priority");
+    expect(seededRows.referentDetail).not.toHaveProperty("schoolCanonPriority");
+    expect(seededRows.entries).toEqual([]);
+    expect(seededRows.details).toEqual([]);
+  });
+
+  test("cleans up legacy seed-created knowledge entries", async () => {
+    const t = convexTest({ schema, modules });
+    const { schoolCanonPriority: _priority, ...work } = getSeedWork(
+      "Pompeii...Buried Alive!",
+    );
+
+    await t.mutation(internal.seedLiterature.upsertLiteraryWorks, {
+      works: [work],
+    });
+
+    await t.run(async (ctx) => {
+      const referent = await ctx.db
+        .query("referents")
+        .withIndex("by_knowledgeType_and_canonicalKey", (q) =>
+          q
+            .eq("knowledgeType", work.knowledgeType)
+            .eq("canonicalKey", work.canonicalKey),
+        )
+        .unique();
+      const tag = await ctx.db
+        .query("tags")
+        .withIndex("by_knowledgeType_and_lookupKey", (q) =>
+          q
+            .eq("knowledgeType", work.knowledgeType)
+            .eq("lookupKey", work.canonicalKey),
+        )
+        .unique();
+      if (!referent || !tag) {
+        throw new Error("Missing seeded Pompeii referent or tag.");
+      }
+
+      const entryId = await ctx.db.insert("knowledgeEntries", {
+        contextPreviewTagLabels: [],
+        createdAt: 1,
+        discoverabilityKind: "public",
+        discoverabilityTargetKey: "public",
+        knowledgeType: work.knowledgeType,
+        previewText: "Pompeii...Buried Alive!, by Edith Kunhardt.",
+        primaryTagId: tag._id,
+        primaryTagLabel: work.title,
+        publicPreviewText: "Pompeii...Buried Alive!, by Edith Kunhardt.",
+        representedReferentId: referent._id,
+        searchText: "Pompeii...Buried Alive! Edith Kunhardt",
+        title: work.title,
+        updatedAt: 1,
+        visibilityKind: "public",
+        visibilityTargetKey: "public",
+      });
+      await ctx.db.insert("entryTags", {
+        entryId,
+        tagId: tag._id,
+        taggedAt: 1,
+        tagPurpose: "represented",
+      });
+      await ctx.db.insert("bookEntries", { entryId, ...work.detail });
+    });
+
+    await expect(
+      t.query(internal.seedLiterature.verifyLiteratureSeedBatch, {
+        works: [
+          {
+            canonicalKey: work.canonicalKey,
+            knowledgeType: work.knowledgeType,
+            title: work.title,
+          },
+        ],
+      }),
+    ).resolves.toMatchObject({
+      checked: 1,
+      missing: [],
+      ok: false,
+      unexpectedSeedEntries: [
+        {
+          canonicalKey: work.canonicalKey,
+        },
+      ],
+    });
+
+    await expect(
+      t.mutation(
+        internal.seedLiterature.deleteLegacySeededLiteratureKnowledgeEntries,
+        {
+          works: [
+            {
+              canonicalKey: work.canonicalKey,
+              knowledgeType: work.knowledgeType,
+              title: work.title,
+            },
+          ],
+        },
+      ),
+    ).resolves.toEqual({
+      details: { deleted: 1 },
+      entries: { deleted: 1 },
+      entryTags: { deleted: 1 },
+    });
+
+    await expect(
+      t.query(internal.seedLiterature.verifyLiteratureSeedBatch, {
+        works: [
+          {
+            canonicalKey: work.canonicalKey,
+            knowledgeType: work.knowledgeType,
+            title: work.title,
+          },
+        ],
+      }),
+    ).resolves.toEqual({
+      checked: 1,
+      missing: [],
+      ok: true,
+      unexpectedSeedEntries: [],
+    });
   });
 });
+
+function addTestEnrichment(work: Omit<LiteratureSeedFile["works"][number], "schoolCanonPriority">) {
+  if (work.title !== "Pompeii...Buried Alive!") {
+    return work;
+  }
+
+  return {
+    ...work,
+    authorReferences: [
+      {
+        canonicalKey: "edith-kunhardt",
+        detail: {
+          description: "Children's nonfiction author.",
+          descriptionSourceName: "Wikipedia",
+          descriptionSourceUrl: "https://en.wikipedia.org/wiki/Edith_Kunhardt",
+          thumbnailSourceName: "Wikipedia",
+          thumbnailSourceUrl: "https://en.wikipedia.org/wiki/Edith_Kunhardt",
+          thumbnailUrl: "https://upload.wikimedia.org/edith.jpg",
+          wikipediaTitle: "Edith Kunhardt",
+        },
+        name: "Edith Kunhardt",
+        role: "author" as const,
+      },
+    ],
+    detail: {
+      ...work.detail,
+      description: "A short public description for Pompeii.",
+      descriptionSourceName: "Open Library",
+      descriptionSourceUrl: "https://openlibrary.org/works/OL123W",
+      openLibraryCoverId: "123",
+      openLibraryWorkKey: "/works/OL123W",
+      subjects: ["Pompeii", "Vesuvius"],
+      thumbnailSourceName: "Open Library",
+      thumbnailSourceUrl: "https://openlibrary.org/works/OL123W",
+      thumbnailUrl: "https://covers.openlibrary.org/b/id/123-L.jpg",
+    },
+  };
+}
 
 function getSeedWork(title: string) {
   const work = seed.works.find((candidate) => candidate.title === title);

@@ -38,6 +38,7 @@ type SeedVerificationResult = {
   organizations: Array<{
     canonicalKey: string;
     exists: boolean;
+    hasKnowledgeEntry: boolean;
     isActive: boolean | null;
     kind: string | null;
     name: string | null;
@@ -176,6 +177,7 @@ describe("App organization access", () => {
       {
         canonicalKey: "arche-classical-academy",
         exists: true,
+        hasKnowledgeEntry: false,
         isActive: true,
         kind: "school",
         name: "Arche Classical Academy",
@@ -183,6 +185,7 @@ describe("App organization access", () => {
       {
         canonicalKey: "ruler-of-kings-church",
         exists: true,
+        hasKnowledgeEntry: false,
         isActive: true,
         kind: "church",
         name: "Ruler of Kings Church",
@@ -190,6 +193,7 @@ describe("App organization access", () => {
       {
         canonicalKey: "my-family",
         exists: true,
+        hasKnowledgeEntry: false,
         isActive: true,
         kind: "family",
         name: "My Family",
@@ -197,6 +201,7 @@ describe("App organization access", () => {
       {
         canonicalKey: "my-community",
         exists: true,
+        hasKnowledgeEntry: false,
         isActive: true,
         kind: "community",
         name: "My Community",
@@ -229,6 +234,57 @@ describe("App organization access", () => {
         membershipCount: 4,
       },
     ]);
+
+    const referenceEntryCounts = await t.run(async (ctx) => {
+      const organizationEntries = [];
+      for (const organization of verification.organizations) {
+        const referent = await ctx.db
+          .query("referents")
+          .withIndex("by_knowledgeType_and_canonicalKey", (q) =>
+            q
+              .eq("knowledgeType", "organization")
+              .eq("canonicalKey", organization.canonicalKey),
+          )
+          .unique();
+        if (!referent) {
+          continue;
+        }
+        organizationEntries.push(
+          ...(await ctx.db
+            .query("knowledgeEntries")
+            .withIndex("by_representedReferentId", (q) =>
+              q.eq("representedReferentId", referent._id),
+            )
+            .take(10)),
+        );
+      }
+
+      const userProfiles = await ctx.db.query("userProfiles").take(10);
+      const userPersonEntries = [];
+      for (const profile of userProfiles) {
+        userPersonEntries.push(
+          ...(await ctx.db
+            .query("knowledgeEntries")
+            .withIndex("by_representedReferentId", (q) =>
+              q.eq("representedReferentId", profile.personReferentId),
+            )
+            .take(10)),
+        );
+      }
+
+      return {
+        organizationEntryCount: organizationEntries.length,
+        userPersonEntryCount: userPersonEntries.length,
+        userProfilesWithEntryCount: userProfiles.filter(
+          (profile) => profile.personEntryId !== undefined,
+        ).length,
+      };
+    });
+    expect(referenceEntryCounts).toEqual({
+      organizationEntryCount: 0,
+      userPersonEntryCount: 0,
+      userProfilesWithEntryCount: 0,
+    });
   });
 
   test("allows an active seeded user with an active organization membership", async () => {
@@ -406,7 +462,7 @@ describe("App organization access", () => {
     }
     expect(access.organizations).toContainEqual({
       name: "Arche Classical Academy",
-      organizationEntryId: expect.any(String),
+      organizationDetailId: expect.any(String),
       organizationKind: "school",
       organizationReferentId: expect.any(String),
       role: "admin",
@@ -581,7 +637,7 @@ describe("App organization access", () => {
         canonicalKey: "contact-email:withdraw.me@example.com",
         knowledgeType: "person",
       });
-      expect(personEntries).toHaveLength(1);
+      expect(personEntries).toHaveLength(0);
 
       return userId;
     });
@@ -774,27 +830,8 @@ describe("App organization access", () => {
       if (!membership) {
         throw new Error("Missing pending membership.");
       }
-      const personEntry = (
-        await ctx.db
-          .query("knowledgeEntries")
-          .withIndex("by_representedReferentId", (q) =>
-            q.eq("representedReferentId", membership.personReferentId),
-          )
-          .take(10)
-      ).find((entry) => entry.knowledgeType === "person");
-      if (!personEntry) {
-        throw new Error("Missing pending person entry.");
-      }
-
       await ctx.db.patch(membership.personReferentId, {
         canonicalName: "Review Settings",
-      });
-      await ctx.db.patch(personEntry._id, {
-        previewText: "Review Settings",
-        primaryTagLabel: "Review Settings",
-        searchText: "Review Settings review.settings@example.com",
-        title: "Review Settings",
-        updatedAt: Date.now(),
       });
 
       const user = await ctx.db.get(claimantUserId);
@@ -957,27 +994,8 @@ describe("App organization access", () => {
       if (!membership) {
         throw new Error("Missing pending membership.");
       }
-      const personEntry = (
-        await ctx.db
-          .query("knowledgeEntries")
-          .withIndex("by_representedReferentId", (q) =>
-            q.eq("representedReferentId", membership.personReferentId),
-          )
-          .take(10)
-      ).find((entry) => entry.knowledgeType === "person");
-      if (!personEntry) {
-        throw new Error("Missing pending person entry.");
-      }
-
       await ctx.db.patch(membership.personReferentId, {
         canonicalName: "Reject Review",
-      });
-      await ctx.db.patch(personEntry._id, {
-        previewText: "Reject Review",
-        primaryTagLabel: "Reject Review",
-        searchText: "Reject Review reject.review@example.com",
-        title: "Reject Review",
-        updatedAt: Date.now(),
       });
 
       const user = await ctx.db.get(claimantUserId);
@@ -1264,27 +1282,8 @@ describe("App organization access", () => {
       if (!pendingMembership) {
         throw new Error("Missing pending membership.");
       }
-      const personEntry = (
-        await ctx.db
-          .query("knowledgeEntries")
-          .withIndex("by_representedReferentId", (q) =>
-            q.eq("representedReferentId", pendingMembership.personReferentId),
-          )
-          .take(10)
-      ).find((entry) => entry.knowledgeType === "person");
-      if (!personEntry) {
-        throw new Error("Missing pending person entry.");
-      }
-
       await ctx.db.patch(pendingMembership.personReferentId, {
         canonicalName: "Duplicate Review",
-      });
-      await ctx.db.patch(personEntry._id, {
-        previewText: "Duplicate Review",
-        primaryTagLabel: "Duplicate Review",
-        searchText: "Duplicate Review duplicate.review@example.com",
-        title: "Duplicate Review",
-        updatedAt: Date.now(),
       });
 
       const user = await ctx.db.get(claimantUserId);
@@ -1476,7 +1475,7 @@ describe("App organization access", () => {
     }
     expect(access.organizations).toContainEqual({
       name: "Arche Classical Academy",
-      organizationEntryId: expect.any(String),
+      organizationDetailId: expect.any(String),
       organizationKind: "school",
       organizationReferentId: expect.any(String),
       role: "admin",
@@ -1679,6 +1678,7 @@ describe("App organization access", () => {
       canonicalKey: "cedar-hall-school",
       href: "/organizations/cedar-hall-school",
       name: "Cedar Hall School",
+      organizationDetailId: expect.any(String),
       organizationKind: "school",
     });
 
@@ -1702,37 +1702,28 @@ describe("App organization access", () => {
           q.eq("representedReferentId", referent._id),
         )
         .take(10);
-      const entry =
-        entries.find((candidate) => candidate.knowledgeType === "organization") ??
-        null;
-      if (!entry) {
-        throw new Error("Missing created organization entry.");
-      }
-
-      const organizationEntry = await ctx.db
-        .query("organizationEntries")
-        .withIndex("by_entryId", (q) => q.eq("entryId", entry._id))
+      const detail = await ctx.db
+        .query("organizationReferentDetails")
+        .withIndex("by_referentId", (q) => q.eq("referentId", referent._id))
         .unique();
-      const representedTag = await ctx.db
-        .query("entryTags")
-        .withIndex("by_entryId_and_tagPurpose", (q) =>
-          q.eq("entryId", entry._id).eq("tagPurpose", "represented"),
-        )
+      const tag = await ctx.db
+        .query("tags")
+        .withIndex("by_referentId", (q) => q.eq("referentId", referent._id))
         .unique();
 
       return {
-        entryTitle: entry.title,
-        isActive: organizationEntry?.isActive,
-        kind: organizationEntry?.organizationKind,
-        representedTagId: representedTag?.tagId,
+        entryCount: entries.length,
+        isActive: detail?.isActive,
+        kind: detail?.organizationKind,
+        tagId: tag?._id,
       };
     });
 
     expect(storedOrganization).toEqual({
-      entryTitle: "Cedar Hall School",
+      entryCount: 0,
       isActive: true,
       kind: "school",
-      representedTagId: expect.any(String),
+      tagId: expect.any(String),
     });
 
     const refreshedAccess = (await t
@@ -1744,7 +1735,7 @@ describe("App organization access", () => {
     }
     expect(refreshedAccess.organizations).toContainEqual({
       name: "Cedar Hall School",
-      organizationEntryId: expect.any(String),
+      organizationDetailId: expect.any(String),
       organizationKind: "school",
       organizationReferentId: expect.any(String),
       role: "admin",
@@ -1790,11 +1781,11 @@ describe("App organization access", () => {
 
     await t.run(async (ctx) => {
       await ctx.db.patch(corey.userId, { isActive: true });
-      const organizationEntries = await ctx.db
-        .query("organizationEntries")
+      const organizationDetails = await ctx.db
+        .query("organizationReferentDetails")
         .take(10);
-      for (const organizationEntry of organizationEntries) {
-        await ctx.db.patch(organizationEntry._id, { isActive: false });
+      for (const organizationDetail of organizationDetails) {
+        await ctx.db.patch(organizationDetail._id, { isActive: false });
       }
     });
 

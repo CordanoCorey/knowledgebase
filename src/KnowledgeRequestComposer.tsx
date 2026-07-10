@@ -13,7 +13,9 @@ import {
   createKnowledgeRequestDraft,
   NAVIGATOR_TAG_FIXTURES,
   resolveTag,
+  resolveTagLabel,
 } from "./knowledgeContext";
+import { parseBiblePassageReference } from "../convex/lib/scriptureReferences";
 import {
   type ActiveTag,
   type KnowledgeRequestDraft,
@@ -361,6 +363,12 @@ export function getKnowledgeNavigatorQuerySuggestions(
     suggestedTagIds.add(tag.id);
   }
 
+  const parsedPassage = parseBiblePassageReference(requestText);
+  if (parsedPassage) {
+    addSuggestion(resolveTagLabel(parsedPassage.label), "label");
+    return suggestions.slice(0, limit);
+  }
+
   for (const tag of NAVIGATOR_TAG_FIXTURES) {
     const normalizedLabel = normalizeKnowledgeRequestText(tag.label);
     const normalizedId = normalizeKnowledgeRequestText(tag.id.replaceAll("-", " "));
@@ -446,6 +454,11 @@ export function mapKnowledgeRequestToTags(
     (tags, tag) => addActiveTag(tags, tag),
     [],
   );
+  const parsedPassage = parseBiblePassageReference(requestText);
+  if (parsedPassage) {
+    mappedTags = addActiveTag(mappedTags, resolveTagLabel(parsedPassage.label));
+    return mappedTags;
+  }
 
   for (const rule of KNOWLEDGE_REQUEST_TAG_RULES) {
     if (rule.patterns.some((pattern) => pattern.test(normalizedText))) {

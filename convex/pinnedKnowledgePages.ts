@@ -5,6 +5,7 @@ import {
   requireAppAccess,
   type AllowedOrganization,
 } from "./lib/appAccess";
+import { getRepresentedReferentThumbnailUrl } from "./lib/referentThumbnails";
 
 // Pinned pages drive sidebar personalization and keep labels/hrefs snapshotted
 // so navigation remains stable if the underlying entry title changes.
@@ -23,17 +24,44 @@ const pinSource = v.union(
   v.literal("manual"),
 );
 
+const genericKnowledgePageKind = v.union(
+  v.literal("dashboard"),
+  v.literal("scripture"),
+  v.literal("referent"),
+  v.literal("context"),
+  v.literal("search"),
+);
+
+const knowledgePageKind = v.union(
+  v.literal("organization"),
+  v.literal("dashboard"),
+  v.literal("scripture"),
+  v.literal("referent"),
+  v.literal("context"),
+  v.literal("search"),
+);
+
+const genericKnowledgePageInput = {
+  href: v.string(),
+  label: v.string(),
+  pageKey: v.string(),
+  pageKind: genericKnowledgePageKind,
+  secondaryLabel: v.optional(v.string()),
+};
+
 const sidebarPinnedKnowledgePage = v.object({
   href: v.string(),
   id: v.string(),
   label: v.string(),
-  organizationKind,
-  organizationName: v.string(),
-  organizationReferentId: v.id("referents"),
+  organizationKind: v.optional(organizationKind),
+  organizationName: v.optional(v.string()),
+  organizationReferentId: v.optional(v.id("referents")),
+  pageKind: knowledgePageKind,
   pageKey: v.string(),
   pinSource,
   secondaryLabel: v.string(),
   sortOrder: v.number(),
+  thumbnailUrl: v.optional(v.string()),
 });
 
 const unpinResultState = v.union(
@@ -44,17 +72,26 @@ const unpinResultState = v.union(
 
 type OrganizationKind = Doc<"organizationEntries">["organizationKind"];
 type PinRecord = Doc<"pinnedKnowledgePages">;
+type KnowledgePageRelationshipKind =
+  | "organization"
+  | "dashboard"
+  | "scripture"
+  | "referent"
+  | "context"
+  | "search";
 type SidebarPinnedKnowledgePage = {
   href: string;
   id: string;
   label: string;
-  organizationKind: OrganizationKind;
-  organizationName: string;
-  organizationReferentId: Id<"referents">;
+  organizationKind?: OrganizationKind;
+  organizationName?: string;
+  organizationReferentId?: Id<"referents">;
+  pageKind: KnowledgePageRelationshipKind;
   pageKey: string;
   pinSource: "defaultSeed" | "manual";
   secondaryLabel: string;
   sortOrder: number;
+  thumbnailUrl?: string;
 };
 
 export const listForSidebar = query({
@@ -123,12 +160,19 @@ export const listForSidebar = query({
       }
     }
 
-    return visiblePins
+    const sortedPins = visiblePins
       .sort(
         (left, right) =>
           left.sortOrder - right.sortOrder || left.label.localeCompare(right.label),
       )
       .slice(0, MAX_USER_PIN_RECORDS);
+
+    const pinsWithThumbnails: SidebarPinnedKnowledgePage[] = [];
+    for (const pin of sortedPins) {
+      pinsWithThumbnails.push(await addSidebarPinThumbnail(ctx, pin, access));
+    }
+
+    return pinsWithThumbnails;
   },
 });
 
@@ -169,6 +213,7 @@ export const pinOrganizationPage = mutation({
         pageKind: "organization",
         pinSource: "manual",
         pinState: "pinned",
+        secondaryLabelSnapshot: pin.secondaryLabel,
         sortOrder,
         updatedAt: now,
       });
@@ -183,6 +228,56 @@ export const pinOrganizationPage = mutation({
         pageKind: "organization",
         pinSource: "manual",
         pinState: "pinned",
+        secondaryLabelSnapshot: pin.secondaryLabel,
+        sortOrder,
+        updatedAt: now,
+        userId: access.userId,
+      });
+    }
+
+    return pin;
+  },
+});
+
+export const pinKnowledgePage = mutation({
+  args: genericKnowledgePageInput,
+  returns: sidebarPinnedKnowledgePage,
+  handler: async (ctx, args): Promise<SidebarPinnedKnowledgePage> => {
+    const access = await requireAppAccess(ctx);
+    const page = normalizeGenericKnowledgePageInput(args);
+    const now = Date.now();
+    const existing = await getPinByPageKey(ctx, access.userId, page.pageKey);
+    const sortOrder =
+      existing?.sortOrder ??
+      await getNextManualSortOrder(
+        ctx,
+        access.userId,
+        access.organizations,
+        access.systemRole === "systemAdmin",
+      );
+    const pin = buildGenericKnowledgePagePin(page, sortOrder);
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        hrefSnapshot: pin.href,
+        labelSnapshot: pin.label,
+        pageKind: pin.pageKind,
+        pinSource: "manual",
+        pinState: "pinned",
+        secondaryLabelSnapshot: pin.secondaryLabel,
+        sortOrder,
+        updatedAt: now,
+      });
+    } else {
+      await ctx.db.insert("pinnedKnowledgePages", {
+        createdAt: now,
+        hrefSnapshot: pin.href,
+        labelSnapshot: pin.label,
+        pageKey: pin.pageKey,
+        pageKind: pin.pageKind,
+        pinSource: "manual",
+        pinState: "pinned",
+        secondaryLabelSnapshot: pin.secondaryLabel,
         sortOrder,
         updatedAt: now,
         userId: access.userId,
@@ -220,6 +315,7 @@ export const unpinKnowledgePage = mutation({
           pageKind: "organization",
           pinSource: "defaultSeed",
           pinState: "suppressed",
+          secondaryLabelSnapshot: defaultCandidate.secondaryLabel,
           sortOrder: existing.sortOrder,
           updatedAt: now,
         });
@@ -234,6 +330,7 @@ export const unpinKnowledgePage = mutation({
           pageKind: "organization",
           pinSource: "defaultSeed",
           pinState: "suppressed",
+          secondaryLabelSnapshot: defaultCandidate.secondaryLabel,
           sortOrder: defaultCandidate.sortOrder,
           updatedAt: now,
           userId: access.userId,
@@ -292,6 +389,7 @@ function buildOrganizationPin(
     organizationKind: organization.organizationKind,
     organizationName: organization.name,
     organizationReferentId: organization.organizationReferentId,
+    pageKind: "organization",
     pageKey: getOrganizationPageKey(organization.organizationReferentId),
     pinSource: source,
     secondaryLabel: formatOrganizationKind(organization.organizationKind),
@@ -304,30 +402,114 @@ function toSidebarPin(
   organizationsByReferentId: Map<Id<"referents">, AllowedOrganization>,
 ): SidebarPinnedKnowledgePage | null {
   if (
-    record.pageKind !== "organization" ||
-    record.organizationReferentId === undefined ||
-    record.organizationKind === undefined
+    record.pageKind === "organization" &&
+    record.organizationReferentId !== undefined &&
+    record.organizationKind !== undefined
   ) {
-    return null;
+    const organization = organizationsByReferentId.get(record.organizationReferentId);
+    if (!organization) {
+      return null;
+    }
+
+    return {
+      href: getOrganizationHref(organization.organizationReferentId),
+      id: organization.organizationReferentId,
+      label: organization.name || record.labelSnapshot,
+      organizationKind: organization.organizationKind,
+      organizationName: organization.name || record.labelSnapshot,
+      organizationReferentId: organization.organizationReferentId,
+      pageKind: "organization",
+      pageKey: record.pageKey,
+      pinSource: record.pinSource,
+      secondaryLabel:
+        record.secondaryLabelSnapshot ??
+        formatOrganizationKind(organization.organizationKind),
+      sortOrder: record.sortOrder,
+    };
   }
 
-  const organization = organizationsByReferentId.get(record.organizationReferentId);
-  if (!organization) {
+  if (record.pageKind === "organization") {
     return null;
   }
 
   return {
-    href: getOrganizationHref(organization.organizationReferentId),
-    id: organization.organizationReferentId,
-    label: organization.name || record.labelSnapshot,
-    organizationKind: organization.organizationKind,
-    organizationName: organization.name || record.labelSnapshot,
-    organizationReferentId: organization.organizationReferentId,
+    href: record.hrefSnapshot,
+    id: record.pageKey,
+    label: record.labelSnapshot,
+    pageKind: record.pageKind,
     pageKey: record.pageKey,
     pinSource: record.pinSource,
-    secondaryLabel: formatOrganizationKind(organization.organizationKind),
+    secondaryLabel:
+      record.secondaryLabelSnapshot ?? formatGenericKnowledgePageKind(record.pageKind),
     sortOrder: record.sortOrder,
   };
+}
+
+async function addSidebarPinThumbnail(
+  ctx: QueryCtx,
+  pin: SidebarPinnedKnowledgePage,
+  access: {
+    organizations: AllowedOrganization[];
+    userId: Id<"users">;
+  },
+): Promise<SidebarPinnedKnowledgePage> {
+  if (pin.organizationReferentId === undefined) {
+    return pin;
+  }
+
+  const thumbnailUrl = await getRepresentedReferentThumbnailUrl(
+    ctx,
+    pin.organizationReferentId,
+    {
+      isEntryVisible: (entry) =>
+        isEntryAccessibleToPinnedPageViewer(entry, access),
+    },
+  );
+
+  return thumbnailUrl === undefined ? pin : { ...pin, thumbnailUrl };
+}
+
+function isEntryAccessibleToPinnedPageViewer(
+  entry: Doc<"knowledgeEntries">,
+  access: {
+    organizations: AllowedOrganization[];
+    userId: Id<"users">;
+  },
+) {
+  return (
+    isScopeAccessible(entry.visibilityKind, entry.visibilityTargetKey, access) ||
+    isScopeAccessible(
+      entry.discoverabilityKind,
+      entry.discoverabilityTargetKey,
+      access,
+    )
+  );
+}
+
+function isScopeAccessible(
+  scopeKind: Doc<"knowledgeEntries">["visibilityKind"],
+  targetKey: string,
+  access: {
+    organizations: AllowedOrganization[];
+    userId: Id<"users">;
+  },
+) {
+  if (scopeKind === "public") {
+    return true;
+  }
+
+  if (scopeKind === "private") {
+    return targetKey === `user:${access.userId}` || targetKey === access.userId;
+  }
+
+  if (scopeKind === "organization") {
+    return access.organizations.some(
+      (organization) =>
+        organization.organizationReferentId === targetKey,
+    );
+  }
+
+  return false;
 }
 
 async function getPinByPageKey(
@@ -377,4 +559,85 @@ function getOrganizationHref(organizationReferentId: Id<"referents">) {
 
 function formatOrganizationKind(kind: OrganizationKind) {
   return kind.charAt(0).toUpperCase() + kind.slice(1);
+}
+
+type GenericKnowledgePageInput = {
+  href: string;
+  label: string;
+  pageKey: string;
+  pageKind: Exclude<KnowledgePageRelationshipKind, "organization">;
+  secondaryLabel?: string;
+};
+
+function normalizeGenericKnowledgePageInput(
+  input: GenericKnowledgePageInput,
+): Required<GenericKnowledgePageInput> {
+  const pageKey = input.pageKey.trim();
+  const label = input.label.trim();
+  const href = input.href.trim();
+  const secondaryLabel =
+    input.secondaryLabel?.trim() || formatGenericKnowledgePageKind(input.pageKind);
+
+  if (!pageKey) {
+    throw new Error("Invalid Knowledge Page key");
+  }
+  if (!label) {
+    throw new Error("Invalid Knowledge Page label");
+  }
+  if (!href.startsWith("/") || href.startsWith("//")) {
+    throw new Error("Invalid Knowledge Page href");
+  }
+  if (!isGenericPageKeyValidForKind(input.pageKind, pageKey)) {
+    throw new Error("Invalid Knowledge Page key");
+  }
+
+  return {
+    href,
+    label,
+    pageKey,
+    pageKind: input.pageKind,
+    secondaryLabel,
+  };
+}
+
+function buildGenericKnowledgePagePin(
+  page: Required<GenericKnowledgePageInput>,
+  sortOrder: number,
+): SidebarPinnedKnowledgePage {
+  return {
+    href: page.href,
+    id: page.pageKey,
+    label: page.label,
+    pageKind: page.pageKind,
+    pageKey: page.pageKey,
+    pinSource: "manual",
+    secondaryLabel: page.secondaryLabel,
+    sortOrder,
+  };
+}
+
+function formatGenericKnowledgePageKind(
+  kind: Exclude<KnowledgePageRelationshipKind, "organization">,
+) {
+  if (kind === "dashboard") {
+    return "Dashboard";
+  }
+  if (kind === "scripture") {
+    return "Bible Passage";
+  }
+  if (kind === "referent") {
+    return "Referent Page";
+  }
+  if (kind === "context") {
+    return "Context Page";
+  }
+
+  return "Search";
+}
+
+function isGenericPageKeyValidForKind(
+  kind: Exclude<KnowledgePageRelationshipKind, "organization">,
+  pageKey: string,
+) {
+  return pageKey.startsWith(`${kind}:`);
 }

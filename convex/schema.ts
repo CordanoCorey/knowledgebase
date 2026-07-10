@@ -54,6 +54,15 @@ const entryKnowledgeType = v.union(
   v.literal("place"),
 );
 
+const literatureKnowledgeType = v.union(
+  v.literal("book"),
+  v.literal("poem"),
+  v.literal("shortStory"),
+  v.literal("song"),
+  v.literal("series"),
+  v.literal("essay"),
+);
+
 const biblePassageRange = v.object({
   startOrdinal: v.number(),
   endOrdinal: v.number(),
@@ -187,6 +196,81 @@ const smartStorageProposalStatus = v.union(
   v.literal("stale"),
 );
 
+const smartStorageProposalRole = v.union(
+  v.literal("primary"),
+  v.literal("prerequisite"),
+  v.literal("secondary"),
+  v.literal("referenceResolution"),
+  v.literal("refresh"),
+  v.literal("reprocessing"),
+  v.literal("cleanup"),
+);
+
+const smartStorageRefreshOrigin = v.union(
+  v.literal("contractRefresh"),
+  v.literal("reprocessing"),
+);
+
+const smartStorageRefreshSuggestionKind = v.union(
+  v.literal("staleProposalRefresh"),
+  v.literal("suggestedEdit"),
+  v.literal("typeReclassification"),
+  v.literal("newDerivedEntry"),
+  v.literal("referenceResolution"),
+);
+
+const smartStorageRefreshMetadata = v.object({
+  candidateKey: v.string(),
+  origin: smartStorageRefreshOrigin,
+  reason: v.string(),
+  requestedAt: v.number(),
+  requestedByUserId: v.id("users"),
+  sourceEntryId: v.optional(v.id("knowledgeEntries")),
+  sourceProposalId: v.optional(v.id("smartStorageProposals")),
+  suggestionKind: smartStorageRefreshSuggestionKind,
+  targetContractSnapshotVersion: v.optional(v.string()),
+  targetTypeBehaviorSnapshotVersion: v.optional(v.string()),
+});
+
+const smartStorageRefreshDismissalKind = v.union(
+  v.literal("dismissed"),
+  v.literal("rejected"),
+);
+
+const smartStorageReviewAssignmentTargetKind = v.union(v.literal("user"));
+
+const smartStorageProposalDependencyRequirementKind = v.union(
+  v.literal("referent"),
+  v.literal("field"),
+  v.literal("relationship"),
+  v.literal("primaryAnchor"),
+);
+
+const smartStorageProposalDependency = v.object({
+  requiredByProposalId: v.optional(v.id("smartStorageProposals")),
+  requirementKind: smartStorageProposalDependencyRequirementKind,
+  requirementKey: v.string(),
+  label: v.string(),
+});
+
+const smartStorageReferenceResolutionOutcome = v.union(
+  v.literal("pending"),
+  v.literal("matchedKnownReferent"),
+  v.literal("createdByAcceptedEntry"),
+);
+
+const smartStorageReferenceResolution = v.object({
+  candidateTagId: v.optional(v.id("tags")),
+  outcome: smartStorageReferenceResolutionOutcome,
+  requiredByProposalId: v.optional(v.id("smartStorageProposals")),
+  requiredTag: smartStorageContextTagSnapshot,
+  resolvedAt: v.optional(v.number()),
+  resolvedByUserId: v.optional(v.id("users")),
+  resolvedEntryId: v.optional(v.id("knowledgeEntries")),
+  resolvedReferentId: v.optional(v.id("referents")),
+  resolvedTagId: v.optional(v.id("tags")),
+});
+
 const proposalConfidence = v.union(
   v.literal("low"),
   v.literal("medium"),
@@ -234,7 +318,41 @@ const literatureDetailFields = {
   settingLocation: v.optional(v.union(v.string(), v.null())),
   genres: v.optional(v.array(v.string())),
   publisher: v.optional(v.union(v.string(), v.null())),
+  description: v.optional(v.union(v.string(), v.null())),
+  descriptionSourceName: v.optional(v.union(v.string(), v.null())),
+  descriptionSourceUrl: v.optional(v.union(v.string(), v.null())),
+  googleBooksVolumeId: v.optional(v.union(v.string(), v.null())),
+  openLibraryCoverId: v.optional(v.union(v.string(), v.null())),
+  openLibraryWorkKey: v.optional(v.union(v.string(), v.null())),
+  subjects: v.optional(v.array(v.string())),
+  thumbnailSourceName: v.optional(v.union(v.string(), v.null())),
+  thumbnailSourceUrl: v.optional(v.union(v.string(), v.null())),
+  thumbnailUrl: v.optional(v.union(v.string(), v.null())),
+  wikipediaTitle: v.optional(v.union(v.string(), v.null())),
 };
+
+const seededPersonDetailFields = {
+  birthDate: v.optional(v.union(v.string(), v.null())),
+  deathDate: v.optional(v.union(v.string(), v.null())),
+  description: v.optional(v.union(v.string(), v.null())),
+  descriptionSourceName: v.optional(v.union(v.string(), v.null())),
+  descriptionSourceUrl: v.optional(v.union(v.string(), v.null())),
+  openLibraryAuthorKey: v.optional(v.union(v.string(), v.null())),
+  subjects: v.optional(v.array(v.string())),
+  thumbnailSourceName: v.optional(v.union(v.string(), v.null())),
+  thumbnailSourceUrl: v.optional(v.union(v.string(), v.null())),
+  thumbnailUrl: v.optional(v.union(v.string(), v.null())),
+  wikipediaTitle: v.optional(v.union(v.string(), v.null())),
+};
+
+const literatureAuthorRole = v.union(
+  v.literal("author"),
+  v.literal("editor"),
+  v.literal("translator"),
+  v.literal("compiler"),
+  v.literal("illustrator"),
+  v.literal("contributor"),
+);
 
 const temporaryUploadStatus = v.union(
   v.literal("uploaded"),
@@ -257,9 +375,17 @@ const organizationKind = v.union(
   v.literal("community"),
 );
 
-const pinnedKnowledgePageKind = v.union(v.literal("organization"));
-const bookmarkedKnowledgePageKind = v.union(v.literal("organization"));
-const knowledgeSubscriptionTargetKind = v.union(v.literal("organization"));
+const knowledgePageRelationshipKind = v.union(
+  v.literal("organization"),
+  v.literal("dashboard"),
+  v.literal("scripture"),
+  v.literal("referent"),
+  v.literal("context"),
+  v.literal("search"),
+);
+const pinnedKnowledgePageKind = knowledgePageRelationshipKind;
+const bookmarkedKnowledgePageKind = knowledgePageRelationshipKind;
+const knowledgeSubscriptionTargetKind = knowledgePageRelationshipKind;
 const userNotificationKind = v.union(
   v.literal("access"),
   v.literal("announcement"),
@@ -468,6 +594,66 @@ export default defineSchema({
       filterFields: ["knowledgeType", "aliasKind"],
     }),
 
+  // Seeded and imported reference metadata lives on Referents so known works can
+  // be found and related before a user contributes a Knowledge Entry about them.
+  literatureReferentDetails: defineTable({
+    referentId: v.id("referents"),
+    knowledgeType: literatureKnowledgeType,
+    searchText: v.string(),
+    ...literatureDetailFields,
+  })
+    .index("by_referentId", ["referentId"])
+    .index("by_knowledgeType_and_referentId", ["knowledgeType", "referentId"])
+    .searchIndex("search_searchText", {
+      searchField: "searchText",
+      filterFields: ["knowledgeType"],
+    }),
+
+  personReferentDetails: defineTable({
+    referentId: v.id("referents"),
+    searchText: v.string(),
+    ...seededPersonDetailFields,
+  })
+    .index("by_referentId", ["referentId"])
+    .searchIndex("search_searchText", {
+      searchField: "searchText",
+    }),
+
+  organizationReferentDetails: defineTable({
+    referentId: v.id("referents"),
+    organizationKind,
+    isActive: v.optional(v.boolean()),
+    previewText: v.string(),
+    searchText: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_referentId", ["referentId"])
+    .index("by_organizationKind", ["organizationKind"])
+    .searchIndex("search_searchText", {
+      searchField: "searchText",
+      filterFields: ["organizationKind"],
+    }),
+
+  literatureAuthorReferences: defineTable({
+    workReferentId: v.id("referents"),
+    personReferentId: v.id("referents"),
+    authorName: v.string(),
+    authorOrder: v.number(),
+    role: literatureAuthorRole,
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_workReferentId_and_authorOrder", [
+      "workReferentId",
+      "authorOrder",
+    ])
+    .index("by_workReferentId_and_personReferentId", [
+      "workReferentId",
+      "personReferentId",
+    ])
+    .index("by_personReferentId", ["personReferentId"]),
+
   // Knowledge Entries are the gold layer: typed, reviewable records anchored to
   // a represented referent and discoverable through tags.
   knowledgeEntries: defineTable({
@@ -559,7 +745,7 @@ export default defineSchema({
 
   userProfiles: defineTable({
     userId: v.id("users"),
-    personEntryId: v.id("knowledgeEntries"),
+    personEntryId: v.optional(v.id("knowledgeEntries")),
     personReferentId: v.id("referents"),
     personTagId: v.id("tags"),
     createdAt: v.number(),
@@ -734,6 +920,7 @@ export default defineSchema({
     organizationKind: v.optional(organizationKind),
     labelSnapshot: v.string(),
     hrefSnapshot: v.string(),
+    secondaryLabelSnapshot: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -1033,6 +1220,17 @@ export default defineSchema({
     sourceId: v.id("sources"),
     smartStorageRunId: v.id("smartStorageRuns"),
     status: smartStorageProposalStatus,
+    proposalRole: v.optional(smartStorageProposalRole),
+    dependency: v.optional(smartStorageProposalDependency),
+    refresh: v.optional(smartStorageRefreshMetadata),
+    refreshCandidateKey: v.optional(v.string()),
+    referenceResolution: v.optional(smartStorageReferenceResolution),
+    reviewAssignmentTargetKind: v.optional(
+      smartStorageReviewAssignmentTargetKind,
+    ),
+    reviewAssignedUserId: v.optional(v.id("users")),
+    reviewAssignedByUserId: v.optional(v.id("users")),
+    reviewAssignedAt: v.optional(v.number()),
     originalProposal: smartStorageProposedEntry,
     currentProposal: smartStorageProposedEntry,
     smartStorageContractVersionId: v.optional(
@@ -1043,6 +1241,7 @@ export default defineSchema({
     contractSnapshotText: v.optional(v.string()),
     typeBehaviorSnapshotVersion: v.optional(v.string()),
     typeBehaviorSnapshotText: v.optional(v.string()),
+    supersedesProposalId: v.optional(v.id("smartStorageProposals")),
     createdByUserId: v.id("users"),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -1058,6 +1257,19 @@ export default defineSchema({
       "createdByUserId",
       "status",
       "createdAt",
+    ])
+    .index("by_reviewAssignedUserId_and_status_and_updatedAt", [
+      "reviewAssignedUserId",
+      "status",
+      "updatedAt",
+    ])
+    .index("by_supersedesProposalId_and_status", [
+      "supersedesProposalId",
+      "status",
+    ])
+    .index("by_refreshCandidateKey_and_status", [
+      "refreshCandidateKey",
+      "status",
     ]),
 
   proposalSourceCitations: defineTable({
@@ -1072,6 +1284,51 @@ export default defineSchema({
   })
     .index("by_proposalId", ["proposalId"])
     .index("by_sourceId", ["sourceId"]),
+
+  smartStorageRefreshDismissals: defineTable({
+    candidateKey: v.string(),
+    reviewScopeKind,
+    reviewScopeTargetKey: v.string(),
+    contractSnapshotVersion: v.optional(v.string()),
+    typeBehaviorSnapshotVersion: v.optional(v.string()),
+    sourceProposalId: v.optional(v.id("smartStorageProposals")),
+    sourceEntryId: v.optional(v.id("knowledgeEntries")),
+    dismissalKind: smartStorageRefreshDismissalKind,
+    dismissedByUserId: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index(
+      "by_candidate_scope_and_versions",
+      [
+        "candidateKey",
+        "reviewScopeKind",
+        "reviewScopeTargetKey",
+        "contractSnapshotVersion",
+        "typeBehaviorSnapshotVersion",
+      ],
+    )
+    .index("by_sourceProposalId_and_createdAt", [
+      "sourceProposalId",
+      "createdAt",
+    ])
+    .index("by_sourceEntryId_and_createdAt", ["sourceEntryId", "createdAt"]),
+
+  smartStorageUpgradeProvenanceRecords: defineTable({
+    acceptedProposalId: v.id("smartStorageProposals"),
+    candidateKey: v.string(),
+    origin: smartStorageRefreshOrigin,
+    suggestionKind: smartStorageRefreshSuggestionKind,
+    sourceProposalId: v.optional(v.id("smartStorageProposals")),
+    sourceEntryId: v.optional(v.id("knowledgeEntries")),
+    targetEntryId: v.optional(v.id("knowledgeEntries")),
+    acceptedByUserId: v.id("users"),
+    contractSnapshotVersion: v.optional(v.string()),
+    typeBehaviorSnapshotVersion: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_acceptedProposalId", ["acceptedProposalId"])
+    .index("by_targetEntryId_and_createdAt", ["targetEntryId", "createdAt"]),
 
   smartStoragePlaygroundFeedback: defineTable({
     userId: v.id("users"),

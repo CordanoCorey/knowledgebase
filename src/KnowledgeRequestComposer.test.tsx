@@ -123,6 +123,36 @@ describe("KnowledgeNavigatorQueryInput behavior", () => {
     ).not.toContain("matthew-5-9");
   });
 
+  test("suggests parseable Bible Passage ranges before broad Scripture rules", () => {
+    const suggestions = getKnowledgeNavigatorQuerySuggestions("Romans 8:37-39");
+
+    expect(suggestions[0]).toMatchObject({
+      id: "romans-8-37-39",
+      tag: {
+        href: "/scripture/romans-8-37-39",
+        id: "romans-8-37-39",
+        knowledgeType: "biblePassage",
+        label: "Romans 8:37-39",
+      },
+    });
+    expect(suggestions.map((suggestion) => suggestion.tag.id)).not.toContain(
+      "romans-8-28",
+    );
+  });
+
+  test("maps exact Bible Passage ranges without adding broader rule fixtures", () => {
+    const submittedDraft = submitKnowledgeRequestDraft(
+      updateKnowledgeRequestDraftText(
+        createKnowledgeRequestDraft(),
+        "Romans 8:37-39",
+      ),
+    );
+
+    expect(submittedDraft.mappedTags.map((tag) => tag.id)).toEqual([
+      "romans-8-37-39",
+    ]);
+  });
+
   test("renders the query input without composer or request copy", () => {
     const markup = renderToStaticMarkup(
       <KnowledgeNavigatorQueryInput

@@ -38,7 +38,7 @@ type NotificationSubscriptionSource = {
   organizationReferentId: Id<"referents">;
   secondaryLabel: string;
   subscriptionKey: string;
-  targetKind: "organization";
+  targetKind: string;
 };
 
 describe("Knowledge Subscriptions", () => {
@@ -51,6 +51,37 @@ describe("Knowledge Subscriptions", () => {
     ) as NotificationSubscriptionSource[];
 
     expect(subscriptions).toEqual([]);
+  });
+
+  test("subscribes to a generic Scripture Knowledge Page for the current user", async () => {
+    const { authed } = await seedAllowedUser();
+
+    const subscription = await authed.mutation(
+      api.knowledgeSubscriptions.subscribeToKnowledgePage,
+      {
+        href: "/scripture/matthew-5-9",
+        label: "Matthew 5:9",
+        pageKey: "scripture:matthew-5-9",
+        pageKind: "scripture",
+        secondaryLabel: "Bible Passage",
+      },
+    ) as NotificationSubscriptionSource;
+
+    expect(subscription).toMatchObject({
+      href: "/scripture/matthew-5-9",
+      label: "Matthew 5:9",
+      secondaryLabel: "Bible Passage",
+      subscriptionKey: "scripture:matthew-5-9",
+      targetKind: "scripture",
+    });
+
+    const subscriptions = await authed.query(
+      api.knowledgeSubscriptions.listForNotifications,
+      {},
+    ) as NotificationSubscriptionSource[];
+    expect(subscriptions).toEqual([
+      expect.objectContaining({ subscriptionKey: "scripture:matthew-5-9" }),
+    ]);
   });
 
   test("subscribes to an accessible Organization Knowledge Page for the current user", async () => {

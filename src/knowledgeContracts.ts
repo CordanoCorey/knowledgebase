@@ -448,6 +448,231 @@ export type SmartStorageProposalReviewSummary = {
   targetExistingEntryId?: string;
 };
 
+export type SmartStorageRunStatus =
+  | "queued"
+  | "running"
+  | "succeeded"
+  | "noProposal"
+  | "failed"
+  | "superseded";
+
+export type SmartStorageProposalStatus =
+  | "drafted"
+  | "needsResolution"
+  | "accepted"
+  | "rejected"
+  | "stale";
+
+export type SmartStorageSessionState =
+  | "preservingSources"
+  | "preparingPrimaryProposal"
+  | "primaryReady"
+  | "awaitingPrerequisites"
+  | "primarySaved"
+  | "reviewPending"
+  | "complete"
+  | "cancelled"
+  | "sourcePreservationFailed";
+
+export type SmartStorageSessionSourceCounts = {
+  externalUrl: number;
+  manualEntry: number;
+  pastedText: number;
+  total: number;
+  uploadedFile: number;
+};
+
+export type SmartStorageSessionRunSummary = {
+  completedAt?: number;
+  errorMessage?: string;
+  id: string;
+  status: SmartStorageRunStatus;
+  updatedAt: number;
+};
+
+export type SmartStorageSessionProposalCounts = {
+  accepted: number;
+  drafted: number;
+  needsResolution: number;
+  rejected: number;
+  stale: number;
+  total: number;
+};
+
+export type SmartStorageSessionProposalRole =
+  | "primary"
+  | "prerequisite"
+  | "secondary"
+  | "referenceResolution"
+  | "refresh"
+  | "reprocessing"
+  | "cleanup";
+
+export type SmartStorageRefreshOrigin =
+  | "contractRefresh"
+  | "reprocessing";
+
+export type SmartStorageRefreshSuggestionKind =
+  | "staleProposalRefresh"
+  | "suggestedEdit"
+  | "typeReclassification"
+  | "newDerivedEntry"
+  | "referenceResolution";
+
+export type SmartStorageRefreshSummary = {
+  candidateKey: string;
+  origin: SmartStorageRefreshOrigin;
+  originLabel: string;
+  reason: string;
+  sourceEntryId?: string;
+  sourceProposalId?: string;
+  suggestionKind: SmartStorageRefreshSuggestionKind;
+  targetContractSnapshotVersion?: string;
+  targetTypeBehaviorSnapshotVersion?: string;
+};
+
+export type SmartStorageProposalDependencyRequirementKind =
+  | "referent"
+  | "field"
+  | "relationship"
+  | "primaryAnchor";
+
+export type SmartStorageProposalDependencySummary = {
+  label: string;
+  requiredByProposalId?: string;
+  requirementKey: string;
+  requirementKind: SmartStorageProposalDependencyRequirementKind;
+};
+
+export type SmartStorageReferenceResolutionOutcome =
+  | "pending"
+  | "matchedKnownReferent"
+  | "createdByAcceptedEntry";
+
+export type SmartStorageReferenceResolutionSummary = {
+  candidateTag?: ActiveTag;
+  candidateTagId?: string;
+  mode: "knownReferentMatch" | "newEntryProposal";
+  outcome: SmartStorageReferenceResolutionOutcome;
+  requiredTag: ActiveTag;
+  resolvedTag?: ActiveTag;
+  resolvedTagId?: string;
+};
+
+export type SmartStorageProposalAcceptabilityStatus =
+  | "ready"
+  | "blocked"
+  | "needsResolution"
+  | "accepted"
+  | "closed";
+
+export type SmartStorageProposalBlockedReason =
+  | "prerequisitesPending"
+  | "primaryAnchorRequired"
+  | "resolutionRequired";
+
+export type SmartStorageProposalAcceptabilitySummary = {
+  blockedByProposalIds: string[];
+  reason?: SmartStorageProposalBlockedReason;
+  status: SmartStorageProposalAcceptabilityStatus;
+};
+
+export type SmartStorageSessionProposalSummary = {
+  acceptReady: boolean;
+  acceptability: SmartStorageProposalAcceptabilitySummary;
+  contributionSubmissionId?: string;
+  createdAt: number;
+  currentProposal: SmartStorageProposedEntrySummary;
+  dependency?: SmartStorageProposalDependencySummary;
+  id: string;
+  refresh?: SmartStorageRefreshSummary;
+  referenceResolution?: SmartStorageReferenceResolutionSummary;
+  role: SmartStorageSessionProposalRole;
+  smartStorageRunId: string;
+  sourceCitations: SmartStorageProposalSourceCitationSummary[];
+  sourceId: string;
+  sourceIds: string[];
+  status: SmartStorageProposalStatus;
+  updatedAt: number;
+};
+
+export type SmartStorageSessionSummary = {
+  acceptedPrimaryEntry?: KnowledgeEntrySummary;
+  activeRun?: SmartStorageSessionRunSummary;
+  canCancel: boolean;
+  contributionSubmission: {
+    bodyPreview: string;
+    createdAt: number;
+    id: string;
+    primaryIntendedKnowledgeType: AuthorableKnowledgeType;
+    status:
+      | "submitted"
+      | "processing"
+      | "reviewReady"
+      | "partiallyAccepted"
+      | "accepted"
+      | "rejected"
+      | "cancelled";
+    title: string;
+    updatedAt: number;
+  };
+  isComplete: boolean;
+  latestRun?: SmartStorageSessionRunSummary;
+  pendingSecondaryProposals: SmartStorageSessionProposalSummary[];
+  prerequisiteProposals: SmartStorageSessionProposalSummary[];
+  primaryProposal?: SmartStorageSessionProposalSummary;
+  proposalCountsByStatus: SmartStorageSessionProposalCounts;
+  sourceCounts: SmartStorageSessionSourceCounts;
+  state: SmartStorageSessionState;
+};
+
+export type SmartStorageReviewSlotGroup = {
+  href: string;
+  id: string;
+  kind: "session" | "primaryEntry";
+  title: string;
+};
+
+export type SmartStorageReviewAssignmentSummary = {
+  assignedAt: number;
+  assignedByUserId: string;
+  targetKind: "user";
+  targetLabel: string;
+  targetUserId: string;
+};
+
+export type SmartStorageReviewSlotSummary = {
+  acceptReady: boolean;
+  acceptability: SmartStorageProposalAcceptabilitySummary;
+  assignment?: SmartStorageReviewAssignmentSummary;
+  bodyPreview: string;
+  canAssign: boolean;
+  contextPreviewTagLabels: string[];
+  contextPreviewTags?: ActiveTag[];
+  contributionSubmissionId: string;
+  createdAt: number;
+  evidenceSummary: string;
+  group: SmartStorageReviewSlotGroup;
+  href: string;
+  id: string;
+  originSession: {
+    href: string;
+    id: string;
+    title: string;
+  };
+  proposedKnowledgeType: AuthorableKnowledgeType;
+  refresh?: SmartStorageRefreshSummary;
+  referenceResolution?: SmartStorageReferenceResolutionSummary;
+  reviewScopeLabel: string;
+  role: SmartStorageSessionProposalRole;
+  smartStorageProposalId: string;
+  smartStorageRunId: string;
+  sourceCount: number;
+  status: SmartStorageProposalStatus;
+  title: string;
+  updatedAt: number;
+};
+
 export type ContributionResult = {
   contributionSubmissionId?: string;
   entryId?: string;

@@ -191,6 +191,9 @@ const mockState = vi.hoisted(() => ({
     url: "https://example.com/chapel-program",
   } as Record<string, unknown>,
   smartStorageAcceptReturnsTargetExists: false,
+  smartStorageModelRunDelay: null as Promise<void> | null,
+  smartStorageReviewSlots: [] as unknown[],
+  smartStorageSessionSummary: null as Record<string, unknown> | null,
   smartStorageSourceIds: ["source-raw-chapel-notes"] as string[],
   smartStorageStartInput: null as Record<string, unknown> | null,
   tagSuggestions: [
@@ -353,9 +356,53 @@ const mockState = vi.hoisted(() => ({
         id: "robinson-crusoe",
         knowledgeType: "book",
         label: "Robinson Crusoe",
+        thumbnailUrl: "https://covers.openlibrary.org/b/id/123-L.jpg",
       },
     },
   ] as unknown[],
+  referentPageMetadataByKey: {
+    "book:robinson-crusoe": {
+      canonicalKey: "robinson-crusoe",
+      description:
+        "An English castaway learns to survive after being shipwrecked on a remote island.",
+      detailKind: "literature",
+      facts: [
+        { label: "Knowledge Type", value: "Book" },
+        { label: "Published", value: "1719" },
+        { label: "Author", value: "Daniel Defoe" },
+      ],
+      href: "/goto/robinson-crusoe",
+      id: "robinson-crusoe",
+      knowledgeType: "book",
+      label: "Robinson Crusoe",
+      sections: [
+        {
+          items: [
+            {
+              detail: "Author",
+              href: "/goto/daniel-defoe",
+              id: "daniel-defoe",
+              knowledgeType: "person",
+              label: "Daniel Defoe",
+            },
+          ],
+          title: "Authors",
+        },
+      ],
+      sourceName: "Open Library",
+      sourceUrl: "https://openlibrary.org/works/OL123W",
+      tags: [
+        {
+          canonicalKey: "robinson-crusoe",
+          href: "/goto/robinson-crusoe",
+          id: "robinson-crusoe",
+          knowledgeType: "book",
+          label: "Robinson Crusoe",
+        },
+      ],
+      thumbnailUrl: "https://covers.openlibrary.org/b/id/123-L.jpg",
+    },
+  } as Record<string, unknown>,
   pinnedKnowledgePages: [
     {
       href: "/organizations/organizationReferent",
@@ -539,6 +586,355 @@ const mockState = vi.hoisted(() => ({
   ] as unknown[],
 }));
 
+type MockSmartStorageRunStatus =
+  | "queued"
+  | "running"
+  | "succeeded"
+  | "noProposal"
+  | "failed"
+  | "superseded";
+type MockSmartStorageProposalRole =
+  | "primary"
+  | "prerequisite"
+  | "secondary"
+  | "referenceResolution"
+  | "refresh"
+  | "reprocessing"
+  | "cleanup";
+type MockSmartStorageProposalStatus =
+  | "drafted"
+  | "needsResolution"
+  | "accepted"
+  | "rejected"
+  | "stale";
+type MockSmartStorageAcceptabilityStatus =
+  | "ready"
+  | "blocked"
+  | "needsResolution"
+  | "accepted"
+  | "closed";
+
+function createMockSmartStorageSessionSummary({
+  acceptedPrimaryEntry,
+  activeRunStatus,
+  canCancel,
+  latestRunErrorMessage,
+  latestRunStatus,
+  pendingSecondaryProposals = [],
+  prerequisiteProposals = [],
+  primaryProposal,
+  state,
+}: {
+  acceptedPrimaryEntry?: Record<string, unknown>;
+  activeRunStatus?: MockSmartStorageRunStatus;
+  canCancel?: boolean;
+  latestRunErrorMessage?: string;
+  latestRunStatus?: MockSmartStorageRunStatus;
+  pendingSecondaryProposals?: Record<string, unknown>[];
+  prerequisiteProposals?: Record<string, unknown>[];
+  primaryProposal?: Record<string, unknown>;
+  state: string;
+}) {
+  const startInput = mockState.smartStorageStartInput ?? {};
+  const sourceIds = mockState.smartStorageSourceIds;
+  const latestRun = latestRunStatus
+    ? createMockSmartStorageRun(latestRunStatus, latestRunErrorMessage)
+    : undefined;
+  const activeRun = activeRunStatus
+    ? createMockSmartStorageRun(activeRunStatus)
+    : undefined;
+
+  return {
+    ...(acceptedPrimaryEntry === undefined ? {} : { acceptedPrimaryEntry }),
+    ...(activeRun === undefined ? {} : { activeRun }),
+    canCancel: canCancel ?? state !== "cancelled",
+    contributionSubmission: {
+      bodyPreview: String(
+        startInput.body ?? "A source that should be preserved before enrichment.",
+      ),
+      createdAt: Date.UTC(2026, 5, 12, 14),
+      id: "contribution-submission-raw-chapel-notes",
+      primaryIntendedKnowledgeType: String(startInput.knowledgeType ?? "words"),
+      status:
+        acceptedPrimaryEntry === undefined
+          ? primaryProposal === undefined
+            ? "processing"
+            : "reviewReady"
+          : "accepted",
+      title: String(startInput.title ?? "Raw chapel notes"),
+      updatedAt: Date.UTC(2026, 5, 12, 14, 1),
+    },
+    isComplete: false,
+    ...(latestRun === undefined ? {} : { latestRun }),
+    pendingSecondaryProposals,
+    prerequisiteProposals,
+    ...(primaryProposal === undefined ? {} : { primaryProposal }),
+    proposalCountsByStatus: {
+      accepted: acceptedPrimaryEntry === undefined ? 0 : 1,
+      drafted:
+        (primaryProposal && acceptedPrimaryEntry === undefined ? 1 : 0) +
+        prerequisiteProposals.length +
+        pendingSecondaryProposals.length,
+      needsResolution:
+        primaryProposal && primaryProposal.status === "needsResolution" ? 1 : 0,
+      rejected: 0,
+      stale: 0,
+      total:
+        (primaryProposal === undefined ? 0 : 1) +
+        prerequisiteProposals.length +
+        pendingSecondaryProposals.length,
+    },
+    sourceCounts: {
+      externalUrl: sourceIds.filter((sourceId) =>
+        sourceId.includes("external-url"),
+      ).length,
+      manualEntry: 0,
+      pastedText: sourceIds.includes("source-raw-chapel-notes") ? 1 : 0,
+      total: sourceIds.length,
+      uploadedFile: sourceIds.filter((sourceId) =>
+        sourceId.includes("uploaded-file"),
+      ).length,
+    },
+    state,
+  };
+}
+
+function createMockSmartStorageRun(
+  status: MockSmartStorageRunStatus,
+  errorMessage?: string,
+) {
+  return {
+    completedAt:
+      status === "queued" || status === "running"
+        ? undefined
+        : Date.UTC(2026, 5, 12, 14, 2),
+    ...(errorMessage === undefined ? {} : { errorMessage }),
+    id: "smart-storage-run-raw-chapel-notes",
+    status,
+    updatedAt: Date.UTC(2026, 5, 12, 14, 2),
+  };
+}
+
+function createMockSmartStorageSessionProposal({
+  acceptabilityStatus,
+  blockedByProposalIds = [],
+  blockedReason,
+  dependency,
+  id,
+  refresh,
+  role,
+  status = "drafted",
+  title,
+}: {
+  acceptabilityStatus: MockSmartStorageAcceptabilityStatus;
+  blockedByProposalIds?: string[];
+  blockedReason?: string;
+  dependency?: Record<string, unknown>;
+  id?: string;
+  refresh?: Record<string, unknown>;
+  role: MockSmartStorageProposalRole;
+  status?: MockSmartStorageProposalStatus;
+  title?: string;
+}) {
+  const startInput = mockState.smartStorageStartInput ?? {};
+  const body = String(
+    startInput.body ?? "A source that should be preserved before enrichment.",
+  );
+  const proposalTitle = title ?? String(startInput.title ?? "Raw chapel notes");
+  const proposalId =
+    id ??
+    (role === "prerequisite"
+      ? "smart-storage-proposal-required-speaker"
+      : role === "secondary"
+        ? "smart-storage-proposal-secondary-quote"
+        : "smart-storage-proposal-raw-chapel-notes");
+  const sourceCitations = createMockSmartStorageSourceCitations();
+
+  return {
+    acceptReady: acceptabilityStatus === "ready",
+    acceptability: {
+      blockedByProposalIds,
+      ...(blockedReason === undefined ? {} : { reason: blockedReason }),
+      status: acceptabilityStatus,
+    },
+    contributionSubmissionId: "contribution-submission-raw-chapel-notes",
+    createdAt: Date.UTC(2026, 5, 12, 14, role === "primary" ? 2 : 3),
+    currentProposal: {
+      bodyPreview:
+        role === "prerequisite"
+          ? "Confirm the speaker before accepting the sermon."
+          : role === "secondary"
+            ? "A later secondary review item from the same saved Sources."
+            : body,
+      contextTags: [],
+      knowledgeType:
+        role === "prerequisite"
+          ? "person"
+          : role === "secondary"
+            ? "quote"
+            : String(startInput.knowledgeType ?? "words"),
+      proposalConfidence: role === "primary" ? "medium" : "high",
+      rationale:
+        "Deterministic MVP proposal generated from the submitted Source and requested Knowledge Type.",
+      title:
+        role === "prerequisite"
+          ? "Rev. Thomas Walker"
+          : role === "secondary"
+            ? "Courage quote"
+            : proposalTitle,
+    },
+    ...(dependency === undefined ? {} : { dependency }),
+    id: proposalId,
+    ...(refresh === undefined ? {} : { refresh }),
+    role,
+    smartStorageRunId: "smart-storage-run-raw-chapel-notes",
+    sourceCitations: role === "secondary" ? [] : sourceCitations,
+    sourceId: "source-raw-chapel-notes",
+    sourceIds: mockState.smartStorageSourceIds,
+    status,
+    updatedAt: Date.UTC(2026, 5, 12, 14, 3),
+  };
+}
+
+function createMockSmartStorageSourceCitations() {
+  const startInput = mockState.smartStorageStartInput ?? {};
+  const body = String(
+    startInput.body ?? "A source that should be preserved before enrichment.",
+  );
+  const externalUrls = Array.isArray(startInput.externalUrls)
+    ? (startInput.externalUrls as Array<{ url?: unknown }>)
+    : [];
+  const uploadedFiles = Array.isArray(startInput.uploadedFiles)
+    ? (startInput.uploadedFiles as Array<{ fileName?: unknown }>)
+    : [];
+
+  return [
+    {
+      citationKind: "textExcerpt",
+      excerptText: body,
+      id: "proposal-source-citation-raw-chapel-notes",
+      rationale: "Authored Text Source preserved with the submission.",
+      sourceId: "source-raw-chapel-notes",
+    },
+    ...externalUrls.map((externalUrl, index) => ({
+      citationKind: "externalUrl" as const,
+      externalUrl: String(externalUrl.url ?? ""),
+      id: `proposal-source-citation-external-url-${index + 1}`,
+      rationale: "External URL Source preserved with the submission.",
+      sourceId: `source-external-url-${index + 1}`,
+    })),
+    ...uploadedFiles.map((uploadedFile, index) => ({
+      citationKind: "fileLocator" as const,
+      id: `proposal-source-citation-uploaded-file-${index + 1}`,
+      locator: String(uploadedFile.fileName ?? "Uploaded file"),
+      rationale: "Uploaded file Source preserved with the submission.",
+      sourceId: `source-uploaded-file-${index + 1}`,
+    })),
+  ];
+}
+
+function createMockSmartStoragePrerequisiteSessionSummary() {
+  const prerequisite = createMockSmartStorageSessionProposal({
+    acceptabilityStatus: "ready",
+    dependency: {
+      label: "Speaker",
+      requiredByProposalId: "smart-storage-proposal-raw-chapel-notes",
+      requirementKey: "person:rev-thomas-walker",
+      requirementKind: "referent",
+    },
+    role: "prerequisite",
+  });
+  const primary = createMockSmartStorageSessionProposal({
+    acceptabilityStatus: "blocked",
+    blockedByProposalIds: ["smart-storage-proposal-required-speaker"],
+    blockedReason: "prerequisitesPending",
+    role: "primary",
+    title: "Courage in Christ's Kingdom",
+  });
+  const secondary = createMockSmartStorageSessionProposal({
+    acceptabilityStatus: "blocked",
+    blockedByProposalIds: ["smart-storage-proposal-raw-chapel-notes"],
+    blockedReason: "primaryAnchorRequired",
+    role: "secondary",
+  });
+
+  return createMockSmartStorageSessionSummary({
+    latestRunStatus: "succeeded",
+    pendingSecondaryProposals: [secondary],
+    prerequisiteProposals: [prerequisite],
+    primaryProposal: primary,
+    state: "awaitingPrerequisites",
+  });
+}
+
+function createMockSmartStorageTargetExistsSessionSummary() {
+  return createMockSmartStorageSessionSummary({
+    latestRunStatus: "succeeded",
+    primaryProposal: createMockSmartStorageSessionProposal({
+      acceptabilityStatus: "needsResolution",
+      role: "primary",
+      status: "needsResolution",
+    }),
+    state: "awaitingPrerequisites",
+  });
+}
+
+function createMockSmartStorageAcceptedSessionSummary(
+  entry: Record<string, unknown>,
+) {
+  return createMockSmartStorageSessionSummary({
+    acceptedPrimaryEntry: entry,
+    latestRunStatus: "succeeded",
+    primaryProposal: createMockSmartStorageSessionProposal({
+      acceptabilityStatus: "accepted",
+      role: "primary",
+      status: "accepted",
+    }),
+    state: "primarySaved",
+  });
+}
+
+function createMockSmartStorageReviewSlot(
+  overrides: Partial<Record<string, unknown>> = {},
+) {
+  return {
+    acceptReady: true,
+    acceptability: {
+      blockedByProposalIds: [],
+      status: "ready",
+    },
+    bodyPreview: "A later secondary review item from the same saved Sources.",
+    canAssign: false,
+    contextPreviewTagLabels: ["Joshua 1:6-9", "Friday Chapel"],
+    contributionSubmissionId: "contribution-submission-raw-chapel-notes",
+    createdAt: Date.UTC(2026, 5, 12, 14, 3),
+    evidenceSummary: "1 preserved Source",
+    group: {
+      href: "/entries/entry-raw-chapel-notes",
+      id: "entry-raw-chapel-notes",
+      kind: "primaryEntry",
+      title: "Raw chapel notes",
+    },
+    href: "/smart-storage/contribution-submission-raw-chapel-notes?proposalId=smart-storage-proposal-secondary-quote",
+    id: "review-slot:smart-storage-proposal-secondary-quote",
+    originSession: {
+      href: "/smart-storage/contribution-submission-raw-chapel-notes",
+      id: "contribution-submission-raw-chapel-notes",
+      title: "Raw chapel notes",
+    },
+    proposedKnowledgeType: "quote",
+    reviewScopeLabel: "Private review",
+    role: "secondary",
+    smartStorageProposalId: "smart-storage-proposal-secondary-quote",
+    smartStorageRunId: "smart-storage-run-raw-chapel-notes",
+    sourceCount: 1,
+    status: "drafted",
+    title: "Courage quote",
+    updatedAt: Date.UTC(2026, 5, 12, 14, 4),
+    ...overrides,
+  };
+}
+
 vi.mock("@convex-dev/auth/react", () => ({
   useAuthActions: () => ({
     signIn: async () => undefined,
@@ -557,10 +953,40 @@ vi.mock("convex/react", () => ({
     );
 
     if (functionName === "smartStorage:executeModelRun") {
-      return {
+      if (mockState.smartStorageModelRunDelay) {
+        await mockState.smartStorageModelRunDelay;
+      }
+      const result = {
         ...mockState.smartStorageModelRunResult,
         smartStorageRunId: "smart-storage-run-raw-chapel-notes",
+      } as Record<string, unknown> & {
+        errorMessage?: unknown;
+        executionStatus?: unknown;
+        smartStorageRunId: string;
       };
+      if (
+        result.executionStatus === "proposalCreated" ||
+        result.executionStatus === "existingProposal"
+      ) {
+        mockState.smartStorageSessionSummary = createMockSmartStorageSessionSummary({
+          latestRunStatus: "succeeded",
+          primaryProposal: createMockSmartStorageSessionProposal({
+            acceptabilityStatus: "ready",
+            role: "primary",
+          }),
+          state: "primaryReady",
+        });
+      } else {
+        mockState.smartStorageSessionSummary = createMockSmartStorageSessionSummary({
+          latestRunErrorMessage:
+            typeof result.errorMessage === "string" ? result.errorMessage : undefined,
+          latestRunStatus:
+            result.executionStatus === "noProposal" ? "noProposal" : "failed",
+          state: "primaryReady",
+        });
+      }
+
+      return result;
     }
 
     if (
@@ -838,6 +1264,62 @@ vi.mock("convex/react", () => ({
       }
     }
     if (
+      functionName === "pinnedKnowledgePages:pinKnowledgePage" &&
+      args &&
+      typeof args === "object" &&
+      "pageKey" in args &&
+      "href" in args &&
+      "label" in args &&
+      "pageKind" in args
+    ) {
+      const pageKey = String(args.pageKey);
+      const existingSortOrder = mockState.pinnedKnowledgePages.find(
+        (pin) =>
+          pin &&
+          typeof pin === "object" &&
+          "pageKey" in pin &&
+          pin.pageKey === pageKey &&
+          "sortOrder" in pin,
+      ) as { sortOrder?: number } | undefined;
+      mockState.pinnedKnowledgePages = [
+        ...mockState.pinnedKnowledgePages.filter(
+          (pin) =>
+            !(
+              pin &&
+              typeof pin === "object" &&
+              "pageKey" in pin &&
+              pin.pageKey === pageKey
+            ),
+        ),
+        {
+          href: String(args.href),
+          id: pageKey,
+          label: String(args.label),
+          pageKind: String(args.pageKind),
+          pageKey,
+          pinSource: "manual",
+          secondaryLabel:
+            "secondaryLabel" in args && args.secondaryLabel
+              ? String(args.secondaryLabel)
+              : "Knowledge Page",
+          sortOrder:
+            existingSortOrder?.sortOrder ??
+            mockState.pinnedKnowledgePages.length * 1000,
+        },
+      ].sort((left, right) => {
+        const leftSortOrder =
+          left && typeof left === "object" && "sortOrder" in left
+            ? Number(left.sortOrder)
+            : 0;
+        const rightSortOrder =
+          right && typeof right === "object" && "sortOrder" in right
+            ? Number(right.sortOrder)
+            : 0;
+
+        return leftSortOrder - rightSortOrder;
+      });
+    }
+    if (
       functionName === "bookmarkedKnowledgePages:removeBookmark" &&
       args &&
       typeof args === "object" &&
@@ -899,6 +1381,41 @@ vi.mock("convex/react", () => ({
           },
         ];
       }
+    }
+    if (
+      functionName === "bookmarkedKnowledgePages:bookmarkKnowledgePage" &&
+      args &&
+      typeof args === "object" &&
+      "pageKey" in args &&
+      "href" in args &&
+      "label" in args &&
+      "pageKind" in args
+    ) {
+      const pageKey = String(args.pageKey);
+      mockState.bookmarkedKnowledgePages = [
+        ...mockState.bookmarkedKnowledgePages.filter(
+          (bookmark) =>
+            !(
+              bookmark &&
+              typeof bookmark === "object" &&
+              "pageKey" in bookmark &&
+              bookmark.pageKey === pageKey
+            ),
+        ),
+        {
+          createdAt: 1,
+          href: String(args.href),
+          id: pageKey,
+          label: String(args.label),
+          pageKind: String(args.pageKind),
+          pageKey,
+          secondaryLabel:
+            "secondaryLabel" in args && args.secondaryLabel
+              ? String(args.secondaryLabel)
+              : "Knowledge Page",
+          updatedAt: 2,
+        },
+      ];
     }
     if (
       functionName === "knowledgeSubscriptions:unsubscribe" &&
@@ -964,6 +1481,41 @@ vi.mock("convex/react", () => ({
           },
         ];
       }
+    }
+    if (
+      functionName === "knowledgeSubscriptions:subscribeToKnowledgePage" &&
+      args &&
+      typeof args === "object" &&
+      "pageKey" in args &&
+      "href" in args &&
+      "label" in args &&
+      "pageKind" in args
+    ) {
+      const subscriptionKey = String(args.pageKey);
+      mockState.knowledgeSubscriptions = [
+        ...mockState.knowledgeSubscriptions.filter(
+          (subscription) =>
+            !(
+              subscription &&
+              typeof subscription === "object" &&
+              "subscriptionKey" in subscription &&
+              subscription.subscriptionKey === subscriptionKey
+            ),
+        ),
+        {
+          createdAt: 1,
+          href: String(args.href),
+          id: subscriptionKey,
+          label: String(args.label),
+          secondaryLabel:
+            "secondaryLabel" in args && args.secondaryLabel
+              ? String(args.secondaryLabel)
+              : "Knowledge Page",
+          subscriptionKey,
+          targetKind: String(args.pageKind),
+          updatedAt: 2,
+        },
+      ];
     }
     if (
       functionName === "organizationAccounts:createOrganizationAccount" &&
@@ -1266,6 +1818,11 @@ vi.mock("convex/react", () => ({
       }
       mockState.smartStorageStartInput = startInput;
       mockState.smartStorageSourceIds = sourceIds;
+      mockState.smartStorageSessionSummary = createMockSmartStorageSessionSummary({
+        activeRunStatus: "queued",
+        latestRunStatus: "queued",
+        state: "preparingPrimaryProposal",
+      });
 
       return {
         contributionSubmissionId:
@@ -1310,7 +1867,7 @@ vi.mock("convex/react", () => ({
         ? (startInput.uploadedFiles as Array<{ fileName?: unknown }>)
         : [];
 
-      return {
+      const proposalResult = {
         contributionSubmissionId:
           "contribution-submission-raw-chapel-notes",
         currentProposal: {
@@ -1351,6 +1908,16 @@ vi.mock("convex/react", () => ({
         sourceIds: mockState.smartStorageSourceIds,
         status: "drafted",
       };
+      mockState.smartStorageSessionSummary = createMockSmartStorageSessionSummary({
+        latestRunStatus: "succeeded",
+        primaryProposal: createMockSmartStorageSessionProposal({
+          acceptabilityStatus: "ready",
+          role: "primary",
+        }),
+        state: "primaryReady",
+      });
+
+      return proposalResult;
     }
     if (functionName === "smartStorage:acceptScaffoldProposal") {
       const acceptInput =
@@ -1359,6 +1926,8 @@ vi.mock("convex/react", () => ({
         mockState.smartStorageAcceptReturnsTargetExists &&
         acceptInput.targetExistingEntryId === undefined
       ) {
+        mockState.smartStorageSessionSummary =
+          createMockSmartStorageTargetExistsSessionSummary();
         return {
           acceptanceStatus: "targetExists",
           existingEntryId: "entry-existing-raw-chapel-notes",
@@ -1390,12 +1959,153 @@ vi.mock("convex/react", () => ({
         },
         ...mockState.answerFeedItems,
       ];
+      mockState.smartStorageSessionSummary =
+        createMockSmartStorageAcceptedSessionSummary(entry);
       return {
         acceptanceStatus: "accepted",
         entry,
         entryId: entry.id,
         smartStorageProposalId: "smart-storage-proposal-raw-chapel-notes",
         status: "accepted",
+      };
+    }
+    if (functionName === "smartStorage:cancelSession") {
+      mockState.smartStorageReviewSlots = [];
+      if (mockState.smartStorageSessionSummary) {
+        mockState.smartStorageSessionSummary = {
+          ...mockState.smartStorageSessionSummary,
+          contributionSubmission: {
+            ...(mockState.smartStorageSessionSummary.contributionSubmission as Record<
+              string,
+              unknown
+            >),
+            status: "cancelled",
+          },
+          state: "cancelled",
+        };
+      }
+      return {
+        cancelledProposalCount: 1,
+        contributionSubmissionId:
+          args && typeof args === "object" && "contributionSubmissionId" in args
+            ? args.contributionSubmissionId
+            : "contribution-submission-raw-chapel-notes",
+        status: "cancelled",
+        supersededRunCount: 0,
+      };
+    }
+    if (functionName === "smartStorage:assignReviewSlot") {
+      const input =
+        args && typeof args === "object" ? (args as Record<string, unknown>) : {};
+      const targetUserId = String(input.targetUserId ?? "");
+      const smartStorageProposalId = String(input.smartStorageProposalId ?? "");
+      const assignment = {
+        assignedAt: Date.UTC(2026, 5, 12, 16),
+        assignedByUserId: "user",
+        targetKind: "user",
+        targetLabel: targetUserId || "Assigned user",
+        targetUserId,
+      };
+      mockState.smartStorageReviewSlots = mockState.smartStorageReviewSlots.map(
+        (slot) =>
+          slot &&
+          typeof slot === "object" &&
+          "smartStorageProposalId" in slot &&
+          slot.smartStorageProposalId === smartStorageProposalId
+            ? {
+                ...slot,
+                assignment,
+              }
+            : slot,
+      );
+
+      return {
+        assignment,
+        smartStorageProposalId,
+        status: "assigned",
+      };
+    }
+    if (functionName === "smartStorage:requestRefreshForProposal") {
+      const input =
+        args && typeof args === "object" ? (args as Record<string, unknown>) : {};
+      const sourceProposalId = String(
+        input.smartStorageProposalId ?? "smart-storage-proposal-secondary-quote",
+      );
+      const smartStorageProposalId = `smart-storage-proposal-refresh-${sourceProposalId}`;
+      const refresh = {
+        candidateKey: `proposal:${sourceProposalId}|refresh`,
+        origin: "contractRefresh",
+        originLabel: "Refresh",
+        reason:
+          "This Smart Storage proposal was generated under an older Smart Storage Contract.",
+        sourceProposalId,
+        suggestionKind: "staleProposalRefresh",
+        targetContractSnapshotVersion: "mvp-smart-storage-contract-v3",
+        targetTypeBehaviorSnapshotVersion: "mvp-type-behavior-v4",
+      };
+      const refreshedSlot = createMockSmartStorageReviewSlot({
+        bodyPreview: "Review this proposal under the current contract.",
+        refresh,
+        role: "refresh",
+        smartStorageProposalId,
+        status: "drafted",
+        title: "Refresh Courage quote",
+      });
+      mockState.smartStorageReviewSlots = [
+        ...mockState.smartStorageReviewSlots.filter(
+          (slot) =>
+            !(
+              slot &&
+              typeof slot === "object" &&
+              "smartStorageProposalId" in slot &&
+              slot.smartStorageProposalId === sourceProposalId
+            ),
+        ),
+        refreshedSlot,
+      ];
+      mockState.smartStorageSessionSummary = createMockSmartStorageSessionSummary({
+        latestRunStatus: "succeeded",
+        pendingSecondaryProposals: [
+          createMockSmartStorageSessionProposal({
+            acceptabilityStatus: "ready",
+            id: smartStorageProposalId,
+            refresh,
+            role: "refresh",
+            title: "Refresh Courage quote",
+          }),
+        ],
+        primaryProposal: createMockSmartStorageSessionProposal({
+          acceptabilityStatus: "accepted",
+          role: "primary",
+          status: "accepted",
+        }),
+        state: "reviewPending",
+      });
+
+      return {
+        role: "refresh",
+        smartStorageProposalId,
+        sourceProposalId,
+        status: "created",
+      };
+    }
+    if (functionName === "smartStorage:dismissRefreshSuggestion") {
+      const input =
+        args && typeof args === "object" ? (args as Record<string, unknown>) : {};
+      const smartStorageProposalId = String(input.smartStorageProposalId ?? "");
+      mockState.smartStorageReviewSlots = mockState.smartStorageReviewSlots.filter(
+        (slot) =>
+          !(
+            slot &&
+            typeof slot === "object" &&
+            "smartStorageProposalId" in slot &&
+            slot.smartStorageProposalId === smartStorageProposalId
+          ),
+      );
+
+      return {
+        smartStorageProposalId,
+        status: "dismissed",
       };
     }
     return {};
@@ -1408,6 +2118,14 @@ vi.mock("convex/react", () => ({
 
     if (functionName === "appAccess:getCurrentUserAccess") {
       return mockState.appAccess;
+    }
+
+    if (functionName === "smartStorage:getSessionSummary") {
+      return mockState.smartStorageSessionSummary;
+    }
+
+    if (functionName === "smartStorage:listReviewSlotsForCurrentUser") {
+      return mockState.smartStorageReviewSlots;
     }
 
     if (
@@ -1498,6 +2216,10 @@ vi.mock("convex/react", () => ({
 
     if (functionName === "rootSearch:getKnowledgePageThumbnailState") {
       return getMockKnowledgePageThumbnailState(args);
+    }
+
+    if (functionName === "referentPages:getReferentPageMetadata") {
+      return getMockReferentPageMetadata(args);
     }
 
     if (functionName === "contextExpertise:searchQuoteAttributionPeople") {
@@ -1712,6 +2434,7 @@ vi.mock("convex/react", () => ({
             bookName: "Matthew",
             bookShortName: "Matt",
             chapterNumber: 5,
+            href: "/scripture/matthew-5-9",
             ordinal: 23237,
             text: "Blessed are the peacemakers...",
             verseNumber: 9,
@@ -1950,8 +2673,22 @@ function getMockKnowledgePageThumbnailState(args: unknown) {
     entryTitle: String(preview.title ?? resultRecord.label ?? ""),
     ...("thumbnailUrl" in result && typeof result.thumbnailUrl === "string"
       ? { thumbnailUrl: result.thumbnailUrl }
-      : {}),
+    : {}),
   };
+}
+
+function getMockReferentPageMetadata(args: unknown) {
+  if (
+    !args ||
+    typeof args !== "object" ||
+    !("canonicalKey" in args) ||
+    !("knowledgeType" in args)
+  ) {
+    return null;
+  }
+
+  const key = `${String(args.knowledgeType)}:${String(args.canonicalKey)}`;
+  return mockState.referentPageMetadataByKey[key] ?? null;
 }
 
 function getNotificationSummary(notifications: unknown[]) {
@@ -2561,6 +3298,8 @@ describe("MVP Explore/Contribute loop", () => {
       url: "https://example.com/chapel-program",
     };
     mockState.smartStorageAcceptReturnsTargetExists = false;
+    mockState.smartStorageModelRunDelay = null;
+    mockState.smartStorageSessionSummary = null;
     mockState.userNotifications = [
       {
         id: "notice-slot-student-crusades-question",
@@ -3018,12 +3757,15 @@ describe("MVP Explore/Contribute loop", () => {
         smartStorageRunId: "smart-storage-run-raw-chapel-notes",
       }),
     );
-    expect(mockState.mutationCalls).toContainEqual(
-      expect.objectContaining({
-        functionName: "smartStorage:generateDraftProposalForRun",
-        smartStorageRunId: "smart-storage-run-raw-chapel-notes",
-      }),
-    );
+    expect(
+      mockState.mutationCalls.some(
+        (call) =>
+          call &&
+          typeof call === "object" &&
+          "functionName" in call &&
+          call.functionName === "smartStorage:generateDraftProposalForRun",
+      ),
+    ).toBe(false);
     expect(
       mockState.mutationCalls.some(
         (call) =>
@@ -3034,18 +3776,37 @@ describe("MVP Explore/Contribute loop", () => {
       ),
     ).toBe(false);
     expect(editor.textContent).toContain("Stored");
-    const proposalReview = getLabelledElement("Smart Storage Proposal");
+    await flushAsyncWork();
+    await rerenderApp();
+
+    const proposalReview = getLabelledElement("Smart Storage Session Wizard");
     expect(proposalReview.textContent).toContain("Raw chapel notes");
     expect(proposalReview.textContent).toContain("Words");
     expect(proposalReview.textContent).toContain(
       "A source that should be preserved before enrichment.",
     );
+    expect(proposalReview.textContent).toContain("Sources saved");
+    expect(proposalReview.textContent).toContain("Primary Intended Entry");
     expect(proposalReview.textContent).toContain("Proposal Confidence");
     expect(proposalReview.textContent).toContain("Medium");
-    expect(proposalReview.textContent).toContain("Draft Proposal");
+    expect(proposalReview.textContent).toContain("Accept-ready");
     expect(proposalReview.textContent).toContain("Text Excerpt");
     expect(proposalReview.textContent).toContain("External URL");
     expect(proposalReview.textContent).toContain("File");
+    expect(proposalReview.textContent).not.toContain("OpenAI Diagnostics");
+    expect(
+      proposalReview.querySelector('[aria-label="Smart Storage source evidence"]'),
+    ).toBeNull();
+    await click(getButtonIn(proposalReview, "Source evidence"));
+    const evidenceDrawer = getLabelledElement("Smart Storage source evidence");
+    expect(evidenceDrawer.textContent).toContain("Source support");
+    expect(evidenceDrawer.textContent).toContain("Text Excerpt");
+    expect(evidenceDrawer.textContent).toContain("External URL");
+    expect(evidenceDrawer.textContent).toContain("File");
+    await click(getButtonIn(evidenceDrawer, "Close source evidence"));
+    expect(
+      proposalReview.querySelector('[aria-label="Smart Storage source evidence"]'),
+    ).toBeNull();
     expect(getFeedItems("answer").map(getCardTitle)).not.toContain(
       "Raw chapel notes",
     );
@@ -3082,7 +3843,7 @@ describe("MVP Explore/Contribute loop", () => {
     await setSelectValue(roleSelects[2], "slides");
     await toggleCheckbox(primaryRadios[2]);
 
-    await click(getButtonIn(proposalReview, "Accept Proposal"));
+    await click(getButtonIn(proposalReview, "Accept Primary Entry"));
 
     expect(mockState.mutationCalls).toContainEqual(
       expect.objectContaining({
@@ -3116,6 +3877,324 @@ describe("MVP Explore/Contribute loop", () => {
     expect(getFeedItems("answer").map(getCardTitle)).toContain(
       "Raw chapel notes",
     );
+  });
+
+  test("opens the Smart Storage wizard immediately while proposal generation is pending", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/");
+    mockState.smartStorageModelRunDelay = new Promise<void>(() => undefined);
+    const uploadedFile = new File(["Friday chapel program"], "chapel-program.pdf", {
+      type: "application/pdf",
+    });
+    const fetchMock = vi.fn(async () => ({
+      json: async () => ({ storageId: "storage-chapel-program" }),
+      ok: true,
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await renderApp();
+
+    const editor = getContributionEditor();
+    await setFieldValue(
+      getTextareaIn(editor),
+      [
+        "Raw chapel notes",
+        "A source that should be preserved before enrichment.",
+        "https://example.com/chapel-program",
+      ].join("\n"),
+    );
+    await setFileInputFiles(getFileInputIn(editor), [uploadedFile]);
+    await flushAsyncWork();
+    await click(getButtonIn(editor, "Store"));
+
+    const wizard = getLabelledElement("Smart Storage Session Wizard");
+    expect(wizard.textContent).toContain("Sources saved");
+    expect(wizard.textContent).toContain("Bronze Layer preserved");
+    expect(wizard.textContent).toContain("Queued");
+    expect(wizard.textContent).toContain("Text");
+    expect(wizard.textContent).toContain("URL");
+    expect(wizard.textContent).toContain("File");
+    expect(wizard.textContent).not.toContain("OpenAI Diagnostics");
+  });
+
+  test("orders prerequisite proposals before a blocked Primary Intended Entry", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/");
+
+    await renderApp();
+
+    const editor = getContributionEditor();
+    await setFieldValue(
+      getTextareaIn(editor),
+      "Courage in Christ's Kingdom\nSermon notes with a speaker line.",
+    );
+    await click(getButtonIn(editor, "Store"));
+    await flushAsyncWork();
+    await rerenderApp();
+
+    mockState.smartStorageSessionSummary =
+      createMockSmartStoragePrerequisiteSessionSummary();
+    await rerenderApp();
+
+    const wizard = getLabelledElement("Smart Storage Session Wizard");
+    const wizardText = wizard.textContent ?? "";
+    expect(wizardText).toContain("Accept Prerequisites First");
+    expect(wizardText.indexOf("Rev. Thomas Walker")).toBeLessThan(
+      wizardText.indexOf("Courage in Christ's Kingdom"),
+    );
+    expect(wizardText).toContain("Later review work");
+    expect(wizardText).toContain("Courage quote");
+    expect((getButtonIn(wizard, "Accept Primary Entry") as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+  });
+
+  test("Finish later closes the Smart Storage wizard without cancelling session work", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/");
+
+    await renderApp();
+
+    const editor = getContributionEditor();
+    await setFieldValue(
+      getTextareaIn(editor),
+      "Raw chapel notes\nA source that should be preserved before enrichment.",
+    );
+    await click(getButtonIn(editor, "Store"));
+    await flushAsyncWork();
+    await rerenderApp();
+
+    const wizard = getLabelledElement("Smart Storage Session Wizard");
+    await click(getButtonIn(wizard, "Finish later"));
+
+    expect(container.querySelector('[aria-label="Smart Storage Session Wizard"]')).toBeNull();
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        functionName: "smartStorage:startFromContribution",
+      }),
+    );
+    expect(
+      mockState.mutationCalls.some(
+        (call) =>
+          call &&
+          typeof call === "object" &&
+          "functionName" in call &&
+          String(call.functionName).includes("cancel"),
+      ),
+    ).toBe(false);
+  });
+
+  test("Finish later leaves Smart Storage Review Slots visible in TODO and resumable", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/");
+
+    await renderApp();
+
+    const editor = getContributionEditor();
+    await setFieldValue(
+      getTextareaIn(editor),
+      "Raw chapel notes\nA source that should be preserved before enrichment.",
+    );
+    await click(getButtonIn(editor, "Store"));
+    await flushAsyncWork();
+    await rerenderApp();
+
+    const acceptedEntry = {
+      contributor: {
+        id: "user",
+        name: "Caleb Gelbaugh",
+      },
+      contextPreviewTagLabels: [],
+      href: "/entries/entry-raw-chapel-notes",
+      humanWeight: 60,
+      id: "entry-raw-chapel-notes",
+      knowledgeType: "words",
+      previewText: "A source that should be preserved before enrichment.",
+      primaryTagLabel: "Raw chapel notes",
+      title: "Raw chapel notes",
+      updatedAt: Date.UTC(2026, 5, 12, 15),
+    };
+    mockState.smartStorageSessionSummary = createMockSmartStorageSessionSummary({
+      acceptedPrimaryEntry: acceptedEntry,
+      canCancel: false,
+      latestRunStatus: "succeeded",
+      pendingSecondaryProposals: [
+        createMockSmartStorageSessionProposal({
+          acceptabilityStatus: "ready",
+          role: "secondary",
+        }),
+      ],
+      primaryProposal: createMockSmartStorageSessionProposal({
+        acceptabilityStatus: "accepted",
+        role: "primary",
+        status: "accepted",
+      }),
+      state: "reviewPending",
+    });
+    mockState.smartStorageReviewSlots = [createMockSmartStorageReviewSlot()];
+    await rerenderApp();
+
+    const wizard = getLabelledElement("Smart Storage Session Wizard");
+    expect(wizard.textContent).toContain("Entry Saved");
+    expect(wizard.textContent).toContain("Later review work");
+    expect(wizard.textContent).toContain("Courage quote");
+
+    await click(getButtonIn(wizard, "Finish later"));
+
+    expect(container.querySelector('[aria-label="Smart Storage Session Wizard"]')).toBeNull();
+    expect(container.textContent).not.toContain("Courage quote");
+    expect(getFeedItems("answer").map(getCardTitle)).not.toContain("Courage quote");
+
+    await click(getLabelledLinkIn(getLabelledElement("User Views"), "TODO List"));
+
+    expect(container.querySelector(".kb-todo-main")).toBeTruthy();
+    expect(container.textContent).toContain("Review Slots");
+    expect(container.textContent).toContain("Raw chapel notes");
+    expect(container.textContent).toContain("Courage quote");
+    expect(container.textContent).toContain("Review proposed Quote");
+    expect(getFeedItems("answer")).toHaveLength(0);
+
+    await click(getLinkIn(container, "Review Quote"));
+
+    const resumedWizard = getLabelledElement("Smart Storage Session Wizard");
+    expect(resumedWizard.textContent).toContain("Entry Saved");
+    expect(resumedWizard.textContent).toContain("Courage quote");
+    expect(resumedWizard.textContent).not.toContain("Cancel session");
+  });
+
+  test("sends an assignable Smart Storage Review Slot from TODO to a reviewer", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/todo");
+    mockState.smartStorageReviewSlots = [
+      createMockSmartStorageReviewSlot({
+        canAssign: true,
+      }),
+    ];
+
+    await renderApp();
+
+    const reviewCard = container.querySelector(".kb-review-slot-card");
+    if (!reviewCard) {
+      throw new Error("Missing Review Slot card.");
+    }
+
+    await setFieldValue(getTextInputIn(reviewCard), "reviewer-user-id");
+    await click(getButtonIn(reviewCard, "Send"));
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        functionName: "smartStorage:assignReviewSlot",
+        smartStorageProposalId: "smart-storage-proposal-secondary-quote",
+        targetKind: "user",
+        targetUserId: "reviewer-user-id",
+      }),
+    );
+
+    await rerenderApp();
+    expect(container.textContent).toContain("reviewer-user-id");
+  });
+
+  test("requests refresh for a stale Smart Storage Review Slot from TODO", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/todo");
+    mockState.smartStorageReviewSlots = [
+      createMockSmartStorageReviewSlot({
+        acceptReady: false,
+        acceptability: {
+          blockedByProposalIds: [],
+          status: "closed",
+        },
+        refresh: {
+          candidateKey: "proposal:smart-storage-proposal-secondary-quote|refresh",
+          origin: "contractRefresh",
+          originLabel: "Refresh",
+          reason:
+            "This Smart Storage proposal was generated under an older Smart Storage Contract.",
+          sourceProposalId: "smart-storage-proposal-secondary-quote",
+          suggestionKind: "staleProposalRefresh",
+          targetContractSnapshotVersion: "mvp-smart-storage-contract-v3",
+          targetTypeBehaviorSnapshotVersion: "mvp-type-behavior-v4",
+        },
+        role: "refresh",
+        status: "stale",
+        title: "Refresh Courage quote",
+      }),
+    ];
+
+    await renderApp();
+
+    expect(container.textContent).toContain("Review Slot - Refresh");
+    expect(container.textContent).toContain(
+      "This Smart Storage proposal was generated under an older Smart Storage Contract.",
+    );
+    await click(getButtonIn(container, "Request Refresh"));
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        functionName: "smartStorage:requestRefreshForProposal",
+        smartStorageProposalId: "smart-storage-proposal-secondary-quote",
+      }),
+    );
+
+    await rerenderApp();
+    expect(container.textContent).toContain("Refresh Courage quote");
+    expect(container.textContent).toContain("Ready to review");
+  });
+
+  test("cancels a Smart Storage session from the wizard and removes Review Slots from TODO", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/");
+    const acceptedEntry = {
+      contributor: {
+        id: "user",
+        name: "Caleb Gelbaugh",
+      },
+      contextPreviewTagLabels: [],
+      href: "/entries/entry-raw-chapel-notes",
+      humanWeight: 60,
+      id: "entry-raw-chapel-notes",
+      knowledgeType: "words",
+      previewText: "A source that should be preserved before enrichment.",
+      primaryTagLabel: "Raw chapel notes",
+      title: "Raw chapel notes",
+      updatedAt: Date.UTC(2026, 5, 12, 15),
+    };
+
+    await renderApp();
+
+    const editor = getContributionEditor();
+    await setFieldValue(
+      getTextareaIn(editor),
+      "Raw chapel notes\nA source that should be preserved before enrichment.",
+    );
+    await click(getButtonIn(editor, "Store"));
+    await flushAsyncWork();
+    mockState.smartStorageSessionSummary = createMockSmartStorageSessionSummary({
+      acceptedPrimaryEntry: acceptedEntry,
+      latestRunStatus: "succeeded",
+      pendingSecondaryProposals: [
+        createMockSmartStorageSessionProposal({
+          acceptabilityStatus: "ready",
+          role: "secondary",
+        }),
+      ],
+      primaryProposal: createMockSmartStorageSessionProposal({
+        acceptabilityStatus: "accepted",
+        role: "primary",
+        status: "accepted",
+      }),
+      state: "reviewPending",
+    });
+    mockState.smartStorageReviewSlots = [createMockSmartStorageReviewSlot()];
+    await rerenderApp();
+
+    const wizard = getLabelledElement("Smart Storage Session Wizard");
+    await click(getButtonIn(wizard, "Cancel session"));
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        contributionSubmissionId: "contribution-submission-raw-chapel-notes",
+        functionName: "smartStorage:cancelSession",
+      }),
+    );
+    expect(container.querySelector('[aria-label="Smart Storage Session Wizard"]')).toBeNull();
+
+    await click(getLabelledLinkIn(getLabelledElement("User Views"), "TODO List"));
+
+    expect(container.textContent).not.toContain("Courage quote");
   });
 
   test("stores dashboard Smart Storage contributions when draft Link Preview fails", async () => {
@@ -3169,12 +4248,16 @@ describe("MVP Explore/Contribute loop", () => {
       "Raw chapel notes\nA source that should update the existing Gold entry.",
     );
     await click(getButtonIn(editor, "Store"));
+    await flushAsyncWork();
+    await rerenderApp();
 
-    let proposalReview = getLabelledElement("Smart Storage Proposal");
-    await click(getButtonIn(proposalReview, "Accept Proposal"));
+    let proposalReview = getLabelledElement("Smart Storage Session Wizard");
+    await click(getButtonIn(proposalReview, "Accept Primary Entry"));
+    await flushAsyncWork();
+    await rerenderApp();
 
-    proposalReview = getLabelledElement("Smart Storage Proposal");
-    expect(proposalReview.textContent).toContain("Target Exists");
+    proposalReview = getLabelledElement("Smart Storage Session Wizard");
+    expect(proposalReview.textContent).toContain("Needs resolution");
     expect(getButtonIn(proposalReview, "Add to Existing Entry")).toBeTruthy();
     expect(getFeedItems("answer").map(getCardTitle)).not.toContain(
       "Raw chapel notes",
@@ -3215,22 +4298,22 @@ describe("MVP Explore/Contribute loop", () => {
     {
       errorMessage: "OPENAI_API_KEY is not configured.",
       executionStatus: "failed",
-      heading: "Model Proposal Failed",
-      message: "The model proposal generation failed.",
+      heading: "Proposal generation failed",
       runStatus: "failed",
     },
     {
       executionStatus: "noProposal",
-      heading: "No Structured Proposal Found",
-      message: "No structured proposal was returned.",
+      heading: "No proposal was created",
       runStatus: "noProposal",
     },
   ])(
     "shows explicit Smart Storage $runStatus outcome with deterministic fallback",
-    async ({ errorMessage, executionStatus, heading, message, runStatus }) => {
+    async ({ errorMessage, executionStatus, heading, runStatus }) => {
       mockState.smartStorageModelRunResult = {
         ...(errorMessage === undefined ? {} : { errorMessage }),
         executionStatus,
+        rawModelOutput: "RAW MODEL OUTPUT",
+        rawModelRequest: "RAW MODEL REQUEST",
         smartStorageRunId: "smart-storage-run-raw-chapel-notes",
         status: runStatus,
       };
@@ -3260,17 +4343,28 @@ describe("MVP Explore/Contribute loop", () => {
         ),
       ).toBe(false);
 
-      const runStatusPanel = getLabelledElement("Smart Storage Run status");
+      await flushAsyncWork();
+      await rerenderApp();
+
+      const runStatusPanel = getLabelledElement("Smart Storage Session Wizard");
       expect(runStatusPanel.textContent).toContain(heading);
-      expect(runStatusPanel.textContent).toContain(message);
       expect(runStatusPanel.textContent).toContain(
-        "Source preserved as Bronze Layer material.",
+        "Sources were saved.",
       );
+      expect(getButtonIn(runStatusPanel, "Retry model")).toBeTruthy();
+      expect(getButtonIn(runStatusPanel, "Create basic proposal")).toBeTruthy();
+      expect(getButtonIn(runStatusPanel, "Finish later")).toBeTruthy();
+      expect(getButtonIn(runStatusPanel, "Cancel session")).toBeTruthy();
+      expect(runStatusPanel.textContent).not.toContain("RAW MODEL OUTPUT");
+      expect(runStatusPanel.textContent).not.toContain("RAW MODEL REQUEST");
+      expect(runStatusPanel.textContent).not.toContain("OpenAI Diagnostics");
       if (errorMessage !== undefined) {
         expect(runStatusPanel.textContent).toContain(errorMessage);
       }
 
-      await click(getButtonIn(runStatusPanel, "Generate Scaffold Proposal"));
+      await click(getButtonIn(runStatusPanel, "Create basic proposal"));
+      await flushAsyncWork();
+      await rerenderApp();
 
       expect(mockState.mutationCalls).toContainEqual(
         expect.objectContaining({
@@ -3278,7 +4372,7 @@ describe("MVP Explore/Contribute loop", () => {
           smartStorageRunId: "smart-storage-run-raw-chapel-notes",
         }),
       );
-      expect(getLabelledElement("Smart Storage Proposal").textContent).toContain(
+      expect(getLabelledElement("Smart Storage Session Wizard").textContent).toContain(
         "Raw chapel notes",
       );
     },
@@ -3862,9 +4956,9 @@ describe("MVP Explore/Contribute loop", () => {
     await renderApp();
 
     expect(getSelect("Active Role").value).toBe("system:systemAdmin");
-    expect(getLabelledLinkIn(getLabelledElement("User Views"), "System Admin")).toBeTruthy();
+    expect(getLabelledLinkIn(getLabelledElement("Admin Area"), "System Admin")).toBeTruthy();
 
-    await click(getLabelledLinkIn(getLabelledElement("User Views"), "System Admin"));
+    await click(getLabelledLinkIn(getLabelledElement("Admin Area"), "System Admin"));
 
     expect(window.location.pathname).toBe("/system-admin");
     expect(container.textContent).toContain("Organization Accounts");
@@ -4087,7 +5181,7 @@ describe("MVP Explore/Contribute loop", () => {
     expect(container.textContent).not.toContain(
       "This account needs an active organization membership before continuing.",
     );
-    expect(getLabelledLinkIn(getLabelledElement("User Views"), "System Admin")).toBeTruthy();
+    expect(getLabelledLinkIn(getLabelledElement("Admin Area"), "System Admin")).toBeTruthy();
   });
 
   test("opens the user profile page from the avatar route", async () => {
@@ -4239,9 +5333,9 @@ describe("MVP Explore/Contribute loop", () => {
         link.getAttribute("aria-label"),
       ),
     ).toEqual([
-      "TODO List",
       "Calendar",
       "Notifications",
+      "TODO List",
     ]);
     expect(userViews.textContent).not.toContain("Settings");
     expect(getLabelledElement("Unread notifications").textContent).toBe("3");
@@ -4260,7 +5354,42 @@ describe("MVP Explore/Contribute loop", () => {
     expect(getButtonIn(accountControls, "Sign out")).toBeTruthy();
   });
 
-  test("moves pinned Knowledge Pages into the primary sidebar away from Dashboard", async () => {
+  test("shows pinned Knowledge Page thumbnails before falling back to icons", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/");
+    mockState.pinnedKnowledgePages = mockState.pinnedKnowledgePages.map((pin) =>
+      pin &&
+      typeof pin === "object" &&
+      "label" in pin &&
+      pin.label === "Arche Classical Academy"
+        ? {
+            ...pin,
+            thumbnailUrl: "https://images.example/arche-sidebar.jpg",
+          }
+        : pin,
+    );
+
+    await renderApp();
+
+    const knowledgePageDestinations = getLabelledElement("Knowledge Page destinations");
+    const thumbnailPin = getLabelledLinkIn(
+      knowledgePageDestinations,
+      "Arche Classical Academy",
+    );
+    expect(
+      thumbnailPin.querySelector('img[src="https://images.example/arche-sidebar.jpg"]'),
+    ).toBeTruthy();
+    expect(thumbnailPin.querySelector(".kb-referent-tag-thumbnail")).toBeTruthy();
+    expect(thumbnailPin.querySelector("svg")).toBeNull();
+
+    const fallbackPin = getLabelledLinkIn(
+      knowledgePageDestinations,
+      "Ruler of Kings Church",
+    );
+    expect(fallbackPin.querySelector("img")).toBeNull();
+    expect(fallbackPin.querySelector("svg")).toBeTruthy();
+  });
+
+  test("keeps pinned Knowledge Pages in the primary sidebar on knowledge routes", async () => {
     window.history.replaceState(
       {},
       "",
@@ -4270,11 +5399,13 @@ describe("MVP Explore/Contribute loop", () => {
     await renderApp();
 
     expect(container.querySelector(".kb-knowledge-drawer")).toBeNull();
-    expect(container.querySelector('[aria-label="Knowledge Page destinations"]')).toBeNull();
 
     const primaryNavigation = getLabelledElement("Primary navigation");
+    const knowledgePageDestinations = getLabelledElement("Knowledge Page destinations");
     const pinnedPages = getLabelledElement("Pinned Knowledge Pages");
+    expect(primaryNavigation.contains(knowledgePageDestinations)).toBe(true);
     expect(primaryNavigation.contains(pinnedPages)).toBe(true);
+    expect(getLabelledLinkIn(knowledgePageDestinations, "Dashboard")).toBeTruthy();
     expect(getLabelledLinkIn(pinnedPages, "Arche Classical Academy")).toBeTruthy();
     expect(getLabelledLinkIn(pinnedPages, "Ruler of Kings Church")).toBeTruthy();
     expect(getLabelledLinkIn(pinnedPages, "My Family")).toBeTruthy();
@@ -4501,6 +5632,83 @@ describe("MVP Explore/Contribute loop", () => {
       ),
     ).toBe("true");
     expect(mockState.bookmarkedKnowledgePages).toEqual([]);
+  });
+
+  test("toggles Scripture Knowledge Page pin, bookmark, and subscription actions", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "http://localhost:3000/scripture/matthew-5-9",
+    );
+    mockState.pinnedKnowledgePages = [];
+    mockState.bookmarkedKnowledgePages = [];
+    mockState.knowledgeSubscriptions = [];
+
+    await renderApp();
+
+    expect(getButton("Pin Matthew 5:9").getAttribute("aria-pressed")).toBe(
+      "false",
+    );
+    expect(
+      getButton("Bookmark Matthew 5:9").getAttribute("aria-pressed"),
+    ).toBe("false");
+    expect(
+      getButton("Subscribe Matthew 5:9").getAttribute("aria-pressed"),
+    ).toBe("false");
+
+    await click(getButton("Pin Matthew 5:9"));
+    await rerenderApp();
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        functionName: "pinnedKnowledgePages:pinKnowledgePage",
+        href: "/scripture/matthew-5-9",
+        label: "Matthew 5:9",
+        pageKey: "scripture:matthew-5-9",
+        pageKind: "scripture",
+        secondaryLabel: "Bible Passage",
+      }),
+    );
+    expect(getButton("Unpin Matthew 5:9").getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+    expect(
+      getLabelledLinkIn(getLabelledElement("Pinned Knowledge Pages"), "Matthew 5:9"),
+    ).toBeTruthy();
+
+    await click(getButton("Bookmark Matthew 5:9"));
+    await rerenderApp();
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        functionName: "bookmarkedKnowledgePages:bookmarkKnowledgePage",
+        href: "/scripture/matthew-5-9",
+        label: "Matthew 5:9",
+        pageKey: "scripture:matthew-5-9",
+        pageKind: "scripture",
+        secondaryLabel: "Bible Passage",
+      }),
+    );
+    expect(
+      getButton("Remove Bookmark Matthew 5:9").getAttribute("aria-pressed"),
+    ).toBe("true");
+
+    await click(getButton("Subscribe Matthew 5:9"));
+    await rerenderApp();
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        functionName: "knowledgeSubscriptions:subscribeToKnowledgePage",
+        href: "/scripture/matthew-5-9",
+        label: "Matthew 5:9",
+        pageKey: "scripture:matthew-5-9",
+        pageKind: "scripture",
+        secondaryLabel: "Bible Passage",
+      }),
+    );
+    expect(
+      getButton("Unsubscribe Matthew 5:9").getAttribute("aria-pressed"),
+    ).toBe("true");
   });
 
   test("bookmarked pages do not appear in Knowledge Page destinations unless pinned", async () => {
@@ -4855,6 +6063,23 @@ describe("MVP Explore/Contribute loop", () => {
       "/goto/robinson-crusoe",
     );
     expect(getButton("Remove Robinson Crusoe")).toBeTruthy();
+    expect(container.textContent).toContain("Stored Referent Data");
+    expect(container.textContent).toContain(
+      "An English castaway learns to survive",
+    );
+    expect(container.textContent).toContain("Open Library");
+    expect(container.textContent).toContain("Daniel Defoe");
+    const identityBand = container.querySelector(".kb-knowledge-page-identity");
+    expect(
+      identityBand?.querySelector(
+        '.kb-knowledge-page-identity-side img.kb-knowledge-page-thumbnail[src="https://covers.openlibrary.org/b/id/123-L.jpg"]',
+      ),
+    ).toBeTruthy();
+    const overview = container.querySelector(".kb-knowledge-overview");
+    const coverImage = overview?.querySelector(
+      '.kb-overview-icon[data-has-thumbnail="true"] > img[src="https://covers.openlibrary.org/b/id/123-L.jpg"]',
+    );
+    expect(coverImage).toBeTruthy();
   });
 
   test("Root Search keyboard selection navigates to the active suggestion", async () => {
@@ -4928,9 +6153,10 @@ describe("MVP Explore/Contribute loop", () => {
       expect(container.querySelector(".kb-organization-main")).toBeTruthy();
       expect(container.textContent).toContain(typedPage.expectedHeading);
       expect(container.textContent).toContain(typedPage.expectedDetail);
-      expect(getLinkIn(container, "Settings").getAttribute("href")).toBe(
-        `${typedPage.path}/settings`,
-      );
+      expect(
+        getLinkIn(getLabelledElement("Organization subroutes"), "Settings")
+          .getAttribute("href"),
+      ).toBe(`${typedPage.path}/settings`);
 
       if (root) {
         await act(async () => {
@@ -5115,7 +6341,7 @@ describe("MVP Explore/Contribute loop", () => {
     ).toBeTruthy();
   });
 
-  test("renders the TODO List route with only assigned Knowledge Slots", async () => {
+  test("renders the TODO List route with assigned Knowledge Slots", async () => {
     window.history.replaceState({}, "", "http://localhost:3000/todo");
 
     await renderApp();
@@ -5124,7 +6350,7 @@ describe("MVP Explore/Contribute loop", () => {
     expect(container.textContent).toContain("TODO List");
     expect(container.textContent).toContain("Draft chapel follow-up");
     expect(container.textContent).toContain("Prepare Boethius providence lesson");
-    expect(container.textContent).toContain("2 slots");
+    expect(container.textContent).toContain("2 items");
     expect(container.textContent).not.toContain(
       "Augustine, Ordered Loves, and the First Crusade",
     );
@@ -5216,9 +6442,40 @@ describe("MVP Explore/Contribute loop", () => {
     expect(scripturePanel).toBeTruthy();
     expect(scripturePanel?.textContent).toContain("Scripture Text");
     expect(scripturePanel?.textContent).toContain("King James Version");
+    if (!scripturePanel) {
+      throw new Error("Missing Scripture panel.");
+    }
+    expect(getLinkContainingIn(scripturePanel, "Matt 5:9").getAttribute("href")).toBe(
+      "/scripture/matthew-5-9",
+    );
     expect(container.querySelector(".kb-knowledge-overview")).toBeNull();
     expect(container.textContent).not.toContain("Bible Passage Overview");
     expect(container.textContent).not.toContain("Referent Overview");
+  });
+
+  test("opens Bible verse reference labels as referent pages", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "http://localhost:3000/scripture/matthew-5",
+    );
+
+    await renderApp();
+
+    const scripturePanel = container.querySelector(".kb-scripture-panel");
+    if (!scripturePanel) {
+      throw new Error("Missing Scripture panel.");
+    }
+
+    const verseReference = getLinkContainingIn(scripturePanel, "Matt 5:9");
+    expect(verseReference.getAttribute("href")).toBe("/scripture/matthew-5-9");
+
+    await click(verseReference);
+
+    expect(window.location.pathname).toBe("/scripture/matthew-5-9");
+    expect(getLabelledElement("Current URL").textContent).toContain(
+      "/scripture/matthew-5-9",
+    );
   });
 
   test("renders compact identity for multi-Tag Context Pages", async () => {
@@ -5263,7 +6520,7 @@ describe("MVP Explore/Contribute loop", () => {
     expect(container.textContent).toContain("Popular targets");
     expect(container.textContent).toContain("Romans 8:28");
     expect(container.textContent).toContain("Navigator Actions");
-    expect(container.querySelector('[aria-label="Knowledge Page destinations"]')).toBeNull();
+    expect(getLabelledElement("Knowledge Page destinations")).toBeTruthy();
     expect(container.querySelector('a[aria-label="Analytics"]')).toBeNull();
   });
 
@@ -5297,8 +6554,8 @@ describe("MVP Explore/Contribute loop", () => {
     await renderApp();
 
     expect(container.querySelector(".kb-smart-playground-main")).toBeTruthy();
-    expect(container.querySelector('[aria-label="Knowledge Page destinations"]')).toBeNull();
-    expect(getLabelledLinkIn(getLabelledElement("User Views"), "Smart Storage")).toBeTruthy();
+    expect(getLabelledElement("Knowledge Page destinations")).toBeTruthy();
+    expect(getLabelledLinkIn(getLabelledElement("Admin Area"), "Smart Storage")).toBeTruthy();
 
     const sourceInput = container.querySelector('textarea[aria-label="Raw input"]');
     if (!(sourceInput instanceof HTMLTextAreaElement)) {
@@ -5345,10 +6602,20 @@ describe("MVP Explore/Contribute loop", () => {
 
     await renderApp();
 
-    const userViews = getLabelledElement("User Views");
-    expect(getLabelledLinkIn(userViews, "Smart Storage")).toBeTruthy();
-    expect(getLabelledLinkIn(userViews, "Layout Prototype")).toBeTruthy();
-    expect(getLabelledLinkIn(userViews, "Header Sidebar Prototype")).toBeTruthy();
+    const adminArea = getLabelledElement("Admin Area");
+    expect(getLabelledLinkIn(adminArea, "Smart Storage")).toBeTruthy();
+    expect(getButtonIn(adminArea, "Prototypes")).toBeTruthy();
+    expect(adminArea.querySelector('a[aria-label="Layout Prototype"]')).toBeNull();
+    expect(
+      adminArea.querySelector('a[aria-label="Header Sidebar Prototype"]'),
+    ).toBeNull();
+
+    await click(getButtonIn(adminArea, "Prototypes"));
+
+    const prototypePages = getLabelledElement("Prototype Pages");
+    expect(getLabelledLinkIn(prototypePages, "Smart Storage Workflow Prototype")).toBeTruthy();
+    expect(getLabelledLinkIn(prototypePages, "Layout Prototype")).toBeTruthy();
+    expect(getLabelledLinkIn(prototypePages, "Header Sidebar Prototype")).toBeTruthy();
   });
 
   test("blocks prototype routes from non-system admins", async () => {
@@ -5365,6 +6632,7 @@ describe("MVP Explore/Contribute loop", () => {
     expect(getLabelledElement("User Views").textContent).not.toContain(
       "Layout Prototype",
     );
+    expect(queryButton("Prototypes")).toBeNull();
   });
 
   test("renders prototype routes for system admins and preserves legacy prototype URLs", async () => {

@@ -6,14 +6,16 @@ import type { MutationCtx, QueryCtx } from "../_generated/server";
 // from the authenticated user, not from client-supplied IDs.
 const MAX_ACTIVE_MEMBERSHIPS_TO_CHECK = 50;
 const MAX_ORGANIZATION_ENTRIES_PER_REFERENT = 10;
-const MAX_SYSTEM_ADMIN_ORGANIZATIONS_PER_KIND = 100;
+const MAX_SYSTEM_ADMIN_ORGANIZATION_REFERENCES_PER_KIND = 100;
 const ORGANIZATION_KINDS = ["school", "church", "family", "community"] as const;
 
 type AppAccessCtx = QueryCtx | MutationCtx;
+type OrganizationKind = (typeof ORGANIZATION_KINDS)[number];
 
 export type AllowedOrganization = {
-  organizationEntryId: Id<"organizationEntries">;
-  organizationKind: Doc<"organizationEntries">["organizationKind"];
+  organizationDetailId?: Id<"organizationReferentDetails">;
+  organizationEntryId?: Id<"organizationEntries">;
+  organizationKind: OrganizationKind;
   organizationReferentId: Id<"referents">;
   name: string;
   role: string;
@@ -92,6 +94,7 @@ export async function getCurrentAppAccess(
         ...organization,
         role: "admin",
       });
+      organizationIds.add(organization.organizationReferentId);
     }
   }
 
@@ -149,6 +152,28 @@ async function getActiveOrganization(
   ctx: AppAccessCtx,
   organizationReferentId: Id<"referents">,
 ): Promise<Omit<AllowedOrganization, "role"> | null> {
+  const referent = await ctx.db.get(organizationReferentId);
+  if (!referent || referent.knowledgeType !== "organization") {
+    return null;
+  }
+
+  const detail = await ctx.db
+    .query("organizationReferentDetails")
+    .withIndex("by_referentId", (q) => q.eq("referentId", organizationReferentId))
+    .unique();
+  if (detail) {
+    if (detail.isActive === false) {
+      return null;
+    }
+
+    return {
+      organizationDetailId: detail._id,
+      organizationKind: detail.organizationKind,
+      organizationReferentId,
+      name: referent.canonicalName,
+    };
+  }
+
   const organizationEntries = await ctx.db
     .query("knowledgeEntries")
     .withIndex("by_representedReferentId", (q) =>
@@ -184,14 +209,44 @@ async function listActiveOrganizations(
   ctx: AppAccessCtx,
 ): Promise<Array<Omit<AllowedOrganization, "role">>> {
   const organizations: Array<Omit<AllowedOrganization, "role">> = [];
+  const seenOrganizationReferentIds = new Set<string>();
 
   for (const organizationKind of ORGANIZATION_KINDS) {
+    const details = await ctx.db
+      .query("organizationReferentDetails")
+      .withIndex("by_organizationKind", (q) =>
+        q.eq("organizationKind", organizationKind),
+      )
+      .take(MAX_SYSTEM_ADMIN_ORGANIZATION_REFERENCES_PER_KIND);
+
+    for (const detail of details) {
+      if (detail.isActive === false) {
+        continue;
+      }
+
+      const referent = await ctx.db.get(detail.referentId);
+      if (!referent || referent.knowledgeType !== "organization") {
+        continue;
+      }
+      if (seenOrganizationReferentIds.has(detail.referentId)) {
+        continue;
+      }
+
+      organizations.push({
+        organizationDetailId: detail._id,
+        organizationKind: detail.organizationKind,
+        organizationReferentId: detail.referentId,
+        name: referent.canonicalName,
+      });
+      seenOrganizationReferentIds.add(detail.referentId);
+    }
+
     const organizationEntries = await ctx.db
       .query("organizationEntries")
       .withIndex("by_organizationKind", (q) =>
         q.eq("organizationKind", organizationKind),
       )
-      .take(MAX_SYSTEM_ADMIN_ORGANIZATIONS_PER_KIND);
+      .take(MAX_SYSTEM_ADMIN_ORGANIZATION_REFERENCES_PER_KIND);
 
     for (const organizationEntry of organizationEntries) {
       if (organizationEntry.isActive === false) {
@@ -202,6 +257,9 @@ async function listActiveOrganizations(
       if (!entry || entry.knowledgeType !== "organization") {
         continue;
       }
+      if (seenOrganizationReferentIds.has(entry.representedReferentId)) {
+        continue;
+      }
 
       organizations.push({
         organizationEntryId: organizationEntry._id,
@@ -209,6 +267,7 @@ async function listActiveOrganizations(
         organizationReferentId: entry.representedReferentId,
         name: entry.title,
       });
+      seenOrganizationReferentIds.add(entry.representedReferentId);
     }
   }
 

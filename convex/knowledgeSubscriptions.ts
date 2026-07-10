@@ -19,37 +19,67 @@ const organizationKind = v.union(
   v.literal("community"),
 );
 
-const subscriptionTargetKind = v.union(v.literal("organization"));
+const genericKnowledgePageKind = v.union(
+  v.literal("dashboard"),
+  v.literal("scripture"),
+  v.literal("referent"),
+  v.literal("context"),
+  v.literal("search"),
+);
+
+const subscriptionTargetKind = v.union(
+  v.literal("organization"),
+  v.literal("dashboard"),
+  v.literal("scripture"),
+  v.literal("referent"),
+  v.literal("context"),
+  v.literal("search"),
+);
+
+const genericKnowledgePageInput = {
+  href: v.string(),
+  label: v.string(),
+  pageKey: v.string(),
+  pageKind: genericKnowledgePageKind,
+  secondaryLabel: v.optional(v.string()),
+};
 
 const notificationSubscriptionSource = v.object({
   createdAt: v.number(),
   href: v.string(),
   id: v.string(),
   label: v.string(),
-  organizationKind,
-  organizationName: v.string(),
-  organizationReferentId: v.id("referents"),
+  organizationKind: v.optional(organizationKind),
+  organizationName: v.optional(v.string()),
+  organizationReferentId: v.optional(v.id("referents")),
   secondaryLabel: v.string(),
   subscriptionKey: v.string(),
   targetKind: subscriptionTargetKind,
-  targetReferentId: v.id("referents"),
+  targetReferentId: v.optional(v.id("referents")),
   updatedAt: v.number(),
 });
 
 type OrganizationKind = Doc<"organizationEntries">["organizationKind"];
 type SubscriptionRecord = Doc<"knowledgeSubscriptions">;
+type KnowledgePageRelationshipKind =
+  | "organization"
+  | "dashboard"
+  | "scripture"
+  | "referent"
+  | "context"
+  | "search";
 type NotificationSubscriptionSource = {
   createdAt: number;
   href: string;
   id: string;
   label: string;
-  organizationKind: OrganizationKind;
-  organizationName: string;
-  organizationReferentId: Id<"referents">;
+  organizationKind?: OrganizationKind;
+  organizationName?: string;
+  organizationReferentId?: Id<"referents">;
   secondaryLabel: string;
   subscriptionKey: string;
-  targetKind: "organization";
-  targetReferentId: Id<"referents">;
+  targetKind: KnowledgePageRelationshipKind;
+  targetReferentId?: Id<"referents">;
   updatedAt: number;
 };
 
@@ -174,6 +204,49 @@ export const subscribeOrganizationPage = mutation({
   },
 });
 
+export const subscribeToKnowledgePage = mutation({
+  args: genericKnowledgePageInput,
+  returns: notificationSubscriptionSource,
+  handler: async (
+    ctx,
+    args,
+  ): Promise<NotificationSubscriptionSource> => {
+    const access = await requireAppAccess(ctx);
+    const page = normalizeGenericKnowledgePageInput(args);
+    const now = Date.now();
+    const existing = await getSubscriptionByKey(
+      ctx,
+      access.userId,
+      page.pageKey,
+    );
+    const subscription = buildGenericKnowledgePageSubscriptionSource(page, now);
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        hrefSnapshot: subscription.href,
+        labelSnapshot: subscription.label,
+        secondaryLabelSnapshot: subscription.secondaryLabel,
+        subscriptionKey: subscription.subscriptionKey,
+        targetKind: subscription.targetKind,
+        updatedAt: now,
+      });
+    } else {
+      await ctx.db.insert("knowledgeSubscriptions", {
+        createdAt: now,
+        hrefSnapshot: subscription.href,
+        labelSnapshot: subscription.label,
+        secondaryLabelSnapshot: subscription.secondaryLabel,
+        subscriptionKey: subscription.subscriptionKey,
+        targetKind: subscription.targetKind,
+        updatedAt: now,
+        userId: access.userId,
+      });
+    }
+
+    return subscription;
+  },
+});
+
 export const unsubscribe = mutation({
   args: {
     subscriptionKey: v.string(),
@@ -242,32 +315,46 @@ function toNotificationSubscriptionSource(
   organizationsByReferentId: Map<Id<"referents">, AllowedOrganization>,
 ): NotificationSubscriptionSource | null {
   if (
-    record.targetKind !== "organization" ||
-    record.organizationReferentId === undefined ||
-    record.targetReferentId === undefined
+    record.targetKind === "organization" &&
+    record.organizationReferentId !== undefined &&
+    record.targetReferentId !== undefined
   ) {
-    return null;
+    const organization = organizationsByReferentId.get(record.organizationReferentId);
+    if (!organization) {
+      return null;
+    }
+
+    return {
+      createdAt: record.createdAt,
+      href: getOrganizationHref(organization.organizationReferentId),
+      id: organization.organizationReferentId,
+      label: organization.name || record.labelSnapshot,
+      organizationKind: organization.organizationKind,
+      organizationName: organization.name || record.labelSnapshot,
+      organizationReferentId: organization.organizationReferentId,
+      secondaryLabel:
+        record.secondaryLabelSnapshot ??
+        formatOrganizationKind(organization.organizationKind),
+      subscriptionKey: record.subscriptionKey,
+      targetKind: "organization",
+      targetReferentId: organization.organizationReferentId,
+      updatedAt: record.updatedAt,
+    };
   }
 
-  const organization = organizationsByReferentId.get(record.organizationReferentId);
-  if (!organization) {
+  if (record.targetKind === "organization") {
     return null;
   }
 
   return {
     createdAt: record.createdAt,
-    href: getOrganizationHref(organization.organizationReferentId),
-    id: organization.organizationReferentId,
-    label: organization.name || record.labelSnapshot,
-    organizationKind: organization.organizationKind,
-    organizationName: organization.name || record.labelSnapshot,
-    organizationReferentId: organization.organizationReferentId,
+    href: record.hrefSnapshot,
+    id: record.subscriptionKey,
+    label: record.labelSnapshot,
     secondaryLabel:
-      record.secondaryLabelSnapshot ??
-      formatOrganizationKind(organization.organizationKind),
+      record.secondaryLabelSnapshot ?? formatGenericKnowledgePageKind(record.targetKind),
     subscriptionKey: record.subscriptionKey,
-    targetKind: "organization",
-    targetReferentId: organization.organizationReferentId,
+    targetKind: record.targetKind,
     updatedAt: record.updatedAt,
   };
 }
@@ -340,4 +427,85 @@ function getOrganizationHref(organizationReferentId: Id<"referents">) {
 
 function formatOrganizationKind(kind: OrganizationKind) {
   return kind.charAt(0).toUpperCase() + kind.slice(1);
+}
+
+type GenericKnowledgePageInput = {
+  href: string;
+  label: string;
+  pageKey: string;
+  pageKind: Exclude<KnowledgePageRelationshipKind, "organization">;
+  secondaryLabel?: string;
+};
+
+function normalizeGenericKnowledgePageInput(
+  input: GenericKnowledgePageInput,
+): Required<GenericKnowledgePageInput> {
+  const pageKey = input.pageKey.trim();
+  const label = input.label.trim();
+  const href = input.href.trim();
+  const secondaryLabel =
+    input.secondaryLabel?.trim() || formatGenericKnowledgePageKind(input.pageKind);
+
+  if (!pageKey) {
+    throw new Error("Invalid Knowledge Page key");
+  }
+  if (!label) {
+    throw new Error("Invalid Knowledge Page label");
+  }
+  if (!href.startsWith("/") || href.startsWith("//")) {
+    throw new Error("Invalid Knowledge Page href");
+  }
+  if (!isGenericPageKeyValidForKind(input.pageKind, pageKey)) {
+    throw new Error("Invalid Knowledge Page key");
+  }
+
+  return {
+    href,
+    label,
+    pageKey,
+    pageKind: input.pageKind,
+    secondaryLabel,
+  };
+}
+
+function buildGenericKnowledgePageSubscriptionSource(
+  page: Required<GenericKnowledgePageInput>,
+  now: number,
+): NotificationSubscriptionSource {
+  return {
+    createdAt: now,
+    href: page.href,
+    id: page.pageKey,
+    label: page.label,
+    secondaryLabel: page.secondaryLabel,
+    subscriptionKey: page.pageKey,
+    targetKind: page.pageKind,
+    updatedAt: now,
+  };
+}
+
+function formatGenericKnowledgePageKind(
+  kind: Exclude<KnowledgePageRelationshipKind, "organization">,
+) {
+  if (kind === "dashboard") {
+    return "Dashboard";
+  }
+  if (kind === "scripture") {
+    return "Bible Passage";
+  }
+  if (kind === "referent") {
+    return "Referent Page";
+  }
+  if (kind === "context") {
+    return "Context Page";
+  }
+
+  return "Search";
+}
+
+function isGenericPageKeyValidForKind(
+  kind: Exclude<KnowledgePageRelationshipKind, "organization">,
+  pageKey: string,
+) {
+  return pageKey.startsWith(`${kind}:`);
 }
