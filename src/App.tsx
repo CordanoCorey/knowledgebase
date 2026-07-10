@@ -6001,6 +6001,7 @@ function SmartStorageSessionWizard({
           <>
             <SmartStorageWizardSourceCounts session={session} />
             <SmartStorageWizardProgress session={session} />
+            <SmartStorageWizardRunSummary session={session} />
             {isFailedOrNoProposalSmartStorageSession(session) ? (
               <SmartStorageWizardFallbackPanel
                 isCancelling={isCancelling}
@@ -6148,6 +6149,52 @@ function SmartStorageWizardProgress({
         </span>
       </li>
     </ol>
+  );
+}
+
+function SmartStorageWizardRunSummary({
+  session,
+}: {
+  session: SmartStorageSessionSummary;
+}) {
+  const run = session.activeRun ?? session.latestRun;
+  const runStatus = run ? formatSmartStorageRunStatus(run.status) : "Waiting";
+  const returnedLabel = getSmartStorageRunReturnedLabel(session);
+
+  return (
+    <section
+      aria-label="Smart Storage AI result"
+      className="kb-smart-wizard-run-summary"
+      role={session.activeRun ? "status" : undefined}
+    >
+      <header>
+        {session.activeRun ? (
+          <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
+        ) : session.latestRun?.status === "failed" ? (
+          <AlertTriangle aria-hidden="true" />
+        ) : (
+          <Sparkles aria-hidden="true" />
+        )}
+        <span>
+          <strong>AI result</strong>
+          <small>{getSmartStorageRunSummaryCopy(session)}</small>
+        </span>
+      </header>
+      <dl>
+        <div>
+          <dt>Run status</dt>
+          <dd>{runStatus}</dd>
+        </div>
+        <div>
+          <dt>Returned</dt>
+          <dd>{returnedLabel}</dd>
+        </div>
+        <div>
+          <dt>Reviewable proposals</dt>
+          <dd>{session.proposalCountsByStatus.total}</dd>
+        </div>
+      </dl>
+    </section>
   );
 }
 
@@ -7010,6 +7057,51 @@ function isFailedOrNoProposalSmartStorageSession(
     (session.latestRun?.status === "failed" ||
       session.latestRun?.status === "noProposal")
   );
+}
+
+function getSmartStorageRunReturnedLabel(session: SmartStorageSessionSummary) {
+  if (session.activeRun) {
+    return "Still working";
+  }
+  if (session.latestRun?.status === "failed") {
+    return "Generation failure";
+  }
+  if (session.latestRun?.status === "noProposal") {
+    return "No structured proposal";
+  }
+  if (session.primaryProposal) {
+    return formatSmartStorageProposalRole(session.primaryProposal.role);
+  }
+  if (session.proposalCountsByStatus.total > 0) {
+    return formatCount(session.proposalCountsByStatus.total, "proposal");
+  }
+
+  return "No proposal yet";
+}
+
+function getSmartStorageRunSummaryCopy(session: SmartStorageSessionSummary) {
+  if (session.activeRun) {
+    return "Sources are saved; proposal generation is still running.";
+  }
+  if (session.latestRun?.status === "failed") {
+    return "The agent failed to create a proposal; Sources remain saved.";
+  }
+  if (session.latestRun?.status === "noProposal") {
+    return "The agent returned no structured proposal; Sources remain saved.";
+  }
+  if (session.primaryProposal) {
+    return `Returned ${formatSmartStorageProposalRole(
+      session.primaryProposal.role,
+    )} for review.`;
+  }
+  if (session.proposalCountsByStatus.total > 0) {
+    return `${formatCount(
+      session.proposalCountsByStatus.total,
+      "proposal",
+    )} returned for review.`;
+  }
+
+  return "Waiting for Smart Storage output.";
 }
 
 function formatSmartStorageRunStatus(

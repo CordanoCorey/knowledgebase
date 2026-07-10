@@ -3786,6 +3786,10 @@ describe("MVP Explore/Contribute loop", () => {
       "A source that should be preserved before enrichment.",
     );
     expect(proposalReview.textContent).toContain("Sources saved");
+    expect(proposalReview.textContent).toContain("AI result");
+    expect(proposalReview.textContent).toContain(
+      "Returned Primary Intended Entry for review.",
+    );
     expect(proposalReview.textContent).toContain("Primary Intended Entry");
     expect(proposalReview.textContent).toContain("Proposal Confidence");
     expect(proposalReview.textContent).toContain("Medium");
@@ -3908,6 +3912,10 @@ describe("MVP Explore/Contribute loop", () => {
 
     const wizard = getLabelledElement("Smart Storage Session Wizard");
     expect(wizard.textContent).toContain("Sources saved");
+    expect(wizard.textContent).toContain("AI result");
+    expect(wizard.textContent).toContain(
+      "Sources are saved; proposal generation is still running.",
+    );
     expect(wizard.textContent).toContain("Bronze Layer preserved");
     expect(wizard.textContent).toContain("Queued");
     expect(wizard.textContent).toContain("Text");
@@ -4350,6 +4358,12 @@ describe("MVP Explore/Contribute loop", () => {
       expect(runStatusPanel.textContent).toContain(heading);
       expect(runStatusPanel.textContent).toContain(
         "Sources were saved.",
+      );
+      expect(runStatusPanel.textContent).toContain("AI result");
+      expect(runStatusPanel.textContent).toContain(
+        executionStatus === "noProposal"
+          ? "The agent returned no structured proposal; Sources remain saved."
+          : "The agent failed to create a proposal; Sources remain saved.",
       );
       expect(getButtonIn(runStatusPanel, "Retry model")).toBeTruthy();
       expect(getButtonIn(runStatusPanel, "Create basic proposal")).toBeTruthy();

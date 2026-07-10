@@ -386,6 +386,7 @@ describe("Contribution Editor rendering", () => {
     expect(quoteMarkup).not.toContain("Add title");
     expect(quoteMarkup).not.toContain('type="text"');
     expect(quoteMarkup).toContain('class="kb-contribution-rich-text"');
+    expect(quoteMarkup).not.toContain("Quote attribution required");
 
     const prayerRequestMarkup = renderToStaticMarkup(
       <ContributionEditor
@@ -402,6 +403,56 @@ describe("Contribution Editor rendering", () => {
     expect(prayerRequestMarkup).not.toContain("Add title");
     expect(prayerRequestMarkup).not.toContain('type="text"');
     expect(prayerRequestMarkup).toContain('class="kb-contribution-rich-text"');
+  });
+
+  test("Quote submission requires a Person context or anonymous acknowledgement", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const storeSmartly = vi.fn(() => ({ status: "submitted" as const }));
+
+    try {
+      await act(async () => {
+        root.render(
+          <ContributionEditor
+            allowedContributionTypes={["quote"]}
+            context={[romansTag, holySpiritTag]}
+            onStoreSmartly={storeSmartly}
+            selectedKnowledgeType="quote"
+          />,
+        );
+      });
+
+      const editor = getContributionEditor(container);
+      await setTextareaValue(
+        getTextarea(editor),
+        "Courage is every virtue at the testing point.",
+      );
+
+      const submitButton = getButton(editor, "Store");
+      expect(editor.textContent).toContain("Quote attribution required");
+      expect(submitButton.disabled).toBe(true);
+      expect(storeSmartly).not.toHaveBeenCalled();
+
+      await toggleCheckbox(getCheckbox(editor));
+      expect(submitButton.disabled).toBe(false);
+
+      await click(submitButton);
+
+      expect(storeSmartly).toHaveBeenCalledWith(
+        expect.objectContaining({
+          contributionNote:
+            "Quote attribution: user confirmed the quoted Person is anonymous or unknown.",
+          knowledgeType: "quote",
+          title: "Courage is every virtue at the testing point.",
+        }),
+      );
+    } finally {
+      await act(async () => {
+        root.unmount();
+      });
+      container.remove();
+    }
   });
 
   test("Words is titleless by default but can reveal an optional Title", async () => {
@@ -1361,6 +1412,15 @@ function getTextInput(container: Element) {
   return input;
 }
 
+function getCheckbox(container: Element) {
+  const input = container.querySelector('input[type="checkbox"]');
+  if (!(input instanceof HTMLInputElement)) {
+    throw new Error("Missing checkbox");
+  }
+
+  return input;
+}
+
 function getSelect(container: Element, label: string) {
   const select = Array.from(container.querySelectorAll("select")).find(
     (candidate) => candidate.getAttribute("aria-label") === label,
@@ -1391,6 +1451,13 @@ async function click(element: Element) {
       new MouseEvent("click", { bubbles: true, cancelable: true }),
     );
     await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
+async function toggleCheckbox(checkbox: HTMLInputElement) {
+  await act(async () => {
+    checkbox.click();
     await Promise.resolve();
   });
 }
