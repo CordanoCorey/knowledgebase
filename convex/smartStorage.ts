@@ -64,10 +64,14 @@ const MAX_MIGRATION_BATCH_SIZE = 100;
 const MAX_MIGRATION_PROPOSALS_PER_RUN = 20;
 const MAX_SESSION_RUNS = 50;
 const MAX_SESSION_PROPOSALS_PER_STATUS = 50;
+const DEFAULT_REVIEW_SLOT_LIMIT = 50;
+const MAX_REVIEW_SLOT_LIMIT = 100;
 const MAX_MODEL_SOURCE_TEXT_LENGTH = 4_000;
 const MAX_MODEL_INPUT_LENGTH = 24_000;
 const MAX_MODEL_ERROR_LENGTH = 500;
 const MAX_RAW_MODEL_REQUEST_LENGTH = 36_000;
+const MAX_REFRESH_REASON_LENGTH = 500;
+const MAX_REFRESH_CANDIDATE_KEY_LENGTH = 500;
 
 const SMART_STORAGE_CONTRACT_KEY = "mvp-smart-storage-contract";
 const SMART_STORAGE_ENTRY_KNOWLEDGE_TYPES = ENTRY_KNOWLEDGE_TYPES.filter(
@@ -151,6 +155,7 @@ const SMART_STORAGE_CONTRACT_SNAPSHOT_TEXT = JSON.stringify(
   2,
 );
 const DETERMINISTIC_GENERATOR_VERSION = "mvp-deterministic-scaffold-v1";
+const REFRESH_GENERATOR_VERSION = "mvp-refresh-review-v1";
 const OPENAI_RESPONSES_API_URL = "https://api.openai.com/v1/responses";
 const DEFAULT_OPENAI_SMART_STORAGE_MODEL = "gpt-5.4-nano";
 const SMART_STORAGE_MODEL_SCHEMA_NAME = "smart_storage_proposal";
@@ -344,6 +349,13 @@ type SmartStorageSessionProposalRole =
   | "refresh"
   | "reprocessing"
   | "cleanup";
+type SmartStorageRefreshOrigin = "contractRefresh" | "reprocessing";
+type SmartStorageRefreshSuggestionKind =
+  | "staleProposalRefresh"
+  | "suggestedEdit"
+  | "typeReclassification"
+  | "newDerivedEntry"
+  | "referenceResolution";
 type SmartStorageProposalAcceptabilitySummary = {
   blockedByProposalIds: Id<"smartStorageProposals">[];
   reason?:
@@ -564,6 +576,36 @@ const smartStorageSessionProposalRole = v.union(
   v.literal("cleanup"),
 );
 
+const smartStorageRefreshRequestMode = v.union(
+  v.literal("refresh"),
+  v.literal("reprocessing"),
+);
+
+const smartStorageRefreshOrigin = v.union(
+  v.literal("contractRefresh"),
+  v.literal("reprocessing"),
+);
+
+const smartStorageRefreshSuggestionKind = v.union(
+  v.literal("staleProposalRefresh"),
+  v.literal("suggestedEdit"),
+  v.literal("typeReclassification"),
+  v.literal("newDerivedEntry"),
+  v.literal("referenceResolution"),
+);
+
+const smartStorageRefreshSummary = v.object({
+  candidateKey: v.string(),
+  origin: smartStorageRefreshOrigin,
+  originLabel: v.string(),
+  reason: v.string(),
+  sourceEntryId: v.optional(v.id("knowledgeEntries")),
+  sourceProposalId: v.optional(v.id("smartStorageProposals")),
+  suggestionKind: smartStorageRefreshSuggestionKind,
+  targetContractSnapshotVersion: v.optional(v.string()),
+  targetTypeBehaviorSnapshotVersion: v.optional(v.string()),
+});
+
 const smartStorageProposalDependencyRequirementKind = v.union(
   v.literal("referent"),
   v.literal("field"),
@@ -576,6 +618,27 @@ const smartStorageProposalDependencySummary = v.object({
   requirementKind: smartStorageProposalDependencyRequirementKind,
   requirementKey: v.string(),
   label: v.string(),
+});
+
+const smartStorageReferenceResolutionOutcome = v.union(
+  v.literal("pending"),
+  v.literal("matchedKnownReferent"),
+  v.literal("createdByAcceptedEntry"),
+);
+
+const smartStorageReferenceResolutionMode = v.union(
+  v.literal("knownReferentMatch"),
+  v.literal("newEntryProposal"),
+);
+
+const smartStorageReferenceResolutionSummary = v.object({
+  candidateTag: v.optional(contextTagSnapshot),
+  candidateTagId: v.optional(v.id("tags")),
+  mode: smartStorageReferenceResolutionMode,
+  outcome: smartStorageReferenceResolutionOutcome,
+  requiredTag: contextTagSnapshot,
+  resolvedTag: v.optional(contextTagSnapshot),
+  resolvedTagId: v.optional(v.id("tags")),
 });
 
 const smartStorageProposalAcceptabilityStatus = v.union(
@@ -650,6 +713,8 @@ const smartStorageSessionProposalSummary = v.object({
   currentProposal: smartStorageProposedEntry,
   dependency: v.optional(smartStorageProposalDependencySummary),
   id: v.id("smartStorageProposals"),
+  refresh: v.optional(smartStorageRefreshSummary),
+  referenceResolution: v.optional(smartStorageReferenceResolutionSummary),
   role: smartStorageSessionProposalRole,
   smartStorageRunId: v.id("smartStorageRuns"),
   sourceCitations: v.array(proposalSourceCitationSummary),
@@ -662,6 +727,7 @@ const smartStorageSessionProposalSummary = v.object({
 const smartStorageSessionSummary = v.object({
   acceptedPrimaryEntry: v.optional(knowledgeEntrySummary),
   activeRun: v.optional(smartStorageSessionRunSummary),
+  canCancel: v.boolean(),
   contributionSubmission: v.object({
     bodyPreview: v.string(),
     createdAt: v.number(),
@@ -679,6 +745,55 @@ const smartStorageSessionSummary = v.object({
   proposalCountsByStatus: smartStorageSessionProposalCounts,
   sourceCounts: smartStorageSessionSourceCounts,
   state: smartStorageSessionState,
+});
+
+const smartStorageReviewSlotGroup = v.object({
+  href: v.string(),
+  id: v.string(),
+  kind: v.union(v.literal("session"), v.literal("primaryEntry")),
+  title: v.string(),
+});
+
+const smartStorageReviewSlotOriginSession = v.object({
+  href: v.string(),
+  id: v.id("contributionSubmissions"),
+  title: v.string(),
+});
+
+const smartStorageReviewAssignmentSummary = v.object({
+  assignedAt: v.number(),
+  assignedByUserId: v.id("users"),
+  targetKind: v.literal("user"),
+  targetLabel: v.string(),
+  targetUserId: v.id("users"),
+});
+
+const smartStorageReviewSlotSummary = v.object({
+  acceptReady: v.boolean(),
+  acceptability: smartStorageProposalAcceptabilitySummary,
+  assignment: v.optional(smartStorageReviewAssignmentSummary),
+  bodyPreview: v.string(),
+  canAssign: v.boolean(),
+  contextPreviewTagLabels: v.array(v.string()),
+  contextPreviewTags: v.optional(v.array(contextTagSnapshot)),
+  contributionSubmissionId: v.id("contributionSubmissions"),
+  createdAt: v.number(),
+  evidenceSummary: v.string(),
+  group: smartStorageReviewSlotGroup,
+  href: v.string(),
+  id: v.string(),
+  originSession: smartStorageReviewSlotOriginSession,
+  proposedKnowledgeType: entryKnowledgeType,
+  refresh: v.optional(smartStorageRefreshSummary),
+  reviewScopeLabel: v.string(),
+  referenceResolution: v.optional(smartStorageReferenceResolutionSummary),
+  role: smartStorageSessionProposalRole,
+  smartStorageProposalId: v.id("smartStorageProposals"),
+  smartStorageRunId: v.id("smartStorageRuns"),
+  sourceCount: v.number(),
+  status: smartStorageProposalStatus,
+  title: v.string(),
+  updatedAt: v.number(),
 });
 
 const temporaryUploadCleanupStatus = v.union(
@@ -814,9 +929,27 @@ const modelRunExecutionInput = v.object({
   sources: v.array(modelRunExecutionSource),
 });
 
+const smartStorageRefreshRequestResult = v.object({
+  role: smartStorageSessionProposalRole,
+  smartStorageProposalId: v.union(v.id("smartStorageProposals"), v.null()),
+  sourceEntryId: v.optional(v.id("knowledgeEntries")),
+  sourceProposalId: v.optional(v.id("smartStorageProposals")),
+  status: v.union(
+    v.literal("created"),
+    v.literal("existing"),
+    v.literal("dismissed"),
+  ),
+});
+
+const smartStorageRefreshDismissResult = v.object({
+  smartStorageProposalId: v.id("smartStorageProposals"),
+  status: v.literal("dismissed"),
+});
+
 export const getSessionSummary = query({
   args: {
     contributionSubmissionId: v.id("contributionSubmissions"),
+    smartStorageProposalId: v.optional(v.id("smartStorageProposals")),
   },
   returns: v.union(smartStorageSessionSummary, v.null()),
   handler: async (ctx, args) => {
@@ -827,9 +960,28 @@ export const getSessionSummary = query({
     if (!contributionSubmission) {
       return null;
     }
-    if (contributionSubmission.submittedByUserId !== access.userId) {
+    const requestedProposal =
+      args.smartStorageProposalId === undefined
+        ? null
+        : await ctx.db.get(args.smartStorageProposalId);
+    if (
+      requestedProposal !== null &&
+      requestedProposal.contributionSubmissionId !== args.contributionSubmissionId
+    ) {
       throw new Error("Unauthorized");
     }
+
+    const canManageSession = canManageSmartStorageSubmission(
+      contributionSubmission,
+      access,
+    );
+    const isAssignedReviewer =
+      requestedProposal !== null &&
+      isAssignedReviewSlotReviewer(requestedProposal, access);
+    if (!canManageSession && !isAssignedReviewer) {
+      throw new Error("Unauthorized");
+    }
+    const isLimitedDelegatedView = !canManageSession && requestedProposal !== null;
 
     const sources = await ctx.db
       .query("sources")
@@ -851,10 +1003,21 @@ export const getSessionSummary = query({
     const proposalsAscending = [...proposals].sort(
       (left, right) => left.createdAt - right.createdAt,
     );
+    const visibleProposals =
+      isLimitedDelegatedView && requestedProposal !== null
+        ? [requestedProposal]
+        : proposals;
+    const visibleProposalIds = new Set(
+      visibleProposals.map((proposal) => proposal._id),
+    );
+    const visibleSources =
+      isLimitedDelegatedView && requestedProposal !== null
+        ? await listProposalReviewSources(ctx, requestedProposal)
+        : sources;
     const latestRun = runs[0];
     const activeRun = runs.find((run) => isActiveSmartStorageRun(run));
-    const sourceCounts = countSessionSources(sources);
-    const proposalCountsByStatus = countSessionProposals(proposals);
+    const sourceCounts = countSessionSources(visibleSources);
+    const proposalCountsByStatus = countSessionProposals(visibleProposals);
     const primaryProposal = selectPrimaryProposal(
       contributionSubmission,
       proposalsAscending,
@@ -864,7 +1027,8 @@ export const getSessionSummary = query({
         ? await findAcceptedEntryForProposal(ctx, primaryProposal)
         : null;
     const acceptedPrimaryEntrySummary =
-      acceptedPrimaryEntry === null
+      acceptedPrimaryEntry === null ||
+      !isKnowledgeEntryVisibleToAccess(acceptedPrimaryEntry, access)
         ? undefined
         : summarizeEntry(
             acceptedPrimaryEntry,
@@ -878,24 +1042,28 @@ export const getSessionSummary = query({
       proposalsAscending,
       primaryProposal,
       acceptedPrimaryEntry !== null,
-    );
+    ).filter((proposal) => visibleProposalIds.has(proposal._id));
     const pendingSecondaryProposalDocs = selectPendingSecondaryProposals(
       proposalsAscending,
       primaryProposal,
       prerequisiteProposalDocs,
-    );
+    ).filter((proposal) => visibleProposalIds.has(proposal._id));
+    const visiblePrimaryProposal =
+      primaryProposal === undefined || !visibleProposalIds.has(primaryProposal._id)
+        ? undefined
+        : primaryProposal;
     const primaryProposalSummary =
-      primaryProposal === undefined
+      visiblePrimaryProposal === undefined
         ? undefined
         : await toSmartStorageSessionProposalSummary(ctx, {
             acceptability: getSmartStorageProposalAcceptability({
               acceptedPrimaryEntry,
               primaryProposal,
-              proposal: primaryProposal,
+              proposal: visiblePrimaryProposal,
               proposalsAscending,
               role: "primary",
             }),
-            proposal: primaryProposal,
+            proposal: visiblePrimaryProposal,
             role: "primary",
           });
     const prerequisiteProposals = [];
@@ -937,7 +1105,7 @@ export const getSessionSummary = query({
       );
     }
     const isComplete = isSmartStorageSessionComplete({
-      proposals,
+      proposals: visibleProposals,
       runs,
     });
     const state = deriveSmartStorageSessionState({
@@ -947,10 +1115,12 @@ export const getSessionSummary = query({
       latestRun,
       pendingSecondaryProposalCount: pendingSecondaryProposals.length,
       prerequisiteProposalCount: prerequisiteProposals.length,
-      primaryProposal,
+      primaryProposal: visiblePrimaryProposal,
       sourceCount: sourceCounts.total,
       submissionStatus: contributionSubmission.submissionStatus,
     });
+    const canCancel =
+      canManageSession && !isComplete && state !== "cancelled";
 
     return {
       ...(acceptedPrimaryEntrySummary === undefined
@@ -959,6 +1129,7 @@ export const getSessionSummary = query({
       ...(activeRun === undefined
         ? {}
         : { activeRun: toSmartStorageSessionRunSummary(activeRun) }),
+      canCancel,
       contributionSubmission: {
         bodyPreview: contributionSubmission.primaryIntendedBodyPreview,
         createdAt: contributionSubmission.createdAt,
@@ -981,6 +1152,392 @@ export const getSessionSummary = query({
       proposalCountsByStatus,
       sourceCounts,
       state,
+    };
+  },
+});
+
+export const listReviewSlotsForCurrentUser = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  returns: v.array(smartStorageReviewSlotSummary),
+  handler: async (ctx, args) => {
+    const access = await requireAppAccess(ctx);
+    const limit = normalizeReviewSlotLimit(args.limit);
+    if (limit < 1) {
+      return [];
+    }
+
+    const proposals = await listCurrentUserOpenReviewSlotProposals(
+      ctx,
+      access.userId,
+      limit,
+    );
+    const reviewSlots = [];
+
+    for (const proposal of proposals) {
+      if (proposal.contributionSubmissionId === undefined) {
+        continue;
+      }
+
+      const contributionSubmission = await ctx.db.get(
+        proposal.contributionSubmissionId,
+      );
+      if (
+        !contributionSubmission ||
+        proposal.contributionSubmissionId === undefined
+      ) {
+        continue;
+      }
+      const authorization = await getSmartStorageProposalAuthorization(ctx, {
+        access,
+        proposal,
+      });
+      if (!authorization.canManage && !authorization.isAssignedReviewer) {
+        continue;
+      }
+
+      const sessionProposals = await listSessionProposals(
+        ctx,
+        contributionSubmission._id,
+      );
+      const proposalsAscending = [...sessionProposals].sort(
+        (left, right) => left.createdAt - right.createdAt,
+      );
+      const primaryProposal = selectPrimaryProposal(
+        contributionSubmission,
+        proposalsAscending,
+      );
+      const acceptedPrimaryEntry =
+        primaryProposal?.status === "accepted"
+          ? await findAcceptedEntryForProposal(ctx, primaryProposal)
+          : null;
+      const role = getSmartStorageProposalRole(proposal, {
+        primaryProposal,
+      });
+
+      reviewSlots.push(
+        await toSmartStorageReviewSlotSummary(ctx, {
+          acceptability: getSmartStorageProposalAcceptability({
+            acceptedPrimaryEntry,
+            primaryProposal,
+            proposal,
+            proposalsAscending,
+            role,
+          }),
+          acceptedPrimaryEntry,
+          access,
+          canAssign: authorization.canManage,
+          contributionSubmission,
+          proposal,
+          role,
+        }),
+      );
+    }
+
+    return reviewSlots.sort(compareSmartStorageReviewSlots).slice(0, limit);
+  },
+});
+
+export const assignReviewSlot = mutation({
+  args: {
+    smartStorageProposalId: v.id("smartStorageProposals"),
+    targetKind: v.literal("user"),
+    targetUserId: v.id("users"),
+  },
+  returns: v.object({
+    assignment: smartStorageReviewAssignmentSummary,
+    smartStorageProposalId: v.id("smartStorageProposals"),
+    status: v.literal("assigned"),
+  }),
+  handler: async (ctx, args) => {
+    const access = await requireAppAccess(ctx);
+    const proposal = await ctx.db.get(args.smartStorageProposalId);
+    if (!proposal) {
+      throw new Error("Smart Storage Proposal not found.");
+    }
+    if (!isOpenSmartStorageProposal(proposal)) {
+      throw new Error("Smart Storage Proposal is not open for assignment.");
+    }
+
+    const authorization = await getSmartStorageProposalAuthorization(ctx, {
+      access,
+      proposal,
+    });
+    if (!authorization.canManage) {
+      throw new Error("Unauthorized");
+    }
+    if (authorization.contributionSubmission === null) {
+      throw new Error(
+        "Smart Storage Proposal must be linked to a Contribution Submission before assignment.",
+      );
+    }
+
+    const targetUser = await ctx.db.get(args.targetUserId);
+    if (!targetUser || targetUser.isActive !== true) {
+      throw new Error("Assigned reviewer must be an active user.");
+    }
+
+    const now = Date.now();
+    await ctx.db.patch(proposal._id, {
+      reviewAssignedAt: now,
+      reviewAssignedByUserId: access.userId,
+      reviewAssignedUserId: args.targetUserId,
+      reviewAssignmentTargetKind: args.targetKind,
+      updatedAt: now,
+    });
+
+    const updatedProposal = await ctx.db.get(proposal._id);
+    if (!updatedProposal) {
+      throw new Error("Assigned Smart Storage Proposal could not be loaded.");
+    }
+    const assignment = await getSmartStorageReviewAssignmentSummary(
+      ctx,
+      updatedProposal,
+    );
+    if (assignment === undefined) {
+      throw new Error("Assigned reviewer could not be summarized.");
+    }
+
+    return {
+      assignment,
+      smartStorageProposalId: proposal._id,
+      status: "assigned" as const,
+    };
+  },
+});
+
+export const requestRefreshForProposal = mutation({
+  args: {
+    candidateTagId: v.optional(v.id("tags")),
+    mode: v.optional(smartStorageRefreshRequestMode),
+    reason: v.optional(v.string()),
+    requiredTag: v.optional(contextTagSnapshot),
+    smartStorageProposalId: v.id("smartStorageProposals"),
+    suggestionKind: v.optional(smartStorageRefreshSuggestionKind),
+    targetKnowledgeType: v.optional(entryKnowledgeType),
+  },
+  returns: smartStorageRefreshRequestResult,
+  handler: async (ctx, args) => {
+    const access = await requireAppAccess(ctx);
+    const sourceProposal = await ctx.db.get(args.smartStorageProposalId);
+    if (!sourceProposal) {
+      throw new Error("Smart Storage Proposal not found.");
+    }
+    const authorization = await assertCanReviewSmartStorageProposal(ctx, {
+      access,
+      proposal: sourceProposal,
+    });
+    if (authorization.contributionSubmission === null) {
+      throw new Error(
+        "Smart Storage Proposal must be linked to a Contribution Submission before refresh.",
+      );
+    }
+
+    const run = await ctx.db.get(sourceProposal.smartStorageRunId);
+    if (!run) {
+      throw new Error("Smart Storage Run not found.");
+    }
+    if (
+      sourceProposal.contributionSubmissionId === undefined ||
+      run.contributionSubmissionId === undefined ||
+      run.contributionSubmissionId !== sourceProposal.contributionSubmissionId
+    ) {
+      throw new Error("Proposal and Run belong to different Contribution Submissions.");
+    }
+
+    return await createRefreshReviewProposal(ctx, {
+      access,
+      candidateTagId: args.candidateTagId,
+      contributionSubmission: authorization.contributionSubmission,
+      mode: args.mode ?? "refresh",
+      reason: args.reason,
+      requiredTag: args.requiredTag,
+      sourceProposal,
+      suggestionKind: args.suggestionKind,
+      targetKnowledgeType: args.targetKnowledgeType,
+    });
+  },
+});
+
+export const requestReprocessingForEntry = mutation({
+  args: {
+    candidateTagId: v.optional(v.id("tags")),
+    entryId: v.id("knowledgeEntries"),
+    reason: v.optional(v.string()),
+    requiredTag: v.optional(contextTagSnapshot),
+    suggestionKind: v.optional(smartStorageRefreshSuggestionKind),
+    targetKnowledgeType: v.optional(entryKnowledgeType),
+  },
+  returns: smartStorageRefreshRequestResult,
+  handler: async (ctx, args) => {
+    const access = await requireAppAccess(ctx);
+    const entry = await ctx.db.get(args.entryId);
+    if (!entry) {
+      throw new Error("Knowledge Entry not found.");
+    }
+    if (
+      entry.createdByUserId !== access.userId &&
+      access.systemRole !== "systemAdmin"
+    ) {
+      throw new Error("Unauthorized");
+    }
+
+    const sourceOutput = await ctx.db
+      .query("sourceOutputs")
+      .withIndex("by_entryId_and_sourceId", (q) => q.eq("entryId", entry._id))
+      .first();
+    if (!sourceOutput) {
+      throw new Error(
+        "Knowledge Entry does not have preserved Smart Storage Source material for reprocessing.",
+      );
+    }
+    const source = await ctx.db.get(sourceOutput.sourceId);
+    if (!source || source.contributionSubmissionId === undefined) {
+      throw new Error(
+        "Reprocessing requires a preserved Source linked to a Contribution Submission.",
+      );
+    }
+    const contributionSubmission = await ctx.db.get(
+      source.contributionSubmissionId,
+    );
+    if (!contributionSubmission) {
+      throw new Error("Contribution Submission not found.");
+    }
+    if (!canManageSmartStorageSubmission(contributionSubmission, access)) {
+      throw new Error("Unauthorized");
+    }
+
+    return await createRefreshReviewProposal(ctx, {
+      access,
+      candidateTagId: args.candidateTagId,
+      contributionSubmission,
+      mode: "reprocessing",
+      reason: args.reason,
+      requiredTag: args.requiredTag,
+      sourceEntry: entry,
+      sourceId: source._id,
+      suggestionKind: args.suggestionKind,
+      targetKnowledgeType: args.targetKnowledgeType,
+    });
+  },
+});
+
+export const dismissRefreshSuggestion = mutation({
+  args: {
+    smartStorageProposalId: v.id("smartStorageProposals"),
+  },
+  returns: smartStorageRefreshDismissResult,
+  handler: async (ctx, args) => {
+    const access = await requireAppAccess(ctx);
+    const proposal = await ctx.db.get(args.smartStorageProposalId);
+    if (!proposal) {
+      throw new Error("Smart Storage Proposal not found.");
+    }
+    const authorization = await assertCanReviewSmartStorageProposal(ctx, {
+      access,
+      proposal,
+    });
+    if (authorization.contributionSubmission === null) {
+      throw new Error(
+        "Smart Storage Proposal must be linked to a Contribution Submission before dismissal.",
+      );
+    }
+
+    const refresh = getSmartStorageRefreshSummary(proposal);
+    if (refresh === undefined) {
+      throw new Error("Smart Storage Proposal is not a refresh suggestion.");
+    }
+    const now = Date.now();
+    await rememberRefreshDismissal(ctx, {
+      contributionSubmission: authorization.contributionSubmission,
+      dismissedByUserId: access.userId,
+      dismissalKind: "dismissed",
+      now,
+      refresh,
+    });
+    if (proposal.status !== "accepted" && proposal.status !== "rejected") {
+      await ctx.db.patch(proposal._id, {
+        status: "rejected",
+        updatedAt: now,
+      });
+    }
+
+    return {
+      smartStorageProposalId: proposal._id,
+      status: "dismissed" as const,
+    };
+  },
+});
+
+export const cancelSession = mutation({
+  args: {
+    contributionSubmissionId: v.id("contributionSubmissions"),
+  },
+  returns: v.object({
+    cancelledProposalCount: v.number(),
+    contributionSubmissionId: v.id("contributionSubmissions"),
+    status: v.literal("cancelled"),
+    supersededRunCount: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const access = await requireAppAccess(ctx);
+    const contributionSubmission = await ctx.db.get(
+      args.contributionSubmissionId,
+    );
+    if (!contributionSubmission) {
+      throw new Error("Contribution Submission not found.");
+    }
+    if (!canManageSmartStorageSubmission(contributionSubmission, access)) {
+      throw new Error("Unauthorized");
+    }
+
+    const now = Date.now();
+    const proposals = await listSessionProposals(
+      ctx,
+      args.contributionSubmissionId,
+    );
+    let cancelledProposalCount = 0;
+    for (const proposal of proposals) {
+      if (!isOpenSmartStorageProposal(proposal)) {
+        continue;
+      }
+      await ctx.db.patch(proposal._id, {
+        status: "stale",
+        updatedAt: now,
+      });
+      cancelledProposalCount += 1;
+    }
+
+    const runs = await ctx.db
+      .query("smartStorageRuns")
+      .withIndex("by_contributionSubmissionId_and_createdAt", (q) =>
+        q.eq("contributionSubmissionId", args.contributionSubmissionId),
+      )
+      .take(MAX_SESSION_RUNS);
+    let supersededRunCount = 0;
+    for (const run of runs) {
+      if (!isActiveSmartStorageRun(run)) {
+        continue;
+      }
+      await ctx.db.patch(run._id, {
+        completedAt: now,
+        status: "superseded",
+        updatedAt: now,
+      });
+      supersededRunCount += 1;
+    }
+
+    await ctx.db.patch(args.contributionSubmissionId, {
+      submissionStatus: "cancelled",
+      updatedAt: now,
+    });
+
+    return {
+      cancelledProposalCount,
+      contributionSubmissionId: args.contributionSubmissionId,
+      status: "cancelled" as const,
+      supersededRunCount,
     };
   },
 });
@@ -2549,9 +3106,7 @@ export const acceptScaffoldProposal = mutation({
     if (!proposal) {
       throw new Error("Smart Storage Proposal not found.");
     }
-    if (proposal.createdByUserId !== access.userId) {
-      throw new Error("Unauthorized");
-    }
+    await assertCanReviewSmartStorageProposal(ctx, { access, proposal });
     if (proposal.status === "accepted") {
       throw new Error("Smart Storage Proposal is already accepted.");
     }
@@ -2679,6 +3234,12 @@ export const acceptScaffoldProposal = mutation({
           smartStorageProposalId: proposal._id,
           subjectUserId: access.userId,
         });
+        await recordSmartStorageUpgradeProvenance(ctx, {
+          acceptedByUserId: access.userId,
+          now,
+          proposal,
+          targetEntryId: existingEntry._id,
+        });
 
         await ctx.db.patch(existingEntry._id, { updatedAt: now });
         await markProposalAccepted(ctx, {
@@ -2723,7 +3284,6 @@ export const acceptScaffoldProposal = mutation({
     const contextTags = await resolveContextTags(
       ctx,
       normalizeContextTags(proposedEntry.contextTags),
-      access.userId,
     );
     const entryContextTags = await appendAutomaticContextTags(ctx, {
       contextTags,
@@ -2852,6 +3412,44 @@ export const acceptScaffoldProposal = mutation({
       proposedEntry,
       representationDecisions,
     });
+    await recordSmartStorageUpgradeProvenance(ctx, {
+      acceptedByUserId: access.userId,
+      now,
+      proposal,
+      targetEntryId: entryId,
+    });
+
+    if (role === "referenceResolution" && proposal.referenceResolution !== undefined) {
+      const representedTag = await ctx.db.get(represented.primaryTagId);
+      const representedReferent = await ctx.db.get(represented.referentId);
+      if (!representedTag || !representedReferent) {
+        throw new Error("Accepted Reference Resolution Tag could not be loaded.");
+      }
+      const resolvedTag = getContextTagSnapshotForTag(
+        representedTag,
+        representedReferent,
+      );
+      await applyReferenceResolutionToDependentWork(ctx, {
+        now,
+        resolvedTag,
+        resolvedTagDoc: representedTag,
+        requiredTag: proposal.referenceResolution.requiredTag,
+        targetProposalId: proposal.referenceResolution.requiredByProposalId,
+        userId: access.userId,
+      });
+      await ctx.db.patch(proposal._id, {
+        referenceResolution: {
+          ...proposal.referenceResolution,
+          outcome: "createdByAcceptedEntry",
+          resolvedAt: now,
+          resolvedByUserId: access.userId,
+          resolvedEntryId: entryId,
+          resolvedReferentId: represented.referentId,
+          resolvedTagId: represented.primaryTagId,
+        },
+        updatedAt: now,
+      });
+    }
 
     await markProposalAccepted(ctx, {
       contributionSubmissionId: proposal.contributionSubmissionId,
@@ -2874,6 +3472,161 @@ export const acceptScaffoldProposal = mutation({
       entryId,
       smartStorageProposalId: proposal._id,
       status: "accepted" as const,
+    };
+  },
+});
+
+export const confirmKnownReferentForReferenceResolution = mutation({
+  args: {
+    smartStorageProposalId: v.id("smartStorageProposals"),
+    tagId: v.id("tags"),
+  },
+  returns: v.object({
+    referenceResolution: smartStorageReferenceResolutionSummary,
+    resolvedTag: contextTagSnapshot,
+    smartStorageProposalId: v.id("smartStorageProposals"),
+    status: v.literal("accepted"),
+    updatedProposalIds: v.array(v.id("smartStorageProposals")),
+  }),
+  handler: async (ctx, args) => {
+    const access = await requireAppAccess(ctx);
+    const proposal = await ctx.db.get(args.smartStorageProposalId);
+    if (!proposal) {
+      throw new Error("Smart Storage Proposal not found.");
+    }
+    await assertCanReviewSmartStorageProposal(ctx, { access, proposal });
+    if (!isOpenSmartStorageProposal(proposal)) {
+      throw new Error("Smart Storage Proposal is not open for reference resolution.");
+    }
+    if (proposal.referenceResolution === undefined) {
+      throw new Error(
+        "Reference-resolution Smart Storage Proposal must declare its required Referent.",
+      );
+    }
+
+    const run = await ctx.db.get(proposal.smartStorageRunId);
+    if (!run) {
+      throw new Error("Smart Storage Run not found.");
+    }
+    if (
+      proposal.contributionSubmissionId === undefined ||
+      run.contributionSubmissionId === undefined
+    ) {
+      throw new Error(
+        "Smart Storage Proposal must be linked to a Contribution Submission before reference resolution.",
+      );
+    }
+    if (run.contributionSubmissionId !== proposal.contributionSubmissionId) {
+      throw new Error("Proposal and Run belong to different Contribution Submissions.");
+    }
+
+    const submission = await ctx.db.get(proposal.contributionSubmissionId);
+    if (!submission) {
+      throw new Error("Contribution Submission not found.");
+    }
+    const sessionProposals = await listSessionProposals(
+      ctx,
+      proposal.contributionSubmissionId,
+    );
+    const proposalsAscending = [...sessionProposals].sort(
+      (left, right) => left.createdAt - right.createdAt,
+    );
+    const primaryProposal = selectPrimaryProposal(submission, proposalsAscending);
+    const acceptedPrimaryEntry =
+      primaryProposal?.status === "accepted"
+        ? await findAcceptedEntryForProposal(ctx, primaryProposal)
+        : null;
+    const role = getSmartStorageProposalRole(proposal, { primaryProposal });
+    if (role !== "referenceResolution") {
+      throw new Error(
+        "Only reference-resolution Smart Storage Proposals can confirm Known Referents.",
+      );
+    }
+    const acceptability = getSmartStorageProposalAcceptability({
+      acceptedPrimaryEntry,
+      primaryProposal,
+      proposal,
+      proposalsAscending,
+      role,
+    });
+    if (acceptability.status === "blocked") {
+      throw new Error("Smart Storage Proposal must be resolved before acceptance.");
+    }
+
+    const tag = await ctx.db.get(args.tagId);
+    if (!tag) {
+      throw new Error("Known Referent Tag not found.");
+    }
+    const referent = await ctx.db.get(tag.referentId);
+    if (!referent) {
+      throw new Error("Known Referent not found.");
+    }
+    if (tag.knowledgeType !== proposal.referenceResolution.requiredTag.knowledgeType) {
+      throw new Error("Known Referent Tag does not match the required Knowledge Type.");
+    }
+    if (
+      proposal.referenceResolution.candidateTagId !== undefined &&
+      proposal.referenceResolution.candidateTagId !== tag._id
+    ) {
+      throw new Error("Known Referent Tag does not match the proposed match.");
+    }
+
+    const now = Date.now();
+    const resolvedTag = getContextTagSnapshotForTag(tag, referent);
+    const referenceResolution = {
+      ...proposal.referenceResolution,
+      outcome: "matchedKnownReferent" as const,
+      resolvedAt: now,
+      resolvedByUserId: access.userId,
+      resolvedReferentId: referent._id,
+      resolvedTagId: tag._id,
+    };
+    const updatedProposalIds = await applyReferenceResolutionToDependentWork(ctx, {
+      now,
+      resolvedTag,
+      resolvedTagDoc: tag,
+      requiredTag: proposal.referenceResolution.requiredTag,
+      targetProposalId: proposal.referenceResolution.requiredByProposalId,
+      userId: access.userId,
+    });
+
+    await ctx.db.patch(proposal._id, {
+      referenceResolution,
+      updatedAt: now,
+    });
+    await recordSmartStorageUpgradeProvenance(ctx, {
+      acceptedByUserId: access.userId,
+      now,
+      proposal,
+    });
+    await markProposalAccepted(ctx, {
+      contributionSubmissionId: proposal.contributionSubmissionId,
+      now,
+      proposalId: proposal._id,
+      submissionStatus: getAcceptedContributionSubmissionStatus({
+        acceptedPrimaryEntry,
+        role,
+      }),
+    });
+
+    const updatedProposal = await ctx.db.get(proposal._id);
+    if (!updatedProposal) {
+      throw new Error("Updated Smart Storage Proposal could not be loaded.");
+    }
+    const summary = await getSmartStorageReferenceResolutionSummary(
+      ctx,
+      updatedProposal,
+    );
+    if (summary === undefined) {
+      throw new Error("Updated Reference Resolution could not be loaded.");
+    }
+
+    return {
+      referenceResolution: summary,
+      resolvedTag,
+      smartStorageProposalId: proposal._id,
+      status: "accepted" as const,
+      updatedProposalIds,
     };
   },
 });
@@ -3735,8 +4488,9 @@ function selectUnsatisfiedPrerequisiteProposals(
       return false;
     }
     if (
-      getSmartStorageProposalRole(proposal, { primaryProposal }) !==
-      "prerequisite"
+      !isPrePrimarySmartStorageProposalRole(
+        getSmartStorageProposalRole(proposal, { primaryProposal }),
+      )
     ) {
       return false;
     }
@@ -3767,8 +4521,10 @@ function selectPendingSecondaryProposals(
     (proposal) =>
       proposal._id !== primaryProposal?._id &&
       !prerequisiteIds.has(proposal._id) &&
-      getSmartStorageProposalRole(proposal, { primaryProposal }) !==
-        "prerequisite" &&
+      !isUnsatisfiedPrePrimarySmartStorageProposalRole(
+        getSmartStorageProposalRole(proposal, { primaryProposal }),
+        primaryProposal,
+      ) &&
       isOpenSmartStorageProposal(proposal),
   );
 }
@@ -3814,8 +4570,8 @@ function getSmartStorageProposalAcceptability({
         status: "blocked",
       };
     }
-  } else if (role === "prerequisite") {
-    if (!isPrerequisiteDependencyAcceptable(proposal)) {
+  } else if (isPrePrimarySmartStorageProposalRole(role)) {
+    if (!isPrePrimaryProposalAcceptable(proposal, role)) {
       return {
         blockedByProposalIds: [],
         reason: "resolutionRequired",
@@ -3880,6 +4636,11 @@ function assertSmartStorageProposalAcceptableForAcceptance({
       "Prerequisite Smart Storage Proposal must declare a referent, field, or relationship dependency before acceptance.",
     );
   }
+  if (role === "referenceResolution" && proposal.referenceResolution === undefined) {
+    throw new Error(
+      "Reference-resolution Smart Storage Proposal must declare its required Referent before acceptance.",
+    );
+  }
   if (acceptability.reason === "primaryAnchorRequired") {
     throw new Error(
       "Primary anchor must exist before accepting this Smart Storage Proposal.",
@@ -3904,9 +4665,36 @@ function getAcceptedContributionSubmissionStatus({
   acceptedPrimaryEntry: Doc<"knowledgeEntries"> | null;
   role: SmartStorageSessionProposalRole;
 }): Doc<"contributionSubmissions">["submissionStatus"] {
-  return role === "prerequisite" && acceptedPrimaryEntry === null
+  return isPrePrimarySmartStorageProposalRole(role) && acceptedPrimaryEntry === null
     ? "partiallyAccepted"
     : "accepted";
+}
+
+function isPrePrimarySmartStorageProposalRole(
+  role: SmartStorageSessionProposalRole,
+) {
+  return role === "prerequisite" || role === "referenceResolution";
+}
+
+function isUnsatisfiedPrePrimarySmartStorageProposalRole(
+  role: SmartStorageSessionProposalRole,
+  primaryProposal: Doc<"smartStorageProposals"> | undefined,
+) {
+  return (
+    isPrePrimarySmartStorageProposalRole(role) &&
+    primaryProposal?.status !== "accepted"
+  );
+}
+
+function isPrePrimaryProposalAcceptable(
+  proposal: Doc<"smartStorageProposals">,
+  role: SmartStorageSessionProposalRole,
+) {
+  if (role === "referenceResolution") {
+    return proposal.referenceResolution !== undefined;
+  }
+
+  return isPrerequisiteDependencyAcceptable(proposal);
 }
 
 function isOpenSmartStorageProposal(proposal: Doc<"smartStorageProposals">) {
@@ -4035,6 +4823,9 @@ async function toSmartStorageSessionProposalSummary(
     sourceCitations.length === 0
       ? [proposal.sourceId]
       : sourceCitations.map((citation) => citation.sourceId);
+  const referenceResolution =
+    await getSmartStorageReferenceResolutionSummary(ctx, proposal);
+  const refresh = getSmartStorageRefreshSummary(proposal);
 
   return {
     acceptReady: acceptability.status === "ready",
@@ -4048,6 +4839,8 @@ async function toSmartStorageSessionProposalSummary(
       ? {}
       : { dependency: proposal.dependency }),
     id: proposal._id,
+    ...(refresh === undefined ? {} : { refresh }),
+    ...(referenceResolution === undefined ? {} : { referenceResolution }),
     role,
     smartStorageRunId: proposal.smartStorageRunId,
     sourceCitations,
@@ -4056,6 +4849,984 @@ async function toSmartStorageSessionProposalSummary(
     status: proposal.status,
     updatedAt: proposal.updatedAt,
   };
+}
+
+async function listCurrentUserOpenReviewSlotProposals(
+  ctx: QueryCtx,
+  userId: Id<"users">,
+  limit: number,
+) {
+  const reviewSlotStatuses: Array<
+    Extract<SmartStorageProposalStatus, "drafted" | "needsResolution" | "stale">
+  > = [
+    "needsResolution",
+    "drafted",
+    "stale",
+  ];
+  const proposals: Doc<"smartStorageProposals">[] = [];
+  const seenProposalIds = new Set<Id<"smartStorageProposals">>();
+
+  for (const status of reviewSlotStatuses) {
+    const ownerProposals = await ctx.db
+      .query("smartStorageProposals")
+      .withIndex("by_createdByUserId_and_status_and_createdAt", (q) =>
+        q.eq("createdByUserId", userId).eq("status", status),
+      )
+      .order("desc")
+      .take(limit);
+    const assignedProposals = await ctx.db
+      .query("smartStorageProposals")
+      .withIndex("by_reviewAssignedUserId_and_status_and_updatedAt", (q) =>
+        q.eq("reviewAssignedUserId", userId).eq("status", status),
+      )
+      .order("desc")
+      .take(limit);
+
+    for (const proposal of [...ownerProposals, ...assignedProposals]) {
+      if (seenProposalIds.has(proposal._id)) {
+        continue;
+      }
+      if (
+        proposal.status === "stale" &&
+        !(await shouldProjectStaleRefreshProposal(ctx, proposal))
+      ) {
+        continue;
+      }
+      seenProposalIds.add(proposal._id);
+      proposals.push(proposal);
+    }
+  }
+
+  return proposals;
+}
+
+async function toSmartStorageReviewSlotSummary(
+  ctx: QueryCtx,
+  {
+    acceptability,
+    acceptedPrimaryEntry,
+    access,
+    canAssign,
+    contributionSubmission,
+    proposal,
+    role,
+  }: {
+    acceptability: SmartStorageProposalAcceptabilitySummary;
+    acceptedPrimaryEntry: Doc<"knowledgeEntries"> | null;
+    access: Awaited<ReturnType<typeof requireAppAccess>>;
+    canAssign: boolean;
+    contributionSubmission: Doc<"contributionSubmissions">;
+    proposal: Doc<"smartStorageProposals">;
+    role: SmartStorageSessionProposalRole;
+  },
+) {
+  const sourceCitations = await listProposalSourceCitations(ctx, proposal._id);
+  const sourceIds =
+    sourceCitations.length === 0
+      ? [proposal.sourceId]
+      : sourceCitations.map((citation) => citation.sourceId);
+  const contextPreviewTags = proposal.currentProposal.contextTags.slice(
+    0,
+    MAX_CONTEXT_PREVIEW_TAG_LABELS,
+  );
+  const referenceResolution =
+    await getSmartStorageReferenceResolutionSummary(ctx, proposal);
+  const refresh = getSmartStorageRefreshSummary(proposal);
+  const assignment = await getSmartStorageReviewAssignmentSummary(ctx, proposal);
+  const visibleAcceptedPrimaryEntry =
+    acceptedPrimaryEntry !== null &&
+    isKnowledgeEntryVisibleToAccess(acceptedPrimaryEntry, access)
+      ? acceptedPrimaryEntry
+      : null;
+  const group =
+    visibleAcceptedPrimaryEntry === null
+      ? {
+          href: getSmartStorageSessionHref(contributionSubmission._id),
+          id: contributionSubmission._id,
+          kind: "session" as const,
+          title: contributionSubmission.primaryIntendedTitle,
+        }
+      : {
+          href: `/entries/${visibleAcceptedPrimaryEntry._id}`,
+          id: visibleAcceptedPrimaryEntry._id,
+          kind: "primaryEntry" as const,
+          title: visibleAcceptedPrimaryEntry.title,
+        };
+
+  return {
+    acceptReady: acceptability.status === "ready",
+    acceptability,
+    ...(assignment === undefined ? {} : { assignment }),
+    bodyPreview: proposal.currentProposal.bodyPreview,
+    canAssign,
+    contextPreviewTagLabels: contextPreviewTags.map((tag) => tag.label),
+    ...(contextPreviewTags.length === 0
+      ? {}
+      : { contextPreviewTags }),
+    contributionSubmissionId: contributionSubmission._id,
+    createdAt: proposal.createdAt,
+    evidenceSummary: getReviewSlotEvidenceSummary({
+      citationCount: sourceCitations.length,
+      sourceCount: sourceIds.length,
+    }),
+    group,
+    href: getSmartStorageSessionHref(contributionSubmission._id, proposal._id),
+    id: `review-slot:${proposal._id}`,
+    originSession: {
+      href: getSmartStorageSessionHref(contributionSubmission._id),
+      id: contributionSubmission._id,
+      title: contributionSubmission.primaryIntendedTitle,
+    },
+    proposedKnowledgeType: proposal.currentProposal.knowledgeType,
+    ...(refresh === undefined ? {} : { refresh }),
+    reviewScopeLabel: getReviewScopeLabel(contributionSubmission),
+    ...(referenceResolution === undefined ? {} : { referenceResolution }),
+    role,
+    smartStorageProposalId: proposal._id,
+    smartStorageRunId: proposal.smartStorageRunId,
+    sourceCount: sourceIds.length,
+    status: proposal.status,
+    title: proposal.currentProposal.title,
+    updatedAt: proposal.updatedAt,
+  };
+}
+
+async function getSmartStorageReferenceResolutionSummary(
+  ctx: QueryCtx,
+  proposal: Doc<"smartStorageProposals">,
+) {
+  const resolution = proposal.referenceResolution;
+  if (resolution === undefined) {
+    return undefined;
+  }
+
+  const candidateTag =
+    resolution.candidateTagId === undefined
+      ? undefined
+      : await getContextTagSnapshotForTagId(ctx, resolution.candidateTagId);
+  const resolvedTag =
+    resolution.resolvedTagId === undefined
+      ? undefined
+      : await getContextTagSnapshotForTagId(ctx, resolution.resolvedTagId);
+  const mode: "knownReferentMatch" | "newEntryProposal" =
+    candidateTag !== undefined || resolution.outcome === "matchedKnownReferent"
+      ? "knownReferentMatch"
+      : "newEntryProposal";
+
+  return {
+    ...(candidateTag === undefined ? {} : { candidateTag }),
+    ...(resolution.candidateTagId === undefined
+      ? {}
+      : { candidateTagId: resolution.candidateTagId }),
+    mode,
+    outcome: resolution.outcome,
+    requiredTag: resolution.requiredTag,
+    ...(resolvedTag === undefined ? {} : { resolvedTag }),
+    ...(resolution.resolvedTagId === undefined
+      ? {}
+      : { resolvedTagId: resolution.resolvedTagId }),
+  };
+}
+
+function getSmartStorageRefreshSummary(proposal: Doc<"smartStorageProposals">) {
+  const refresh = proposal.refresh;
+  if (refresh !== undefined) {
+    return {
+      candidateKey: refresh.candidateKey,
+      origin: refresh.origin,
+      originLabel: getSmartStorageRefreshOriginLabel(refresh.origin),
+      reason: refresh.reason,
+      ...(refresh.sourceEntryId === undefined
+        ? {}
+        : { sourceEntryId: refresh.sourceEntryId }),
+      ...(refresh.sourceProposalId === undefined
+        ? {}
+        : { sourceProposalId: refresh.sourceProposalId }),
+      suggestionKind: refresh.suggestionKind,
+      ...(refresh.targetContractSnapshotVersion === undefined
+        ? {}
+        : {
+            targetContractSnapshotVersion:
+              refresh.targetContractSnapshotVersion,
+          }),
+      ...(refresh.targetTypeBehaviorSnapshotVersion === undefined
+        ? {}
+        : {
+            targetTypeBehaviorSnapshotVersion:
+              refresh.targetTypeBehaviorSnapshotVersion,
+          }),
+    };
+  }
+
+  if (!isProposalBehindCurrentSmartStorageSnapshots(proposal)) {
+    return undefined;
+  }
+
+  const targetTypeBehaviorSnapshotVersion = getTypeBehaviorSnapshot(
+    proposal.currentProposal.knowledgeType,
+  ).version;
+
+  return {
+    candidateKey: getRefreshCandidateKey({
+      origin: "contractRefresh",
+      sourceProposalId: proposal._id,
+      suggestionKind: "staleProposalRefresh",
+      targetKnowledgeType: proposal.currentProposal.knowledgeType,
+    }),
+    origin: "contractRefresh" as const,
+    originLabel: getSmartStorageRefreshOriginLabel("contractRefresh"),
+    reason: getDefaultRefreshReason("contractRefresh", "staleProposalRefresh"),
+    sourceProposalId: proposal._id,
+    suggestionKind: "staleProposalRefresh" as const,
+    targetContractSnapshotVersion: SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
+    targetTypeBehaviorSnapshotVersion,
+  };
+}
+
+function getSmartStorageRefreshOriginLabel(origin: SmartStorageRefreshOrigin) {
+  return origin === "reprocessing" ? "Reprocessing" : "Refresh";
+}
+
+function isProposalBehindCurrentSmartStorageSnapshots(
+  proposal: Doc<"smartStorageProposals">,
+) {
+  const currentTypeBehaviorVersion = getTypeBehaviorSnapshot(
+    proposal.currentProposal.knowledgeType,
+  ).version;
+
+  return (
+    proposal.contractSnapshotVersion !== undefined &&
+    proposal.contractSnapshotVersion !== SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION
+  ) || (
+    proposal.typeBehaviorSnapshotVersion !== undefined &&
+    proposal.typeBehaviorSnapshotVersion !== currentTypeBehaviorVersion
+  );
+}
+
+async function shouldProjectStaleRefreshProposal(
+  ctx: QueryCtx,
+  proposal: Doc<"smartStorageProposals">,
+) {
+  const refresh = getSmartStorageRefreshSummary(proposal);
+  if (refresh === undefined) {
+    return false;
+  }
+  if (await hasActiveRefreshCandidate(ctx, refresh.candidateKey)) {
+    return false;
+  }
+
+  const contributionSubmission =
+    proposal.contributionSubmissionId === undefined
+      ? null
+      : await ctx.db.get(proposal.contributionSubmissionId);
+  if (contributionSubmission === null) {
+    return false;
+  }
+
+  return !(await hasRefreshDismissal(ctx, {
+    contributionSubmission,
+    refresh,
+  }));
+}
+
+async function hasActiveRefreshCandidate(
+  ctx: MutationCtx | QueryCtx,
+  candidateKey: string,
+) {
+  for (const status of ["drafted", "needsResolution", "accepted"] as const) {
+    const existing = await ctx.db
+      .query("smartStorageProposals")
+      .withIndex("by_refreshCandidateKey_and_status", (q) =>
+        q.eq("refreshCandidateKey", candidateKey).eq("status", status),
+      )
+      .first();
+    if (existing) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function findActiveRefreshCandidate(
+  ctx: MutationCtx,
+  candidateKey: string,
+) {
+  for (const status of ["drafted", "needsResolution", "accepted"] as const) {
+    const existing = await ctx.db
+      .query("smartStorageProposals")
+      .withIndex("by_refreshCandidateKey_and_status", (q) =>
+        q.eq("refreshCandidateKey", candidateKey).eq("status", status),
+      )
+      .first();
+    if (existing) {
+      return existing;
+    }
+  }
+
+  return null;
+}
+
+async function createRefreshReviewProposal(
+  ctx: MutationCtx,
+  {
+    access,
+    candidateTagId,
+    contributionSubmission,
+    mode,
+    reason,
+    requiredTag,
+    sourceEntry,
+    sourceId,
+    sourceProposal,
+    suggestionKind,
+    targetKnowledgeType,
+  }: {
+    access: Awaited<ReturnType<typeof requireAppAccess>>;
+    candidateTagId?: Id<"tags">;
+    contributionSubmission: Doc<"contributionSubmissions">;
+    mode: "refresh" | "reprocessing";
+    reason?: string;
+    requiredTag?: ContextTagSnapshotInput;
+    sourceEntry?: Doc<"knowledgeEntries">;
+    sourceId?: Id<"sources">;
+    sourceProposal?: Doc<"smartStorageProposals">;
+    suggestionKind?: SmartStorageRefreshSuggestionKind;
+    targetKnowledgeType?: EntryKnowledgeType;
+  }) {
+  const origin: SmartStorageRefreshOrigin =
+    mode === "reprocessing" ? "reprocessing" : "contractRefresh";
+  const resolvedSuggestionKind = getRefreshSuggestionKind({
+    origin,
+    sourceProposal,
+    suggestionKind,
+  });
+  const resolvedTargetKnowledgeType = getRefreshTargetKnowledgeType({
+    requiredTag,
+    sourceEntry,
+    sourceProposal,
+    suggestionKind: resolvedSuggestionKind,
+    targetKnowledgeType,
+  });
+  const role = getRefreshProposalRole(origin, resolvedSuggestionKind);
+  const candidateKey = getRefreshCandidateKey({
+    origin,
+    requiredTag,
+    sourceEntryId: sourceEntry?._id,
+    sourceProposalId: sourceProposal?._id,
+    suggestionKind: resolvedSuggestionKind,
+    targetKnowledgeType: resolvedTargetKnowledgeType,
+  });
+  const now = Date.now();
+  const snapshots = await ensureCurrentSmartStorageSnapshots(ctx, {
+    knowledgeType: resolvedTargetKnowledgeType,
+    now,
+  });
+  const refresh = {
+    candidateKey,
+    origin,
+    reason: limitString(
+      reason ?? getDefaultRefreshReason(origin, resolvedSuggestionKind),
+      MAX_REFRESH_REASON_LENGTH,
+    ),
+    requestedAt: now,
+    requestedByUserId: access.userId,
+    ...(sourceEntry === undefined ? {} : { sourceEntryId: sourceEntry._id }),
+    ...(sourceProposal === undefined
+      ? {}
+      : { sourceProposalId: sourceProposal._id }),
+    suggestionKind: resolvedSuggestionKind,
+    targetContractSnapshotVersion: snapshots.contractSnapshotVersion,
+    targetTypeBehaviorSnapshotVersion: snapshots.typeBehaviorSnapshotVersion,
+  };
+  const refreshSummary = {
+    ...refresh,
+    originLabel: getSmartStorageRefreshOriginLabel(origin),
+  };
+
+  if (
+    await hasRefreshDismissal(ctx, {
+      contributionSubmission,
+      refresh: refreshSummary,
+    })
+  ) {
+    return {
+      role,
+      smartStorageProposalId: null,
+      ...(sourceEntry === undefined ? {} : { sourceEntryId: sourceEntry._id }),
+      ...(sourceProposal === undefined
+        ? {}
+        : { sourceProposalId: sourceProposal._id }),
+      status: "dismissed" as const,
+    };
+  }
+
+  const existing = await findActiveRefreshCandidate(ctx, candidateKey);
+  if (existing) {
+    return {
+      role: getSmartStorageProposalRole(existing, {
+        primaryProposal: undefined,
+      }),
+      smartStorageProposalId: existing._id,
+      ...(sourceEntry === undefined ? {} : { sourceEntryId: sourceEntry._id }),
+      ...(sourceProposal === undefined
+        ? {}
+        : { sourceProposalId: sourceProposal._id }),
+      status: "existing" as const,
+    };
+  }
+
+  const sourceProposalEntry = sourceProposal?.currentProposal;
+  const refreshSourceId = sourceId ?? sourceProposal?.sourceId;
+  if (refreshSourceId === undefined) {
+    throw new Error("Refresh Source not found.");
+  }
+  const source = await ctx.db.get(refreshSourceId);
+  if (!source) {
+    throw new Error("Refresh Source not found.");
+  }
+  const currentProposal = buildRefreshProposal({
+    reason: refresh.reason,
+    requiredTag,
+    sourceEntry,
+    sourceProposal: sourceProposalEntry,
+    suggestionKind: resolvedSuggestionKind,
+    targetKnowledgeType: resolvedTargetKnowledgeType,
+  });
+  const smartStorageRunId = await ctx.db.insert("smartStorageRuns", {
+    contributionSubmissionId: contributionSubmission._id,
+    sourceId: source._id,
+    primarySourceId: source._id,
+    status: "succeeded",
+    requestedKnowledgeType: resolvedTargetKnowledgeType,
+    contributionTitle:
+      sourceProposalEntry?.title ?? sourceEntry?.title ?? contributionSubmission.primaryIntendedTitle,
+    contributionBodyPreview:
+      sourceProposalEntry?.bodyPreview ??
+      sourceEntry?.previewText ??
+      contributionSubmission.primaryIntendedBodyPreview,
+    contextTags: normalizeContextTags(currentProposal.contextTags),
+    smartStorageContractVersionId: snapshots.smartStorageContractVersionId,
+    typeBehaviorSnapshotId: snapshots.typeBehaviorSnapshotId,
+    contractSnapshotVersion: snapshots.contractSnapshotVersion,
+    contractSnapshotText: snapshots.contractSnapshotText,
+    typeBehaviorSnapshotVersion: snapshots.typeBehaviorSnapshotVersion,
+    typeBehaviorSnapshotText: snapshots.typeBehaviorSnapshotText,
+    rawModelOutput: limitString(
+      JSON.stringify({
+        generatorVersion: REFRESH_GENERATOR_VERSION,
+        origin,
+        sourceEntryId: sourceEntry?._id,
+        sourceProposalId: sourceProposal?._id,
+        suggestionKind: resolvedSuggestionKind,
+      }),
+      MAX_RAW_MODEL_OUTPUT_LENGTH,
+    ),
+    createdByUserId: access.userId,
+    createdAt: now,
+    updatedAt: now,
+    completedAt: now,
+  });
+  const smartStorageProposalId = await ctx.db.insert("smartStorageProposals", {
+    contributionSubmissionId: contributionSubmission._id,
+    sourceId: source._id,
+    smartStorageRunId,
+    status: "drafted",
+    proposalRole: role,
+    ...(resolvedSuggestionKind === "referenceResolution" && requiredTag !== undefined
+      ? {
+          dependency: {
+            ...(sourceProposal === undefined
+              ? {}
+              : { requiredByProposalId: sourceProposal._id }),
+            requirementKind: "referent" as const,
+            requirementKey: getContextSnapshotIdentityKey(requiredTag),
+            label: requiredTag.label,
+          },
+          referenceResolution: {
+            ...(candidateTagId === undefined ? {} : { candidateTagId }),
+            outcome: "pending" as const,
+            ...(sourceProposal === undefined
+              ? {}
+              : { requiredByProposalId: sourceProposal._id }),
+            requiredTag,
+          },
+        }
+      : {}),
+    refresh,
+    refreshCandidateKey: candidateKey,
+    originalProposal: currentProposal,
+    currentProposal: cloneDraftProposal(currentProposal),
+    smartStorageContractVersionId: snapshots.smartStorageContractVersionId,
+    typeBehaviorSnapshotId: snapshots.typeBehaviorSnapshotId,
+    contractSnapshotVersion: snapshots.contractSnapshotVersion,
+    contractSnapshotText: snapshots.contractSnapshotText,
+    typeBehaviorSnapshotVersion: snapshots.typeBehaviorSnapshotVersion,
+    typeBehaviorSnapshotText: snapshots.typeBehaviorSnapshotText,
+    ...(sourceProposal === undefined
+      ? {}
+      : { supersedesProposalId: sourceProposal._id }),
+    createdByUserId: access.userId,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  if (sourceProposal !== undefined) {
+    await copyProposalSourceCitations(ctx, {
+      createdAt: now,
+      fromProposalId: sourceProposal._id,
+      toProposalId: smartStorageProposalId,
+    });
+    if (isOpenSmartStorageProposal(sourceProposal)) {
+      await ctx.db.patch(sourceProposal._id, {
+        status: "stale",
+        updatedAt: now,
+      });
+    }
+  } else {
+    await insertProposalSourceCitations(ctx, {
+      createdAt: now,
+      proposalId: smartStorageProposalId,
+      sources: [source],
+    });
+  }
+  await ctx.db.patch(contributionSubmission._id, {
+    submissionStatus: "reviewReady",
+    updatedAt: now,
+  });
+
+  return {
+    role,
+    smartStorageProposalId,
+    ...(sourceEntry === undefined ? {} : { sourceEntryId: sourceEntry._id }),
+    ...(sourceProposal === undefined
+      ? {}
+      : { sourceProposalId: sourceProposal._id }),
+    status: "created" as const,
+  };
+}
+
+function getRefreshSuggestionKind({
+  origin,
+  sourceProposal,
+  suggestionKind,
+}: {
+  origin: SmartStorageRefreshOrigin;
+  sourceProposal?: Doc<"smartStorageProposals">;
+  suggestionKind?: SmartStorageRefreshSuggestionKind;
+}) {
+  if (suggestionKind !== undefined) {
+    return suggestionKind;
+  }
+
+  return origin === "contractRefresh" || sourceProposal?.status === "stale"
+    ? "staleProposalRefresh"
+    : "suggestedEdit";
+}
+
+function getRefreshTargetKnowledgeType({
+  requiredTag,
+  sourceEntry,
+  sourceProposal,
+  suggestionKind,
+  targetKnowledgeType,
+}: {
+  requiredTag?: ContextTagSnapshotInput;
+  sourceEntry?: Doc<"knowledgeEntries">;
+  sourceProposal?: Doc<"smartStorageProposals">;
+  suggestionKind: SmartStorageRefreshSuggestionKind;
+  targetKnowledgeType?: EntryKnowledgeType;
+}) {
+  if (targetKnowledgeType !== undefined) {
+    return targetKnowledgeType;
+  }
+  if (suggestionKind === "referenceResolution") {
+    if (requiredTag === undefined) {
+      throw new Error(
+        "Reference-resolution reprocessing requires a required Tag.",
+      );
+    }
+    if (isEntryKnowledgeType(requiredTag.knowledgeType)) {
+      return requiredTag.knowledgeType;
+    }
+    throw new Error(
+      "Reference-resolution reprocessing requires an authorable target Knowledge Type.",
+    );
+  }
+
+  return sourceProposal?.currentProposal.knowledgeType ?? sourceEntry?.knowledgeType ?? "words";
+}
+
+function getRefreshProposalRole(
+  origin: SmartStorageRefreshOrigin,
+  suggestionKind: SmartStorageRefreshSuggestionKind,
+): SmartStorageSessionProposalRole {
+  if (suggestionKind === "referenceResolution") {
+    return "referenceResolution";
+  }
+
+  return origin === "reprocessing" ? "reprocessing" : "refresh";
+}
+
+function buildRefreshProposal({
+  reason,
+  requiredTag,
+  sourceEntry,
+  sourceProposal,
+  suggestionKind,
+  targetKnowledgeType,
+}: {
+  reason: string;
+  requiredTag?: ContextTagSnapshotInput;
+  sourceEntry?: Doc<"knowledgeEntries">;
+  sourceProposal?: SmartStorageProposedEntryDoc;
+  suggestionKind: SmartStorageRefreshSuggestionKind;
+  targetKnowledgeType: EntryKnowledgeType;
+}): SmartStorageProposedEntryDoc {
+  if (suggestionKind === "referenceResolution") {
+    if (requiredTag === undefined) {
+      throw new Error(
+        "Reference-resolution reprocessing requires a required Tag.",
+      );
+    }
+
+    return {
+      knowledgeType: targetKnowledgeType,
+      title: `Resolve ${requiredTag.label}`,
+      bodyPreview: limitString(
+        `Confirm the referenced ${formatKnowledgeTypeLabel(
+          requiredTag.knowledgeType as EntryKnowledgeType,
+        )} before accepting this reprocessed work.`,
+        MAX_BODY_PREVIEW_LENGTH,
+      ),
+      contextTags: [],
+      proposalConfidence: "medium",
+      rationale: reason,
+    };
+  }
+
+  const baseTitle = sourceProposal?.title ?? sourceEntry?.title ?? "Smart Storage work";
+  const basePreview =
+    sourceProposal?.bodyPreview ??
+    sourceEntry?.previewText ??
+    "Review this Smart Storage material under the current contract.";
+  const contextTags = normalizeContextTags(sourceProposal?.contextTags ?? []);
+  const title =
+    suggestionKind === "newDerivedEntry"
+      ? `Derived: ${baseTitle}`
+      : baseTitle;
+
+  return {
+    knowledgeType:
+      suggestionKind === "typeReclassification"
+        ? targetKnowledgeType
+        : targetKnowledgeType,
+    title: limitString(title, MAX_TITLE_LENGTH),
+    bodyPreview: limitString(
+      suggestionKind === "staleProposalRefresh"
+        ? basePreview
+        : reason,
+      MAX_BODY_PREVIEW_LENGTH,
+    ),
+    contextTags,
+    proposalConfidence: sourceProposal?.proposalConfidence ?? "medium",
+    rationale: limitString(
+      `${reason} This suggestion is reviewable Silver work and will not update Gold entries unless accepted.`,
+      MAX_RATIONALE_LENGTH,
+    ),
+  };
+}
+
+function getDefaultRefreshReason(
+  origin: SmartStorageRefreshOrigin,
+  suggestionKind: SmartStorageRefreshSuggestionKind,
+) {
+  if (origin === "contractRefresh") {
+    return "This Smart Storage proposal was generated under an older Smart Storage Contract or Type Behavior. Refresh creates a new reviewable proposal under the current rules.";
+  }
+  if (suggestionKind === "typeReclassification") {
+    return "Reprocessing found a more specific Knowledge Type candidate. Review is required before any Type Reclassification affects Gold knowledge.";
+  }
+  if (suggestionKind === "newDerivedEntry") {
+    return "Reprocessing found a possible derived Knowledge Entry in preserved Source material. Review is required before creating Gold knowledge.";
+  }
+  if (suggestionKind === "referenceResolution") {
+    return "Reprocessing found a reference that needs explicit Known Referent review before it can be used.";
+  }
+
+  return "Reprocessing found a possible update under the current Smart Storage Contract. Review is required before any Gold entry changes.";
+}
+
+function getRefreshCandidateKey({
+  origin,
+  requiredTag,
+  sourceEntryId,
+  sourceProposalId,
+  suggestionKind,
+  targetKnowledgeType,
+}: {
+  origin: SmartStorageRefreshOrigin;
+  requiredTag?: ContextTagSnapshotInput;
+  sourceEntryId?: Id<"knowledgeEntries">;
+  sourceProposalId?: Id<"smartStorageProposals">;
+  suggestionKind: SmartStorageRefreshSuggestionKind;
+  targetKnowledgeType: EntryKnowledgeType;
+}) {
+  const sourceKey =
+    sourceProposalId !== undefined
+      ? `proposal:${sourceProposalId}`
+      : `entry:${sourceEntryId ?? "unknown"}`;
+  const requiredTagKey =
+    requiredTag === undefined ? "" : getContextSnapshotIdentityKey(requiredTag);
+
+  return limitString(
+    [
+      sourceKey,
+      origin,
+      suggestionKind,
+      targetKnowledgeType,
+      requiredTagKey,
+      SMART_STORAGE_CONTRACT_SNAPSHOT_VERSION,
+      getTypeBehaviorSnapshot(targetKnowledgeType).version,
+    ].join("|"),
+    MAX_REFRESH_CANDIDATE_KEY_LENGTH,
+  );
+}
+
+async function hasRefreshDismissal(
+  ctx: MutationCtx | QueryCtx,
+  {
+    contributionSubmission,
+    refresh,
+  }: {
+    contributionSubmission: Doc<"contributionSubmissions">;
+    refresh: {
+      candidateKey: string;
+      targetContractSnapshotVersion?: string;
+      targetTypeBehaviorSnapshotVersion?: string;
+    };
+  },
+) {
+  const dismissal = await ctx.db
+    .query("smartStorageRefreshDismissals")
+    .withIndex(
+      "by_candidate_scope_and_versions",
+      (q) =>
+        q
+          .eq("candidateKey", refresh.candidateKey)
+          .eq("reviewScopeKind", contributionSubmission.reviewScopeKind)
+          .eq("reviewScopeTargetKey", contributionSubmission.reviewScopeTargetKey)
+          .eq(
+            "contractSnapshotVersion",
+            refresh.targetContractSnapshotVersion,
+          )
+          .eq(
+            "typeBehaviorSnapshotVersion",
+            refresh.targetTypeBehaviorSnapshotVersion,
+          ),
+    )
+    .first();
+
+  return dismissal !== null;
+}
+
+async function rememberRefreshDismissal(
+  ctx: MutationCtx,
+  {
+    contributionSubmission,
+    dismissedByUserId,
+    dismissalKind,
+    now,
+    refresh,
+  }: {
+    contributionSubmission: Doc<"contributionSubmissions">;
+    dismissedByUserId: Id<"users">;
+    dismissalKind: "dismissed" | "rejected";
+    now: number;
+    refresh: {
+      candidateKey: string;
+      sourceEntryId?: Id<"knowledgeEntries">;
+      sourceProposalId?: Id<"smartStorageProposals">;
+      targetContractSnapshotVersion?: string;
+      targetTypeBehaviorSnapshotVersion?: string;
+    };
+  },
+) {
+  if (
+    await hasRefreshDismissal(ctx, {
+      contributionSubmission,
+      refresh,
+    })
+  ) {
+    return;
+  }
+
+  await ctx.db.insert("smartStorageRefreshDismissals", {
+    candidateKey: refresh.candidateKey,
+    reviewScopeKind: contributionSubmission.reviewScopeKind,
+    reviewScopeTargetKey: contributionSubmission.reviewScopeTargetKey,
+    ...(refresh.targetContractSnapshotVersion === undefined
+      ? {}
+      : { contractSnapshotVersion: refresh.targetContractSnapshotVersion }),
+    ...(refresh.targetTypeBehaviorSnapshotVersion === undefined
+      ? {}
+      : {
+          typeBehaviorSnapshotVersion:
+            refresh.targetTypeBehaviorSnapshotVersion,
+        }),
+    ...(refresh.sourceProposalId === undefined
+      ? {}
+      : { sourceProposalId: refresh.sourceProposalId }),
+    ...(refresh.sourceEntryId === undefined
+      ? {}
+      : { sourceEntryId: refresh.sourceEntryId }),
+    dismissalKind,
+    dismissedByUserId,
+    createdAt: now,
+    updatedAt: now,
+  });
+}
+
+async function copyProposalSourceCitations(
+  ctx: MutationCtx,
+  {
+    createdAt,
+    fromProposalId,
+    toProposalId,
+  }: {
+    createdAt: number;
+    fromProposalId: Id<"smartStorageProposals">;
+    toProposalId: Id<"smartStorageProposals">;
+  },
+) {
+  const citations = await listProposalSourceCitations(ctx, fromProposalId);
+  if (citations.length === 0) {
+    return;
+  }
+
+  for (const citation of citations) {
+    await ctx.db.insert("proposalSourceCitations", {
+      proposalId: toProposalId,
+      sourceId: citation.sourceId,
+      citationKind: citation.citationKind,
+      ...(citation.excerptText === undefined
+        ? {}
+        : { excerptText: citation.excerptText }),
+      ...(citation.locator === undefined ? {} : { locator: citation.locator }),
+      ...(citation.externalUrl === undefined
+        ? {}
+        : { externalUrl: citation.externalUrl }),
+      ...(citation.rationale === undefined
+        ? {}
+        : { rationale: citation.rationale }),
+      createdAt,
+    });
+  }
+}
+
+async function getContextTagSnapshotForTagId(
+  ctx: MutationCtx | QueryCtx,
+  tagId: Id<"tags">,
+): Promise<ContextTagSnapshotInput | undefined> {
+  const tag = await ctx.db.get(tagId);
+  if (!tag) {
+    return undefined;
+  }
+
+  const referent = await ctx.db.get(tag.referentId);
+  if (!referent) {
+    return undefined;
+  }
+
+  return getContextTagSnapshotForTag(tag, referent);
+}
+
+function getContextTagSnapshotForTag(
+  tag: Doc<"tags">,
+  referent: Doc<"referents">,
+): ContextTagSnapshotInput {
+  const canonicalKey = referent.canonicalKey || tag.lookupKey;
+
+  return {
+    canonicalKey,
+    href: getContextTagHref(tag),
+    id: tag.lookupKey,
+    knowledgeType: tag.knowledgeType,
+    label: tag.label,
+    ...(tag.knowledgeType === "biblePassage"
+      ? { passageString: tag.lookupKey }
+      : {}),
+  };
+}
+
+function getContextTagHref(tag: Doc<"tags">) {
+  if (tag.knowledgeType === "biblePassage") {
+    return `/scripture/${encodeURIComponent(tag.lookupKey)}`;
+  }
+
+  return `/goto/${encodeURIComponent(tag.lookupKey)}`;
+}
+
+function compareSmartStorageReviewSlots(
+  left: Awaited<ReturnType<typeof toSmartStorageReviewSlotSummary>>,
+  right: Awaited<ReturnType<typeof toSmartStorageReviewSlotSummary>>,
+) {
+  const leftReadyRank = left.acceptReady ? 0 : 1;
+  const rightReadyRank = right.acceptReady ? 0 : 1;
+  if (leftReadyRank !== rightReadyRank) {
+    return leftReadyRank - rightReadyRank;
+  }
+
+  const groupComparison = left.group.title.localeCompare(right.group.title);
+  if (groupComparison !== 0) {
+    return groupComparison;
+  }
+
+  return right.updatedAt - left.updatedAt;
+}
+
+function getReviewSlotEvidenceSummary({
+  citationCount,
+  sourceCount,
+}: {
+  citationCount: number;
+  sourceCount: number;
+}) {
+  if (citationCount > 0) {
+    return getCountLabel(citationCount, "evidence citation");
+  }
+
+  return getCountLabel(sourceCount, "preserved Source");
+}
+
+function getReviewScopeLabel(
+  contributionSubmission: Doc<"contributionSubmissions">,
+) {
+  if (contributionSubmission.reviewScopeKind === "organization") {
+    return "Organization review";
+  }
+  if (contributionSubmission.reviewScopeKind === "group") {
+    return "Group review";
+  }
+  if (contributionSubmission.reviewScopeKind === "public") {
+    return "Public review";
+  }
+
+  return "Private review";
+}
+
+function getSmartStorageSessionHref(
+  contributionSubmissionId: Id<"contributionSubmissions">,
+  proposalId?: Id<"smartStorageProposals">,
+) {
+  const baseHref = `/smart-storage/${contributionSubmissionId}`;
+  return proposalId === undefined
+    ? baseHref
+    : `${baseHref}?proposalId=${proposalId}`;
+}
+
+function getCountLabel(count: number, singular: string) {
+  return `${count} ${singular}${count === 1 ? "" : "s"}`;
 }
 
 async function findAcceptedEntryForProposal(
@@ -4478,6 +6249,17 @@ function normalizeMigrationBatchSize(batchSize: number | undefined) {
   );
 }
 
+function normalizeReviewSlotLimit(limit: number | undefined) {
+  if (limit === undefined) {
+    return DEFAULT_REVIEW_SLOT_LIMIT;
+  }
+  if (!Number.isFinite(limit)) {
+    throw new Error("Review Slot limit must be finite.");
+  }
+
+  return Math.min(MAX_REVIEW_SLOT_LIMIT, Math.max(0, Math.floor(limit)));
+}
+
 function firstSetValue<T>(values: Set<T>) {
   for (const value of values) {
     return value;
@@ -4803,27 +6585,22 @@ async function resolveRepresentedIdentity(
 async function resolveContextTags(
   ctx: MutationCtx,
   snapshots: ContextTagSnapshotInput[],
-  userId: Id<"users">,
 ) {
   const tags = [];
 
   for (const snapshot of snapshots) {
     const lookupKey = getContextLookupKey(snapshot);
-    const label = limitString(snapshot.label, MAX_CONTEXT_TAG_FIELD_LENGTH);
-    const tag =
-      (await ctx.db
-        .query("tags")
-        .withIndex("by_knowledgeType_and_lookupKey", (q) =>
-          q.eq("knowledgeType", snapshot.knowledgeType).eq("lookupKey", lookupKey),
-        )
-        .first()) ??
-      (await createContextTag(ctx, {
-        canonicalKey: lookupKey,
-        createdByUserId: userId,
-        knowledgeType: snapshot.knowledgeType,
-        label,
-        lookupKey,
-      }));
+    const tag = await ctx.db
+      .query("tags")
+      .withIndex("by_knowledgeType_and_lookupKey", (q) =>
+        q.eq("knowledgeType", snapshot.knowledgeType).eq("lookupKey", lookupKey),
+      )
+      .first();
+    if (!tag) {
+      throw new Error(
+        "Smart Storage cannot create bare Known Referents. Resolve the referenced Tag before accepting this Proposal.",
+      );
+    }
 
     tags.push(tag);
   }
@@ -4831,36 +6608,144 @@ async function resolveContextTags(
   return tags;
 }
 
-async function createContextTag(
+async function applyReferenceResolutionToDependentWork(
   ctx: MutationCtx,
-  tag: {
-    canonicalKey: string;
-    createdByUserId: Id<"users">;
-    knowledgeType: ReferentKnowledgeType;
-    label: string;
-    lookupKey: string;
+  {
+    now,
+    resolvedTag,
+    resolvedTagDoc,
+    requiredTag,
+    targetProposalId,
+    userId,
+  }: {
+    now: number;
+    resolvedTag: ContextTagSnapshotInput;
+    resolvedTagDoc: Doc<"tags">;
+    requiredTag: ContextTagSnapshotInput;
+    targetProposalId?: Id<"smartStorageProposals">;
+    userId: Id<"users">;
   },
 ) {
-  const referent =
-    (await ctx.db
-      .query("referents")
-      .withIndex("by_knowledgeType_and_canonicalKey", (q) =>
-        q.eq("knowledgeType", tag.knowledgeType).eq("canonicalKey", tag.canonicalKey),
-      )
-      .first()) ??
-    (await insertReferent(ctx, {
-      canonicalKey: tag.canonicalKey,
-      canonicalName: tag.label,
-      knowledgeType: tag.knowledgeType,
-    }));
+  if (targetProposalId === undefined) {
+    return [];
+  }
 
-  return await insertTag(ctx, {
-    createdByUserId: tag.createdByUserId,
-    knowledgeType: tag.knowledgeType,
-    label: tag.label,
-    lookupKey: tag.lookupKey,
-    referentId: referent._id,
+  const targetProposal = await ctx.db.get(targetProposalId);
+  if (!targetProposal) {
+    return [];
+  }
+  if (targetProposal.createdByUserId !== userId) {
+    throw new Error("Unauthorized");
+  }
+
+  if (isOpenSmartStorageProposal(targetProposal)) {
+    const replaced = replaceContextTagSnapshot(
+      targetProposal.currentProposal.contextTags,
+      requiredTag,
+      resolvedTag,
+    );
+    if (!replaced.changed) {
+      return [];
+    }
+
+    await ctx.db.patch(targetProposal._id, {
+      currentProposal: {
+        ...targetProposal.currentProposal,
+        contextTags: replaced.contextTags,
+      },
+      updatedAt: now,
+    });
+
+    return [targetProposal._id];
+  }
+
+  if (targetProposal.status !== "accepted") {
+    return [];
+  }
+
+  const acceptedEntry = await findAcceptedEntryForProposal(ctx, targetProposal);
+  if (!acceptedEntry || acceptedEntry.createdByUserId !== userId) {
+    return [];
+  }
+
+  await insertEntryContextTags(ctx, {
+    contextTags: [resolvedTagDoc],
+    entryId: acceptedEntry._id,
+    now,
+    taggedByUserId: userId,
   });
+  await ctx.db.patch(acceptedEntry._id, {
+    contextPreviewTagLabels: appendPreviewTagLabel(
+      acceptedEntry.contextPreviewTagLabels,
+      resolvedTagDoc.label,
+    ),
+    searchText: limitString(
+      `${acceptedEntry.searchText} ${resolvedTagDoc.label}`,
+      MAX_SEARCH_TEXT_LENGTH,
+    ),
+    updatedAt: now,
+  });
+
+  return [targetProposal._id];
+}
+
+function replaceContextTagSnapshot(
+  currentTags: ContextTagSnapshotInput[],
+  requiredTag: ContextTagSnapshotInput,
+  resolvedTag: ContextTagSnapshotInput,
+) {
+  const nextTags: ContextTagSnapshotInput[] = [];
+  let changed = false;
+  let inserted = false;
+  const seenKeys = new Set<string>();
+  const resolvedKey = getContextSnapshotIdentityKey(resolvedTag);
+
+  for (const tag of currentTags) {
+    const nextTag = isSameContextTagTarget(tag, requiredTag)
+      ? resolvedTag
+      : tag;
+    if (nextTag === resolvedTag) {
+      changed = true;
+      inserted = true;
+    }
+
+    const key = getContextSnapshotIdentityKey(nextTag);
+    if (seenKeys.has(key)) {
+      changed = true;
+      continue;
+    }
+    seenKeys.add(key);
+    nextTags.push(nextTag);
+  }
+
+  if (!inserted && !seenKeys.has(resolvedKey)) {
+    nextTags.push(resolvedTag);
+    changed = true;
+  }
+
+  return {
+    changed,
+    contextTags: normalizeContextTags(nextTags),
+  };
+}
+
+function appendPreviewTagLabel(labels: string[], label: string) {
+  if (labels.includes(label)) {
+    return labels;
+  }
+
+  return [...labels, label].slice(0, MAX_CONTEXT_PREVIEW_TAG_LABELS);
+}
+
+function isSameContextTagTarget(
+  left: ContextTagSnapshotInput,
+  right: ContextTagSnapshotInput,
+) {
+  return getContextSnapshotIdentityKey(left) === getContextSnapshotIdentityKey(right);
+}
+
+function getContextSnapshotIdentityKey(tag: ContextTagSnapshotInput) {
+  return `${tag.knowledgeType}:${getContextLookupKey(tag)}`;
 }
 
 async function insertReferent(
@@ -5312,6 +7197,142 @@ function isKnowledgeEntryVisibleToAccess(
   return false;
 }
 
+function canManageSmartStorageSubmission(
+  contributionSubmission: Doc<"contributionSubmissions">,
+  access: Awaited<ReturnType<typeof requireAppAccess>>,
+) {
+  if (contributionSubmission.submittedByUserId === access.userId) {
+    return true;
+  }
+
+  if (access.systemRole === "systemAdmin") {
+    return true;
+  }
+
+  if (contributionSubmission.reviewScopeKind === "organization") {
+    return access.organizations.some(
+      (organization) =>
+        organization.role === "admin" &&
+        contributionSubmission.reviewScopeTargetKey ===
+          `organization:${organization.organizationReferentId}`,
+    );
+  }
+
+  return false;
+}
+
+function isAssignedReviewSlotReviewer(
+  proposal: Doc<"smartStorageProposals">,
+  access: Awaited<ReturnType<typeof requireAppAccess>>,
+) {
+  return (
+    proposal.reviewAssignmentTargetKind === "user" &&
+    proposal.reviewAssignedUserId === access.userId
+  );
+}
+
+async function getSmartStorageProposalAuthorization(
+  ctx: MutationCtx | QueryCtx,
+  {
+    access,
+    proposal,
+  }: {
+    access: Awaited<ReturnType<typeof requireAppAccess>>;
+    proposal: Doc<"smartStorageProposals">;
+  },
+) {
+  if (proposal.contributionSubmissionId === undefined) {
+    return {
+      canManage: proposal.createdByUserId === access.userId,
+      contributionSubmission: null,
+      isAssignedReviewer: isAssignedReviewSlotReviewer(proposal, access),
+    };
+  }
+
+  const contributionSubmission = await ctx.db.get(proposal.contributionSubmissionId);
+  if (!contributionSubmission) {
+    return {
+      canManage: false,
+      contributionSubmission: null,
+      isAssignedReviewer: false,
+    };
+  }
+
+  return {
+    canManage: canManageSmartStorageSubmission(contributionSubmission, access),
+    contributionSubmission,
+    isAssignedReviewer: isAssignedReviewSlotReviewer(proposal, access),
+  };
+}
+
+async function assertCanReviewSmartStorageProposal(
+  ctx: MutationCtx,
+  {
+    access,
+    proposal,
+  }: {
+    access: Awaited<ReturnType<typeof requireAppAccess>>;
+    proposal: Doc<"smartStorageProposals">;
+  },
+) {
+  const authorization = await getSmartStorageProposalAuthorization(ctx, {
+    access,
+    proposal,
+  });
+  if (!authorization.canManage && !authorization.isAssignedReviewer) {
+    throw new Error("Unauthorized");
+  }
+
+  return authorization;
+}
+
+async function listProposalReviewSources(
+  ctx: MutationCtx | QueryCtx,
+  proposal: Doc<"smartStorageProposals">,
+) {
+  const allowedSourceIds = await loadAllowedProposalSourceIds(ctx, {
+    fallbackSourceId: proposal.sourceId,
+    proposalId: proposal._id,
+  });
+  const sources = [];
+  for (const sourceId of allowedSourceIds) {
+    const source = await ctx.db.get(sourceId);
+    if (source) {
+      sources.push(source);
+    }
+  }
+
+  return sources;
+}
+
+async function getSmartStorageReviewAssignmentSummary(
+  ctx: MutationCtx | QueryCtx,
+  proposal: Doc<"smartStorageProposals">,
+) {
+  if (
+    proposal.reviewAssignmentTargetKind !== "user" ||
+    proposal.reviewAssignedUserId === undefined ||
+    proposal.reviewAssignedByUserId === undefined ||
+    proposal.reviewAssignedAt === undefined
+  ) {
+    return undefined;
+  }
+
+  const targetUser = await ctx.db.get(proposal.reviewAssignedUserId);
+
+  return {
+    assignedAt: proposal.reviewAssignedAt,
+    assignedByUserId: proposal.reviewAssignedByUserId,
+    targetKind: "user" as const,
+    targetLabel: getUserDisplayLabel(targetUser),
+    targetUserId: proposal.reviewAssignedUserId,
+  };
+}
+
+function getUserDisplayLabel(user: Doc<"users"> | null) {
+  return user?.name ?? user?.email ?? "Assigned user";
+}
+
 async function markProposalAccepted(
   ctx: MutationCtx,
   {
@@ -5336,6 +7357,51 @@ async function markProposalAccepted(
       updatedAt: now,
     });
   }
+}
+
+async function recordSmartStorageUpgradeProvenance(
+  ctx: MutationCtx,
+  {
+    acceptedByUserId,
+    now,
+    proposal,
+    targetEntryId,
+  }: {
+    acceptedByUserId: Id<"users">;
+    now: number;
+    proposal: Doc<"smartStorageProposals">;
+    targetEntryId?: Id<"knowledgeEntries">;
+  },
+) {
+  const refresh = proposal.refresh;
+  if (refresh === undefined) {
+    return;
+  }
+
+  await ctx.db.insert("smartStorageUpgradeProvenanceRecords", {
+    acceptedProposalId: proposal._id,
+    candidateKey: refresh.candidateKey,
+    origin: refresh.origin,
+    suggestionKind: refresh.suggestionKind,
+    ...(refresh.sourceProposalId === undefined
+      ? {}
+      : { sourceProposalId: refresh.sourceProposalId }),
+    ...(refresh.sourceEntryId === undefined
+      ? {}
+      : { sourceEntryId: refresh.sourceEntryId }),
+    ...(targetEntryId === undefined ? {} : { targetEntryId }),
+    acceptedByUserId,
+    ...(refresh.targetContractSnapshotVersion === undefined
+      ? {}
+      : { contractSnapshotVersion: refresh.targetContractSnapshotVersion }),
+    ...(refresh.targetTypeBehaviorSnapshotVersion === undefined
+      ? {}
+      : {
+          typeBehaviorSnapshotVersion:
+            refresh.targetTypeBehaviorSnapshotVersion,
+        }),
+    createdAt: now,
+  });
 }
 
 function toEntryRepresentation(
@@ -5441,7 +7507,8 @@ function getRepresentedCanonicalKey({
 }
 
 function getContextLookupKey(tag: ContextTagSnapshotInput) {
-  return normalizeLookupKey(tag.canonicalKey || tag.id || tag.label);
+  const key = (tag.canonicalKey || tag.id || tag.label).trim();
+  return key.includes(":") ? key : normalizeLookupKey(key);
 }
 
 function inferTitleFromSourceText(sourceText: string) {

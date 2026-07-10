@@ -85,7 +85,7 @@ const seededUserInput = v.object({
 });
 
 type KnowledgeType = Doc<"referents">["knowledgeType"];
-type OrganizationKind = Doc<"organizationEntries">["organizationKind"];
+type OrganizationKind = (typeof DEFAULT_ORGANIZATION_SEEDS)[number]["kind"];
 type SeededUser = {
   email: string;
   name: string;
@@ -159,6 +159,11 @@ export const upsertDefaultOrganizationsAndMemberships = internalMutation({
           updatedAt: now,
         });
         count(stats.memberships, membershipState);
+        await upsertOrganizationTagRecognition(ctx, {
+          organizationReferentId,
+          tagId: profileResult.personTagId,
+          updatedAt: now,
+        });
       }
     }
 
@@ -178,18 +183,19 @@ export const verifyDefaultOrganizationsSeed = internalQuery({
         "organization",
         organization.canonicalKey,
       );
-      const entry = referent
-        ? await getKnowledgeEntryByReferent(ctx, referent._id, "organization")
+      const detail = referent
+        ? await getOrganizationReferentDetail(ctx, referent._id)
         : null;
-      const organizationEntry = entry
-        ? await getOrganizationEntryByEntryId(ctx, entry._id)
-        : null;
+      const entries = referent
+        ? await getKnowledgeEntriesByReferent(ctx, referent._id, "organization")
+        : [];
 
       organizations.push({
         canonicalKey: organization.canonicalKey,
-        exists: Boolean(referent && entry && organizationEntry),
-        isActive: organizationEntry?.isActive ?? null,
-        kind: organizationEntry?.organizationKind ?? null,
+        exists: Boolean(referent && detail),
+        hasKnowledgeEntry: entries.length > 0,
+        isActive: detail?.isActive ?? null,
+        kind: detail?.organizationKind ?? null,
         name: referent?.canonicalName ?? null,
       });
     }
@@ -241,40 +247,26 @@ async function upsertOrganization(
     lookupKey: organization.canonicalKey,
     referentId,
   });
-  const entryId = await upsertKnowledgeEntry(ctx, {
-    knowledgeType: "organization",
+  const detailState = await upsertOrganizationReferentDetail(ctx, {
+    isActive: true,
+    organizationKind: organization.kind,
     previewText: organization.previewText,
-    primaryTagId: tagId,
-    primaryTagLabel: organization.name,
-    representedReferentId: referentId,
-    searchText: `${organization.name} ${organization.kind}`,
-    title: organization.name,
+    referentId,
+    searchText: `${organization.name} ${organization.kind} ${organization.previewText}`,
     updatedAt: now,
   });
-  const organizationEntry = await getOrganizationEntryByEntryId(ctx, entryId);
+  await upsertOrganizationTagRecognition(ctx, {
+    organizationReferentId: referentId,
+    tagId,
+    updatedAt: now,
+  });
+  await removeLegacySeededEntry(ctx, {
+    knowledgeType: "organization",
+    primaryTagId: tagId,
+    representedReferentId: referentId,
+  });
 
-  if (!organizationEntry) {
-    await ctx.db.insert("organizationEntries", {
-      entryId,
-      isActive: true,
-      organizationKind: organization.kind,
-    });
-    return { organizationReferentId: referentId, state: "inserted" as const };
-  }
-
-  const patch: Partial<Doc<"organizationEntries">> = {};
-  if (organizationEntry.organizationKind !== organization.kind) {
-    patch.organizationKind = organization.kind;
-  }
-  if (organizationEntry.isActive !== true) {
-    patch.isActive = true;
-  }
-  if (hasPatch(patch)) {
-    await ctx.db.patch(organizationEntry._id, patch);
-    return { organizationReferentId: referentId, state: "updated" as const };
-  }
-
-  return { organizationReferentId: referentId, state: "skipped" as const };
+  return { organizationReferentId: referentId, state: detailState };
 }
 
 async function updateSeededUser(
@@ -334,14 +326,6 @@ async function upsertUserProfile(
     .query("userProfiles")
     .withIndex("by_userId", (q) => q.eq("userId", user.userId))
     .unique();
-
-  if (existingProfile) {
-    return {
-      personReferentId: existingProfile.personReferentId,
-      state: "skipped" as const,
-    };
-  }
-
   const canonicalKey = `user:${normalizeEmail(user.email)}`;
   const personReferentId = await upsertReferent(ctx, {
     canonicalKey,
@@ -354,35 +338,58 @@ async function upsertUserProfile(
     lookupKey: canonicalKey,
     referentId: personReferentId,
   });
-  const personEntryId = await upsertKnowledgeEntry(ctx, {
-    knowledgeType: "person",
-    previewText: user.email,
-    primaryTagId: personTagId,
-    primaryTagLabel: user.name,
-    representedReferentId: personReferentId,
+  await upsertPersonReferentDetail(ctx, {
+    referentId: personReferentId,
     searchText: `${user.name} ${user.email}`,
-    title: user.name,
+  });
+  await upsertUserTagRecognition(ctx, {
+    tagId: personTagId,
     updatedAt: now,
+    userId: user.userId,
+  });
+  await removeLegacySeededEntry(ctx, {
+    knowledgeType: "person",
+    primaryTagId: personTagId,
+    representedReferentId: personReferentId,
   });
 
-  const personEntry = await ctx.db
-    .query("personEntries")
-    .withIndex("by_entryId", (q) => q.eq("entryId", personEntryId))
-    .unique();
-  if (!personEntry) {
-    await ctx.db.insert("personEntries", { entryId: personEntryId });
+  if (existingProfile) {
+    const patch: Partial<Doc<"userProfiles">> = {};
+    if (existingProfile.personReferentId !== personReferentId) {
+      patch.personReferentId = personReferentId;
+    }
+    if (existingProfile.personTagId !== personTagId) {
+      patch.personTagId = personTagId;
+    }
+    if (existingProfile.personEntryId !== undefined) {
+      patch.personEntryId = undefined;
+    }
+    if (hasPatch(patch)) {
+      patch.updatedAt = now;
+      await ctx.db.patch(existingProfile._id, patch);
+      return {
+        personReferentId,
+        personTagId,
+        state: "updated" as const,
+      };
+    }
+
+    return {
+      personReferentId,
+      personTagId,
+      state: "skipped" as const,
+    };
   }
 
   await ctx.db.insert("userProfiles", {
     createdAt: now,
-    personEntryId,
     personReferentId,
     personTagId,
     updatedAt: now,
     userId: user.userId,
   });
 
-  return { personReferentId, state: "inserted" as const };
+  return { personReferentId, personTagId, state: "inserted" as const };
 }
 
 async function upsertOrganizationMembership(
@@ -502,70 +509,212 @@ async function upsertPrimaryTag(
   return existingTag._id;
 }
 
-async function upsertKnowledgeEntry(
+async function upsertOrganizationReferentDetail(
   ctx: MutationCtx,
-  entry: {
-    knowledgeType: Doc<"knowledgeEntries">["knowledgeType"];
+  detail: {
+    isActive: boolean;
+    organizationKind: OrganizationKind;
     previewText: string;
-    primaryTagId: Id<"tags">;
-    primaryTagLabel: string;
-    representedReferentId: Id<"referents">;
+    referentId: Id<"referents">;
     searchText: string;
-    title: string;
+    updatedAt: number;
+  },
+): Promise<UpsertState> {
+  const existingDetail = await getOrganizationReferentDetail(
+    ctx,
+    detail.referentId,
+  );
+  if (!existingDetail) {
+    await ctx.db.insert("organizationReferentDetails", {
+      createdAt: detail.updatedAt,
+      isActive: detail.isActive,
+      organizationKind: detail.organizationKind,
+      previewText: detail.previewText,
+      referentId: detail.referentId,
+      searchText: detail.searchText,
+      updatedAt: detail.updatedAt,
+    });
+    return "inserted";
+  }
+
+  const patch: Partial<Doc<"organizationReferentDetails">> = {};
+  if (existingDetail.organizationKind !== detail.organizationKind) {
+    patch.organizationKind = detail.organizationKind;
+  }
+  if (existingDetail.isActive !== detail.isActive) {
+    patch.isActive = detail.isActive;
+  }
+  if (existingDetail.previewText !== detail.previewText) {
+    patch.previewText = detail.previewText;
+  }
+  if (existingDetail.searchText !== detail.searchText) {
+    patch.searchText = detail.searchText;
+  }
+  if (hasPatch(patch)) {
+    patch.updatedAt = detail.updatedAt;
+    await ctx.db.patch(existingDetail._id, patch);
+    return "updated";
+  }
+
+  return "skipped";
+}
+
+async function upsertPersonReferentDetail(
+  ctx: MutationCtx,
+  detail: {
+    referentId: Id<"referents">;
+    searchText: string;
+  },
+) {
+  const existingDetail = await ctx.db
+    .query("personReferentDetails")
+    .withIndex("by_referentId", (q) => q.eq("referentId", detail.referentId))
+    .unique();
+  if (!existingDetail) {
+    await ctx.db.insert("personReferentDetails", detail);
+    return;
+  }
+
+  if (existingDetail.searchText !== detail.searchText) {
+    await ctx.db.patch(existingDetail._id, {
+      searchText: detail.searchText,
+    });
+  }
+}
+
+async function upsertUserTagRecognition(
+  ctx: MutationCtx,
+  recognition: {
+    tagId: Id<"tags">;
+    updatedAt: number;
+    userId: Id<"users">;
+  },
+) {
+  const existingRecognition = await ctx.db
+    .query("tagRecognitions")
+    .withIndex("by_userId_and_tagId", (q) =>
+      q.eq("userId", recognition.userId).eq("tagId", recognition.tagId),
+    )
+    .unique();
+  if (!existingRecognition) {
+    await ctx.db.insert("tagRecognitions", {
+      lastInteractedAt: recognition.updatedAt,
+      recognizedAt: recognition.updatedAt,
+      recognizerKind: "user",
+      tagId: recognition.tagId,
+      userId: recognition.userId,
+    });
+    return;
+  }
+
+  await ctx.db.patch(existingRecognition._id, {
+    lastInteractedAt: recognition.updatedAt,
+    recognizerKind: "user",
+    userId: recognition.userId,
+  });
+}
+
+async function upsertOrganizationTagRecognition(
+  ctx: MutationCtx,
+  recognition: {
+    organizationReferentId: Id<"referents">;
+    tagId: Id<"tags">;
     updatedAt: number;
   },
 ) {
-  const existingEntry = await getKnowledgeEntryByReferent(
+  const existingRecognition = await ctx.db
+    .query("tagRecognitions")
+    .withIndex("by_organizationReferentId_and_tagId", (q) =>
+      q
+        .eq("organizationReferentId", recognition.organizationReferentId)
+        .eq("tagId", recognition.tagId),
+    )
+    .unique();
+  if (!existingRecognition) {
+    await ctx.db.insert("tagRecognitions", {
+      lastInteractedAt: recognition.updatedAt,
+      organizationReferentId: recognition.organizationReferentId,
+      recognizedAt: recognition.updatedAt,
+      recognizerKind: "organization",
+      tagId: recognition.tagId,
+    });
+    return;
+  }
+
+  await ctx.db.patch(existingRecognition._id, {
+    lastInteractedAt: recognition.updatedAt,
+    organizationReferentId: recognition.organizationReferentId,
+    recognizerKind: "organization",
+  });
+}
+
+async function removeLegacySeededEntry(
+  ctx: MutationCtx,
+  entry: {
+    knowledgeType: Doc<"knowledgeEntries">["knowledgeType"];
+    primaryTagId: Id<"tags">;
+    representedReferentId: Id<"referents">;
+  },
+) {
+  const legacyEntries = await getKnowledgeEntriesByReferent(
     ctx,
     entry.representedReferentId,
     entry.knowledgeType,
   );
 
-  const nextEntry = {
-    contextPreviewTagLabels: DEFAULT_CONTEXT_TAG_LABELS,
-    discoverabilityKind: "public" as const,
-    discoverabilityTargetKey: "public",
-    knowledgeType: entry.knowledgeType,
-    previewText: entry.previewText,
-    primaryTagId: entry.primaryTagId,
-    primaryTagLabel: entry.primaryTagLabel,
-    representedReferentId: entry.representedReferentId,
-    searchText: entry.searchText,
-    title: entry.title,
-    visibilityKind: "public" as const,
-    visibilityTargetKey: "public",
-  };
+  for (const legacyEntry of legacyEntries) {
+    if (
+      legacyEntry.primaryTagId !== entry.primaryTagId ||
+      legacyEntry.createdByUserId !== undefined
+    ) {
+      continue;
+    }
 
-  if (!existingEntry) {
-    return await ctx.db.insert("knowledgeEntries", {
-      ...nextEntry,
-      createdAt: entry.updatedAt,
-      updatedAt: entry.updatedAt,
-    });
+    await removeEntryTags(ctx, legacyEntry._id);
+    if (entry.knowledgeType === "person") {
+      await removePersonEntryDetail(ctx, legacyEntry._id);
+    }
+    if (entry.knowledgeType === "organization") {
+      await removeOrganizationEntryDetail(ctx, legacyEntry._id);
+    }
+    await ctx.db.delete(legacyEntry._id);
   }
+}
 
-  const patch: Partial<Doc<"knowledgeEntries">> = {};
-  if (existingEntry.title !== nextEntry.title) {
-    patch.title = nextEntry.title;
+async function removeEntryTags(
+  ctx: MutationCtx,
+  entryId: Id<"knowledgeEntries">,
+) {
+  const entryTags = await ctx.db
+    .query("entryTags")
+    .withIndex("by_entryId_and_tagId", (q) => q.eq("entryId", entryId))
+    .take(100);
+  for (const entryTag of entryTags) {
+    await ctx.db.delete(entryTag._id);
   }
-  if (existingEntry.previewText !== nextEntry.previewText) {
-    patch.previewText = nextEntry.previewText;
-  }
-  if (existingEntry.searchText !== nextEntry.searchText) {
-    patch.searchText = nextEntry.searchText;
-  }
-  if (existingEntry.primaryTagId !== nextEntry.primaryTagId) {
-    patch.primaryTagId = nextEntry.primaryTagId;
-  }
-  if (existingEntry.primaryTagLabel !== nextEntry.primaryTagLabel) {
-    patch.primaryTagLabel = nextEntry.primaryTagLabel;
-  }
-  if (hasPatch(patch)) {
-    patch.updatedAt = entry.updatedAt;
-    await ctx.db.patch(existingEntry._id, patch);
-  }
+}
 
-  return existingEntry._id;
+async function removePersonEntryDetail(
+  ctx: MutationCtx,
+  entryId: Id<"knowledgeEntries">,
+) {
+  const personEntry = await ctx.db
+    .query("personEntries")
+    .withIndex("by_entryId", (q) => q.eq("entryId", entryId))
+    .unique();
+  if (personEntry) {
+    await ctx.db.delete(personEntry._id);
+  }
+}
+
+async function removeOrganizationEntryDetail(
+  ctx: MutationCtx,
+  entryId: Id<"knowledgeEntries">,
+) {
+  const organizationEntry = await getOrganizationEntryByEntryId(ctx, entryId);
+  if (organizationEntry) {
+    await ctx.db.delete(organizationEntry._id);
+  }
 }
 
 async function getReferentByKey(
@@ -581,7 +730,7 @@ async function getReferentByKey(
     .unique();
 }
 
-async function getKnowledgeEntryByReferent(
+async function getKnowledgeEntriesByReferent(
   ctx: QueryCtx | MutationCtx,
   representedReferentId: Id<"referents">,
   knowledgeType: Doc<"knowledgeEntries">["knowledgeType"],
@@ -593,7 +742,17 @@ async function getKnowledgeEntryByReferent(
     )
     .take(10);
 
-  return entries.find((entry) => entry.knowledgeType === knowledgeType) ?? null;
+  return entries.filter((entry) => entry.knowledgeType === knowledgeType);
+}
+
+async function getOrganizationReferentDetail(
+  ctx: QueryCtx | MutationCtx,
+  referentId: Id<"referents">,
+) {
+  return await ctx.db
+    .query("organizationReferentDetails")
+    .withIndex("by_referentId", (q) => q.eq("referentId", referentId))
+    .unique();
 }
 
 async function getOrganizationEntryByEntryId(

@@ -270,27 +270,21 @@ describe("Contact identities", () => {
       if (!membership) {
         throw new Error("Missing pending membership.");
       }
-      const personEntry = (
-        await ctx.db
-          .query("knowledgeEntries")
-          .withIndex("by_representedReferentId", (q) =>
-            q.eq("representedReferentId", membership.personReferentId),
-          )
-          .take(10)
-      ).find((entry) => entry.knowledgeType === "person");
-      if (!personEntry) {
-        throw new Error("Missing pending person entry.");
+      const personDetail = await ctx.db
+        .query("personReferentDetails")
+        .withIndex("by_referentId", (q) =>
+          q.eq("referentId", membership.personReferentId),
+        )
+        .unique();
+      if (!personDetail) {
+        throw new Error("Missing pending person detail.");
       }
 
       await ctx.db.patch(membership.personReferentId, {
         canonicalName: "Head of School",
       });
-      await ctx.db.patch(personEntry._id, {
-        previewText: "Head of School",
-        primaryTagLabel: "Head of School",
+      await ctx.db.patch(personDetail._id, {
         searchText: "Head of School needs.review@example.com",
-        title: "Head of School",
-        updatedAt: Date.now(),
       });
 
       return membership.personReferentId;
@@ -499,27 +493,21 @@ describe("Contact identities", () => {
       if (!membership) {
         throw new Error("Missing pending membership.");
       }
-      const personEntry = (
-        await ctx.db
-          .query("knowledgeEntries")
-          .withIndex("by_representedReferentId", (q) =>
-            q.eq("representedReferentId", membership.personReferentId),
-          )
-          .take(10)
-      ).find((entry) => entry.knowledgeType === "person");
-      if (!personEntry) {
-        throw new Error("Missing pending person entry.");
+      const personDetail = await ctx.db
+        .query("personReferentDetails")
+        .withIndex("by_referentId", (q) =>
+          q.eq("referentId", membership.personReferentId),
+        )
+        .unique();
+      if (!personDetail) {
+        throw new Error("Missing pending person detail.");
       }
 
       await ctx.db.patch(membership.personReferentId, {
         canonicalName: "Approved Review",
       });
-      await ctx.db.patch(personEntry._id, {
-        previewText: "Approved Review",
-        primaryTagLabel: "Approved Review",
+      await ctx.db.patch(personDetail._id, {
         searchText: "Approved Review approved.review@example.com",
-        title: "Approved Review",
-        updatedAt: Date.now(),
       });
     });
     const claimant = t.withIdentity({ subject: `${userId}|test-session` });
@@ -648,27 +636,21 @@ describe("Contact identities", () => {
       if (!membership) {
         throw new Error("Missing pending membership.");
       }
-      const personEntry = (
-        await ctx.db
-          .query("knowledgeEntries")
-          .withIndex("by_representedReferentId", (q) =>
-            q.eq("representedReferentId", membership.personReferentId),
-          )
-          .take(10)
-      ).find((entry) => entry.knowledgeType === "person");
-      if (!personEntry) {
-        throw new Error("Missing pending person entry.");
+      const personDetail = await ctx.db
+        .query("personReferentDetails")
+        .withIndex("by_referentId", (q) =>
+          q.eq("referentId", membership.personReferentId),
+        )
+        .unique();
+      if (!personDetail) {
+        throw new Error("Missing pending person detail.");
       }
 
       await ctx.db.patch(membership.personReferentId, {
         canonicalName: "Rejected Review",
       });
-      await ctx.db.patch(personEntry._id, {
-        previewText: "Rejected Review",
-        primaryTagLabel: "Rejected Review",
+      await ctx.db.patch(personDetail._id, {
         searchText: "Rejected Review rejected.review@example.com",
-        title: "Rejected Review",
-        updatedAt: Date.now(),
       });
     });
     const claimant = t.withIdentity({ subject: `${userId}|test-session` });

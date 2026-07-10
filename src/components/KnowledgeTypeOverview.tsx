@@ -447,11 +447,19 @@ function WordsOverviewBase<TKnowledgeType extends KnowledgeType>({
       data-knowledge-type={detail.knowledgeType}
     >
       <header className="kb-overview-header">
-        <span className="kb-overview-icon" aria-hidden="true">
-          <KnowledgeTypeIcon
-            className="kb-overview-type-icon"
-            knowledgeType={detail.knowledgeType}
-          />
+        <span
+          className="kb-overview-icon"
+          data-has-thumbnail={referent.thumbnailUrl ? "true" : undefined}
+          aria-hidden="true"
+        >
+          {referent.thumbnailUrl ? (
+            <img alt="" src={referent.thumbnailUrl} />
+          ) : (
+            <KnowledgeTypeIcon
+              className="kb-overview-type-icon"
+              knowledgeType={detail.knowledgeType}
+            />
+          )}
         </span>
         <div>
           <p className="kb-eyebrow">Referent Overview</p>

@@ -182,19 +182,33 @@ export function getRootSearchTagSuggestions(
   }
 
   const compactQuery = compactRootSearchText(normalizedQuery);
+  const suggestions: RootSearchTagSuggestion[] = [];
+  const suggestedTagIds = new Set<string>();
 
-  return REFERENT_TAG_FIXTURES.filter((tag) =>
-    rootSearchTagMatches(tag, normalizedQuery, compactQuery),
-  )
-    .map((tag) => ({
-      canonicalKey: tag.canonicalKey,
-      href: getReferentTagHref(tag),
-      id: tag.id,
-      knowledgeType: tag.knowledgeType,
-      label: tag.label,
-      tag,
-    }))
-    .slice(0, suggestionLimit);
+  function addSuggestion(tag: ActiveTag) {
+    if (suggestedTagIds.has(tag.id) || suggestions.length >= suggestionLimit) {
+      return;
+    }
+
+    suggestions.push(toRootSearchTagSuggestion(tag));
+    suggestedTagIds.add(tag.id);
+  }
+
+  const parsedPassage = parseBiblePassageReference(query);
+  if (parsedPassage) {
+    addSuggestion(
+      TAGS_BY_ID.get(parsedPassage.slug) ??
+        biblePassageTag(parsedPassage.slug, parsedPassage.label),
+    );
+  }
+
+  for (const tag of REFERENT_TAG_FIXTURES) {
+    if (rootSearchTagMatches(tag, normalizedQuery, compactQuery)) {
+      addSuggestion(tag);
+    }
+  }
+
+  return suggestions;
 }
 
 export function getKnowledgeContextKey(tags: ActiveTag[]) {
@@ -268,6 +282,17 @@ function getSingleTagHref(tag: ActiveTag) {
   }
 
   return `/goto/${encodeURIComponent(tag.id)}`;
+}
+
+function toRootSearchTagSuggestion(tag: ActiveTag): RootSearchTagSuggestion {
+  return {
+    canonicalKey: tag.canonicalKey,
+    href: getReferentTagHref(tag),
+    id: tag.id,
+    knowledgeType: tag.knowledgeType,
+    label: tag.label,
+    tag,
+  };
 }
 
 function resolveBiblePassageTag(passageString: string): ActiveTag {

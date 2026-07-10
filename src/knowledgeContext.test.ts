@@ -203,4 +203,15 @@ describe("Knowledge Context routes", () => {
     );
     expect(getRootSearchTagSuggestions("Suffering and hope")).toEqual([]);
   });
+
+  test("suggests parseable Bible Passage ranges for Root Search", () => {
+    expect(getRootSearchTagSuggestions("Romans 8:37-39")).toContainEqual(
+      expect.objectContaining({
+        href: "/scripture/romans-8-37-39",
+        id: "romans-8-37-39",
+        knowledgeType: "biblePassage",
+        label: "Romans 8:37-39",
+      }),
+    );
+  });
 });

@@ -508,6 +508,29 @@ export type SmartStorageSessionProposalRole =
   | "reprocessing"
   | "cleanup";
 
+export type SmartStorageRefreshOrigin =
+  | "contractRefresh"
+  | "reprocessing";
+
+export type SmartStorageRefreshSuggestionKind =
+  | "staleProposalRefresh"
+  | "suggestedEdit"
+  | "typeReclassification"
+  | "newDerivedEntry"
+  | "referenceResolution";
+
+export type SmartStorageRefreshSummary = {
+  candidateKey: string;
+  origin: SmartStorageRefreshOrigin;
+  originLabel: string;
+  reason: string;
+  sourceEntryId?: string;
+  sourceProposalId?: string;
+  suggestionKind: SmartStorageRefreshSuggestionKind;
+  targetContractSnapshotVersion?: string;
+  targetTypeBehaviorSnapshotVersion?: string;
+};
+
 export type SmartStorageProposalDependencyRequirementKind =
   | "referent"
   | "field"
@@ -519,6 +542,21 @@ export type SmartStorageProposalDependencySummary = {
   requiredByProposalId?: string;
   requirementKey: string;
   requirementKind: SmartStorageProposalDependencyRequirementKind;
+};
+
+export type SmartStorageReferenceResolutionOutcome =
+  | "pending"
+  | "matchedKnownReferent"
+  | "createdByAcceptedEntry";
+
+export type SmartStorageReferenceResolutionSummary = {
+  candidateTag?: ActiveTag;
+  candidateTagId?: string;
+  mode: "knownReferentMatch" | "newEntryProposal";
+  outcome: SmartStorageReferenceResolutionOutcome;
+  requiredTag: ActiveTag;
+  resolvedTag?: ActiveTag;
+  resolvedTagId?: string;
 };
 
 export type SmartStorageProposalAcceptabilityStatus =
@@ -547,6 +585,8 @@ export type SmartStorageSessionProposalSummary = {
   currentProposal: SmartStorageProposedEntrySummary;
   dependency?: SmartStorageProposalDependencySummary;
   id: string;
+  refresh?: SmartStorageRefreshSummary;
+  referenceResolution?: SmartStorageReferenceResolutionSummary;
   role: SmartStorageSessionProposalRole;
   smartStorageRunId: string;
   sourceCitations: SmartStorageProposalSourceCitationSummary[];
@@ -559,6 +599,7 @@ export type SmartStorageSessionProposalSummary = {
 export type SmartStorageSessionSummary = {
   acceptedPrimaryEntry?: KnowledgeEntrySummary;
   activeRun?: SmartStorageSessionRunSummary;
+  canCancel: boolean;
   contributionSubmission: {
     bodyPreview: string;
     createdAt: number;
@@ -583,6 +624,53 @@ export type SmartStorageSessionSummary = {
   proposalCountsByStatus: SmartStorageSessionProposalCounts;
   sourceCounts: SmartStorageSessionSourceCounts;
   state: SmartStorageSessionState;
+};
+
+export type SmartStorageReviewSlotGroup = {
+  href: string;
+  id: string;
+  kind: "session" | "primaryEntry";
+  title: string;
+};
+
+export type SmartStorageReviewAssignmentSummary = {
+  assignedAt: number;
+  assignedByUserId: string;
+  targetKind: "user";
+  targetLabel: string;
+  targetUserId: string;
+};
+
+export type SmartStorageReviewSlotSummary = {
+  acceptReady: boolean;
+  acceptability: SmartStorageProposalAcceptabilitySummary;
+  assignment?: SmartStorageReviewAssignmentSummary;
+  bodyPreview: string;
+  canAssign: boolean;
+  contextPreviewTagLabels: string[];
+  contextPreviewTags?: ActiveTag[];
+  contributionSubmissionId: string;
+  createdAt: number;
+  evidenceSummary: string;
+  group: SmartStorageReviewSlotGroup;
+  href: string;
+  id: string;
+  originSession: {
+    href: string;
+    id: string;
+    title: string;
+  };
+  proposedKnowledgeType: AuthorableKnowledgeType;
+  refresh?: SmartStorageRefreshSummary;
+  referenceResolution?: SmartStorageReferenceResolutionSummary;
+  reviewScopeLabel: string;
+  role: SmartStorageSessionProposalRole;
+  smartStorageProposalId: string;
+  smartStorageRunId: string;
+  sourceCount: number;
+  status: SmartStorageProposalStatus;
+  title: string;
+  updatedAt: number;
 };
 
 export type ContributionResult = {

@@ -129,6 +129,23 @@ describe("AuthPanel", () => {
     expect(resetVerificationFormData.get("newPassword")).toBe("new-password");
   });
 
+  test("shows a friendly message for invalid password credentials", async () => {
+    mocks.signIn.mockRejectedValueOnce(
+      new Error(
+        "[CONVEX A(auth:signIn)] Server Error Uncaught Error: InvalidSecret Called by client",
+      ),
+    );
+    await renderAuthPanel();
+
+    await setFieldValue(getInput("email"), "person@example.com");
+    await setFieldValue(getInput("password"), "wrong-password");
+    await click(getSubmitButton());
+
+    expect(container.textContent).toContain(
+      "Email or password is incorrect. Check the temporary password and try again.",
+    );
+  });
+
   test("shows the reset option when reset email is not configured", async () => {
     mocks.authAvailability = {
       google: false,
@@ -181,6 +198,15 @@ describe("AuthPanel", () => {
     }
 
     return input;
+  }
+
+  function getSubmitButton() {
+    const button = container.querySelector(".editor-auth-submit");
+    if (!(button instanceof HTMLButtonElement)) {
+      throw new Error("Missing submit button");
+    }
+
+    return button;
   }
 
   async function click(element: Element) {

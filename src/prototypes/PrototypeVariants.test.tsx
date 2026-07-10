@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { HeaderSidebarPrototype } from "./HeaderSidebarPrototype";
 import { LayoutPrototype } from "./LayoutPrototype";
+import { SmartStorageWorkflowPrototype } from "./SmartStorageWorkflowPrototype";
 
 describe("prototype variant switchers", () => {
   let container: HTMLDivElement;
@@ -79,6 +80,47 @@ describe("prototype variant switchers", () => {
     expect(text()).toContain("T - Questions sage, Answers clay");
     await click(getButton("Next variant"));
     expect(text()).toContain("A - Command center");
+    expect(window.location.search).toContain("variant=A");
+  });
+
+  test("SmartStorageWorkflowPrototype renders wizard variants and wraps from F to A", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      "http://localhost:3000/?prototype=smart-storage-workflow&variant=A",
+    );
+
+    await act(async () => {
+      root.render(
+        <SmartStorageWorkflowPrototype onToggleTheme={vi.fn()} theme="light" />,
+      );
+    });
+
+    expect(text()).toContain("A - Focused Dialog");
+    expect(text()).toContain("Accept required speaker first");
+    expect(text()).toContain("Courage in Christ's Kingdom");
+
+    await click(getButton("Next variant"));
+    expect(text()).toContain("B - Session Map");
+    expect(window.location.search).toContain("variant=B");
+
+    window.history.replaceState(
+      null,
+      "",
+      "http://localhost:3000/?prototype=smart-storage-workflow&variant=E",
+    );
+    await act(async () => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+      await Promise.resolve();
+    });
+
+    expect(text()).toContain("E - Entry Continuation");
+    await click(getButton("Next variant"));
+    expect(text()).toContain("F - Full-screen Focus");
+    expect(text()).toContain("Accept required speaker first");
+
+    await click(getButton("Next variant"));
+    expect(text()).toContain("A - Focused Dialog");
     expect(window.location.search).toContain("variant=A");
   });
 

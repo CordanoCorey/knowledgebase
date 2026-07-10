@@ -29,6 +29,8 @@ import {
   Clock,
   Compass,
   Database,
+  ExternalLink,
+  FlaskConical,
   ImagePlus,
   Landmark,
   LayoutDashboard,
@@ -87,7 +89,7 @@ import {
   getPageVisitAnalyticsInput,
   type NavigatorUsageKind,
 } from "./analytics";
-import { KnowledgeSlotCard } from "./components/KnowledgeCards";
+import { KnowledgeSlotCard, ReviewSlotCard } from "./components/KnowledgeCards";
 import { KnowledgeTypeBadge, KnowledgeTypeIcon } from "./components/KnowledgeTypeIcon";
 import { KnowledgeTypeOverview } from "./components/KnowledgeTypeOverview";
 import { LogeionBrand } from "./components/LogeionBrand";
@@ -124,11 +126,13 @@ import type {
   KnowledgeEntrySummary,
   KnowledgeContextTrendKind,
   KnowledgeContextTrendSummary,
+  KnowledgeType,
   QuoteAttributionPersonOption,
   KnowledgeSlotSummary,
   RepresentationRole,
   SmartStorageProposalReviewSummary,
   SmartStorageProposalSourceCitationSummary,
+  SmartStorageReviewSlotSummary,
   SmartStorageRepresentationDecision,
   SmartStorageSessionProposalSummary,
   SmartStorageSessionSummary,
@@ -142,6 +146,7 @@ import {
 } from "./knowledgeContracts";
 import { HeaderSidebarPrototype } from "./prototypes/HeaderSidebarPrototype";
 import { LayoutPrototype } from "./prototypes/LayoutPrototype";
+import { SmartStorageWorkflowPrototype } from "./prototypes/SmartStorageWorkflowPrototype";
 
 // React composition root: shared domain logic stays in plain TypeScript modules,
 // while this file wires Convex subscriptions, route state, and page UI together.
@@ -191,6 +196,7 @@ type PageId =
   | "organization-home"
   | "organization-settings"
   | "smart-storage-playground"
+  | "smart-storage-workflow-prototype"
   | "layout-prototype"
   | "header-sidebar-prototype"
   | "analytics"
@@ -230,7 +236,8 @@ type AllowedAppAccess = {
   email?: string;
   organizations: Array<{
     name: string;
-    organizationEntryId: Id<"organizationEntries">;
+    organizationDetailId?: Id<"organizationReferentDetails">;
+    organizationEntryId?: Id<"organizationEntries">;
     organizationKind: OrganizationKind;
     organizationReferentId: Id<"referents">;
     role: string;
@@ -543,18 +550,37 @@ type OrganizationPageConfig = {
   pageLabel: string;
 };
 
+type KnowledgePageRelationshipKind =
+  | "organization"
+  | "dashboard"
+  | "scripture"
+  | "referent"
+  | "context"
+  | "search";
+
+type KnowledgePageActionTarget = {
+  href: string;
+  label: string;
+  organizationReferentId?: Id<"referents">;
+  pageKey: string;
+  pageKind: KnowledgePageRelationshipKind;
+  secondaryLabel: string;
+};
+
 type SidebarPinnedKnowledgePage = {
   href: string;
-  icon: ElementType<{ "aria-hidden"?: "true" }>;
+  icon: ElementType<{ "aria-hidden"?: "true"; className?: string }>;
   id: string;
   label: string;
-  organizationKind: OrganizationKind;
-  organizationName: string;
-  organizationReferentId: Id<"referents">;
+  organizationKind?: OrganizationKind;
+  organizationName?: string;
+  organizationReferentId?: Id<"referents">;
+  pageKind: KnowledgePageRelationshipKind;
   pageKey: string;
   pinSource: "defaultSeed" | "manual";
   secondaryLabel: string;
   sortOrder: number;
+  thumbnailUrl?: string;
 };
 
 type DurableSidebarPinnedKnowledgePage = Omit<
@@ -567,9 +593,10 @@ type ProfileBookmarkedKnowledgePage = {
   href: string;
   id: string;
   label: string;
-  organizationKind: OrganizationKind;
-  organizationName: string;
-  organizationReferentId: Id<"referents">;
+  organizationKind?: OrganizationKind;
+  organizationName?: string;
+  organizationReferentId?: Id<"referents">;
+  pageKind: KnowledgePageRelationshipKind;
   pageKey: string;
   secondaryLabel: string;
   updatedAt: number;
@@ -578,6 +605,41 @@ type ProfileBookmarkedKnowledgePage = {
 type KnowledgePageThumbnailState = {
   entryId: string;
   entryTitle: string;
+  thumbnailUrl?: string;
+} | null;
+
+type ReferentPageMetadataFact = {
+  label: string;
+  value: string;
+};
+
+type ReferentPageMetadataRelationItem = {
+  detail?: string;
+  href: string;
+  id: string;
+  knowledgeType: AuthorableKnowledgeType | "biblePassage";
+  label: string;
+  thumbnailUrl?: string;
+};
+
+type ReferentPageMetadataSection = {
+  items: ReferentPageMetadataRelationItem[];
+  title: string;
+};
+
+type ReferentPageMetadata = {
+  canonicalKey: string;
+  description?: string;
+  detailKind: "literature" | "person" | "generic";
+  facts: ReferentPageMetadataFact[];
+  href: string;
+  id: string;
+  knowledgeType: AuthorableKnowledgeType | "biblePassage";
+  label: string;
+  sections: ReferentPageMetadataSection[];
+  sourceName?: string;
+  sourceUrl?: string;
+  tags: ActiveTag[];
   thumbnailUrl?: string;
 } | null;
 
@@ -605,13 +667,13 @@ type NotificationSubscriptionSource = {
   href: string;
   id: string;
   label: string;
-  organizationKind: OrganizationKind;
-  organizationName: string;
-  organizationReferentId: Id<"referents">;
+  organizationKind?: OrganizationKind;
+  organizationName?: string;
+  organizationReferentId?: Id<"referents">;
   secondaryLabel: string;
   subscriptionKey: string;
-  targetKind: "organization";
-  targetReferentId: Id<"referents">;
+  targetKind: KnowledgePageRelationshipKind;
+  targetReferentId?: Id<"referents">;
   updatedAt: number;
 };
 
@@ -625,7 +687,8 @@ type OrganizationAccountSetupResult = {
   canonicalKey: string;
   href: string;
   name: string;
-  organizationEntryId: Id<"organizationEntries">;
+  organizationDetailId?: Id<"organizationReferentDetails">;
+  organizationEntryId?: Id<"organizationEntries">;
   organizationKind: OrganizationKind;
   organizationReferentId: Id<"referents">;
 };
@@ -669,7 +732,8 @@ type OrganizationMember = {
 type OrganizationMembershipSettings = {
   members: OrganizationMember[];
   name: string;
-  organizationEntryId: Id<"organizationEntries">;
+  organizationDetailId?: Id<"organizationReferentDetails">;
+  organizationEntryId?: Id<"organizationEntries">;
   organizationKind: OrganizationKind;
   organizationReferentId: Id<"referents">;
 };
@@ -794,6 +858,15 @@ const ROUTES: RouteDefinition[] = [
     relatedRouteIds: ["dashboard", "explore-context"],
   },
   {
+    id: "smart-storage-workflow-prototype",
+    label: "Smart Storage Workflow Prototype",
+    href: "/playground/prototypes/smart-storage-workflow",
+    pattern: "/playground/prototypes/smart-storage-workflow?variant=",
+    icon: Database,
+    components: [],
+    relatedRouteIds: ["smart-storage-playground", "layout-prototype"],
+  },
+  {
     id: "layout-prototype",
     label: "Layout Prototype",
     href: "/playground/prototypes/layout",
@@ -875,10 +948,11 @@ const ROUTES: RouteDefinition[] = [
 
 const ROUTE_BY_ID = new Map(ROUTES.map((route) => [route.id, route]));
 const PRIMARY_ROUTE_IDS: PageId[] = ["dashboard"];
-const USER_ROUTE_IDS: PageId[] = ["todo-list", "calendar", "notifications"];
+const USER_ROUTE_IDS: PageId[] = ["calendar", "notifications", "todo-list"];
 const SYSTEM_ADMIN_ROUTE_IDS: PageId[] = ["system-admin"];
-const DEV_SYSTEM_ADMIN_ROUTE_IDS: PageId[] = [
-  "smart-storage-playground",
+const DEV_SYSTEM_ADMIN_ROUTE_IDS: PageId[] = ["smart-storage-playground"];
+const PROTOTYPE_ROUTE_IDS: PageId[] = [
+  "smart-storage-workflow-prototype",
   "layout-prototype",
   "header-sidebar-prototype",
 ];
@@ -1713,6 +1787,7 @@ export default function App() {
     >
       <PageScaffold
         appAccess={appAccess}
+        notificationUnreadCount={notificationUnreadSummary?.unreadCount ?? 0}
         onNavigate={navigate}
         onNavigateToHref={navigateToHref}
         onToggleTheme={toggleTheme}
@@ -1834,6 +1909,10 @@ function getPrototypeRouteIdFromSearch(search: string): PageId | null {
     return "header-sidebar-prototype";
   }
 
+  if (prototypeId === "smart-storage-workflow" || prototypeId === "smart-storage") {
+    return "smart-storage-workflow-prototype";
+  }
+
   return null;
 }
 
@@ -1898,7 +1977,6 @@ function KnowledgebaseShell({
   );
   const routeMotionClassName =
     routeMotionKey % 2 === 0 ? "kb-route-motion-a" : "kb-route-motion-b";
-  const showKnowledgePageDrawer = activePageId === "dashboard";
 
   useEffect(() => {
     if (
@@ -1967,21 +2045,7 @@ function KnowledgebaseShell({
           onRootSearchSubmit={onRootSearchSubmit}
         />
         <div className="kb-host-content" onScroll={handleContentScroll}>
-          <div
-            className={
-              showKnowledgePageDrawer
-                ? "kb-workspace-shell"
-                : "kb-workspace-shell kb-workspace-shell-rail-only"
-            }
-          >
-            {showKnowledgePageDrawer ? (
-              <KnowledgePageDrawer
-                activePageId={activePageId}
-                onNavigate={onNavigate}
-                pinnedKnowledgePages={pinnedKnowledgePages}
-                routeState={routeState}
-              />
-            ) : null}
+          <div className="kb-workspace-shell kb-workspace-shell-rail-only">
             <div className={`kb-route-transition ${routeMotionClassName}`}>
               {children}
             </div>
@@ -2047,7 +2111,7 @@ function Sidebar({
   showSystemAdminRoute: boolean;
   theme: ThemePreference;
 }) {
-  const showPinnedRail = activePageId !== "dashboard" && pinnedKnowledgePages.length > 0;
+  const dashboardRoute = getRoute("dashboard");
 
   return (
     <aside className="kb-sidebar" aria-label="Primary navigation">
@@ -2061,16 +2125,29 @@ function Sidebar({
         <BrandMark />
       </a>
 
-      {showPinnedRail ? (
+      <div
+        className="kb-sidebar-route-group kb-knowledge-route-group"
+        aria-label="Knowledge Page destinations"
+      >
+        <span className="kb-sidebar-section-label">Knowledge</span>
+        <RailNavLink
+          active={activePageId === "dashboard"}
+          href={dashboardRoute.href}
+          icon={dashboardRoute.icon}
+          label={dashboardRoute.label}
+          onNavigate={onNavigate}
+          secondaryLabel="All Accessible Knowledge"
+        />
         <RailPinnedKnowledgePages
           activePageId={activePageId}
           onNavigate={onNavigate}
           pinnedKnowledgePages={pinnedKnowledgePages}
           routeState={routeState}
         />
-      ) : null}
+      </div>
 
-      <nav className="kb-nav-stack kb-user-route-nav" aria-label="User Views">
+      <nav className="kb-nav-stack kb-sidebar-route-group kb-user-route-nav" aria-label="User Views">
+        <span className="kb-sidebar-section-label">Work</span>
         {USER_ROUTE_IDS.map((pageId) => {
           const route = getRoute(pageId);
 
@@ -2090,6 +2167,11 @@ function Sidebar({
             />
           );
         })}
+      </nav>
+
+      {showSystemAdminRoute || showDevSystemAdminRoutes ? (
+        <nav className="kb-nav-stack kb-sidebar-route-group kb-admin-route-nav" aria-label="Admin Area">
+          <span className="kb-sidebar-section-label">Admin</span>
         {showSystemAdminRoute
           ? SYSTEM_ADMIN_ROUTE_IDS.map((pageId) => {
               const route = getRoute(pageId);
@@ -2122,7 +2204,14 @@ function Sidebar({
               );
             })
           : null}
-      </nav>
+        {showDevSystemAdminRoutes ? (
+          <PrototypeRoutesControl
+            activePageId={activePageId}
+            onNavigate={onNavigate}
+          />
+        ) : null}
+        </nav>
+      ) : null}
 
       <nav className="kb-account-icons" aria-label="Account controls">
         <a
@@ -2165,6 +2254,125 @@ function Sidebar({
   );
 }
 
+function PrototypeRoutesControl({
+  activePageId,
+  onNavigate,
+}: {
+  activePageId: PageId;
+  onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+}) {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
+  const active = isPrototypeRoute(activePageId);
+
+  useEffect(() => {
+    if (!isDialogOpen) {
+      return;
+    }
+
+    dialogRef.current?.focus();
+
+    function handleKeyDown(event: globalThis.KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsDialogOpen(false);
+        buttonRef.current?.focus();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isDialogOpen]);
+
+  function handleCloseDialog() {
+    setIsDialogOpen(false);
+    buttonRef.current?.focus();
+  }
+
+  function handlePrototypeClick(
+    event: MouseEvent<HTMLAnchorElement>,
+    href: string,
+  ) {
+    handleCloseDialog();
+    onNavigate(event, href);
+  }
+
+  return (
+    <>
+      <button
+        aria-current={active ? "page" : undefined}
+        aria-expanded={isDialogOpen}
+        aria-haspopup="dialog"
+        aria-label="Prototypes"
+        className={active ? "kb-rail-button kb-rail-button-active" : "kb-rail-button"}
+        onClick={() => setIsDialogOpen(true)}
+        ref={buttonRef}
+        title="Prototypes"
+        type="button"
+      >
+        <FlaskConical aria-hidden="true" />
+      </button>
+      {isDialogOpen ? (
+        <div className="kb-pinned-overflow-dialog-backdrop" onMouseDown={handleCloseDialog}>
+          <section
+            aria-labelledby="kb-prototype-routes-dialog-heading"
+            aria-modal="true"
+            className="kb-pinned-overflow-dialog"
+            onMouseDown={(event) => event.stopPropagation()}
+            ref={dialogRef}
+            role="dialog"
+            tabIndex={-1}
+          >
+            <header>
+              <div>
+                <p className="kb-eyebrow">Admin</p>
+                <h3 id="kb-prototype-routes-dialog-heading">Prototype Pages</h3>
+              </div>
+              <button
+                aria-label="Close prototype pages"
+                className="kb-pinned-overflow-dialog-close"
+                onClick={handleCloseDialog}
+                type="button"
+              >
+                <X aria-hidden="true" />
+              </button>
+            </header>
+            <nav aria-label="Prototype Pages" className="kb-pinned-overflow-list">
+              {PROTOTYPE_ROUTE_IDS.map((pageId) => {
+                const route = getRoute(pageId);
+                const Icon = route.icon;
+                const routeActive = pageId === activePageId;
+
+                return (
+                  <a
+                    aria-current={routeActive ? "page" : undefined}
+                    aria-label={route.label}
+                    className={
+                      routeActive
+                        ? "kb-pinned-overflow-link kb-pinned-overflow-link-active"
+                        : "kb-pinned-overflow-link"
+                    }
+                    href={route.href}
+                    key={pageId}
+                    onClick={(event) => handlePrototypeClick(event, route.href)}
+                    title={route.label}
+                  >
+                    <Icon aria-hidden="true" />
+                    <span>
+                      <strong>{route.label}</strong>
+                      <small>Prototype</small>
+                    </span>
+                  </a>
+                );
+              })}
+            </nav>
+          </section>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 function RailPinnedKnowledgePages({
   activePageId,
   onNavigate,
@@ -2194,6 +2402,13 @@ function RailPinnedKnowledgePages({
           key={pin.id}
           label={pin.label}
           onNavigate={onNavigate}
+          secondaryLabel={pin.secondaryLabel}
+          visual={
+            <PinnedKnowledgePageVisual
+              className="kb-pinned-page-rail-visual"
+              pin={pin}
+            />
+          }
         />
       ))}
       {overflowPinnedKnowledgePages.length > 0 ? (
@@ -2263,6 +2478,12 @@ function KnowledgePageDrawer({
                 label={pin.label}
                 onNavigate={onNavigate}
                 secondaryLabel={pin.secondaryLabel}
+                visual={
+                  <PinnedKnowledgePageVisual
+                    className="kb-pinned-page-drawer-visual"
+                    pin={pin}
+                  />
+                }
               />
             ))}
             {overflowPinnedKnowledgePages.length > 0 ? (
@@ -2409,7 +2630,6 @@ function PinnedKnowledgePageOverflowDialog({
           className="kb-pinned-overflow-list"
         >
           {overflowPinnedKnowledgePages.map((pin) => {
-            const Icon = pin.icon;
             const active = isPinnedKnowledgePageActive(
               pin,
               activePageId,
@@ -2430,7 +2650,10 @@ function PinnedKnowledgePageOverflowDialog({
                 onClick={(event) => handleHiddenPinClick(event, pin.href)}
                 title={`${pin.label} - ${pin.secondaryLabel}`}
               >
-                <Icon aria-hidden="true" />
+                <PinnedKnowledgePageVisual
+                  className="kb-pinned-page-overflow-visual"
+                  pin={pin}
+                />
                 <span>
                   <strong>{pin.label}</strong>
                   <small>{pin.secondaryLabel}</small>
@@ -2451,6 +2674,8 @@ function RailNavLink({
   icon: Icon,
   label,
   onNavigate,
+  secondaryLabel,
+  visual,
 }: {
   active: boolean;
   badge?: number;
@@ -2458,6 +2683,8 @@ function RailNavLink({
   icon: ElementType<{ "aria-hidden"?: "true" }>;
   label: string;
   onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+  secondaryLabel?: string;
+  visual?: ReactNode;
 }) {
   return (
     <a
@@ -2468,7 +2695,11 @@ function RailNavLink({
       onClick={(event) => onNavigate(event, href)}
       title={label}
     >
-      <Icon aria-hidden="true" />
+      {visual ?? <Icon aria-hidden="true" />}
+      <span className="kb-rail-link-copy">
+        <span>{label}</span>
+        {secondaryLabel ? <small>{secondaryLabel}</small> : null}
+      </span>
       {badge ? (
         <span className="kb-nav-badge" aria-label="Unread notifications">
           {badge}
@@ -2508,6 +2739,7 @@ function SidebarNavLink({
   label,
   onNavigate,
   secondaryLabel,
+  visual,
 }: {
   active: boolean;
   badge?: number;
@@ -2516,6 +2748,7 @@ function SidebarNavLink({
   label: string;
   onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
   secondaryLabel?: string;
+  visual?: ReactNode;
 }) {
   return (
     <a
@@ -2526,7 +2759,7 @@ function SidebarNavLink({
       onClick={(event) => onNavigate(event, href)}
       title={secondaryLabel ? `${label} - ${secondaryLabel}` : label}
     >
-      <Icon aria-hidden="true" />
+      {visual ?? <Icon aria-hidden="true" />}
       <span className="kb-nav-label">
         <span className="kb-nav-primary-label">{label}</span>
         {secondaryLabel ? (
@@ -2540,6 +2773,45 @@ function SidebarNavLink({
       ) : null}
     </a>
   );
+}
+
+function PinnedKnowledgePageVisual({
+  className,
+  pin,
+}: {
+  className: string;
+  pin: SidebarPinnedKnowledgePage;
+}) {
+  return (
+    <ReferentTagVisual
+      className={className}
+      fallbackIcon={pin.icon}
+      tag={{
+        canonicalKey: pin.id,
+        href: pin.href,
+        id: pin.id,
+        knowledgeType: getPinnedKnowledgePageVisualType(pin),
+        label: pin.label,
+        ...(pin.thumbnailUrl === undefined
+          ? {}
+          : { thumbnailUrl: pin.thumbnailUrl }),
+      }}
+    />
+  );
+}
+
+function getPinnedKnowledgePageVisualType(pin: SidebarPinnedKnowledgePage): KnowledgeType {
+  if (pin.pageKind === "organization") {
+    return "organization";
+  }
+  if (pin.pageKind === "scripture") {
+    return "biblePassage";
+  }
+  if (pin.pageKind === "search" || pin.pageKind === "dashboard") {
+    return "words";
+  }
+
+  return "topic";
 }
 
 function TopBar({
@@ -2781,6 +3053,7 @@ function getVisibleRootSearchSuggestions(
 
 function PageScaffold({
   appAccess,
+  notificationUnreadCount,
   onNavigate,
   onNavigateToHref,
   onToggleTheme,
@@ -2789,6 +3062,7 @@ function PageScaffold({
   theme,
 }: {
   appAccess: AllowedAppAccess;
+  notificationUnreadCount: number;
   onNavigate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
   onNavigateToHref: (href: string) => void;
   onToggleTheme: () => void;
@@ -2803,6 +3077,7 @@ function PageScaffold({
       <BiblePassagePage
         appAccess={appAccess}
         onNavigateToHref={onNavigateToHref}
+        pinnedKnowledgePages={pinnedKnowledgePages}
         routeState={routeState}
       />
     );
@@ -2905,12 +3180,22 @@ function PageScaffold({
   const hasWorkingLayout = route.components.length > 0;
   const usesStandardKnowledgePageShell =
     isStandardKnowledgePageShellRoute(route.id);
+  const dashboardMetrics =
+    route.id === "dashboard"
+      ? getDashboardMetrics({
+          appAccess,
+          notificationUnreadCount,
+          pinnedKnowledgePages,
+        })
+      : undefined;
 
   return (
     <main
       className={
         hasWorkingLayout
-          ? "kb-main kb-scaffold-main kb-scaffold-main-working"
+          ? route.id === "dashboard"
+            ? "kb-main kb-scaffold-main kb-scaffold-main-working kb-dashboard-main"
+            : "kb-main kb-scaffold-main kb-scaffold-main-working"
           : "kb-main kb-scaffold-main"
       }
       aria-labelledby="kb-route-heading"
@@ -2940,17 +3225,17 @@ function PageScaffold({
         <KnowledgeTypeOverview referent={activeTags[0]} />
       ) : null}
 
-      {route.id === "dashboard" ? <TodayAgenda onNavigate={onNavigate} /> : null}
-
       {hasWorkingLayout ? (
         <ComponentScaffold
           activeTags={activeTags}
           allowedContributionTypes={route.allowedContributionTypes}
           appAccess={appAccess}
           components={route.components}
+          dashboardMetrics={dashboardMetrics}
           label={route.label}
           routeId={route.id}
           onNavigateToHref={onNavigateToHref}
+          pinnedKnowledgePages={pinnedKnowledgePages}
           routeState={routeState}
           showFeedHeading={!usesStandardKnowledgePageShell}
           showHeading={!usesStandardKnowledgePageShell}
@@ -2961,6 +3246,8 @@ function PageScaffold({
       ) : (
         <PagePlaceholder route={route} />
       )}
+
+      {route.id === "dashboard" ? <TodayAgenda onNavigate={onNavigate} /> : null}
 
       {route.relatedRouteIds ? (
         <RelatedRoutes
@@ -3024,7 +3311,41 @@ function canUseDevSystemAdminRoute(appAccess: AllowedAppAccess) {
 }
 
 function isPrototypeRoute(pageId: PageId) {
-  return pageId === "layout-prototype" || pageId === "header-sidebar-prototype";
+  return PROTOTYPE_ROUTE_IDS.includes(pageId);
+}
+
+type DashboardMetric = {
+  id: string;
+  label: string;
+  value: number;
+};
+
+function getDashboardMetrics({
+  appAccess,
+  notificationUnreadCount,
+  pinnedKnowledgePages,
+}: {
+  appAccess: AllowedAppAccess;
+  notificationUnreadCount: number;
+  pinnedKnowledgePages: SidebarPinnedKnowledgePage[];
+}): DashboardMetric[] {
+  return [
+    {
+      id: "pinned",
+      label: "Pinned",
+      value: pinnedKnowledgePages.length,
+    },
+    {
+      id: "unread",
+      label: "Unread",
+      value: notificationUnreadCount,
+    },
+    {
+      id: "admin",
+      label: "Admin Area",
+      value: appAccess.systemRole === "systemAdmin" ? 1 : 0,
+    },
+  ];
 }
 
 function PrototypeRoute({
@@ -3042,6 +3363,12 @@ function PrototypeRoute({
 
   if (routeId === "header-sidebar-prototype") {
     return <HeaderSidebarPrototype onToggleTheme={onToggleTheme} theme={theme} />;
+  }
+
+  if (routeId === "smart-storage-workflow-prototype") {
+    return (
+      <SmartStorageWorkflowPrototype onToggleTheme={onToggleTheme} theme={theme} />
+    );
   }
 
   return null;
@@ -3385,6 +3712,170 @@ function formatAnalyticsTime(timestamp: number) {
   return NOTIFICATION_TIME_FORMATTER.format(new Date(timestamp));
 }
 
+function KnowledgePageActions({
+  className,
+  pinnedKnowledgePages,
+  target,
+}: {
+  className?: string;
+  pinnedKnowledgePages: SidebarPinnedKnowledgePage[];
+  target: KnowledgePageActionTarget | null;
+}) {
+  const pinOrganizationPage = useMutation(api.pinnedKnowledgePages.pinOrganizationPage);
+  const pinKnowledgePage = useMutation(api.pinnedKnowledgePages.pinKnowledgePage);
+  const unpinKnowledgePage = useMutation(api.pinnedKnowledgePages.unpinKnowledgePage);
+  const bookmarkOrganizationPage = useMutation(
+    api.bookmarkedKnowledgePages.bookmarkOrganizationPage,
+  );
+  const bookmarkKnowledgePage = useMutation(
+    api.bookmarkedKnowledgePages.bookmarkKnowledgePage,
+  );
+  const removeBookmark = useMutation(api.bookmarkedKnowledgePages.removeBookmark);
+  const subscribeOrganizationPage = useMutation(
+    api.knowledgeSubscriptions.subscribeOrganizationPage,
+  );
+  const subscribeToKnowledgePage = useMutation(
+    api.knowledgeSubscriptions.subscribeToKnowledgePage,
+  );
+  const unsubscribe = useMutation(api.knowledgeSubscriptions.unsubscribe);
+  const [pendingPinAction, setPendingPinAction] = useState(false);
+  const [pendingBookmarkAction, setPendingBookmarkAction] = useState(false);
+  const [pendingSubscriptionAction, setPendingSubscriptionAction] = useState(false);
+  const currentBookmark = useQuery(
+    api.bookmarkedKnowledgePages.getForPage,
+    target ? { pageKey: target.pageKey } : "skip",
+  );
+  const currentSubscription = useQuery(
+    api.knowledgeSubscriptions.getForTarget,
+    target ? { subscriptionKey: target.pageKey } : "skip",
+  );
+  const isPinned = target
+    ? pinnedKnowledgePages.some((pin) => pin.pageKey === target.pageKey)
+    : false;
+  const isBookmarked = currentBookmark !== null && currentBookmark !== undefined;
+  const isSubscribed =
+    currentSubscription !== null && currentSubscription !== undefined;
+  const canToggleBookmark = target !== null && currentBookmark !== undefined;
+  const canToggleSubscription = target !== null && currentSubscription !== undefined;
+
+  if (!target) {
+    return null;
+  }
+
+  async function handleTogglePin() {
+    if (!target) {
+      return;
+    }
+
+    setPendingPinAction(true);
+    try {
+      if (isPinned) {
+        await unpinKnowledgePage({ pageKey: target.pageKey });
+      } else if (target.pageKind === "organization") {
+        if (!target.organizationReferentId) {
+          return;
+        }
+        await pinOrganizationPage({
+          organizationReferentId: target.organizationReferentId,
+        });
+      } else {
+        await pinKnowledgePage(getGenericKnowledgePageRelationshipInput(target));
+      }
+    } finally {
+      setPendingPinAction(false);
+    }
+  }
+
+  async function handleToggleBookmark() {
+    if (!target) {
+      return;
+    }
+
+    setPendingBookmarkAction(true);
+    try {
+      if (isBookmarked) {
+        await removeBookmark({ pageKey: target.pageKey });
+      } else if (target.pageKind === "organization") {
+        if (!target.organizationReferentId) {
+          return;
+        }
+        await bookmarkOrganizationPage({
+          organizationReferentId: target.organizationReferentId,
+        });
+      } else {
+        await bookmarkKnowledgePage(getGenericKnowledgePageRelationshipInput(target));
+      }
+    } finally {
+      setPendingBookmarkAction(false);
+    }
+  }
+
+  async function handleToggleSubscription() {
+    if (!target) {
+      return;
+    }
+
+    setPendingSubscriptionAction(true);
+    try {
+      if (isSubscribed) {
+        await unsubscribe({ subscriptionKey: target.pageKey });
+      } else if (target.pageKind === "organization") {
+        if (!target.organizationReferentId) {
+          return;
+        }
+        await subscribeOrganizationPage({
+          organizationReferentId: target.organizationReferentId,
+        });
+      } else {
+        await subscribeToKnowledgePage(getGenericKnowledgePageRelationshipInput(target));
+      }
+    } finally {
+      setPendingSubscriptionAction(false);
+    }
+  }
+
+  return (
+    <div className={["kb-knowledge-page-actions", className].filter(Boolean).join(" ")}>
+      <button
+        aria-label={`${isPinned ? "Unpin" : "Pin"} ${target.label}`}
+        aria-pressed={isPinned}
+        className="kb-knowledge-page-action-toggle"
+        data-action-kind="pin"
+        disabled={pendingPinAction}
+        onClick={() => void handleTogglePin()}
+        type="button"
+      >
+        {isPinned ? <PinOff aria-hidden="true" /> : <Pin aria-hidden="true" />}
+        <span>{isPinned ? "Unpin" : "Pin"}</span>
+      </button>
+      <button
+        aria-label={`${isBookmarked ? "Remove Bookmark" : "Bookmark"} ${target.label}`}
+        aria-pressed={isBookmarked}
+        className="kb-knowledge-page-action-toggle"
+        data-action-kind="bookmark"
+        disabled={pendingBookmarkAction || !canToggleBookmark}
+        onClick={() => void handleToggleBookmark()}
+        type="button"
+      >
+        <Bookmark aria-hidden="true" />
+        <span>{isBookmarked ? "Remove Bookmark" : "Bookmark"}</span>
+      </button>
+      <button
+        aria-label={`${isSubscribed ? "Unsubscribe" : "Subscribe"} ${target.label}`}
+        aria-pressed={isSubscribed}
+        className="kb-knowledge-page-action-toggle"
+        data-action-kind="subscription"
+        disabled={pendingSubscriptionAction || !canToggleSubscription}
+        onClick={() => void handleToggleSubscription()}
+        type="button"
+      >
+        <Bell aria-hidden="true" />
+        <span>{isSubscribed ? "Unsubscribe" : "Subscribe"}</span>
+      </button>
+    </div>
+  );
+}
+
 function OrganizationPage({
   appAccess,
   onNavigate,
@@ -3411,105 +3902,21 @@ function OrganizationPage({
     () => [getOrganizationActiveTag(profile)],
     [profile.id, profile.name, profile.organizationKind],
   );
-  const pinOrganizationPage = useMutation(api.pinnedKnowledgePages.pinOrganizationPage);
-  const unpinKnowledgePage = useMutation(api.pinnedKnowledgePages.unpinKnowledgePage);
-  const bookmarkOrganizationPage = useMutation(
-    api.bookmarkedKnowledgePages.bookmarkOrganizationPage,
-  );
-  const removeBookmark = useMutation(api.bookmarkedKnowledgePages.removeBookmark);
-  const subscribeOrganizationPage = useMutation(
-    api.knowledgeSubscriptions.subscribeOrganizationPage,
-  );
-  const unsubscribe = useMutation(api.knowledgeSubscriptions.unsubscribe);
-  const [pendingPinAction, setPendingPinAction] = useState(false);
-  const [pendingBookmarkAction, setPendingBookmarkAction] = useState(false);
-  const [pendingSubscriptionAction, setPendingSubscriptionAction] = useState(false);
-  const currentPageKey = profile.organizationReferentId
-    ? getOrganizationPageKey(profile.organizationReferentId)
+  const pageActionTarget = profile.organizationReferentId
+    ? {
+        href: getOrganizationHomeHrefFromId(profile.organizationReferentId),
+        label: profile.name,
+        organizationReferentId: profile.organizationReferentId,
+        pageKey: getOrganizationPageKey(profile.organizationReferentId),
+        pageKind: "organization" as const,
+        secondaryLabel: formatOrganizationKind(profile.organizationKind),
+      }
     : null;
-  const currentBookmark = useQuery(
-    api.bookmarkedKnowledgePages.getForPage,
-    currentPageKey ? { pageKey: currentPageKey } : "skip",
-  );
-  const currentSubscription = useQuery(
-    api.knowledgeSubscriptions.getForTarget,
-    currentPageKey ? { subscriptionKey: currentPageKey } : "skip",
-  );
-  const currentPin = currentPageKey
-    ? pinnedKnowledgePages.find((pin) => pin.pageKey === currentPageKey)
-    : undefined;
-  const isPinned = Boolean(currentPin);
-  const isBookmarked = currentBookmark !== null && currentBookmark !== undefined;
-  const isSubscribed =
-    currentSubscription !== null && currentSubscription !== undefined;
-  const canTogglePin = profile.organizationReferentId !== undefined;
-  const canToggleBookmark =
-    profile.organizationReferentId !== undefined && currentBookmark !== undefined;
-  const canToggleSubscription =
-    profile.organizationReferentId !== undefined &&
-    currentSubscription !== undefined;
   const TypeIcon = config.icon;
 
   useEffect(() => {
     setSelectedModeId(firstModeId);
   }, [firstModeId, profile.id, profile.organizationKind]);
-
-  async function handleToggleOrganizationPin() {
-    if (!profile.organizationReferentId || !currentPageKey) {
-      return;
-    }
-
-    setPendingPinAction(true);
-    try {
-      if (isPinned) {
-        await unpinKnowledgePage({ pageKey: currentPageKey });
-      } else {
-        await pinOrganizationPage({
-          organizationReferentId: profile.organizationReferentId,
-        });
-      }
-    } finally {
-      setPendingPinAction(false);
-    }
-  }
-
-  async function handleToggleOrganizationBookmark() {
-    if (!profile.organizationReferentId || !currentPageKey) {
-      return;
-    }
-
-    setPendingBookmarkAction(true);
-    try {
-      if (isBookmarked) {
-        await removeBookmark({ pageKey: currentPageKey });
-      } else {
-        await bookmarkOrganizationPage({
-          organizationReferentId: profile.organizationReferentId,
-        });
-      }
-    } finally {
-      setPendingBookmarkAction(false);
-    }
-  }
-
-  async function handleToggleOrganizationSubscription() {
-    if (!profile.organizationReferentId || !currentPageKey) {
-      return;
-    }
-
-    setPendingSubscriptionAction(true);
-    try {
-      if (isSubscribed) {
-        await unsubscribe({ subscriptionKey: currentPageKey });
-      } else {
-        await subscribeOrganizationPage({
-          organizationReferentId: profile.organizationReferentId,
-        });
-      }
-    } finally {
-      setPendingSubscriptionAction(false);
-    }
-  }
 
   return (
     <main
@@ -3557,47 +3964,11 @@ function OrganizationPage({
               <dd>{config.detailValue}</dd>
             </div>
           </dl>
-          <div className="kb-organization-page-controls">
-            {canTogglePin ? (
-              <button
-                aria-label={`${isPinned ? "Unpin" : "Pin"} ${profile.name}`}
-                aria-pressed={isPinned}
-                className="kb-organization-pin-toggle"
-                disabled={pendingPinAction}
-                onClick={() => void handleToggleOrganizationPin()}
-                type="button"
-              >
-                {isPinned ? <PinOff aria-hidden="true" /> : <Pin aria-hidden="true" />}
-                <span>{isPinned ? "Unpin" : "Pin"}</span>
-              </button>
-            ) : null}
-            {canToggleBookmark ? (
-              <button
-                aria-label={`${isBookmarked ? "Remove Bookmark" : "Bookmark"} ${profile.name}`}
-                aria-pressed={isBookmarked}
-                className="kb-organization-bookmark-toggle"
-                disabled={pendingBookmarkAction}
-                onClick={() => void handleToggleOrganizationBookmark()}
-                type="button"
-              >
-                <Bookmark aria-hidden="true" />
-                <span>{isBookmarked ? "Remove Bookmark" : "Bookmark"}</span>
-              </button>
-            ) : null}
-            {canToggleSubscription ? (
-              <button
-                aria-label={`${isSubscribed ? "Unsubscribe" : "Subscribe"} ${profile.name}`}
-                aria-pressed={isSubscribed}
-                className="kb-organization-subscription-toggle"
-                disabled={pendingSubscriptionAction}
-                onClick={() => void handleToggleOrganizationSubscription()}
-                type="button"
-              >
-                <Bell aria-hidden="true" />
-                <span>{isSubscribed ? "Unsubscribe" : "Subscribe"}</span>
-              </button>
-            ) : null}
-          </div>
+          <KnowledgePageActions
+            className="kb-organization-page-controls"
+            pinnedKnowledgePages={pinnedKnowledgePages}
+            target={pageActionTarget}
+          />
         </div>
 
         <aside className="kb-organization-actions" aria-label="Primary actions">
@@ -3714,6 +4085,7 @@ function OrganizationPage({
         components={getRoute("organization-home").components}
         label={profile.name}
         onNavigateToHref={onNavigateToHref}
+        pinnedKnowledgePages={pinnedKnowledgePages}
         routeId="organization-home"
         routeState={routeState}
         showHeading={false}
@@ -3853,7 +4225,8 @@ function getSidebarPinnedKnowledgePages(
 
   return durablePins.map((pin) => ({
     ...pin,
-    icon: ORGANIZATION_PAGE_CONFIGS[pin.organizationKind].icon,
+    icon: getPinnedKnowledgePageIcon(pin),
+    pageKind: pin.pageKind ?? "organization",
   }));
 }
 
@@ -3883,6 +4256,7 @@ function getSeededPinnedKnowledgePages(
       organizationKind: organization.organizationKind,
       organizationName: organization.name,
       organizationReferentId: organization.organizationReferentId,
+      pageKind: "organization",
       pageKey: getOrganizationPageKey(organization.organizationReferentId),
       pinSource: "defaultSeed",
       secondaryLabel: formatOrganizationKind(organization.organizationKind),
@@ -3898,6 +4272,17 @@ function isPinnedKnowledgePageActive(
   activePageId: PageId,
   routeState: RouteState,
 ) {
+  if (pin.pageKind !== "organization") {
+    const currentTarget = getKnowledgePageActionTarget({
+      activeTags: getActiveTagsFromRoute(routeState),
+      label: routeState.route.label,
+      routeId: routeState.route.id,
+      routeState,
+    });
+
+    return currentTarget?.pageKey === pin.pageKey;
+  }
+
   if (activePageId !== "organization-home" && activePageId !== "organization-settings") {
     return false;
   }
@@ -3908,8 +4293,35 @@ function isPinnedKnowledgePageActive(
   return (
     currentOrganizationId === pin.id ||
     currentLookupKey === normalizeOrganizationLookupKey(pin.id) ||
-    currentLookupKey === slugifyOrganizationId(pin.organizationName)
+    currentLookupKey === slugifyOrganizationId(pin.organizationName ?? pin.label)
   );
+}
+
+function getPinnedKnowledgePageIcon(pin: DurableSidebarPinnedKnowledgePage) {
+  if (pin.pageKind === "organization" || pin.organizationKind !== undefined) {
+    return ORGANIZATION_PAGE_CONFIGS[pin.organizationKind ?? "community"].icon;
+  }
+
+  return getKnowledgePageRelationshipIcon(pin.pageKind);
+}
+
+function getBookmarkedKnowledgePageIcon(bookmark: ProfileBookmarkedKnowledgePage) {
+  if (bookmark.pageKind === "organization" || bookmark.organizationKind !== undefined) {
+    return ORGANIZATION_PAGE_CONFIGS[bookmark.organizationKind ?? "community"].icon;
+  }
+
+  return getKnowledgePageRelationshipIcon(bookmark.pageKind);
+}
+
+function getSubscriptionSourceIcon(subscription: NotificationSubscriptionSource) {
+  if (
+    subscription.targetKind === "organization" ||
+    subscription.organizationKind !== undefined
+  ) {
+    return ORGANIZATION_PAGE_CONFIGS[subscription.organizationKind ?? "community"].icon;
+  }
+
+  return getKnowledgePageRelationshipIcon(subscription.targetKind);
 }
 
 function getActiveRoleOptions(appAccess: AllowedAppAccess): ActiveRoleOption[] {
@@ -3973,8 +4385,10 @@ function ComponentScaffold({
   allowedContributionTypes,
   appAccess,
   components,
+  dashboardMetrics,
   label,
   onNavigateToHref,
+  pinnedKnowledgePages,
   routeId,
   routeState,
   showFeedHeading = true,
@@ -3987,8 +4401,10 @@ function ComponentScaffold({
   allowedContributionTypes?: readonly AuthorableKnowledgeType[];
   appAccess: AllowedAppAccess;
   components: CoreComponentId[];
+  dashboardMetrics?: DashboardMetric[];
   label: string;
   onNavigateToHref: (href: string) => void;
+  pinnedKnowledgePages: SidebarPinnedKnowledgePage[];
   routeId: PageId;
   routeState: RouteState;
   showFeedHeading?: boolean;
@@ -4043,6 +4459,19 @@ function ComponentScaffold({
   const acceptSmartStorageProposal = useMutation(
     api.smartStorage.acceptScaffoldProposal,
   );
+  const confirmSmartStorageKnownReferent = useMutation(
+    api.smartStorage.confirmKnownReferentForReferenceResolution,
+  );
+  const requestSmartStorageRefresh = useMutation(
+    api.smartStorage.requestRefreshForProposal,
+  );
+  const requestSmartStorageEntryReprocessing = useMutation(
+    api.smartStorage.requestReprocessingForEntry,
+  );
+  const dismissSmartStorageRefresh = useMutation(
+    api.smartStorage.dismissRefreshSuggestion,
+  );
+  const cancelSmartStorageSession = useMutation(api.smartStorage.cancelSession);
   const recordHumanWeightFeedback = useMutation(api.humanWeightFeedback.record);
   const correctQuoteAttribution = useMutation(
     api.contextExpertise.correctQuoteAttribution,
@@ -4054,6 +4483,12 @@ function ComponentScaffold({
   const saveContributionDraft = useMutation(api.contributionDrafts.save);
   const clearContributionDraft = useMutation(api.contributionDrafts.clear);
   const activeContextKey = getKnowledgeContextKey(activeTags);
+  const knowledgePageActionTarget = getKnowledgePageActionTarget({
+    activeTags,
+    label,
+    routeId,
+    routeState,
+  });
   const routeRootSearchQuery = getRootSearchQueryFromRoute(routeState);
   const contextSearchQuery =
     routeId === "root-search"
@@ -4072,12 +4507,26 @@ function ComponentScaffold({
     routeId === "root-search" &&
     routeRootSearchQuery.length > 0 &&
     rootSearchResults === undefined;
+  const referentMetadataTag =
+    showIdentityBand && routeId === "tag" && activeTags.length === 1
+      ? activeTags[0]
+      : null;
   const representativeThumbnailTag =
     showIdentityBand &&
     activeTags.length === 1 &&
     supportsRepresentativeThumbnail(activeTags[0].knowledgeType)
       ? activeTags[0]
       : null;
+  const referentPageMetadata = useQuery(
+    api.referentPages.getReferentPageMetadata,
+    referentMetadataTag
+      ? {
+          canonicalKey: referentMetadataTag.canonicalKey,
+          knowledgeType: referentMetadataTag.knowledgeType,
+          tagLookupKey: referentMetadataTag.id,
+        }
+      : "skip",
+  ) as ReferentPageMetadata | undefined;
   const knowledgePageThumbnailState = useQuery(
     api.rootSearch.getKnowledgePageThumbnailState,
     representativeThumbnailTag
@@ -4413,6 +4862,19 @@ function ComponentScaffold({
     representationDecisions?: SmartStorageRepresentationDecision[],
     targetExistingEntryId?: string,
   ) {
+    if (
+      proposal.referenceResolution?.mode === "knownReferentMatch" &&
+      proposal.referenceResolution.candidateTagId !== undefined &&
+      targetExistingEntryId === undefined
+    ) {
+      await confirmSmartStorageKnownReferent({
+        smartStorageProposalId: proposal.id as Id<"smartStorageProposals">,
+        tagId: proposal.referenceResolution.candidateTagId as Id<"tags">,
+      });
+      refreshSmartStorageWizard((current) => current + 1);
+      return;
+    }
+
     const result = await acceptSmartStorageProposal({
       smartStorageProposalId: proposal.id as Id<"smartStorageProposals">,
       ...(representationDecisions && representationDecisions.length > 0
@@ -4452,6 +4914,52 @@ function ComponentScaffold({
     if (result.entry) {
       setFocusedCreatedEntry(result.entry);
     }
+    refreshSmartStorageWizard((current) => current + 1);
+  }
+
+  async function handleCancelSmartStorageSession(
+    session: SmartStorageSessionSummary,
+  ) {
+    await cancelSmartStorageSession({
+      contributionSubmissionId:
+        session.contributionSubmission.id as Id<"contributionSubmissions">,
+    });
+    setSmartStorageProposalReview(null);
+    setSmartStorageRunReview(null);
+    setActiveSmartStorageSessionId(null);
+    setIsSmartStorageWizardOpen(false);
+    setSmartStorageExistingEntryTargets({});
+  }
+
+  async function handleRequestSmartStorageRefresh(
+    proposal: SmartStorageSessionProposalSummary,
+  ) {
+    await requestSmartStorageRefresh({
+      smartStorageProposalId: proposal.id as Id<"smartStorageProposals">,
+    });
+    refreshSmartStorageWizard((current) => current + 1);
+  }
+
+  async function handleRequestSmartStorageEntryReprocessing(
+    session: SmartStorageSessionSummary,
+  ) {
+    if (session.acceptedPrimaryEntry === undefined) {
+      return;
+    }
+
+    await requestSmartStorageEntryReprocessing({
+      entryId: session.acceptedPrimaryEntry.id as Id<"knowledgeEntries">,
+      suggestionKind: "suggestedEdit",
+    });
+    refreshSmartStorageWizard((current) => current + 1);
+  }
+
+  async function handleDismissSmartStorageRefresh(
+    proposal: SmartStorageSessionProposalSummary,
+  ) {
+    await dismissSmartStorageRefresh({
+      smartStorageProposalId: proposal.id as Id<"smartStorageProposals">,
+    });
     refreshSmartStorageWizard((current) => current + 1);
   }
 
@@ -4737,10 +5245,20 @@ function ComponentScaffold({
         {showIdentityBand ? (
           <KnowledgePageIdentityBand
             activeTags={activeTags}
+            dashboardMetrics={dashboardMetrics}
             label={label}
             onAddThumbnail={handleAddKnowledgePageThumbnail}
+            pinnedKnowledgePages={pinnedKnowledgePages}
+            referentMetadata={referentPageMetadata}
             routeId={routeId}
+            target={knowledgePageActionTarget}
             thumbnailState={knowledgePageThumbnailState}
+          />
+        ) : null}
+        {referentMetadataTag ? (
+          <ReferentPageMetadataPanel
+            metadata={referentPageMetadata}
+            onNavigateToHref={onNavigateToHref}
           />
         ) : null}
         {showHeading ? (
@@ -4784,9 +5302,15 @@ function ComponentScaffold({
           <SmartStorageSessionWizard
             existingEntryTargets={smartStorageExistingEntryTargets}
             onAcceptProposal={handleAcceptSmartStorageWizardProposal}
+            onCancelSession={handleCancelSmartStorageSession}
             onClose={() => setIsSmartStorageWizardOpen(false)}
             onCreateBasicProposal={handleCreateBasicSmartStorageProposal}
+            onDismissRefresh={handleDismissSmartStorageRefresh}
             onNavigateToHref={onNavigateToHref}
+            onRequestEntryReprocessing={
+              handleRequestSmartStorageEntryReprocessing
+            }
+            onRequestRefresh={handleRequestSmartStorageRefresh}
             session={smartStorageWizardSession}
           />
         ) : null}
@@ -4883,15 +5407,23 @@ function ComponentScaffold({
 
 function KnowledgePageIdentityBand({
   activeTags,
+  dashboardMetrics,
   label,
   onAddThumbnail,
+  pinnedKnowledgePages,
+  referentMetadata,
   routeId,
+  target,
   thumbnailState,
 }: {
   activeTags: ActiveTag[];
+  dashboardMetrics?: DashboardMetric[];
   label: string;
   onAddThumbnail?: (entryId: string, file: File) => Promise<void>;
+  pinnedKnowledgePages: SidebarPinnedKnowledgePage[];
+  referentMetadata?: ReferentPageMetadata;
   routeId: PageId;
+  target: KnowledgePageActionTarget | null;
   thumbnailState?: KnowledgePageThumbnailState;
 }) {
   const identity = getKnowledgePageIdentity(routeId, label, activeTags);
@@ -4899,10 +5431,15 @@ function KnowledgePageIdentityBand({
   const [thumbnailUploadState, setThumbnailUploadState] = useState<
     "idle" | "uploading" | "error"
   >("idle");
+  const displayedThumbnailUrl =
+    thumbnailState?.thumbnailUrl ??
+    referentMetadata?.thumbnailUrl ??
+    singleActiveTag?.thumbnailUrl;
   const canAddThumbnail =
     thumbnailState !== undefined &&
     thumbnailState !== null &&
     thumbnailState.thumbnailUrl === undefined &&
+    displayedThumbnailUrl === undefined &&
     onAddThumbnail !== undefined &&
     singleActiveTag !== null &&
     supportsRepresentativeThumbnail(singleActiveTag.knowledgeType);
@@ -4929,6 +5466,7 @@ function KnowledgePageIdentityBand({
     <header
       aria-labelledby="kb-route-heading"
       className="kb-knowledge-page-identity"
+      data-dashboard={routeId === "dashboard" ? "true" : undefined}
       data-knowledge-type={singleActiveTag?.knowledgeType}
     >
       <div className="kb-knowledge-page-title">
@@ -4936,13 +5474,27 @@ function KnowledgePageIdentityBand({
         <h1 id="kb-route-heading">{identity.title}</h1>
       </div>
       <div className="kb-knowledge-page-identity-side">
-        {thumbnailState?.thumbnailUrl ? (
+        {dashboardMetrics ? (
+          <dl className="kb-dashboard-metrics" aria-label="Dashboard status">
+            {dashboardMetrics.map((metric) => (
+              <div key={metric.id}>
+                <dt>{metric.label}</dt>
+                <dd>{metric.value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+        {displayedThumbnailUrl ? (
           <img
             alt=""
             className="kb-knowledge-page-thumbnail"
-            src={thumbnailState.thumbnailUrl}
+            src={displayedThumbnailUrl}
           />
         ) : null}
+        <KnowledgePageActions
+          pinnedKnowledgePages={pinnedKnowledgePages}
+          target={target}
+        />
         <div
           aria-label="Active Knowledge Context summary"
           className="kb-knowledge-page-context"
@@ -4988,6 +5540,139 @@ function KnowledgePageIdentityBand({
   );
 }
 
+function ReferentPageMetadataPanel({
+  metadata,
+  onNavigateToHref,
+}: {
+  metadata: ReferentPageMetadata | undefined;
+  onNavigateToHref: (href: string) => void;
+}) {
+  if (metadata === undefined) {
+    return (
+      <section className="kb-referent-metadata" aria-busy="true">
+        <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
+        <span>Loading referent details</span>
+      </section>
+    );
+  }
+
+  if (metadata === null) {
+    return null;
+  }
+
+  function handleNavigate(
+    event: MouseEvent<HTMLAnchorElement>,
+    href: string,
+  ) {
+    event.preventDefault();
+    onNavigateToHref(href);
+  }
+
+  return (
+    <section
+      className="kb-referent-metadata"
+      data-knowledge-type={metadata.knowledgeType}
+      aria-labelledby="kb-referent-metadata-heading"
+    >
+      <header className="kb-referent-metadata-header">
+        <div>
+          <p className="kb-eyebrow">Stored Referent Data</p>
+          <h2 id="kb-referent-metadata-heading">{metadata.label}</h2>
+        </div>
+        {metadata.sourceUrl ? (
+          <a
+            className="kb-referent-source-link"
+            href={metadata.sourceUrl}
+            rel="noreferrer"
+            target="_blank"
+          >
+            <ExternalLink aria-hidden="true" />
+            <span>{metadata.sourceName ?? "Source"}</span>
+          </a>
+        ) : null}
+      </header>
+
+      {metadata.description ? (
+        <p className="kb-referent-description">{metadata.description}</p>
+      ) : null}
+
+      {metadata.facts.length > 0 ? (
+        <dl className="kb-referent-facts">
+          {metadata.facts.map((fact) => (
+            <div key={`${fact.label}:${fact.value}`}>
+              <dt>{fact.label}</dt>
+              <dd>{fact.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+
+      {metadata.tags.length > 1 ? (
+        <div className="kb-referent-aliases" aria-label="Referent tags">
+          {metadata.tags.map((tag) => (
+            <a
+              data-knowledge-type={tag.knowledgeType}
+              href={tag.href}
+              key={tag.id}
+              onClick={(event) => handleNavigate(event, tag.href)}
+            >
+              <ReferentTagVisual
+                className="kb-tag-chip-visual"
+                tag={tag}
+              />
+              <span>{tag.label}</span>
+            </a>
+          ))}
+        </div>
+      ) : null}
+
+      {metadata.sections.map((section) => (
+        <section
+          className="kb-referent-relation-section"
+          key={section.title}
+          aria-labelledby={`kb-referent-section-${sanitizeDomId(section.title)}`}
+        >
+          <h3 id={`kb-referent-section-${sanitizeDomId(section.title)}`}>
+            {section.title}
+          </h3>
+          <div className="kb-referent-relation-list">
+            {section.items.map((item) => (
+              <a
+                data-knowledge-type={item.knowledgeType}
+                href={item.href}
+                key={item.id}
+                onClick={(event) => handleNavigate(event, item.href)}
+              >
+                <ReferentTagVisual
+                  className="kb-referent-relation-visual"
+                  tag={{
+                    canonicalKey: item.id,
+                    href: item.href,
+                    id: item.id,
+                    knowledgeType: item.knowledgeType,
+                    label: item.label,
+                    ...(item.thumbnailUrl === undefined
+                      ? {}
+                      : { thumbnailUrl: item.thumbnailUrl }),
+                  }}
+                />
+                <span>
+                  <strong>{item.label}</strong>
+                  {item.detail ? <small>{item.detail}</small> : null}
+                </span>
+              </a>
+            ))}
+          </div>
+        </section>
+      ))}
+    </section>
+  );
+}
+
+function sanitizeDomId(value: string) {
+  return value.replace(/[^A-Za-z0-9_-]+/g, "-") || "section";
+}
+
 function getKnowledgePageIdentity(
   routeId: PageId,
   label: string,
@@ -4998,7 +5683,7 @@ function getKnowledgePageIdentity(
       contextDetail: "Accessible Root Knowledge Context",
       contextSummary: "All Accessible Knowledge",
       eyebrow: "Dashboard",
-      title: "Dashboard",
+      title: "All Accessible Knowledge",
     };
   }
 
@@ -5039,6 +5724,146 @@ function getKnowledgePageIdentity(
   };
 }
 
+function getKnowledgePageActionTarget({
+  activeTags,
+  label,
+  routeId,
+  routeState,
+}: {
+  activeTags: ActiveTag[];
+  label: string;
+  routeId: PageId;
+  routeState: RouteState;
+}): KnowledgePageActionTarget | null {
+  if (routeId === "dashboard") {
+    return {
+      href: "/",
+      label: "All Accessible Knowledge",
+      pageKey: "dashboard:root",
+      pageKind: "dashboard",
+      secondaryLabel: "Dashboard",
+    };
+  }
+
+  if (routeId === "root-search") {
+    const searchQuery = getRootSearchQueryFromRoute(routeState);
+    return {
+      href: `${routeState.pathname}${routeState.search}`,
+      label: searchQuery ? `Search: ${searchQuery}` : label,
+      pageKey: searchQuery ? `search:${searchQuery}` : "search:root",
+      pageKind: "search",
+      secondaryLabel: "Search",
+    };
+  }
+
+  if (routeId === "scripture" && activeTags.length === 1) {
+    const activeTag = activeTags[0];
+    return getBiblePassageActionTarget(activeTag);
+  }
+
+  if (routeId === "tag" && activeTags.length === 1) {
+    const activeTag = activeTags[0];
+    if (activeTag.knowledgeType === "biblePassage") {
+      return getBiblePassageActionTarget(activeTag);
+    }
+
+    return {
+      href: activeTag.href,
+      label: activeTag.label,
+      pageKey: `referent:${activeTag.knowledgeType}:${activeTag.canonicalKey}`,
+      pageKind: "referent",
+      secondaryLabel: `${formatKnowledgeTypeLabel(activeTag.knowledgeType)} Referent`,
+    };
+  }
+
+  if (routeId === "explore-context") {
+    const contextKey = getKnowledgeContextKey(activeTags);
+    return {
+      href: getCanonicalKnowledgeContextHref(activeTags),
+      label:
+        activeTags.length > 0
+          ? activeTags.map((tag) => tag.label).join(", ")
+          : "Global Knowledge Context",
+      pageKey: `context:${contextKey}`,
+      pageKind: "context",
+      secondaryLabel:
+        activeTags.length > 0 ? formatCount(activeTags.length, "Tag") : "Context Page",
+    };
+  }
+
+  return null;
+}
+
+function getBiblePassageActionTarget(activeTag: ActiveTag): KnowledgePageActionTarget {
+  return {
+    href: activeTag.href,
+    label: activeTag.label,
+    pageKey: `scripture:${activeTag.canonicalKey}`,
+    pageKind: "scripture",
+    secondaryLabel: "Bible Passage",
+  };
+}
+
+function getScriptureKnowledgePageActionTarget(passage: {
+  canonicalKey: string;
+  label: string;
+  passageString?: string;
+}): KnowledgePageActionTarget {
+  const passageKey = passage.canonicalKey || passage.passageString || passage.label;
+
+  return {
+    href: `/scripture/${encodeURIComponent(passage.passageString ?? passageKey)}`,
+    label: passage.label,
+    pageKey: `scripture:${passageKey}`,
+    pageKind: "scripture",
+    secondaryLabel: "Bible Passage",
+  };
+}
+
+type GenericKnowledgePageRelationshipInput = {
+  href: string;
+  label: string;
+  pageKey: string;
+  pageKind: Exclude<KnowledgePageRelationshipKind, "organization">;
+  secondaryLabel: string;
+};
+
+function getGenericKnowledgePageRelationshipInput(
+  target: KnowledgePageActionTarget,
+): GenericKnowledgePageRelationshipInput {
+  if (target.pageKind === "organization") {
+    throw new Error("Organization Knowledge Pages use organization-specific relationships.");
+  }
+
+  return {
+    href: target.href,
+    label: target.label,
+    pageKey: target.pageKey,
+    pageKind: target.pageKind,
+    secondaryLabel: target.secondaryLabel,
+  };
+}
+
+function getKnowledgePageRelationshipIcon(kind: KnowledgePageRelationshipKind) {
+  if (kind === "dashboard") {
+    return LayoutDashboard;
+  }
+  if (kind === "scripture") {
+    return BookOpen;
+  }
+  if (kind === "referent") {
+    return Tag;
+  }
+  if (kind === "context") {
+    return Compass;
+  }
+  if (kind === "search") {
+    return Search;
+  }
+
+  return Landmark;
+}
+
 function getRootSearchQueryFromRoute(routeState: RouteState) {
   if (routeState.route.id !== "root-search") {
     return "";
@@ -5070,9 +5895,13 @@ function hasFixtureContextTagIds(
 function SmartStorageSessionWizard({
   existingEntryTargets,
   onAcceptProposal,
+  onCancelSession,
   onClose,
   onCreateBasicProposal,
+  onDismissRefresh,
   onNavigateToHref,
+  onRequestEntryReprocessing,
+  onRequestRefresh,
   session,
 }: {
   existingEntryTargets: Record<string, string>;
@@ -5081,11 +5910,23 @@ function SmartStorageSessionWizard({
     representationDecisions?: SmartStorageRepresentationDecision[],
     targetExistingEntryId?: string,
   ) => Promise<void>;
+  onCancelSession: (session: SmartStorageSessionSummary) => Promise<void>;
   onClose: () => void;
   onCreateBasicProposal: (session: SmartStorageSessionSummary) => Promise<void>;
+  onDismissRefresh: (
+    proposal: SmartStorageSessionProposalSummary,
+  ) => Promise<void>;
   onNavigateToHref: (href: string) => void;
+  onRequestEntryReprocessing: (
+    session: SmartStorageSessionSummary,
+  ) => Promise<void>;
+  onRequestRefresh: (
+    proposal: SmartStorageSessionProposalSummary,
+  ) => Promise<void>;
   session: SmartStorageSessionSummary | null | undefined;
 }) {
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [isEvidenceOpen, setIsEvidenceOpen] = useState(false);
   const isLoading = session === undefined;
   const isUnavailable = session === null;
   const title = isLoading
@@ -5093,6 +5934,19 @@ function SmartStorageSessionWizard({
     : isUnavailable
       ? "Smart Storage unavailable"
       : getSmartStorageWizardTitle(session);
+
+  async function handleCancelSession() {
+    if (!session || !session.canCancel) {
+      return;
+    }
+
+    setIsCancelling(true);
+    try {
+      await onCancelSession(session);
+    } finally {
+      setIsCancelling(false);
+    }
+  }
 
   return (
     <div className="kb-smart-wizard-backdrop">
@@ -5107,15 +5961,27 @@ function SmartStorageSessionWizard({
             <p className="kb-eyebrow">Smart Storage Session</p>
             <h2>{title}</h2>
           </div>
-          <button
-            aria-label="Finish later"
-            className="kb-pinned-overflow-dialog-close"
-            onClick={onClose}
-            title="Finish later"
-            type="button"
-          >
-            <X aria-hidden="true" />
-          </button>
+          <div className="kb-smart-wizard-header-actions">
+            {session ? (
+              <button
+                className="kb-smart-wizard-evidence-button"
+                onClick={() => setIsEvidenceOpen(true)}
+                type="button"
+              >
+                <Database aria-hidden="true" />
+                <span>Source evidence</span>
+              </button>
+            ) : null}
+            <button
+              aria-label="Finish later"
+              className="kb-pinned-overflow-dialog-close"
+              onClick={onClose}
+              title="Finish later"
+              type="button"
+            >
+              <X aria-hidden="true" />
+            </button>
+          </div>
         </header>
 
         {isLoading ? (
@@ -5137,6 +6003,8 @@ function SmartStorageSessionWizard({
             <SmartStorageWizardProgress session={session} />
             {isFailedOrNoProposalSmartStorageSession(session) ? (
               <SmartStorageWizardFallbackPanel
+                isCancelling={isCancelling}
+                onCancelSession={handleCancelSession}
                 onClose={onClose}
                 onCreateBasicProposal={onCreateBasicProposal}
                 session={session}
@@ -5144,11 +6012,23 @@ function SmartStorageSessionWizard({
             ) : (
               <SmartStorageWizardReview
                 existingEntryTargets={existingEntryTargets}
+                isCancelling={isCancelling}
                 onAcceptProposal={onAcceptProposal}
+                onCancelSession={handleCancelSession}
+                onDismissRefresh={onDismissRefresh}
+                onClose={onClose}
                 onNavigateToHref={onNavigateToHref}
+                onRequestEntryReprocessing={onRequestEntryReprocessing}
+                onRequestRefresh={onRequestRefresh}
                 session={session}
               />
             )}
+            {isEvidenceOpen ? (
+              <SmartStorageWizardEvidenceDrawer
+                onClose={() => setIsEvidenceOpen(false)}
+                session={session}
+              />
+            ) : null}
           </>
         ) : null}
       </section>
@@ -5199,6 +6079,24 @@ function SmartStorageWizardProgress({
   session: SmartStorageSessionSummary;
 }) {
   const run = session.activeRun ?? session.latestRun;
+  const hasPrimarySaved = session.acceptedPrimaryEntry !== undefined;
+  const prerequisiteState =
+    session.state === "awaitingPrerequisites"
+      ? "active"
+      : hasPrimarySaved || session.state === "primaryReady"
+        ? "done"
+        : "pending";
+  const primaryState = hasPrimarySaved
+    ? "done"
+    : session.state === "primaryReady"
+      ? "active"
+      : "pending";
+  const reviewSlotState =
+    session.state === "reviewPending"
+      ? "active"
+      : session.state === "complete"
+        ? "done"
+        : "pending";
 
   return (
     <ol className="kb-smart-wizard-steps" aria-label="Smart Storage progress">
@@ -5220,11 +6118,33 @@ function SmartStorageWizardProgress({
           <small>{run ? formatSmartStorageRunStatus(run.status) : "Waiting"}</small>
         </span>
       </li>
-      <li data-state={session.primaryProposal ? "active" : "pending"}>
+      <li data-state={prerequisiteState}>
+        <Shield aria-hidden="true" />
+        <span>
+          <strong>Prerequisites</strong>
+          <small>
+            {session.prerequisiteProposals.length > 0
+              ? formatCount(session.prerequisiteProposals.length, "required item")
+              : "No required setup"}
+          </small>
+        </span>
+      </li>
+      <li data-state={primaryState}>
         <BookOpen aria-hidden="true" />
         <span>
           <strong>Primary Intended Entry</strong>
           <small>{formatSmartStorageSessionState(session.state)}</small>
+        </span>
+      </li>
+      <li data-state={reviewSlotState}>
+        <ListTodo aria-hidden="true" />
+        <span>
+          <strong>Review Slots</strong>
+          <small>
+            {session.pendingSecondaryProposals.length > 0
+              ? formatCount(session.pendingSecondaryProposals.length, "Review Slot")
+              : "None pending"}
+          </small>
         </span>
       </li>
     </ol>
@@ -5232,10 +6152,14 @@ function SmartStorageWizardProgress({
 }
 
 function SmartStorageWizardFallbackPanel({
+  isCancelling,
+  onCancelSession,
   onClose,
   onCreateBasicProposal,
   session,
 }: {
+  isCancelling: boolean;
+  onCancelSession: () => Promise<void>;
   onClose: () => void;
   onCreateBasicProposal: (session: SmartStorageSessionSummary) => Promise<void>;
   session: SmartStorageSessionSummary;
@@ -5243,6 +6167,7 @@ function SmartStorageWizardFallbackPanel({
   const [isCreating, setIsCreating] = useState(false);
   const latestRun = session.latestRun;
   const isNoProposal = latestRun?.status === "noProposal";
+  const canCancelSession = session.canCancel;
 
   async function handleCreateBasicProposal() {
     setIsCreating(true);
@@ -5290,10 +6215,16 @@ function SmartStorageWizardFallbackPanel({
           <Clock aria-hidden="true" />
           <span>Finish later</span>
         </button>
-        <button disabled title="Session cancellation is not supported yet." type="button">
-          <X aria-hidden="true" />
-          <span>Cancel session</span>
-        </button>
+        {canCancelSession ? (
+          <button
+            disabled={isCancelling}
+            onClick={() => void onCancelSession()}
+            type="button"
+          >
+            <X aria-hidden="true" />
+            <span>{isCancelling ? "Cancelling" : "Cancel session"}</span>
+          </button>
+        ) : null}
       </footer>
     </section>
   );
@@ -5301,100 +6232,427 @@ function SmartStorageWizardFallbackPanel({
 
 function SmartStorageWizardReview({
   existingEntryTargets,
+  isCancelling,
   onAcceptProposal,
+  onCancelSession,
+  onClose,
+  onDismissRefresh,
   onNavigateToHref,
+  onRequestEntryReprocessing,
+  onRequestRefresh,
   session,
 }: {
   existingEntryTargets: Record<string, string>;
+  isCancelling: boolean;
   onAcceptProposal: (
     proposal: SmartStorageSessionProposalSummary,
     representationDecisions?: SmartStorageRepresentationDecision[],
     targetExistingEntryId?: string,
   ) => Promise<void>;
+  onCancelSession: () => Promise<void>;
+  onClose: () => void;
+  onDismissRefresh: (
+    proposal: SmartStorageSessionProposalSummary,
+  ) => Promise<void>;
   onNavigateToHref: (href: string) => void;
+  onRequestEntryReprocessing: (
+    session: SmartStorageSessionSummary,
+  ) => Promise<void>;
+  onRequestRefresh: (
+    proposal: SmartStorageSessionProposalSummary,
+  ) => Promise<void>;
   session: SmartStorageSessionSummary;
 }) {
   const hasPrimarySaved = session.acceptedPrimaryEntry !== undefined;
+  const hasPrerequisiteProposals = session.prerequisiteProposals.length > 0;
+  const canCancelSession = session.canCancel;
+  const [isRequestingEntryReprocessing, setIsRequestingEntryReprocessing] =
+    useState(false);
+  const [isContinuationOpen, setIsContinuationOpen] = useState(false);
+
+  async function handleRequestEntryReprocessing() {
+    setIsRequestingEntryReprocessing(true);
+    try {
+      await onRequestEntryReprocessing(session);
+    } finally {
+      setIsRequestingEntryReprocessing(false);
+    }
+  }
+
+  if (hasPrimarySaved) {
+    return (
+      <div className="kb-smart-wizard-review kb-smart-wizard-review-saved">
+        <SmartStorageWizardSavedEntryFocus
+          isRequestingEntryReprocessing={isRequestingEntryReprocessing}
+          onNavigateToHref={onNavigateToHref}
+          onRequestEntryReprocessing={handleRequestEntryReprocessing}
+          session={session}
+        />
+
+        <SmartStorageWizardContinuationBar
+          existingEntryTargets={existingEntryTargets}
+          isOpen={isContinuationOpen}
+          onAcceptProposal={onAcceptProposal}
+          onDismissRefresh={onDismissRefresh}
+          onNavigateToHref={onNavigateToHref}
+          onRequestRefresh={onRequestRefresh}
+          onToggleOpen={() => setIsContinuationOpen((current) => !current)}
+          proposals={session.pendingSecondaryProposals}
+        />
+
+        <footer className="kb-smart-wizard-sticky-actions kb-smart-wizard-actions">
+          <button onClick={onClose} type="button">
+            <Clock aria-hidden="true" />
+            <span>Finish later</span>
+          </button>
+          {canCancelSession ? (
+            <button
+              disabled={isCancelling}
+              onClick={() => void onCancelSession()}
+              type="button"
+            >
+              <X aria-hidden="true" />
+              <span>{isCancelling ? "Cancelling" : "Cancel session"}</span>
+            </button>
+          ) : null}
+        </footer>
+      </div>
+    );
+  }
 
   return (
     <div className="kb-smart-wizard-review">
-      {hasPrimarySaved ? (
-        <section className="kb-smart-wizard-entry-saved" aria-label="Entry Saved">
-          <Check aria-hidden="true" />
-          <span>
-            <strong>Entry Saved</strong>
-            <small>{session.acceptedPrimaryEntry?.title}</small>
-          </span>
-        </section>
-      ) : null}
-
       <section className="kb-smart-wizard-main" aria-label="Required Smart Storage review">
         {session.prerequisiteProposals.map((proposal) => (
           <SmartStorageWizardProposalCard
             existingEntryId={existingEntryTargets[proposal.id]}
             key={proposal.id}
             onAccept={onAcceptProposal}
+            onDismissRefresh={onDismissRefresh}
             onNavigateToHref={onNavigateToHref}
+            onRequestRefresh={onRequestRefresh}
             proposal={proposal}
             tone="prerequisite"
           />
         ))}
 
-        {!hasPrimarySaved && session.primaryProposal ? (
+        {hasPrerequisiteProposals && session.primaryProposal ? (
+          <SmartStorageWizardLockedPrimarySummary
+            proposal={session.primaryProposal}
+          />
+        ) : session.primaryProposal ? (
           <SmartStorageWizardProposalCard
             existingEntryId={existingEntryTargets[session.primaryProposal.id]}
             onAccept={onAcceptProposal}
+            onDismissRefresh={onDismissRefresh}
             onNavigateToHref={onNavigateToHref}
+            onRequestRefresh={onRequestRefresh}
             proposal={session.primaryProposal}
             tone="primary"
           />
-        ) : !hasPrimarySaved ? (
+        ) : (
           <section className="kb-smart-wizard-empty" role="status">
             {session.activeRun
               ? "Preparing the Primary Intended Entry."
               : "No Primary Intended Entry is ready yet."}
           </section>
+        )}
+
+        {session.pendingSecondaryProposals.length > 0 ? (
+          <SmartStorageWizardQuietNext
+            proposals={session.pendingSecondaryProposals}
+          />
         ) : null}
       </section>
 
-      {session.pendingSecondaryProposals.length > 0 ? (
-        <aside className="kb-smart-wizard-later" aria-label="Later Smart Storage review">
-          <header>
-            <ListTodo aria-hidden="true" />
-            <span>
-              <strong>Later review work</strong>
-              <small>
-                {formatCount(
-                  session.pendingSecondaryProposals.length,
-                  "secondary proposal",
-                )}
-              </small>
-            </span>
-          </header>
-          <ol>
-            {session.pendingSecondaryProposals.map((proposal) => (
-              <li key={proposal.id}>
+      {canCancelSession ? (
+        <footer className="kb-smart-wizard-sticky-actions kb-smart-wizard-review-actions kb-smart-wizard-actions">
+          <button onClick={onClose} type="button">
+            <Clock aria-hidden="true" />
+            <span>Finish later</span>
+          </button>
+          <button
+            disabled={isCancelling}
+            onClick={() => void onCancelSession()}
+            type="button"
+          >
+            <X aria-hidden="true" />
+            <span>{isCancelling ? "Cancelling" : "Cancel session"}</span>
+          </button>
+        </footer>
+      ) : null}
+    </div>
+  );
+}
+
+function SmartStorageWizardSavedEntryFocus({
+  isRequestingEntryReprocessing,
+  onNavigateToHref,
+  onRequestEntryReprocessing,
+  session,
+}: {
+  isRequestingEntryReprocessing: boolean;
+  onNavigateToHref: (href: string) => void;
+  onRequestEntryReprocessing: () => Promise<void>;
+  session: SmartStorageSessionSummary;
+}) {
+  const entry = session.acceptedPrimaryEntry;
+  if (entry === undefined) {
+    return null;
+  }
+  const acceptedEntry = entry;
+
+  function handleEntryClick(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    onNavigateToHref(acceptedEntry.href);
+  }
+
+  return (
+    <section className="kb-smart-wizard-entry-focus" aria-label="Entry Saved">
+      <div>
+        <p className="kb-eyebrow">Entry Saved</p>
+        <h3>
+          <a href={acceptedEntry.href} onClick={handleEntryClick}>
+            {acceptedEntry.title}
+          </a>
+        </h3>
+        <p>{acceptedEntry.previewText}</p>
+      </div>
+      <KnowledgeTypeBadge
+        className="kb-smart-proposal-type"
+        knowledgeType={acceptedEntry.knowledgeType}
+      />
+      <button
+        disabled={isRequestingEntryReprocessing}
+        onClick={() => void onRequestEntryReprocessing()}
+        type="button"
+      >
+        {isRequestingEntryReprocessing ? (
+          <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
+        ) : (
+          <RotateCcw aria-hidden="true" />
+        )}
+        <span>
+          {isRequestingEntryReprocessing ? "Reprocessing" : "Reprocess Entry"}
+        </span>
+      </button>
+    </section>
+  );
+}
+
+function SmartStorageWizardLockedPrimarySummary({
+  proposal,
+}: {
+  proposal: SmartStorageSessionProposalSummary;
+}) {
+  return (
+    <article
+      aria-label="Locked Primary Intended Entry"
+      className="kb-smart-wizard-locked-primary"
+    >
+      <Shield aria-hidden="true" />
+      <span>
+        <strong>{proposal.currentProposal.title}</strong>
+        <small>
+          Primary unlocks after required setup. Review Slots stay secondary
+          until this Gold anchor exists.
+        </small>
+      </span>
+      <KnowledgeTypeBadge
+        className="kb-smart-proposal-type"
+        knowledgeType={proposal.currentProposal.knowledgeType}
+      />
+      <button disabled type="button">
+        <Check aria-hidden="true" />
+        <span>Accept Primary Entry</span>
+      </button>
+    </article>
+  );
+}
+
+function SmartStorageWizardQuietNext({
+  proposals,
+}: {
+  proposals: SmartStorageSessionProposalSummary[];
+}) {
+  const firstProposal = proposals[0];
+
+  return (
+    <section
+      aria-label="Later Smart Storage review"
+      className="kb-smart-wizard-quiet-next"
+    >
+      <ListTodo aria-hidden="true" />
+      <span>
+        <strong>Later review work</strong>
+        <small>
+          {formatCount(proposals.length, "Review Slot")}
+          {firstProposal ? `, starting with ${firstProposal.currentProposal.title}` : ""}
+        </small>
+      </span>
+    </section>
+  );
+}
+
+function SmartStorageWizardContinuationBar({
+  existingEntryTargets,
+  isOpen,
+  onAcceptProposal,
+  onDismissRefresh,
+  onNavigateToHref,
+  onRequestRefresh,
+  onToggleOpen,
+  proposals,
+}: {
+  existingEntryTargets: Record<string, string>;
+  isOpen: boolean;
+  onAcceptProposal: (
+    proposal: SmartStorageSessionProposalSummary,
+    representationDecisions?: SmartStorageRepresentationDecision[],
+    targetExistingEntryId?: string,
+  ) => Promise<void>;
+  onDismissRefresh: (
+    proposal: SmartStorageSessionProposalSummary,
+  ) => Promise<void>;
+  onNavigateToHref: (href: string) => void;
+  onRequestRefresh: (
+    proposal: SmartStorageSessionProposalSummary,
+  ) => Promise<void>;
+  onToggleOpen: () => void;
+  proposals: SmartStorageSessionProposalSummary[];
+}) {
+  const firstProposal = proposals[0];
+
+  if (proposals.length === 0) {
+    return (
+      <section
+        aria-label="Smart Storage continuation"
+        className="kb-smart-wizard-continuation"
+      >
+        <div>
+          <Check aria-hidden="true" />
+          <span>
+            <strong>Smart Storage review complete</strong>
+            <small>No remaining Review Slots for this session.</small>
+          </span>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section
+      aria-label="Smart Storage continuation"
+      className="kb-smart-wizard-continuation"
+      data-open={isOpen ? "true" : undefined}
+    >
+      <div>
+        <ListTodo aria-hidden="true" />
+        <span>
+          <strong>Later review work</strong>
+          <small>
+            {formatCount(proposals.length, "Review Slot")} remain
+            {firstProposal ? `, starting with ${firstProposal.currentProposal.title}` : ""}
+          </small>
+        </span>
+      </div>
+      <button onClick={onToggleOpen} type="button">
+        {isOpen ? "Hide review" : "Continue review"}
+      </button>
+      {isOpen ? (
+        <ol>
+          {proposals.map((proposal) => (
+            <li key={proposal.id}>
+              <SmartStorageWizardProposalCard
+                existingEntryId={existingEntryTargets[proposal.id]}
+                onAccept={onAcceptProposal}
+                onDismissRefresh={onDismissRefresh}
+                onNavigateToHref={onNavigateToHref}
+                onRequestRefresh={onRequestRefresh}
+                proposal={proposal}
+                tone="secondary"
+              />
+            </li>
+          ))}
+        </ol>
+      ) : null}
+    </section>
+  );
+}
+
+function SmartStorageWizardEvidenceDrawer({
+  onClose,
+  session,
+}: {
+  onClose: () => void;
+  session: SmartStorageSessionSummary;
+}) {
+  const proposals = getSmartStorageSessionEvidenceProposals(session);
+
+  return (
+    <aside
+      aria-label="Smart Storage source evidence"
+      className="kb-smart-wizard-evidence-drawer"
+    >
+      <header>
+        <div>
+          <p className="kb-eyebrow">Evidence</p>
+          <h3>Source support</h3>
+        </div>
+        <button aria-label="Close source evidence" onClick={onClose} type="button">
+          <X aria-hidden="true" />
+        </button>
+      </header>
+      {proposals.length > 0 ? (
+        <ol>
+          {proposals.map((proposal) => (
+            <li key={proposal.id}>
+              <header>
+                <span>
+                  <strong>{proposal.currentProposal.title}</strong>
+                  <small>{formatSmartStorageProposalRole(proposal.role)}</small>
+                </span>
                 <KnowledgeTypeBadge
                   className="kb-smart-proposal-type"
                   knowledgeType={proposal.currentProposal.knowledgeType}
                 />
-                <span>
-                  <strong>{proposal.currentProposal.title}</strong>
-                  <small>{formatSmartStorageProposalAcceptability(proposal)}</small>
-                </span>
-              </li>
-            ))}
-          </ol>
-        </aside>
-      ) : null}
-    </div>
+              </header>
+              {proposal.sourceCitations.length > 0 ? (
+                <ul className="kb-smart-proposal-citations">
+                  {proposal.sourceCitations.map((citation, index) => (
+                    <li key={citation.id}>
+                      <strong>
+                        {formatSourceCitationKind(citation.citationKind)} {index + 1}
+                      </strong>
+                      <small>
+                        {citation.excerptText ??
+                          citation.locator ??
+                          citation.externalUrl ??
+                          citation.rationale ??
+                          "Submitted Source"}
+                      </small>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>No Source citations are attached to this proposal.</p>
+              )}
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p>No proposal evidence is available yet.</p>
+      )}
+    </aside>
   );
 }
 
 function SmartStorageWizardProposalCard({
   existingEntryId,
   onAccept,
+  onDismissRefresh,
   onNavigateToHref,
+  onRequestRefresh,
   proposal,
   tone,
 }: {
@@ -5404,11 +6662,19 @@ function SmartStorageWizardProposalCard({
     representationDecisions?: SmartStorageRepresentationDecision[],
     targetExistingEntryId?: string,
   ) => Promise<void>;
+  onDismissRefresh: (
+    proposal: SmartStorageSessionProposalSummary,
+  ) => Promise<void>;
   onNavigateToHref: (href: string) => void;
+  onRequestRefresh: (
+    proposal: SmartStorageSessionProposalSummary,
+  ) => Promise<void>;
   proposal: SmartStorageSessionProposalSummary;
-  tone: "primary" | "prerequisite";
+  tone: "primary" | "prerequisite" | "secondary";
 }) {
   const [isAccepting, setIsAccepting] = useState(false);
+  const [isDismissingRefresh, setIsDismissingRefresh] = useState(false);
+  const [isRequestingRefresh, setIsRequestingRefresh] = useState(false);
   const [representationDecisions, setRepresentationDecisions] = useState<
     SmartStorageRepresentationDecision[]
   >(() => getInitialRepresentationDecisions(proposal));
@@ -5433,6 +6699,7 @@ function SmartStorageWizardProposalCard({
     proposal.status === "needsResolution" && existingEntryId !== undefined;
   const canAccept =
     proposal.acceptability.status === "ready" || isTargetExisting;
+  const isStaleRefresh = proposal.status === "stale" && proposal.refresh;
   const disablesAccept =
     isAccepting ||
     !canAccept ||
@@ -5458,6 +6725,24 @@ function SmartStorageWizardProposalCard({
       );
     } finally {
       setIsAccepting(false);
+    }
+  }
+
+  async function handleRequestRefresh() {
+    setIsRequestingRefresh(true);
+    try {
+      await onRequestRefresh(proposal);
+    } finally {
+      setIsRequestingRefresh(false);
+    }
+  }
+
+  async function handleDismissRefresh() {
+    setIsDismissingRefresh(true);
+    try {
+      await onDismissRefresh(proposal);
+    } finally {
+      setIsDismissingRefresh(false);
     }
   }
 
@@ -5521,6 +6806,18 @@ function SmartStorageWizardProposalCard({
         </p>
       ) : null}
 
+      {proposal.referenceResolution ? (
+        <p className="kb-smart-wizard-dependency">
+          {formatSmartStorageReferenceResolution(proposal.referenceResolution)}
+        </p>
+      ) : null}
+
+      {proposal.refresh ? (
+        <p className="kb-smart-wizard-dependency">
+          {proposal.refresh.originLabel}: {proposal.refresh.reason}
+        </p>
+      ) : null}
+
       {currentProposal.contextTags.length > 0 ? (
         <ul
           aria-label={`${currentProposal.title} context Tags`}
@@ -5542,99 +6839,135 @@ function SmartStorageWizardProposalCard({
       ) : null}
 
       {proposal.sourceCitations.length > 0 ? (
-        <ul
-          aria-label={`${currentProposal.title} Source citations`}
-          className="kb-smart-proposal-citations"
-        >
-          {proposal.sourceCitations.map((citation, index) => {
-            const decision = representationDecisionBySourceId.get(citation.sourceId) ?? {
-              includeAsRepresentation: false,
-              isPrimary: false,
-              representationRole: getDefaultRepresentationRole(citation),
-              sourceId: citation.sourceId,
-            };
-            const sourceLabel = `${formatSourceCitationKind(citation.citationKind)} ${
-              index + 1
-            }`;
+        <details className="kb-smart-proposal-evidence">
+          <summary>
+            <Database aria-hidden="true" />
+            <span>Evidence and representations</span>
+          </summary>
+          <ul
+            aria-label={`${currentProposal.title} Source citations`}
+            className="kb-smart-proposal-citations"
+          >
+            {proposal.sourceCitations.map((citation, index) => {
+              const decision = representationDecisionBySourceId.get(citation.sourceId) ?? {
+                includeAsRepresentation: false,
+                isPrimary: false,
+                representationRole: getDefaultRepresentationRole(citation),
+                sourceId: citation.sourceId,
+              };
+              const sourceLabel = `${formatSourceCitationKind(citation.citationKind)} ${
+                index + 1
+              }`;
 
-            return (
-              <li key={citation.id}>
-                <label className="kb-smart-proposal-citation-toggle">
-                  <input
-                    checked={decision.includeAsRepresentation}
-                    onChange={(event) =>
-                      handleSourceSelectionChange(
-                        citation.sourceId,
-                        event.currentTarget.checked,
-                      )
-                    }
-                    type="checkbox"
-                  />
-                  <span className="kb-smart-proposal-citation-copy">
-                    <strong>{formatSourceCitationKind(citation.citationKind)}</strong>
-                    <small>
-                      {citation.excerptText ??
-                        citation.locator ??
-                        citation.externalUrl ??
-                        citation.rationale ??
-                        "Submitted Source"}
-                    </small>
-                  </span>
-                </label>
-                <div className="kb-smart-proposal-citation-controls">
-                  <label className="kb-smart-proposal-role-field">
-                    <span>Representation Role</span>
-                    <select
-                      aria-label={`Representation Role for ${sourceLabel}`}
-                      disabled={!decision.includeAsRepresentation}
+              return (
+                <li key={citation.id}>
+                  <label className="kb-smart-proposal-citation-toggle">
+                    <input
+                      checked={decision.includeAsRepresentation}
                       onChange={(event) =>
-                        handleRepresentationRoleChange(
+                        handleSourceSelectionChange(
                           citation.sourceId,
-                          event.currentTarget.value,
+                          event.currentTarget.checked,
                         )
                       }
-                      value={decision.representationRole}
-                    >
-                      {REPRESENTATION_ROLE_OPTIONS.map((role) => (
-                        <option key={role} value={role}>
-                          {formatRepresentationRole(role)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="kb-smart-proposal-primary-field">
-                    <input
-                      checked={decision.isPrimary}
-                      disabled={!decision.includeAsRepresentation}
-                      name={`primary-representation-${proposal.id}`}
-                      onChange={() =>
-                        handlePrimaryRepresentationChange(citation.sourceId)
-                      }
-                      type="radio"
+                      type="checkbox"
                     />
-                    <span>Primary Representation</span>
+                    <span className="kb-smart-proposal-citation-copy">
+                      <strong>{formatSourceCitationKind(citation.citationKind)}</strong>
+                      <small>
+                        {citation.excerptText ??
+                          citation.locator ??
+                          citation.externalUrl ??
+                          citation.rationale ??
+                          "Submitted Source"}
+                      </small>
+                    </span>
                   </label>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                  <div className="kb-smart-proposal-citation-controls">
+                    <label className="kb-smart-proposal-role-field">
+                      <span>Representation Role</span>
+                      <select
+                        aria-label={`Representation Role for ${sourceLabel}`}
+                        disabled={!decision.includeAsRepresentation}
+                        onChange={(event) =>
+                          handleRepresentationRoleChange(
+                            citation.sourceId,
+                            event.currentTarget.value,
+                          )
+                        }
+                        value={decision.representationRole}
+                      >
+                        {REPRESENTATION_ROLE_OPTIONS.map((role) => (
+                          <option key={role} value={role}>
+                            {formatRepresentationRole(role)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="kb-smart-proposal-primary-field">
+                      <input
+                        checked={decision.isPrimary}
+                        disabled={!decision.includeAsRepresentation}
+                        name={`primary-representation-${proposal.id}`}
+                        onChange={() =>
+                          handlePrimaryRepresentationChange(citation.sourceId)
+                        }
+                        type="radio"
+                      />
+                      <span>Primary Representation</span>
+                    </label>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </details>
       ) : null}
 
       <footer className="kb-smart-wizard-actions">
-        <button
-          className="kb-card-action-primary"
-          disabled={disablesAccept}
-          onClick={() => void handleAcceptProposal()}
-          type="button"
-        >
-          {isAccepting ? (
-            <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
-          ) : (
-            <Check aria-hidden="true" />
-          )}
-          <span>{getSmartStorageWizardAcceptLabel(proposal, isTargetExisting)}</span>
-        </button>
+        {isStaleRefresh ? (
+          <button
+            className="kb-card-action-primary"
+            disabled={isRequestingRefresh}
+            onClick={() => void handleRequestRefresh()}
+            type="button"
+          >
+            {isRequestingRefresh ? (
+              <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
+            ) : (
+              <RotateCcw aria-hidden="true" />
+            )}
+            <span>
+              {isRequestingRefresh
+                ? "Refreshing"
+                : `Request ${proposal.refresh?.originLabel ?? "Refresh"}`}
+            </span>
+          </button>
+        ) : (
+          <button
+            className="kb-card-action-primary"
+            disabled={disablesAccept}
+            onClick={() => void handleAcceptProposal()}
+            type="button"
+          >
+            {isAccepting ? (
+              <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
+            ) : (
+              <Check aria-hidden="true" />
+            )}
+            <span>{getSmartStorageWizardAcceptLabel(proposal, isTargetExisting)}</span>
+          </button>
+        )}
+        {proposal.refresh ? (
+          <button
+            disabled={isDismissingRefresh}
+            onClick={() => void handleDismissRefresh()}
+            type="button"
+          >
+            <X aria-hidden="true" />
+            <span>{isDismissingRefresh ? "Dismissing" : "Dismiss"}</span>
+          </button>
+        ) : null}
       </footer>
     </article>
   );
@@ -5657,6 +6990,16 @@ function getSmartStorageWizardTitle(session: SmartStorageSessionSummary) {
     return "Smart Storage Complete";
   }
   return "Preparing Primary Proposal";
+}
+
+function getSmartStorageSessionEvidenceProposals(
+  session: SmartStorageSessionSummary,
+) {
+  return [
+    ...session.prerequisiteProposals,
+    ...(session.primaryProposal === undefined ? [] : [session.primaryProposal]),
+    ...session.pendingSecondaryProposals,
+  ];
 }
 
 function isFailedOrNoProposalSmartStorageSession(
@@ -5744,6 +7087,21 @@ function formatSmartStorageProposalAcceptability(
   return "Blocked";
 }
 
+function formatSmartStorageReferenceResolution(
+  resolution: NonNullable<
+    SmartStorageSessionProposalSummary["referenceResolution"]
+  >,
+) {
+  if (resolution.mode === "knownReferentMatch") {
+    const tag = resolution.resolvedTag ?? resolution.candidateTag ?? resolution.requiredTag;
+    return `Known Referent match: ${tag.label}`;
+  }
+
+  return `New Entry creates Referent: ${formatKnowledgeTypeLabel(
+    resolution.requiredTag.knowledgeType,
+  )} - ${resolution.requiredTag.label}`;
+}
+
 function getSmartStorageWizardAcceptLabel(
   proposal: SmartStorageSessionProposalSummary,
   isTargetExisting: boolean,
@@ -5756,6 +7114,11 @@ function getSmartStorageWizardAcceptLabel(
   }
   if (proposal.role === "prerequisite") {
     return "Accept Prerequisite";
+  }
+  if (proposal.role === "referenceResolution") {
+    return proposal.referenceResolution?.mode === "knownReferentMatch"
+      ? "Confirm Known Referent"
+      : "Accept Reference Entry";
   }
 
   return "Accept Proposal";
@@ -6751,7 +8114,7 @@ function ProfilePage({
         ) : bookmarkedKnowledgePages.length > 0 ? (
           <ul className="kb-profile-bookmark-list">
             {bookmarkedKnowledgePages.map((bookmark: ProfileBookmarkedKnowledgePage) => {
-              const BookmarkIcon = ORGANIZATION_PAGE_CONFIGS[bookmark.organizationKind].icon;
+              const BookmarkIcon = getBookmarkedKnowledgePageIcon(bookmark);
 
               return (
                 <li key={bookmark.pageKey}>
@@ -8276,13 +9639,228 @@ function TodoListPage({
   routeState: RouteState;
 }) {
   const route = getRoute("todo-list");
+  const acceptSmartStorageProposal = useMutation(
+    api.smartStorage.acceptScaffoldProposal,
+  );
+  const confirmSmartStorageKnownReferent = useMutation(
+    api.smartStorage.confirmKnownReferentForReferenceResolution,
+  );
+  const cancelSmartStorageSession = useMutation(api.smartStorage.cancelSession);
+  const assignSmartStorageReviewSlot = useMutation(
+    api.smartStorage.assignReviewSlot,
+  );
+  const requestSmartStorageRefresh = useMutation(
+    api.smartStorage.requestRefreshForProposal,
+  );
+  const requestSmartStorageEntryReprocessing = useMutation(
+    api.smartStorage.requestReprocessingForEntry,
+  );
+  const dismissSmartStorageRefresh = useMutation(
+    api.smartStorage.dismissRefreshSuggestion,
+  );
+  const generateSmartStorageProposal = useMutation(
+    api.smartStorage.generateDraftProposalForRun,
+  );
+  const [activeSmartStorageSessionId, setActiveSmartStorageSessionId] =
+    useState<Id<"contributionSubmissions"> | null>(null);
+  const [activeSmartStorageProposalId, setActiveSmartStorageProposalId] =
+    useState<Id<"smartStorageProposals"> | null>(null);
+  const [isSmartStorageWizardOpen, setIsSmartStorageWizardOpen] =
+    useState(false);
+  const [smartStorageExistingEntryTargets, setSmartStorageExistingEntryTargets] =
+    useState<Record<string, string>>({});
+  const [, refreshSmartStorageWizard] = useState(0);
   const assignedSlots = useQuery(api.answerFeed.listAssignedSlotsForCurrentUser, {
     limit: 50,
   }) as KnowledgeSlotSummary[] | undefined;
+  const assignedReviewSlots = useQuery(
+    api.smartStorage.listReviewSlotsForCurrentUser,
+    {
+      limit: 50,
+    },
+  ) as SmartStorageReviewSlotSummary[] | undefined;
   const todoSlots = assignedSlots ?? [];
+  const reviewSlots = assignedReviewSlots ?? [];
+  const reviewSlotGroups = groupSmartStorageReviewSlots(reviewSlots);
+  const totalTodoItems = todoSlots.length + reviewSlots.length;
+  const isLoadingTodo =
+    assignedSlots === undefined || assignedReviewSlots === undefined;
   const overdueCount = todoSlots.filter((slot) => slot.status === "overdue").length;
-  const openCount = todoSlots.filter((slot) => slot.status === "open").length;
+  const openCount =
+    todoSlots.filter((slot) => slot.status === "open").length +
+    reviewSlots.filter((slot) => slot.acceptReady).length;
   const nextDueLabel = getNextTodoDueLabel(todoSlots);
+  const smartStorageWizardSession = useQuery(
+    api.smartStorage.getSessionSummary,
+    isSmartStorageWizardOpen && activeSmartStorageSessionId !== null
+      ? {
+          contributionSubmissionId: activeSmartStorageSessionId,
+          ...(activeSmartStorageProposalId === null
+            ? {}
+            : { smartStorageProposalId: activeSmartStorageProposalId }),
+        }
+      : "skip",
+  ) as SmartStorageSessionSummary | null | undefined;
+
+  async function handleAcceptSmartStorageProposal(
+    proposal: SmartStorageSessionProposalSummary,
+    representationDecisions?: SmartStorageRepresentationDecision[],
+    targetExistingEntryId?: string,
+  ) {
+    if (
+      proposal.referenceResolution?.mode === "knownReferentMatch" &&
+      proposal.referenceResolution.candidateTagId !== undefined &&
+      targetExistingEntryId === undefined
+    ) {
+      await confirmSmartStorageKnownReferent({
+        smartStorageProposalId: proposal.id as Id<"smartStorageProposals">,
+        tagId: proposal.referenceResolution.candidateTagId as Id<"tags">,
+      });
+      refreshSmartStorageWizard((current) => current + 1);
+      return;
+    }
+
+    const result = await acceptSmartStorageProposal({
+      smartStorageProposalId: proposal.id as Id<"smartStorageProposals">,
+      ...(representationDecisions && representationDecisions.length > 0
+        ? {
+            representationDecisions: representationDecisions.map(
+              (decision) => ({
+                includeAsRepresentation: decision.includeAsRepresentation,
+                isPrimary: decision.isPrimary,
+                representationRole: decision.representationRole,
+                sourceId: decision.sourceId as Id<"sources">,
+              }),
+            ),
+          }
+        : {}),
+      ...(targetExistingEntryId === undefined
+        ? {}
+        : {
+            targetExistingEntryId:
+              targetExistingEntryId as Id<"knowledgeEntries">,
+          }),
+    });
+    if (result.acceptanceStatus === "targetExists" && result.existingEntryId) {
+      setSmartStorageExistingEntryTargets((current) => ({
+        ...current,
+        [proposal.id]: result.existingEntryId,
+      }));
+      refreshSmartStorageWizard((current) => current + 1);
+      return;
+    }
+
+    setSmartStorageExistingEntryTargets((current) => {
+      const next = { ...current };
+      delete next[proposal.id];
+      return next;
+    });
+    refreshSmartStorageWizard((current) => current + 1);
+  }
+
+  async function handleCreateBasicSmartStorageProposal(
+    session: SmartStorageSessionSummary,
+  ) {
+    const runId = session.activeRun?.id ?? session.latestRun?.id;
+    if (runId === undefined) {
+      return;
+    }
+
+    await generateSmartStorageProposal({
+      smartStorageRunId: runId as Id<"smartStorageRuns">,
+    });
+    refreshSmartStorageWizard((current) => current + 1);
+  }
+
+  async function handleCancelSmartStorageSession(
+    session: SmartStorageSessionSummary,
+  ) {
+    await cancelSmartStorageSession({
+      contributionSubmissionId:
+        session.contributionSubmission.id as Id<"contributionSubmissions">,
+    });
+    setActiveSmartStorageSessionId(null);
+    setActiveSmartStorageProposalId(null);
+    setIsSmartStorageWizardOpen(false);
+    setSmartStorageExistingEntryTargets({});
+  }
+
+  async function handleRequestSmartStorageRefresh(
+    proposal: SmartStorageSessionProposalSummary,
+  ) {
+    await requestSmartStorageRefresh({
+      smartStorageProposalId: proposal.id as Id<"smartStorageProposals">,
+    });
+    refreshSmartStorageWizard((current) => current + 1);
+  }
+
+  async function handleRequestSmartStorageEntryReprocessing(
+    session: SmartStorageSessionSummary,
+  ) {
+    if (session.acceptedPrimaryEntry === undefined) {
+      return;
+    }
+
+    await requestSmartStorageEntryReprocessing({
+      entryId: session.acceptedPrimaryEntry.id as Id<"knowledgeEntries">,
+      suggestionKind: "suggestedEdit",
+    });
+    refreshSmartStorageWizard((current) => current + 1);
+  }
+
+  async function handleDismissSmartStorageRefresh(
+    proposal: SmartStorageSessionProposalSummary,
+  ) {
+    await dismissSmartStorageRefresh({
+      smartStorageProposalId: proposal.id as Id<"smartStorageProposals">,
+    });
+    refreshSmartStorageWizard((current) => current + 1);
+  }
+
+  function handleResumeSmartStorageReviewSlot(
+    reviewSlot: SmartStorageReviewSlotSummary,
+  ) {
+    setSmartStorageExistingEntryTargets({});
+    setActiveSmartStorageSessionId(
+      reviewSlot.contributionSubmissionId as Id<"contributionSubmissions">,
+    );
+    setActiveSmartStorageProposalId(
+      reviewSlot.smartStorageProposalId as Id<"smartStorageProposals">,
+    );
+    setIsSmartStorageWizardOpen(true);
+  }
+
+  async function handleAssignSmartStorageReviewSlot(
+    reviewSlot: SmartStorageReviewSlotSummary,
+    targetUserId: string,
+  ) {
+    await assignSmartStorageReviewSlot({
+      smartStorageProposalId:
+        reviewSlot.smartStorageProposalId as Id<"smartStorageProposals">,
+      targetKind: "user",
+      targetUserId: targetUserId as Id<"users">,
+    });
+  }
+
+  async function handleRequestSmartStorageReviewSlotRefresh(
+    reviewSlot: SmartStorageReviewSlotSummary,
+  ) {
+    await requestSmartStorageRefresh({
+      smartStorageProposalId:
+        reviewSlot.smartStorageProposalId as Id<"smartStorageProposals">,
+    });
+    refreshSmartStorageWizard((current) => current + 1);
+  }
+
+  async function handleDismissSmartStorageReviewSlotRefresh(
+    reviewSlot: SmartStorageReviewSlotSummary,
+  ) {
+    await dismissSmartStorageRefresh({
+      smartStorageProposalId:
+        reviewSlot.smartStorageProposalId as Id<"smartStorageProposals">,
+    });
+    refreshSmartStorageWizard((current) => current + 1);
+  }
 
   return (
     <main className="kb-main kb-todo-main" aria-labelledby="kb-todo-heading">
@@ -8298,7 +9876,7 @@ function TodoListPage({
         <div>
           <ListTodo aria-hidden="true" />
           <span>Assigned</span>
-          <strong>{formatCountLabel(todoSlots.length, "slot")}</strong>
+          <strong>{formatCountLabel(totalTodoItems, "item")}</strong>
         </div>
         <div>
           <Clock aria-hidden="true" />
@@ -8308,7 +9886,7 @@ function TodoListPage({
         <div>
           <Check aria-hidden="true" />
           <span>Open</span>
-          <strong>{formatCountLabel(openCount, "open slot")}</strong>
+          <strong>{formatCountLabel(openCount, "open item")}</strong>
         </div>
         <div>
           <Bell aria-hidden="true" />
@@ -8320,18 +9898,18 @@ function TodoListPage({
       <section className="kb-todo-panel" aria-labelledby="kb-todo-list-heading">
         <header>
           <div>
-            <p className="kb-eyebrow">Knowledge Slots</p>
+            <p className="kb-eyebrow">Knowledge Slots and Review Slots</p>
             <h2 id="kb-todo-list-heading">Assigned to You</h2>
           </div>
-          <span>{formatCountLabel(todoSlots.length, "item")}</span>
+          <span>{formatCountLabel(totalTodoItems, "item")}</span>
         </header>
 
-        {assignedSlots === undefined ? (
+        {isLoadingTodo ? (
           <section className="kb-todo-empty" role="status">
-            <h3>Loading assigned Knowledge Slots.</h3>
-            <p>Checking open requests targeted to your user account.</p>
+            <h3>Loading assigned work.</h3>
+            <p>Checking open requests and Smart Storage review work.</p>
           </section>
-        ) : todoSlots.length > 0 ? (
+        ) : totalTodoItems > 0 ? (
           <ol className="kb-todo-list">
             {todoSlots.map((slot) => (
               <li key={slot.id}>
@@ -8341,11 +9919,49 @@ function TodoListPage({
                 />
               </li>
             ))}
+            {reviewSlotGroups.map((group) => (
+              <li className="kb-todo-review-group" key={group.group.id}>
+                <section aria-labelledby={`todo-review-group-${group.group.id}`}>
+                  <header>
+                    <div>
+                      <p className="kb-eyebrow">Review Slots</p>
+                      <h3 id={`todo-review-group-${group.group.id}`}>
+                        <a
+                          href={group.group.href}
+                          onClick={(event) => onNavigate(event, group.group.href)}
+                        >
+                          {group.group.title}
+                        </a>
+                      </h3>
+                    </div>
+                    <span>{formatCountLabel(group.reviewSlots.length, "review slot")}</span>
+                  </header>
+                  <ol>
+                    {group.reviewSlots.map((reviewSlot) => (
+                      <li key={reviewSlot.id}>
+                        <ReviewSlotCard
+                          onAssign={handleAssignSmartStorageReviewSlot}
+                          onDismissRefresh={
+                            handleDismissSmartStorageReviewSlotRefresh
+                          }
+                          onNavigateToHref={onNavigateToHref}
+                          onRequestRefresh={
+                            handleRequestSmartStorageReviewSlotRefresh
+                          }
+                          onResume={handleResumeSmartStorageReviewSlot}
+                          reviewSlot={reviewSlot}
+                        />
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              </li>
+            ))}
           </ol>
         ) : (
           <section className="kb-todo-empty" role="status">
-            <h3>No assigned Knowledge Slots.</h3>
-            <p>Open user-targeted requests will appear here when they are assigned to you.</p>
+            <h3>No assigned work.</h3>
+            <p>Open requests and Smart Storage Review Slots will appear here.</p>
           </section>
         )}
       </section>
@@ -8356,8 +9972,53 @@ function TodoListPage({
           relatedRouteIds={route.relatedRouteIds}
         />
       ) : null}
+
+      {isSmartStorageWizardOpen && activeSmartStorageSessionId !== null ? (
+        <SmartStorageSessionWizard
+          existingEntryTargets={smartStorageExistingEntryTargets}
+          onAcceptProposal={handleAcceptSmartStorageProposal}
+          onCancelSession={handleCancelSmartStorageSession}
+          onClose={() => {
+            setActiveSmartStorageProposalId(null);
+            setIsSmartStorageWizardOpen(false);
+          }}
+          onCreateBasicProposal={handleCreateBasicSmartStorageProposal}
+          onDismissRefresh={handleDismissSmartStorageRefresh}
+          onNavigateToHref={onNavigateToHref}
+          onRequestEntryReprocessing={
+            handleRequestSmartStorageEntryReprocessing
+          }
+          onRequestRefresh={handleRequestSmartStorageRefresh}
+          session={smartStorageWizardSession}
+        />
+      ) : null}
     </main>
   );
+}
+
+function groupSmartStorageReviewSlots(reviewSlots: SmartStorageReviewSlotSummary[]) {
+  const groups: Array<{
+    group: SmartStorageReviewSlotSummary["group"];
+    reviewSlots: SmartStorageReviewSlotSummary[];
+  }> = [];
+  const groupById = new Map<string, (typeof groups)[number]>();
+
+  for (const reviewSlot of reviewSlots) {
+    const existingGroup = groupById.get(reviewSlot.group.id);
+    if (existingGroup) {
+      existingGroup.reviewSlots.push(reviewSlot);
+      continue;
+    }
+
+    const nextGroup = {
+      group: reviewSlot.group,
+      reviewSlots: [reviewSlot],
+    };
+    groupById.set(reviewSlot.group.id, nextGroup);
+    groups.push(nextGroup);
+  }
+
+  return groups;
 }
 
 function getNextTodoDueLabel(slots: KnowledgeSlotSummary[]) {
@@ -8742,8 +10403,7 @@ function NotificationsPage({
         ) : subscriptionSources.length > 0 ? (
           <ul className="kb-subscription-source-list">
             {subscriptionSources.map((subscription: NotificationSubscriptionSource) => {
-              const SubscriptionIcon =
-                ORGANIZATION_PAGE_CONFIGS[subscription.organizationKind].icon;
+              const SubscriptionIcon = getSubscriptionSourceIcon(subscription);
 
               return (
                 <li key={subscription.subscriptionKey}>
@@ -9739,10 +11399,12 @@ function decodePathSegment(segment: string) {
 function BiblePassagePage({
   appAccess,
   onNavigateToHref,
+  pinnedKnowledgePages,
   routeState,
 }: {
   appAccess: AllowedAppAccess;
   onNavigateToHref: (href: string) => void;
+  pinnedKnowledgePages: SidebarPinnedKnowledgePage[];
   routeState: RouteState;
 }) {
   const passageString = getScripturePassageString(routeState.pathname);
@@ -9845,6 +11507,15 @@ function BiblePassagePage({
   const translationLabel = passage.translation
     ? `${passage.translation.name} (${passage.translation.code})`
     : "No translation selected";
+  const pageActionTarget = getScriptureKnowledgePageActionTarget(passage);
+
+  function handleVerseReferenceClick(
+    event: MouseEvent<HTMLAnchorElement>,
+    href: string,
+  ) {
+    event.preventDefault();
+    onNavigateToHref(href);
+  }
 
   return (
     <main
@@ -9857,7 +11528,13 @@ function BiblePassagePage({
           <p className="kb-eyebrow">Bible Passage Referent Page</p>
           <h1 id="kb-scripture-heading">{passage.label}</h1>
         </div>
-        <RouteMeta routeState={routeState} />
+        <div className="kb-route-header-side">
+          <KnowledgePageActions
+            pinnedKnowledgePages={pinnedKnowledgePages}
+            target={pageActionTarget}
+          />
+          <RouteMeta routeState={routeState} />
+        </div>
       </header>
 
       <section
@@ -9883,7 +11560,13 @@ function BiblePassagePage({
           <div className="kb-verse-list">
             {passage.verses.map((verse) => (
               <p className="kb-verse-row" key={verse.ordinal}>
-                <span className="kb-verse-ref">{formatVerseReference(verse)}</span>
+                <a
+                  className="kb-verse-ref"
+                  href={verse.href}
+                  onClick={(event) => handleVerseReferenceClick(event, verse.href)}
+                >
+                  {formatVerseReference(verse)}
+                </a>
                 <span>{verse.text ?? "Text unavailable"}</span>
               </p>
             ))}
@@ -9904,6 +11587,7 @@ function BiblePassagePage({
         components={getRoute("scripture").components}
         label={passage.label}
         onNavigateToHref={onNavigateToHref}
+        pinnedKnowledgePages={pinnedKnowledgePages}
         routeId="scripture"
         routeState={routeState}
         showHeading={false}

@@ -38,4 +38,24 @@ describe("KnowledgeTypeOverview", () => {
     expect(markup).toContain(referent.canonicalKey);
     expect(markup).toContain(referent.label);
   });
+
+  it("uses a referent thumbnail in the overview visual slot when available", () => {
+    const referent: ActiveTag = {
+      canonicalKey: "mark-twain",
+      href: "/goto/mark-twain",
+      id: "mark-twain",
+      knowledgeType: "person",
+      label: "Mark Twain",
+      thumbnailUrl: "https://images.example/mark-twain.jpg",
+    };
+
+    const markup = renderToStaticMarkup(
+      <KnowledgeTypeOverview referent={referent} />,
+    );
+
+    expect(markup).toContain('class="kb-overview-icon"');
+    expect(markup).toContain('data-has-thumbnail="true"');
+    expect(markup).toContain('src="https://images.example/mark-twain.jpg"');
+    expect(markup).not.toContain("kb-overview-type-icon");
+  });
 });

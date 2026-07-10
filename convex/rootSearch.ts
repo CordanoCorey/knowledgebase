@@ -6,6 +6,7 @@ import {
   getEntryThumbnailUrl,
   getRepresentedReferentThumbnailUrl,
 } from "./lib/referentThumbnails";
+import { resolveBiblePassageSearchTarget } from "./lib/scriptureSearch";
 
 // Root search blends tag/referent matches with represented entries while
 // respecting the current user's app access.
@@ -164,6 +165,14 @@ export const listRootSearchResults = query({
     }
 
     const resultsByReferent = new Map<string, ScoredRootSearchResult>();
+    const biblePassageResult = await toBiblePassageRootSearchResult(
+      ctx,
+      searchText,
+    );
+    if (biblePassageResult) {
+      addRootSearchResult(resultsByReferent, biblePassageResult);
+    }
+
     const candidateEntries = await searchEntryCandidates(ctx, searchText, limit);
 
     for (const entry of candidateEntries) {
@@ -178,7 +187,6 @@ export const listRootSearchResults = query({
 
       addRootSearchResult(
         resultsByReferent,
-        entry.representedReferentId,
         result,
       );
     }
@@ -201,7 +209,7 @@ export const listRootSearchResults = query({
         continue;
       }
 
-      addRootSearchResult(resultsByReferent, candidate.tag.referentId, result);
+      addRootSearchResult(resultsByReferent, result);
     }
 
     return Array.from(resultsByReferent.values())
@@ -301,7 +309,38 @@ async function searchTagCandidates(
     addTagCandidate(candidates, exactLookupTag, 160);
   }
 
+  await addReferenceDetailTagCandidates(ctx, candidates, searchText, candidateLimit);
+
   return Array.from(candidates.values());
+}
+
+async function toBiblePassageRootSearchResult(
+  ctx: QueryCtx,
+  searchText: string,
+): Promise<ScoredRootSearchResult | null> {
+  const passage = await resolveBiblePassageSearchTarget(ctx, searchText);
+  if (!passage) {
+    return null;
+  }
+
+  return {
+    canonicalKey: passage.canonicalKey,
+    href: passage.href,
+    id: passage.id,
+    knowledgeType: "biblePassage",
+    label: passage.label,
+    scopeLabel: "Global",
+    score: 220,
+    tag: {
+      canonicalKey: passage.canonicalKey,
+      href: passage.href,
+      id: passage.id,
+      knowledgeType: "biblePassage",
+      label: passage.label,
+      passageString: passage.passageString,
+    },
+    updatedAt: 0,
+  };
 }
 
 function addTagCandidate(
@@ -315,20 +354,74 @@ function addTagCandidate(
   }
 }
 
+async function addReferenceDetailTagCandidates(
+  ctx: QueryCtx,
+  candidates: Map<string, TagCandidate>,
+  searchText: string,
+  candidateLimit: number,
+) {
+  const personDetails = await ctx.db
+    .query("personReferentDetails")
+    .withSearchIndex("search_searchText", (q) =>
+      q.search("searchText", searchText),
+    )
+    .take(candidateLimit);
+  for (const detail of personDetails) {
+    const tag = await getPrimaryTagForReferent(ctx, detail.referentId, "person");
+    if (tag) {
+      addTagCandidate(candidates, tag, getTagTextScore(tag.label, searchText, 104));
+    }
+  }
+
+  const organizationDetails = await ctx.db
+    .query("organizationReferentDetails")
+    .withSearchIndex("search_searchText", (q) =>
+      q.search("searchText", searchText),
+    )
+    .take(candidateLimit);
+  for (const detail of organizationDetails) {
+    if (detail.isActive === false) {
+      continue;
+    }
+
+    const tag = await getPrimaryTagForReferent(
+      ctx,
+      detail.referentId,
+      "organization",
+    );
+    if (tag) {
+      addTagCandidate(candidates, tag, getTagTextScore(tag.label, searchText, 104));
+    }
+  }
+}
+
+async function getPrimaryTagForReferent(
+  ctx: QueryCtx,
+  referentId: Id<"referents">,
+  knowledgeType: Doc<"referents">["knowledgeType"],
+) {
+  const tags = await ctx.db
+    .query("tags")
+    .withIndex("by_referentId", (q) => q.eq("referentId", referentId))
+    .take(8);
+
+  return tags.find((tag) => tag.knowledgeType === knowledgeType) ?? null;
+}
+
 function addRootSearchResult(
   resultsByReferent: Map<string, ScoredRootSearchResult>,
-  referentId: Id<"referents">,
   result: ScoredRootSearchResult,
 ) {
-  const current = resultsByReferent.get(referentId);
+  const key = getResultDedupeKey(result);
+  const current = resultsByReferent.get(key);
   if (!current) {
-    resultsByReferent.set(referentId, result);
+    resultsByReferent.set(key, result);
     return;
   }
 
   const bestDisplay =
     compareScoredResults(result, current) < 0 ? result : current;
-  resultsByReferent.set(referentId, {
+  resultsByReferent.set(key, {
     ...bestDisplay,
     matchedEntryPreview:
       bestDisplay.matchedEntryPreview ??
@@ -339,6 +432,10 @@ function addRootSearchResult(
     score: Math.max(result.score, current.score),
     updatedAt: Math.max(result.updatedAt, current.updatedAt),
   });
+}
+
+function getResultDedupeKey(result: RootSearchResult) {
+  return `${result.knowledgeType}:${result.canonicalKey}`;
 }
 
 async function toRootSearchResult(

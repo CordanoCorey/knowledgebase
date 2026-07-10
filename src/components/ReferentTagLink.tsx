@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactNode } from "react";
+import type { ElementType, MouseEvent, ReactNode } from "react";
 import {
   getReferentTagHref,
   resolveTagLabel,
@@ -53,10 +53,12 @@ export function ReferentTagLink({
 
 export function ReferentTagVisual({
   className,
+  fallbackIcon: FallbackIcon,
   showIcon = true,
   tag,
 }: {
   className?: string;
+  fallbackIcon?: ElementType<{ "aria-hidden"?: "true"; className?: string }>;
   showIcon?: boolean;
   tag: ActiveTag;
 }) {
@@ -69,6 +71,10 @@ export function ReferentTagVisual({
         <img alt="" src={tag.thumbnailUrl} />
       </span>
     );
+  }
+
+  if (FallbackIcon) {
+    return <FallbackIcon aria-hidden="true" className={className} />;
   }
 
   return showIcon ? (

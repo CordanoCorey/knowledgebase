@@ -3,6 +3,10 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
 import { requireAppAccess, type AppAccessState } from "./lib/appAccess";
 import { getRepresentedReferentThumbnailUrl } from "./lib/referentThumbnails";
+import {
+  resolveBiblePassageSearchTarget,
+  type ResolvedBiblePassageSearchTarget,
+} from "./lib/scriptureSearch";
 
 // Tag suggestion queries favor deterministic, bounded candidates so text input
 // subscriptions stay responsive.
@@ -21,8 +25,12 @@ const MAX_RECOMMENDED_RECOGNITIONS_PER_SCOPE = 24;
 const MAX_RECOMMENDED_RECOGNITION_ORGANIZATIONS = 10;
 const MAX_RECOMMENDED_RECENT_ENTRIES = 40;
 const MAX_CONTEXT_REPRESENTED_ENTRIES_PER_TAG = 8;
+const MAX_RECOMMENDED_AUTHORED_WORKS_PER_PERSON_TAG = 24;
+const MAX_SCRIPTURE_RECOMMENDATION_RANGES = 4;
 const MAX_LITERATURE_METADATA_SEARCH_TERMS = 4;
 const MAX_LITERATURE_METADATA_SEARCH_CANDIDATES_PER_TERM = 16;
+const MAX_LITERATURE_REFERENT_SEARCH_CANDIDATES_PER_TERM = 16;
+const MAX_LITERATURE_REFERENT_TAGS = 8;
 const MAX_ROUTE_ACTIVE_TAGS = 20;
 const MAX_ROUTE_TAG_MATCHES = 16;
 const MAX_ROUTE_REFERENT_TAGS = 8;
@@ -151,6 +159,10 @@ type LiteratureDetail = {
   historicalTimeframeStartYear?: number | null;
 };
 
+type LiteratureRecommendationWork = {
+  knowledgeType: Doc<"referents">["knowledgeType"];
+};
+
 type Candidate = {
   matchKind: "label" | "alias";
   score: number;
@@ -172,8 +184,12 @@ export const listRootSearchTagSuggestions = query({
     }
 
     const candidates = await searchTagCandidates(ctx, searchText, limit);
-    return await summarizeCandidates(ctx, candidates, access, {
+    const suggestions = await summarizeCandidates(ctx, candidates, access, {
       activeTagIds: new Set(),
+      limit,
+    });
+    return await withBiblePassageSuggestion(ctx, searchText, suggestions, {
+      activeBiblePassageKeys: new Set(),
       limit,
     });
   },
@@ -196,8 +212,12 @@ export const listKnowledgeNavigatorTagSuggestions = query({
 
     const activeTagIds = await resolveActiveTagIds(ctx, args.activeTags);
     const candidates = await searchTagCandidates(ctx, searchText, limit);
-    return await summarizeCandidates(ctx, candidates, access, {
+    const suggestions = await summarizeCandidates(ctx, candidates, access, {
       activeTagIds,
+      limit,
+    });
+    return await withBiblePassageSuggestion(ctx, searchText, suggestions, {
+      activeBiblePassageKeys: getActiveBiblePassageKeys(args.activeTags),
       limit,
     });
   },
@@ -223,10 +243,16 @@ export const listKnowledgeNavigatorRecommendedTags = query({
       access,
     );
 
-    return await summarizeCandidates(ctx, candidates, access, {
+    const suggestions = await summarizeCandidates(ctx, candidates, access, {
       activeTagIds,
       limit,
     });
+    return await withActiveBiblePassageRecommendationSuggestions(
+      ctx,
+      args.activeTags,
+      suggestions,
+      { limit },
+    );
   },
 });
 
@@ -294,6 +320,8 @@ async function searchTagCandidates(
     addCandidate(candidates, exactLookupTag, "label", 80);
   }
 
+  await addReferenceDetailCandidates(ctx, candidates, searchText, candidateLimit);
+
   return Array.from(candidates.values());
 }
 
@@ -306,6 +334,51 @@ function addCandidate(
   const current = candidates.get(tag._id);
   if (!current || score > current.score) {
     candidates.set(tag._id, { matchKind, score, tag });
+  }
+}
+
+async function addReferenceDetailCandidates(
+  ctx: QueryCtx,
+  candidates: Map<string, Candidate>,
+  searchText: string,
+  candidateLimit: number,
+) {
+  const personDetails = await ctx.db
+    .query("personReferentDetails")
+    .withSearchIndex("search_searchText", (q) =>
+      q.search("searchText", searchText),
+    )
+    .take(candidateLimit);
+  for (const detail of personDetails) {
+    const tag = await getPrimaryTagForReferent(
+      ctx,
+      detail.referentId,
+      "person",
+    );
+    if (tag) {
+      addCandidate(candidates, tag, "label", getTextScore(tag.label, searchText));
+    }
+  }
+
+  const organizationDetails = await ctx.db
+    .query("organizationReferentDetails")
+    .withSearchIndex("search_searchText", (q) =>
+      q.search("searchText", searchText),
+    )
+    .take(candidateLimit);
+  for (const detail of organizationDetails) {
+    if (detail.isActive === false) {
+      continue;
+    }
+
+    const tag = await getPrimaryTagForReferent(
+      ctx,
+      detail.referentId,
+      "organization",
+    );
+    if (tag) {
+      addCandidate(candidates, tag, "label", getTextScore(tag.label, searchText));
+    }
   }
 }
 
@@ -373,15 +446,20 @@ async function addContextRecommendationCandidates(
     }
   }
 
-  await addRepresentedEntryMetadataRecommendationCandidates(
+  await addLiteratureMetadataRecommendationCandidatesForActiveTags(
     ctx,
     candidates,
     activeTagIds,
     access,
   );
+  await addPersonAuthoredWorkRecommendationCandidatesForActiveTags(
+    ctx,
+    candidates,
+    activeTagIds,
+  );
 }
 
-async function addRepresentedEntryMetadataRecommendationCandidates(
+async function addLiteratureMetadataRecommendationCandidatesForActiveTags(
   ctx: QueryCtx,
   candidates: Map<string, Candidate>,
   activeTagIds: Set<Id<"tags">>,
@@ -391,6 +469,19 @@ async function addRepresentedEntryMetadataRecommendationCandidates(
     const activeTag = await ctx.db.get(activeTagId);
     if (!activeTag) {
       continue;
+    }
+
+    const referentDetail = await getLiteratureReferentDetail(
+      ctx,
+      activeTag.referentId,
+    );
+    if (referentDetail) {
+      await addLiteratureReferentMetadataRecommendationCandidates(
+        ctx,
+        candidates,
+        referentDetail,
+        activeTagIds,
+      );
     }
 
     const representedEntries = await ctx.db
@@ -405,7 +496,7 @@ async function addRepresentedEntryMetadataRecommendationCandidates(
         continue;
       }
 
-      await addLiteratureMetadataRecommendationCandidates(
+      await addLiteratureEntryMetadataRecommendationCandidates(
         ctx,
         candidates,
         representedEntry,
@@ -416,7 +507,66 @@ async function addRepresentedEntryMetadataRecommendationCandidates(
   }
 }
 
-async function addLiteratureMetadataRecommendationCandidates(
+async function addLiteratureReferentMetadataRecommendationCandidates(
+  ctx: QueryCtx,
+  candidates: Map<string, Candidate>,
+  activeDetail: Doc<"literatureReferentDetails">,
+  activeTagIds: Set<Id<"tags">>,
+) {
+  const searchTerms = getLiteratureMetadataSearchTerms(activeDetail);
+  if (searchTerms.length === 0) {
+    return;
+  }
+
+  const candidateScores = new Map<
+    string,
+    { score: number; tag: Doc<"tags"> }
+  >();
+
+  for (const [termIndex, searchTerm] of searchTerms.entries()) {
+    const details = await ctx.db
+      .query("literatureReferentDetails")
+      .withSearchIndex("search_searchText", (q) =>
+        q.search("searchText", searchTerm),
+      )
+      .take(MAX_LITERATURE_REFERENT_SEARCH_CANDIDATES_PER_TERM);
+
+    for (const candidateDetail of details) {
+      if (candidateDetail.referentId === activeDetail.referentId) {
+        continue;
+      }
+
+      const tag = await getPrimaryTagForReferent(
+        ctx,
+        candidateDetail.referentId,
+        candidateDetail.knowledgeType,
+      );
+      if (!tag || activeTagIds.has(tag._id)) {
+        continue;
+      }
+
+      const score =
+        LITERATURE_METADATA_RECOMMENDATION_SCORE +
+        getLiteratureMetadataSimilarityScore(
+          activeDetail,
+          activeDetail,
+          candidateDetail,
+          candidateDetail,
+        ) +
+        Math.max(0, MAX_LITERATURE_METADATA_SEARCH_TERMS - termIndex);
+      const current = candidateScores.get(tag._id);
+      if (!current || score > current.score) {
+        candidateScores.set(tag._id, { score, tag });
+      }
+    }
+  }
+
+  for (const { score, tag } of candidateScores.values()) {
+    addRecommendedCandidate(candidates, tag, score);
+  }
+}
+
+async function addLiteratureEntryMetadataRecommendationCandidates(
   ctx: QueryCtx,
   candidates: Map<string, Candidate>,
   activeEntry: Doc<"knowledgeEntries">,
@@ -483,6 +633,75 @@ async function addLiteratureMetadataRecommendationCandidates(
 
   for (const { score, tag } of candidateScores.values()) {
     addRecommendedCandidate(candidates, tag, score);
+  }
+}
+
+async function getLiteratureReferentDetail(
+  ctx: QueryCtx,
+  referentId: Id<"referents">,
+) {
+  return await ctx.db
+    .query("literatureReferentDetails")
+    .withIndex("by_referentId", (q) => q.eq("referentId", referentId))
+    .unique();
+}
+
+async function getPrimaryTagForReferent(
+  ctx: QueryCtx,
+  referentId: Id<"referents">,
+  knowledgeType: Doc<"referents">["knowledgeType"],
+) {
+  const tags = await ctx.db
+    .query("tags")
+    .withIndex("by_referentId", (q) => q.eq("referentId", referentId))
+    .take(MAX_LITERATURE_REFERENT_TAGS);
+
+  return (
+    tags.find((tag) => tag.knowledgeType === knowledgeType) ??
+    tags[0] ??
+    null
+  );
+}
+
+async function addPersonAuthoredWorkRecommendationCandidatesForActiveTags(
+  ctx: QueryCtx,
+  candidates: Map<string, Candidate>,
+  activeTagIds: Set<Id<"tags">>,
+) {
+  for (const activeTagId of activeTagIds) {
+    const activeTag = await ctx.db.get(activeTagId);
+    if (!activeTag || activeTag.knowledgeType !== "person") {
+      continue;
+    }
+
+    const references = await ctx.db
+      .query("literatureAuthorReferences")
+      .withIndex("by_personReferentId", (q) =>
+        q.eq("personReferentId", activeTag.referentId),
+      )
+      .take(MAX_RECOMMENDED_AUTHORED_WORKS_PER_PERSON_TAG);
+
+    for (const [index, reference] of references.entries()) {
+      const workReferent = await ctx.db.get(reference.workReferentId);
+      if (!workReferent) {
+        continue;
+      }
+
+      const tag = await getPrimaryTagForReferent(
+        ctx,
+        workReferent._id,
+        workReferent.knowledgeType,
+      );
+      if (!tag || activeTagIds.has(tag._id)) {
+        continue;
+      }
+
+      addRecommendedCandidate(
+        candidates,
+        tag,
+        getRankedPersonRelationScore(RELATED_RECOMMENDATION_SCORE, index),
+      );
+    }
   }
 }
 
@@ -685,12 +904,12 @@ function addSearchTerm(terms: string[], term: string) {
 }
 
 function getLiteratureMetadataSimilarityScore(
-  activeEntry: Doc<"knowledgeEntries">,
+  activeWork: LiteratureRecommendationWork,
   activeDetail: LiteratureDetail,
-  candidateEntry: Doc<"knowledgeEntries">,
+  candidateWork: LiteratureRecommendationWork,
   candidateDetail: LiteratureDetail,
 ) {
-  let score = activeEntry.knowledgeType === candidateEntry.knowledgeType ? 8 : 0;
+  let score = activeWork.knowledgeType === candidateWork.knowledgeType ? 8 : 0;
 
   if (hasSameNonEmptyText(activeDetail.author, candidateDetail.author)) {
     score += 80;
@@ -766,6 +985,13 @@ function getRankedRecognitionScore(baseScore: number, index: number) {
   return baseScore + Math.max(0, MAX_RECOMMENDED_RECOGNITIONS_PER_SCOPE - index);
 }
 
+function getRankedPersonRelationScore(baseScore: number, index: number) {
+  return (
+    baseScore +
+    Math.max(0, MAX_RECOMMENDED_AUTHORED_WORKS_PER_PERSON_TAG - index)
+  );
+}
+
 async function summarizeCandidates(
   ctx: QueryCtx,
   candidates: Candidate[],
@@ -809,6 +1035,315 @@ async function summarizeCandidates(
     .sort(compareScoredSuggestions)
     .slice(0, limit)
     .map(({ score: _score, ...suggestion }) => suggestion);
+}
+
+async function withActiveBiblePassageRecommendationSuggestions(
+  ctx: QueryCtx,
+  activeTags: ActiveTagSnapshot[],
+  suggestions: TagSuggestion[],
+  { limit }: { limit: number },
+) {
+  const activeBiblePassageTargets: ResolvedBiblePassageSearchTarget[] = [];
+  const activeBiblePassageKeys = new Set<string>();
+
+  for (const activeTag of normalizeActiveTagSnapshots(activeTags)) {
+    if (activeTag.knowledgeType !== "biblePassage") {
+      continue;
+    }
+
+    const target = await resolveActiveBiblePassageTarget(ctx, activeTag);
+    if (!target) {
+      continue;
+    }
+
+    activeBiblePassageTargets.push(target);
+    activeBiblePassageKeys.add(getBiblePassageSuggestionKey(target.canonicalKey));
+  }
+
+  if (activeBiblePassageTargets.length === 0) {
+    return suggestions.slice(0, limit);
+  }
+
+  const scriptureSuggestions: TagSuggestion[] = [];
+  const suggestedKeys = new Set(activeBiblePassageKeys);
+  for (const activeTarget of activeBiblePassageTargets) {
+    const relatedTargets = await getRelatedBiblePassageTargets(ctx, activeTarget);
+    for (const relatedTarget of relatedTargets) {
+      const key = getBiblePassageSuggestionKey(relatedTarget.canonicalKey);
+      if (suggestedKeys.has(key)) {
+        continue;
+      }
+
+      scriptureSuggestions.push(toBiblePassageSuggestionFromTarget(relatedTarget));
+      suggestedKeys.add(key);
+      if (scriptureSuggestions.length >= limit) {
+        break;
+      }
+    }
+
+    if (scriptureSuggestions.length >= limit) {
+      break;
+    }
+  }
+
+  return mergeRecommendedSuggestions(
+    scriptureSuggestions,
+    suggestions,
+    activeBiblePassageKeys,
+    limit,
+  );
+}
+
+async function resolveActiveBiblePassageTarget(
+  ctx: QueryCtx,
+  activeTag: ActiveTagSnapshot,
+) {
+  return await resolveBiblePassageSearchTarget(
+    ctx,
+    activeTag.passageString || activeTag.canonicalKey || activeTag.id || activeTag.label,
+  );
+}
+
+async function getRelatedBiblePassageTargets(
+  ctx: QueryCtx,
+  target: ResolvedBiblePassageSearchTarget,
+) {
+  const relatedTargets: ResolvedBiblePassageSearchTarget[] = [];
+
+  for (const range of target.ranges.slice(0, MAX_SCRIPTURE_RECOMMENDATION_RANGES)) {
+    const startVerse = await getBibleVerseByOrdinal(ctx, range.startOrdinal);
+    const endVerse = await getBibleVerseByOrdinal(ctx, range.endOrdinal);
+    if (!startVerse || !endVerse) {
+      continue;
+    }
+
+    const nextVerse = await getBibleVerseByOrdinal(ctx, range.endOrdinal + 1);
+    if (nextVerse && isSameBibleChapter(nextVerse, endVerse)) {
+      await addBibleVerseTarget(ctx, relatedTargets, nextVerse);
+    }
+
+    const previousVerse = await getBibleVerseByOrdinal(ctx, range.startOrdinal - 1);
+    if (previousVerse && isSameBibleChapter(previousVerse, startVerse)) {
+      await addBibleVerseTarget(ctx, relatedTargets, previousVerse);
+    }
+
+    await addBibleChapterTarget(ctx, relatedTargets, startVerse);
+    if (!isSameBibleChapter(startVerse, endVerse)) {
+      await addBibleChapterTarget(ctx, relatedTargets, endVerse);
+    }
+  }
+
+  return relatedTargets;
+}
+
+async function addBibleVerseTarget(
+  ctx: QueryCtx,
+  targets: ResolvedBiblePassageSearchTarget[],
+  verse: Doc<"bibleVerses">,
+) {
+  const book = await getBibleBookByCode(ctx, verse.bookCode);
+  if (!book) {
+    return;
+  }
+
+  await addResolvedBiblePassageTarget(
+    ctx,
+    targets,
+    `${book.name} ${verse.chapterNumber}:${verse.verseNumber}`,
+  );
+}
+
+async function addBibleChapterTarget(
+  ctx: QueryCtx,
+  targets: ResolvedBiblePassageSearchTarget[],
+  verse: Doc<"bibleVerses">,
+) {
+  const book = await getBibleBookByCode(ctx, verse.bookCode);
+  if (!book) {
+    return;
+  }
+
+  await addResolvedBiblePassageTarget(
+    ctx,
+    targets,
+    `${book.name} ${verse.chapterNumber}`,
+  );
+}
+
+async function addResolvedBiblePassageTarget(
+  ctx: QueryCtx,
+  targets: ResolvedBiblePassageSearchTarget[],
+  reference: string,
+) {
+  const target = await resolveBiblePassageSearchTarget(ctx, reference);
+  if (
+    !target ||
+    targets.some((existingTarget) => existingTarget.canonicalKey === target.canonicalKey)
+  ) {
+    return;
+  }
+
+  targets.push(target);
+}
+
+async function getBibleVerseByOrdinal(ctx: QueryCtx, ordinal: number) {
+  if (ordinal < 1) {
+    return null;
+  }
+
+  return await ctx.db
+    .query("bibleVerses")
+    .withIndex("by_ordinal", (q) => q.eq("ordinal", ordinal))
+    .unique();
+}
+
+async function getBibleBookByCode(ctx: QueryCtx, code: string) {
+  return await ctx.db
+    .query("bibleBooks")
+    .withIndex("by_code", (q) => q.eq("code", code))
+    .unique();
+}
+
+function isSameBibleChapter(left: Doc<"bibleVerses">, right: Doc<"bibleVerses">) {
+  return (
+    left.bookCode === right.bookCode &&
+    left.chapterNumber === right.chapterNumber
+  );
+}
+
+function toBiblePassageSuggestionFromTarget(
+  target: ResolvedBiblePassageSearchTarget,
+): TagSuggestion {
+  return {
+    canonicalKey: target.canonicalKey,
+    href: target.href,
+    id: target.id,
+    knowledgeType: "biblePassage",
+    label: target.label,
+    matchKind: "label",
+    tag: {
+      canonicalKey: target.canonicalKey,
+      href: target.href,
+      id: target.id,
+      knowledgeType: "biblePassage",
+      label: target.label,
+      passageString: target.passageString,
+    },
+  };
+}
+
+function mergeRecommendedSuggestions(
+  preferredSuggestions: TagSuggestion[],
+  suggestions: TagSuggestion[],
+  activeKeys: Set<string>,
+  limit: number,
+) {
+  const mergedSuggestions: TagSuggestion[] = [];
+  const seenKeys = new Set(activeKeys);
+
+  const addSuggestion = (suggestion: TagSuggestion) => {
+    const key = getSuggestionKey(suggestion);
+    if (seenKeys.has(key)) {
+      return;
+    }
+
+    mergedSuggestions.push(suggestion);
+    seenKeys.add(key);
+  };
+
+  for (const suggestion of preferredSuggestions) {
+    addSuggestion(suggestion);
+  }
+
+  for (const suggestion of suggestions) {
+    addSuggestion(suggestion);
+  }
+
+  return mergedSuggestions.slice(0, limit);
+}
+
+function getSuggestionKey(suggestion: TagSuggestion) {
+  if (suggestion.knowledgeType === "biblePassage") {
+    return getBiblePassageSuggestionKey(suggestion.canonicalKey);
+  }
+
+  return `${suggestion.knowledgeType}:${suggestion.id}`;
+}
+
+function getBiblePassageSuggestionKey(canonicalKey: string) {
+  return `biblePassage:${canonicalKey}`;
+}
+
+async function withBiblePassageSuggestion(
+  ctx: QueryCtx,
+  searchText: string,
+  suggestions: TagSuggestion[],
+  {
+    activeBiblePassageKeys,
+    limit,
+  }: {
+    activeBiblePassageKeys: Set<string>;
+    limit: number;
+  },
+) {
+  const biblePassageSuggestion = await toBiblePassageSuggestion(ctx, searchText);
+  if (
+    !biblePassageSuggestion ||
+    suggestions.some(
+      (suggestion) =>
+        suggestion.knowledgeType === "biblePassage" &&
+        suggestion.canonicalKey === biblePassageSuggestion.canonicalKey,
+    ) ||
+    activeBiblePassageKeys.has(biblePassageSuggestion.id)
+  ) {
+    return suggestions.slice(0, limit);
+  }
+
+  return [biblePassageSuggestion, ...suggestions].slice(0, limit);
+}
+
+async function toBiblePassageSuggestion(
+  ctx: QueryCtx,
+  searchText: string,
+): Promise<TagSuggestion | null> {
+  const passage = await resolveBiblePassageSearchTarget(ctx, searchText);
+  if (!passage) {
+    return null;
+  }
+
+  return {
+    canonicalKey: passage.canonicalKey,
+    href: passage.href,
+    id: passage.id,
+    knowledgeType: "biblePassage",
+    label: passage.label,
+    matchKind: "label",
+    tag: {
+      canonicalKey: passage.canonicalKey,
+      href: passage.href,
+      id: passage.id,
+      knowledgeType: "biblePassage",
+      label: passage.label,
+      passageString: passage.passageString,
+    },
+  };
+}
+
+function getActiveBiblePassageKeys(activeTags: ActiveTagSnapshot[]) {
+  const keys = new Set<string>();
+  for (const tag of activeTags) {
+    if (tag.knowledgeType !== "biblePassage") {
+      continue;
+    }
+
+    keys.add(tag.id);
+    keys.add(tag.canonicalKey);
+    if (tag.passageString !== undefined) {
+      keys.add(tag.passageString);
+    }
+  }
+
+  return keys;
 }
 
 function normalizeRouteTagKeys(tagKeys: string[]) {
