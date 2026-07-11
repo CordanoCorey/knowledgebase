@@ -143,7 +143,6 @@ describe("classical Christian literature seed data", () => {
       checked: 6,
       missing: [],
       ok: true,
-      unexpectedSeedEntries: [],
     });
 
     const seededRows = await t.run(async (ctx) => {
@@ -291,120 +290,6 @@ describe("classical Christian literature seed data", () => {
     expect(seededRows.details).toEqual([]);
   });
 
-  test("cleans up legacy seed-created knowledge entries", async () => {
-    const t = convexTest({ schema, modules });
-    const { schoolCanonPriority: _priority, ...work } = getSeedWork(
-      "Pompeii...Buried Alive!",
-    );
-
-    await t.mutation(internal.seedLiterature.upsertLiteraryWorks, {
-      works: [work],
-    });
-
-    await t.run(async (ctx) => {
-      const referent = await ctx.db
-        .query("referents")
-        .withIndex("by_knowledgeType_and_canonicalKey", (q) =>
-          q
-            .eq("knowledgeType", work.knowledgeType)
-            .eq("canonicalKey", work.canonicalKey),
-        )
-        .unique();
-      const tag = await ctx.db
-        .query("tags")
-        .withIndex("by_knowledgeType_and_lookupKey", (q) =>
-          q
-            .eq("knowledgeType", work.knowledgeType)
-            .eq("lookupKey", work.canonicalKey),
-        )
-        .unique();
-      if (!referent || !tag) {
-        throw new Error("Missing seeded Pompeii referent or tag.");
-      }
-
-      const entryId = await ctx.db.insert("knowledgeEntries", {
-        contextPreviewTagLabels: [],
-        createdAt: 1,
-        discoverabilityKind: "public",
-        discoverabilityTargetKey: "public",
-        knowledgeType: work.knowledgeType,
-        previewText: "Pompeii...Buried Alive!, by Edith Kunhardt.",
-        primaryTagId: tag._id,
-        primaryTagLabel: work.title,
-        publicPreviewText: "Pompeii...Buried Alive!, by Edith Kunhardt.",
-        representedReferentId: referent._id,
-        searchText: "Pompeii...Buried Alive! Edith Kunhardt",
-        title: work.title,
-        updatedAt: 1,
-        visibilityKind: "public",
-        visibilityTargetKey: "public",
-      });
-      await ctx.db.insert("entryTags", {
-        entryId,
-        tagId: tag._id,
-        taggedAt: 1,
-        tagPurpose: "represented",
-      });
-      await ctx.db.insert("bookEntries", { entryId, ...work.detail });
-    });
-
-    await expect(
-      t.query(internal.seedLiterature.verifyLiteratureSeedBatch, {
-        works: [
-          {
-            canonicalKey: work.canonicalKey,
-            knowledgeType: work.knowledgeType,
-            title: work.title,
-          },
-        ],
-      }),
-    ).resolves.toMatchObject({
-      checked: 1,
-      missing: [],
-      ok: false,
-      unexpectedSeedEntries: [
-        {
-          canonicalKey: work.canonicalKey,
-        },
-      ],
-    });
-
-    await expect(
-      t.mutation(
-        internal.seedLiterature.deleteLegacySeededLiteratureKnowledgeEntries,
-        {
-          works: [
-            {
-              canonicalKey: work.canonicalKey,
-              knowledgeType: work.knowledgeType,
-              title: work.title,
-            },
-          ],
-        },
-      ),
-    ).resolves.toEqual({
-      details: { deleted: 1 },
-      entries: { deleted: 1 },
-      entryTags: { deleted: 1 },
-    });
-
-    await expect(
-      t.query(internal.seedLiterature.verifyLiteratureSeedBatch, {
-        works: [
-          {
-            canonicalKey: work.canonicalKey,
-            knowledgeType: work.knowledgeType,
-            title: work.title,
-          },
-        ],
-      }),
-    ).resolves.toEqual({
-      checked: 1,
-      missing: [],
-      ok: true,
-      unexpectedSeedEntries: [],
-    });
-  });
 });
 
 function addTestEnrichment(work: Omit<LiteratureSeedFile["works"][number], "schoolCanonPriority">) {

@@ -6194,6 +6194,10 @@ describe("MVP Explore/Contribute loop", () => {
     expect(identityBand?.textContent).toContain(
       "Accessible Root Knowledge Context",
     );
+    expect(identityBand?.querySelector(".kb-knowledge-page-actions")).toBeNull();
+    expect(queryButton("Pin All Accessible Knowledge")).toBeNull();
+    expect(queryButton("Bookmark All Accessible Knowledge")).toBeNull();
+    expect(queryButton("Subscribe All Accessible Knowledge")).toBeNull();
     expect(container.querySelector(".kb-rail-focus-heading")).toBeNull();
     expect(container.querySelector(".kb-knowledge-navigator > header")).toBeNull();
     expect(

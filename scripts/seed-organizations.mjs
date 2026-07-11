@@ -1,8 +1,14 @@
 import { exec, execFile } from "node:child_process";
 import { promisify } from "node:util";
+import {
+  formatConvexArgsForWindowsShell,
+  getConvexDeploymentArgs,
+  shouldPushWithConvexRun,
+} from "./seed-cli-args.mjs";
 
 const execFileAsync = promisify(execFile);
 const execAsync = promisify(exec);
+const convexDeploymentArgs = getConvexDeploymentArgs();
 
 console.log("Seeding default organizations and temporary password users");
 
@@ -22,11 +28,13 @@ console.log(verification);
 
 async function runConvex(functionName, args, options) {
   const jsonArgs = JSON.stringify(args);
+  const shouldPush = options.push && shouldPushWithConvexRun(convexDeploymentArgs);
   if (process.platform === "win32") {
     const escapedJsonArgs = jsonArgs.replace(/"/g, '\\"');
-    const pushFlag = options.push ? " --push" : "";
+    const pushFlag = shouldPush ? " --push" : "";
+    const deploymentFlags = formatConvexArgsForWindowsShell(convexDeploymentArgs);
     const { stderr, stdout } = await execAsync(
-      `npx convex run ${functionName} "${escapedJsonArgs}"${pushFlag}`,
+      `npx convex run ${functionName} "${escapedJsonArgs}"${pushFlag}${deploymentFlags}`,
       {
         maxBuffer: 1024 * 1024 * 20,
       },
@@ -39,9 +47,10 @@ async function runConvex(functionName, args, options) {
 
   const command = "npx";
   const commandArgs = ["convex", "run", functionName, jsonArgs];
-  if (options.push) {
+  if (shouldPush) {
     commandArgs.push("--push");
   }
+  commandArgs.push(...convexDeploymentArgs);
 
   const { stderr, stdout } = await execFileAsync(command, commandArgs, {
     maxBuffer: 1024 * 1024 * 20,

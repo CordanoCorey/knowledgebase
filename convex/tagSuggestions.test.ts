@@ -142,6 +142,41 @@ describe("Tag suggestion queries", () => {
     ]);
   });
 
+  test("resolves dynamic Scripture route slugs without persisted Tag rows", async () => {
+    const t = convexTest({ schema, modules });
+    const seed = await t.run(async (ctx) => {
+      const { userId } = await insertAllowedUser(ctx, "scripture-route-resolution");
+      await insertDaniel7Structure(ctx);
+
+      return { userId };
+    });
+    const authed = t.withIdentity({ subject: `${seed.userId}|test-session` });
+
+    const resolvedTags = await authed.query(
+      api.tagSuggestions.resolveRouteActiveTags,
+      { tagKeys: ["daniel-7", "daniel-7-13-14"] },
+    );
+
+    expect(resolvedTags).toEqual([
+      expect.objectContaining({
+        canonicalKey: "daniel-7",
+        href: "/scripture/daniel-7",
+        id: "daniel-7",
+        knowledgeType: "biblePassage",
+        label: "Daniel 7",
+        passageString: "daniel-7",
+      }),
+      expect.objectContaining({
+        canonicalKey: "daniel-7-13-14",
+        href: "/scripture/daniel-7-13-14",
+        id: "daniel-7-13-14",
+        knowledgeType: "biblePassage",
+        label: "Daniel 7:13-14",
+        passageString: "daniel-7-13-14",
+      }),
+    ]);
+  });
+
   test("does not suggest private Tags from inaccessible users or organizations", async () => {
     const t = convexTest({ schema, modules });
     const seed = await t.run(seedAccessRows);
@@ -812,6 +847,35 @@ async function seedRomans8Structure(ctx: MutationCtx) {
       bookId,
       chapterNumber: 8,
       ordinal: 28117 + verseNumber,
+      verseNumber,
+    });
+  }
+}
+
+async function insertDaniel7Structure(ctx: MutationCtx) {
+  const bookId = await ctx.db.insert("bibleBooks", {
+    bookOrder: 27,
+    chapterCount: 12,
+    code: "DAN",
+    name: "Daniel",
+    shortName: "Dan",
+    testament: "old",
+  });
+  await ctx.db.insert("bibleChapters", {
+    bookCode: "DAN",
+    bookId,
+    chapterNumber: 7,
+    endOrdinal: 22028,
+    startOrdinal: 22001,
+    verseCount: 28,
+  });
+
+  for (let verseNumber = 1; verseNumber <= 28; verseNumber += 1) {
+    await ctx.db.insert("bibleVerses", {
+      bookCode: "DAN",
+      bookId,
+      chapterNumber: 7,
+      ordinal: 22000 + verseNumber,
       verseNumber,
     });
   }

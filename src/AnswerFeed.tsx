@@ -15,7 +15,6 @@ import {
   ReferentTagVisual,
 } from "./components/ReferentTagLink";
 import {
-  ANSWER_FEED_FIXTURE,
   type ActiveTag,
   type AnswerFeedFixtureItem,
   getAnswerFeedItemId,
@@ -38,8 +37,8 @@ import type {
 } from "./knowledgeContracts";
 import { formatKnowledgeTypeLabel } from "./knowledgeContracts";
 
-// AnswerFeed is controlled by contract-shaped props; it can render fixture data,
-// Convex query results, or filtered subsets without knowing the data source.
+// AnswerFeed is controlled by contract-shaped props and renders only the items
+// supplied by the durable data source or an explicit test fixture.
 export type AnswerFeedKindFilter = "all" | "entries" | "requests";
 export type AnswerFeedKnowledgeTypeFilter = "all" | AuthorableKnowledgeType;
 
@@ -115,7 +114,7 @@ export function AnswerFeed({
   canCorrectQuoteAttribution = false,
   filterByActiveTags = true,
   headingMode = "visible",
-  items = ANSWER_FEED_FIXTURE,
+  items = [],
   layout = "list",
   onClearSearchQuery,
   onContributeToSlot,

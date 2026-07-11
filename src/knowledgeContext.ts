@@ -230,7 +230,17 @@ export function getInactiveNavigatorTags(activeTags: ActiveTag[]) {
 }
 
 export function resolveTag(tagId: string): ActiveTag {
-  return TAGS_BY_ID.get(tagId) ?? tagFixture(tagId, labelFromTagId(tagId), "words");
+  const fixtureTag = TAGS_BY_ID.get(tagId);
+  if (fixtureTag) {
+    return fixtureTag;
+  }
+
+  const parsedPassage = parseBiblePassageReference(tagId);
+  if (parsedPassage) {
+    return biblePassageTag(parsedPassage.slug, parsedPassage.label);
+  }
+
+  return tagFixture(tagId, labelFromTagId(tagId), "words");
 }
 
 export function resolveTagLabel(label: string): ActiveTag {

@@ -96,10 +96,8 @@ import { LogeionBrand } from "./components/LogeionBrand";
 import { ReferentTagVisual } from "./components/ReferentTagLink";
 import { SmartStoragePlayground } from "./SmartStoragePlayground";
 import {
-  ANSWER_FEED_FIXTURE,
   getFixtureContextTags,
   isAnswerFeedSlot,
-  selectAnswerFeedItems,
 } from "./answerFeedData";
 import {
   addActiveTag,
@@ -4607,11 +4605,9 @@ function ComponentScaffold({
             quoteAttributionPersonOptions === undefined,
           options: quoteAttributionPersonOptions ?? [],
         };
-  const fixtureFeedItems = useMemo(
-    () => selectAnswerFeedItems(ANSWER_FEED_FIXTURE, activeTags),
-    [activeTags],
-  );
-  const feedItems = durableFeedItems ?? fixtureFeedItems;
+  // The Answer Feed is durable user-contributed knowledge only. Keep the
+  // loading state empty instead of rendering demo entries as if they existed.
+  const feedItems = durableFeedItems ?? [];
   const primarySlotItem = showSlotRail ? feedItems.find(isAnswerFeedSlot) : undefined;
   const selectedSlotItem = selectedContributionSlotId
     ? feedItems.find(
@@ -5736,13 +5732,7 @@ function getKnowledgePageActionTarget({
   routeState: RouteState;
 }): KnowledgePageActionTarget | null {
   if (routeId === "dashboard") {
-    return {
-      href: "/",
-      label: "All Accessible Knowledge",
-      pageKey: "dashboard:root",
-      pageKind: "dashboard",
-      secondaryLabel: "Dashboard",
-    };
+    return null;
   }
 
   if (routeId === "root-search") {
