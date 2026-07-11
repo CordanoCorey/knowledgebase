@@ -162,6 +162,22 @@ describe("Type Behavior title input contract", () => {
     expect(isComposerTitleAddable("comment")).toBe(false);
     expect(isComposerTitleRequired("comment")).toBe(false);
 
+    expect(getComposerTitleBehavior("quote")).toMatchObject({
+      generatedTitleKind: "bodyPreview",
+      input: "hidden",
+      smartStorageTriggerWhenProvided: false,
+    });
+    expect(isComposerTitleAddable("quote")).toBe(false);
+    expect(isComposerTitleRequired("quote")).toBe(false);
+
+    expect(getComposerTitleBehavior("prayerRequest")).toMatchObject({
+      generatedTitleKind: "bodyPreview",
+      input: "hidden",
+      smartStorageTriggerWhenProvided: false,
+    });
+    expect(isComposerTitleAddable("prayerRequest")).toBe(false);
+    expect(isComposerTitleRequired("prayerRequest")).toBe(false);
+
     expect(getComposerTitleBehavior("question")).toMatchObject({
       generatedTitleKind: "none",
       input: "required",

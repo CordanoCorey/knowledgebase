@@ -2041,7 +2041,7 @@ vi.mock("convex/react", () => ({
         sourceProposalId,
         suggestionKind: "staleProposalRefresh",
         targetContractSnapshotVersion: "mvp-smart-storage-contract-v3",
-        targetTypeBehaviorSnapshotVersion: "mvp-type-behavior-v4",
+        targetTypeBehaviorSnapshotVersion: "mvp-type-behavior-v5",
       };
       const refreshedSlot = createMockSmartStorageReviewSlot({
         bodyPreview: "Review this proposal under the current contract.",
@@ -3786,6 +3786,10 @@ describe("MVP Explore/Contribute loop", () => {
       "A source that should be preserved before enrichment.",
     );
     expect(proposalReview.textContent).toContain("Sources saved");
+    expect(proposalReview.textContent).toContain("AI result");
+    expect(proposalReview.textContent).toContain(
+      "Returned Primary Intended Entry for review.",
+    );
     expect(proposalReview.textContent).toContain("Primary Intended Entry");
     expect(proposalReview.textContent).toContain("Proposal Confidence");
     expect(proposalReview.textContent).toContain("Medium");
@@ -3908,6 +3912,10 @@ describe("MVP Explore/Contribute loop", () => {
 
     const wizard = getLabelledElement("Smart Storage Session Wizard");
     expect(wizard.textContent).toContain("Sources saved");
+    expect(wizard.textContent).toContain("AI result");
+    expect(wizard.textContent).toContain(
+      "Sources are saved; proposal generation is still running.",
+    );
     expect(wizard.textContent).toContain("Bronze Layer preserved");
     expect(wizard.textContent).toContain("Queued");
     expect(wizard.textContent).toContain("Text");
@@ -4107,7 +4115,7 @@ describe("MVP Explore/Contribute loop", () => {
           sourceProposalId: "smart-storage-proposal-secondary-quote",
           suggestionKind: "staleProposalRefresh",
           targetContractSnapshotVersion: "mvp-smart-storage-contract-v3",
-          targetTypeBehaviorSnapshotVersion: "mvp-type-behavior-v4",
+          targetTypeBehaviorSnapshotVersion: "mvp-type-behavior-v5",
         },
         role: "refresh",
         status: "stale",
@@ -4350,6 +4358,12 @@ describe("MVP Explore/Contribute loop", () => {
       expect(runStatusPanel.textContent).toContain(heading);
       expect(runStatusPanel.textContent).toContain(
         "Sources were saved.",
+      );
+      expect(runStatusPanel.textContent).toContain("AI result");
+      expect(runStatusPanel.textContent).toContain(
+        executionStatus === "noProposal"
+          ? "The agent returned no structured proposal; Sources remain saved."
+          : "The agent failed to create a proposal; Sources remain saved.",
       );
       expect(getButtonIn(runStatusPanel, "Retry model")).toBeTruthy();
       expect(getButtonIn(runStatusPanel, "Create basic proposal")).toBeTruthy();
@@ -6180,6 +6194,10 @@ describe("MVP Explore/Contribute loop", () => {
     expect(identityBand?.textContent).toContain(
       "Accessible Root Knowledge Context",
     );
+    expect(identityBand?.querySelector(".kb-knowledge-page-actions")).toBeNull();
+    expect(queryButton("Pin All Accessible Knowledge")).toBeNull();
+    expect(queryButton("Bookmark All Accessible Knowledge")).toBeNull();
+    expect(queryButton("Subscribe All Accessible Knowledge")).toBeNull();
     expect(container.querySelector(".kb-rail-focus-heading")).toBeNull();
     expect(container.querySelector(".kb-knowledge-navigator > header")).toBeNull();
     expect(

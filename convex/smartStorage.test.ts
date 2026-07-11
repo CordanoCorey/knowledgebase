@@ -333,7 +333,7 @@ describe("Smart Storage contribution spine", () => {
         sourceId: result.sourceId,
         status: "queued",
         typeBehaviorSnapshotId: expect.any(String),
-        typeBehaviorSnapshotVersion: "mvp-type-behavior-v4",
+        typeBehaviorSnapshotVersion: "mvp-type-behavior-v5",
       }),
     );
     expect(rowState.contractVersion).toEqual(
@@ -351,7 +351,7 @@ describe("Smart Storage contribution spine", () => {
         knowledgeType: "lesson",
         snapshotText:
           "Use the Type Behavior registry for identity, source citation, representation role, primary representation, Human Weight defaults, and Human Weight credit basis.",
-        version: "mvp-type-behavior-v4",
+        version: "mvp-type-behavior-v5",
       }),
     );
   });
@@ -482,7 +482,7 @@ describe("Smart Storage contribution spine", () => {
       });
       await ctx.db.insert("typeBehaviorSnapshots", {
         knowledgeType: "lesson",
-        version: "mvp-type-behavior-v4",
+        version: "mvp-type-behavior-v5",
         snapshotText: "Conflicting Type Behavior summary.",
         behaviorSnapshotJson: "{}",
         createdAt: now,
@@ -1163,7 +1163,7 @@ describe("Smart Storage contribution spine", () => {
         sourceId: startResult.sourceId,
         status: "drafted",
         typeBehaviorSnapshotId: rowState.run?.typeBehaviorSnapshotId,
-        typeBehaviorSnapshotVersion: "mvp-type-behavior-v4",
+        typeBehaviorSnapshotVersion: "mvp-type-behavior-v5",
         typeBehaviorSnapshotText:
           "Use the Type Behavior registry for identity, source citation, representation role, primary representation, Human Weight defaults, and Human Weight credit basis.",
       }),

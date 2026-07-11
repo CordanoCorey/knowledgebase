@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   Bold,
   CheckCircle2,
   Italic,
@@ -274,6 +275,15 @@ export function ContributionEditor({
     activeKnowledgeType,
     activeGuidedContributionType,
   );
+  const quoteAttributionRequirement = getQuoteAttributionRequirement({
+    context,
+    knowledgeType: activeKnowledgeType,
+  });
+  const requiresQuoteAttributionAcknowledgement =
+    quoteAttributionRequirement.kind === "missing" ||
+    quoteAttributionRequirement.kind === "ambiguous";
+  const [isQuoteAttributionAcknowledged, setIsQuoteAttributionAcknowledged] =
+    useState(false);
   const knowledgeTypeOptions = getContributionKnowledgeTypeOptions(
     activeKnowledgeType,
     allowedTypes,
@@ -390,6 +400,12 @@ export function ContributionEditor({
   }, [activeKnowledgeType]);
 
   useEffect(() => {
+    if (!requiresQuoteAttributionAcknowledgement) {
+      setIsQuoteAttributionAcknowledged(false);
+    }
+  }, [requiresQuoteAttributionAcknowledgement]);
+
+  useEffect(() => {
     const detectedUrlSet = new Set(getUrlsFromKey(detectedExternalUrlKey));
     detectedDraftPreviewUrlsRef.current = detectedUrlSet;
 
@@ -497,8 +513,19 @@ export function ContributionEditor({
       return;
     }
 
+    if (
+      requiresQuoteAttributionAcknowledgement &&
+      !isQuoteAttributionAcknowledged
+    ) {
+      return;
+    }
+
     const input = createContributionInput({
       body,
+      contributionNote:
+        requiresQuoteAttributionAcknowledgement && isQuoteAttributionAcknowledged
+          ? createQuoteAttributionContributionNote(quoteAttributionRequirement)
+          : undefined,
       context,
       externalUrls,
       guidedContributionType: activeGuidedContributionType,
@@ -522,6 +549,7 @@ export function ContributionEditor({
     setBodyDocumentJson(createRichTextDocumentJsonFromText(""));
     setTitle("");
     setIsAddableTitleVisible(false);
+    setIsQuoteAttributionAcknowledged(false);
     setUploadedFiles([]);
     setDraftLinkPreviews({});
     requestedDraftPreviewUrlsRef.current.clear();
@@ -714,6 +742,22 @@ export function ContributionEditor({
         uploadState={uploadState}
       />
   ) : null;
+  const quoteAttributionAcknowledgement = requiresQuoteAttributionAcknowledgement ? (
+    <label className="kb-contribution-quote-attribution">
+      <input
+        checked={isQuoteAttributionAcknowledged}
+        onChange={(event) =>
+          setIsQuoteAttributionAcknowledged(event.currentTarget.checked)
+        }
+        type="checkbox"
+      />
+      <AlertTriangle aria-hidden="true" />
+      <span>
+        <strong>Quote attribution required</strong>
+        <small>{getQuoteAttributionRequirementCopy(quoteAttributionRequirement)}</small>
+      </span>
+    </label>
+  ) : null;
   const modeChip = isSmartStorageForced({
     hasExplicitWordsTitle,
     knowledgeType: activeKnowledgeType,
@@ -723,6 +767,12 @@ export function ContributionEditor({
       <span>Smart Storage</span>
     </span>
   ) : null;
+  const disablesSubmit =
+    submissionState.kind === "submitting" ||
+    (activeKnowledgeType === "announcement" &&
+      activeAnnouncementOrganization === undefined) ||
+    (requiresQuoteAttributionAcknowledgement &&
+      !isQuoteAttributionAcknowledged);
 
   return (
     <section
@@ -766,14 +816,11 @@ export function ContributionEditor({
           {addTitleButton}
           {modeChip}
         </div>
+        {quoteAttributionAcknowledgement}
 
         <button
           className="kb-contribution-submit"
-          disabled={
-            submissionState.kind === "submitting" ||
-            (activeKnowledgeType === "announcement" &&
-              activeAnnouncementOrganization === undefined)
-          }
+          disabled={disablesSubmit}
           type="submit"
         >
           {submissionState.kind === "submitting" ? (
@@ -789,7 +836,7 @@ export function ContributionEditor({
         {showsSecondarySubmit ? (
           <button
             className="kb-contribution-secondary-submit"
-            disabled={submissionState.kind === "submitting"}
+            disabled={disablesSubmit}
             onClick={() => void submitContribution(secondaryMode)}
             type="button"
           >
@@ -1585,7 +1632,9 @@ function createContributionInputTitle({
   }
 
   if (titleBehavior.generatedTitleKind === "bodyPreview") {
-    return trimmedTitle || createWordsTitle(body);
+    return titleBehavior.input === "addable" && trimmedTitle
+      ? trimmedTitle
+      : createBodyPreviewTitle(body, knowledgeType);
   }
 
   return trimmedTitle;
@@ -1800,6 +1849,54 @@ function getSingleQuotedPersonContextTag({
   return personTags.length === 1 ? personTags[0] : undefined;
 }
 
+type QuoteAttributionRequirement =
+  | { kind: "notQuote" }
+  | { kind: "attributed"; personTag: ActiveTag }
+  | { kind: "missing" }
+  | { kind: "ambiguous"; personCount: number };
+
+function getQuoteAttributionRequirement({
+  context,
+  knowledgeType,
+}: {
+  context: ActiveTag[];
+  knowledgeType: AuthorableKnowledgeType;
+}): QuoteAttributionRequirement {
+  if (knowledgeType !== "quote") {
+    return { kind: "notQuote" };
+  }
+
+  const personTags = context.filter((tag) => tag.knowledgeType === "person");
+  if (personTags.length === 1) {
+    return { kind: "attributed", personTag: personTags[0] };
+  }
+  if (personTags.length > 1) {
+    return { kind: "ambiguous", personCount: personTags.length };
+  }
+
+  return { kind: "missing" };
+}
+
+function getQuoteAttributionRequirementCopy(
+  requirement: QuoteAttributionRequirement,
+) {
+  if (requirement.kind === "ambiguous") {
+    return `${requirement.personCount} Person context tags are present. Narrow the context to one quoted Person, or confirm this Quote should be stored as anonymous or unknown.`;
+  }
+
+  return "Add one Person context tag for the quoted Person, or confirm this Quote should be stored as anonymous or unknown.";
+}
+
+function createQuoteAttributionContributionNote(
+  requirement: QuoteAttributionRequirement,
+) {
+  if (requirement.kind === "ambiguous") {
+    return "Quote attribution: user acknowledged multiple Person context tags and confirmed the quoted Person is anonymous or unknown.";
+  }
+
+  return "Quote attribution: user confirmed the quoted Person is anonymous or unknown.";
+}
+
 function formatContributionContextPreview(context: ActiveTag[]) {
   if (context.length === 0) {
     return "All Accessible Knowledge";
@@ -1944,14 +2041,17 @@ function removeUrlFromText(text: string, url: string) {
     .trimStart();
 }
 
-function createWordsTitle(body: string) {
+function createBodyPreviewTitle(
+  body: string,
+  knowledgeType: AuthorableKnowledgeType,
+) {
   const firstLine = body
     .split(/\r?\n/)
     .map((line) => line.trim())
     .find(Boolean);
   const source = firstLine ?? body.trim().replace(/\s+/g, " ");
 
-  return limitContributionTitle(source || "Words");
+  return limitContributionTitle(source || formatKnowledgeTypeLabel(knowledgeType));
 }
 
 function limitContributionTitle(text: string) {

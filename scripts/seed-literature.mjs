@@ -2,8 +2,13 @@ import { execFile } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import {
+  getConvexDeploymentArgs,
+  shouldPushWithConvexRun,
+} from "./seed-cli-args.mjs";
 
 const execFileAsync = promisify(execFile);
+const convexDeploymentArgs = getConvexDeploymentArgs();
 
 const sourcePath = "data/literature/classical-christian-literature.seed.json";
 const enrichmentPath =
@@ -31,11 +36,6 @@ console.log(
 console.log(`Works: ${works.length}`);
 
 const totals = {
-  cleanup: {
-    details: emptyDeleteStats(),
-    entries: emptyDeleteStats(),
-    entryTags: emptyDeleteStats(),
-  },
   seed: {
     authorDetails: emptyStats(),
     authorReferences: emptyStats(),
@@ -50,25 +50,14 @@ const totals = {
 const seedBatches = getJsonArgBatches(works, maxConvexRunArgLength);
 let seededCount = 0;
 for (const [batchIndex, batch] of seedBatches.entries()) {
-  const cleanupBatch = batch.map(toSeedIdentity);
-  const cleanupResult = JSON.parse(
-    await runConvex(
-      "seedLiterature:deleteLegacySeededLiteratureKnowledgeEntries",
-      { works: cleanupBatch },
-      { push: batchIndex === 0 },
-    ),
-  );
   const result = JSON.parse(
     await runConvex(
       "seedLiterature:upsertLiteraryWorks",
       { works: batch },
-      { push: false },
+      { push: batchIndex === 0 },
     ),
   );
   seededCount += batch.length;
-  mergeDeleteStats(totals.cleanup.details, cleanupResult.details);
-  mergeDeleteStats(totals.cleanup.entries, cleanupResult.entries);
-  mergeDeleteStats(totals.cleanup.entryTags, cleanupResult.entryTags);
   mergeStats(totals.seed.authorDetails, result.authorDetails);
   mergeStats(totals.seed.authorReferences, result.authorReferences);
   mergeStats(totals.seed.authorReferents, result.authorReferents);
@@ -84,10 +73,13 @@ for (const [batchIndex, batch] of seedBatches.entries()) {
 console.log(JSON.stringify(totals, null, 2));
 
 const missing = [];
-const unexpectedSeedEntries = [];
 let checked = 0;
 const verifyBatches = getJsonArgBatches(
-  works.map(toSeedIdentity),
+  works.map(({ canonicalKey, knowledgeType, title }) => ({
+    canonicalKey,
+    knowledgeType,
+    title,
+  })),
   maxConvexRunArgLength,
 );
 for (const batch of verifyBatches) {
@@ -100,21 +92,16 @@ for (const batch of verifyBatches) {
   );
   checked += verification.checked;
   missing.push(...verification.missing);
-  unexpectedSeedEntries.push(...verification.unexpectedSeedEntries);
 }
 
 const verification = {
   checked,
   missing,
-  ok:
-    missing.length === 0 &&
-    unexpectedSeedEntries.length === 0 &&
-    checked === works.length,
-  unexpectedSeedEntries,
+  ok: missing.length === 0 && checked === works.length,
 };
 console.log(JSON.stringify(verification, null, 2));
 
-if (!verification.ok || verification.unexpectedSeedEntries.length > 0) {
+if (!verification.ok) {
   throw new Error("Literature seed verification failed.");
 }
 
@@ -127,11 +114,13 @@ async function runConvex(functionName, args, options) {
     functionName,
     jsonArgs,
   ];
-  if (options.push) {
+  const shouldPush = options.push && shouldPushWithConvexRun(convexDeploymentArgs);
+  if (shouldPush) {
     commandArgs.push("--push");
   } else {
     commandArgs.push("--typecheck", "disable", "--codegen", "disable");
   }
+  commandArgs.push(...convexDeploymentArgs);
 
   try {
     const { stderr, stdout } = await execFileAsync(command, commandArgs, {
@@ -152,10 +141,6 @@ async function runConvex(functionName, args, options) {
 
 function emptyStats() {
   return { inserted: 0, skipped: 0, updated: 0 };
-}
-
-function emptyDeleteStats() {
-  return { deleted: 0 };
 }
 
 function mergeStats(target, sourceStats) {
@@ -199,14 +184,6 @@ function pickDefined(object) {
   );
 }
 
-function toSeedIdentity(work) {
-  return {
-    canonicalKey: work.canonicalKey,
-    knowledgeType: work.knowledgeType,
-    title: work.title,
-  };
-}
-
 function getJsonArgBatches(items, maxArgLength) {
   const batches = [];
   let currentBatch = [];
@@ -230,10 +207,6 @@ function getJsonArgBatches(items, maxArgLength) {
   }
 
   return batches;
-}
-
-function mergeDeleteStats(target, sourceStats) {
-  target.deleted += sourceStats.deleted;
 }
 
 function writeRelevantStderr(stderr) {

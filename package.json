@@ -21,6 +21,7 @@
     "context-expertise:legacy-aggregates:status": "node scripts/cleanup-context-expertise-legacy-aggregates.mjs status",
     "context-expertise:legacy-aggregates:cleanup:dry-run": "node scripts/cleanup-context-expertise-legacy-aggregates.mjs dry-run",
     "context-expertise:legacy-aggregates:cleanup": "node scripts/cleanup-context-expertise-legacy-aggregates.mjs run",
+    "seed:all": "node scripts/seed-all.mjs",
     "seed:scripture": "node scripts/seed-scripture.mjs",
     "seed:organizations": "node scripts/seed-organizations.mjs",
     "seed:literature": "node scripts/seed-literature.mjs"

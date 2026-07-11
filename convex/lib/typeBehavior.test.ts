@@ -134,7 +134,7 @@ describe("Human Weight Concern", () => {
   });
 
   test("defines the credited human role by Knowledge Type", () => {
-    expect(getTypeBehavior("words").version).toBe("mvp-type-behavior-v4");
+    expect(getTypeBehavior("words").version).toBe("mvp-type-behavior-v5");
     expect(getTypeBehavior("words").humanWeight.creditBasis).toBe("contributor");
     expect(getTypeBehavior("announcement").humanWeight.creditBasis).toBe(
       "contributor",
@@ -152,7 +152,7 @@ describe("Human Weight Concern", () => {
       "creditBasis",
     );
     expect(getTypeBehaviorSnapshot("quote").version).toBe(
-      "mvp-type-behavior-v4",
+      "mvp-type-behavior-v5",
     );
   });
 });
@@ -176,6 +176,26 @@ describe("Type Behavior title input contract", () => {
       smartStorageTriggerWhenProvided: false,
     });
     expect(getTypeBehavior("comment")).toMatchObject({
+      composerDefaults: { titleRequired: false },
+      identity: { strategy: "generated" },
+    });
+
+    expect(getComposerTitleBehavior("quote")).toMatchObject({
+      generatedTitleKind: "bodyPreview",
+      input: "hidden",
+      smartStorageTriggerWhenProvided: false,
+    });
+    expect(getTypeBehavior("quote")).toMatchObject({
+      composerDefaults: { titleRequired: false },
+      identity: { strategy: "generated" },
+    });
+
+    expect(getComposerTitleBehavior("prayerRequest")).toMatchObject({
+      generatedTitleKind: "bodyPreview",
+      input: "hidden",
+      smartStorageTriggerWhenProvided: false,
+    });
+    expect(getTypeBehavior("prayerRequest")).toMatchObject({
       composerDefaults: { titleRequired: false },
       identity: { strategy: "generated" },
     });
@@ -215,7 +235,7 @@ describe("Type Behavior title input contract", () => {
     const snapshot = getTypeBehaviorSnapshot("words");
     const behavior = JSON.parse(snapshot.behaviorSnapshotJson);
 
-    expect(snapshot.version).toBe("mvp-type-behavior-v4");
+    expect(snapshot.version).toBe("mvp-type-behavior-v5");
     expect(behavior.composerDefaults.title).toMatchObject({
       generatedTitleKind: "bodyPreview",
       input: "addable",

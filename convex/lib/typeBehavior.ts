@@ -170,7 +170,7 @@ export type TypeBehavior = {
   };
 };
 
-const DEFAULT_TYPE_BEHAVIOR_VERSION = "mvp-type-behavior-v4";
+const DEFAULT_TYPE_BEHAVIOR_VERSION = "mvp-type-behavior-v5";
 
 const DEFAULT_COMPOSER_TITLE_BEHAVIOR: ComposerTitleBehavior = {
   generatedTitleKind: "none",
@@ -189,6 +189,15 @@ const WORDS_COMPOSER_TITLE_BEHAVIOR: ComposerTitleBehavior = {
   previewLabel: "Title",
   primaryInput: false,
   smartStorageTriggerWhenProvided: true,
+};
+
+const BODY_PREVIEW_HIDDEN_COMPOSER_TITLE_BEHAVIOR: ComposerTitleBehavior = {
+  generatedTitleKind: "bodyPreview",
+  input: "hidden",
+  label: "Title",
+  previewLabel: "Title",
+  primaryInput: false,
+  smartStorageTriggerWhenProvided: false,
 };
 
 const COMMENT_COMPOSER_TITLE_BEHAVIOR: ComposerTitleBehavior = {
@@ -280,6 +289,12 @@ const TYPE_BEHAVIOR_OVERRIDES: Partial<
     composerDefaults: createComposerDefaults(QUESTION_COMPOSER_TITLE_BEHAVIOR),
   },
   quote: {
+    identity: {
+      strategy: "generated",
+    },
+    composerDefaults: createComposerDefaults(
+      BODY_PREVIEW_HIDDEN_COMPOSER_TITLE_BEHAVIOR,
+    ),
     humanWeight: {
       creditBasis: "quotedPerson",
       defaultEstimate: 60,
@@ -297,6 +312,14 @@ const TYPE_BEHAVIOR_OVERRIDES: Partial<
       strategy: "generated",
     },
     composerDefaults: createComposerDefaults(COMMENT_COMPOSER_TITLE_BEHAVIOR),
+  },
+  prayerRequest: {
+    identity: {
+      strategy: "generated",
+    },
+    composerDefaults: createComposerDefaults(
+      BODY_PREVIEW_HIDDEN_COMPOSER_TITLE_BEHAVIOR,
+    ),
   },
   rsvp: {
     humanWeight: {
