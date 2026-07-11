@@ -190,6 +190,14 @@ const COMPOSER_TITLE_BEHAVIOR_OVERRIDES: Partial<
     previewLabel: "Question",
     primaryInput: true,
   },
+  quote: {
+    generatedTitleKind: "bodyPreview",
+    input: "hidden",
+  },
+  prayerRequest: {
+    generatedTitleKind: "bodyPreview",
+    input: "hidden",
+  },
   words: {
     generatedTitleKind: "bodyPreview",
     input: "addable",

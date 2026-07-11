@@ -85,6 +85,27 @@ describe("Knowledge Context routes", () => {
     ).toEqual(["first-crusade", "matthew-5-9"]);
     expect(
       getActiveTagsFromRoute({
+        pathname: "/explore",
+        search: "?tagIds=daniel-7,daniel-7-13-14",
+      }),
+    ).toMatchObject([
+      {
+        href: "/scripture/daniel-7",
+        id: "daniel-7",
+        knowledgeType: "biblePassage",
+        label: "Daniel 7",
+        passageString: "daniel-7",
+      },
+      {
+        href: "/scripture/daniel-7-13-14",
+        id: "daniel-7-13-14",
+        knowledgeType: "biblePassage",
+        label: "Daniel 7:13-14",
+        passageString: "daniel-7-13-14",
+      },
+    ]);
+    expect(
+      getActiveTagsFromRoute({
         pathname: "/search",
         search: "?q=ordered+loves",
       }),

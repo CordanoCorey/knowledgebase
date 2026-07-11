@@ -7,9 +7,6 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 
-const MAX_SEEDED_ENTRIES_PER_REFERENT = 10;
-const MAX_ENTRY_TAGS_PER_DELETED_ENTRY = 40;
-
 const literatureKnowledgeType = v.union(
   v.literal("book"),
   v.literal("poem"),
@@ -164,19 +161,10 @@ type LiteratureSeed = {
   title: string;
 };
 
-type LiteratureSeedIdentity = Pick<
-  LiteratureSeed,
-  "canonicalKey" | "knowledgeType" | "title"
->;
-
 type SeedStats = {
   inserted: number;
   skipped: number;
   updated: number;
-};
-
-type DeleteStats = {
-  deleted: number;
 };
 
 type SeedResult = {
@@ -187,12 +175,6 @@ type SeedResult = {
   referents: SeedStats;
   referentDetails: SeedStats;
   tags: SeedStats;
-};
-
-type CleanupResult = {
-  details: DeleteStats;
-  entries: DeleteStats;
-  entryTags: DeleteStats;
 };
 
 type UpsertResult<TId extends string> = {
@@ -281,55 +263,6 @@ export const upsertLiteraryWorks = internalMutation({
   },
 });
 
-export const deleteLegacySeededLiteratureKnowledgeEntries = internalMutation({
-  args: {
-    works: v.array(literatureSeedIdentityInput),
-  },
-  handler: async (ctx, args): Promise<CleanupResult> => {
-    const stats: CleanupResult = {
-      details: { deleted: 0 },
-      entries: { deleted: 0 },
-      entryTags: { deleted: 0 },
-    };
-
-    for (const work of args.works) {
-      const referent = await getReferentByKey(
-        ctx,
-        work.knowledgeType,
-        work.canonicalKey,
-      );
-      if (!referent) {
-        continue;
-      }
-
-      const entries = await getLegacySeededKnowledgeEntries(
-        ctx,
-        referent._id,
-        work,
-      );
-      for (const entry of entries) {
-        if (await deleteTypeDetail(ctx, work.knowledgeType, entry._id)) {
-          stats.details.deleted += 1;
-        }
-
-        const entryTags = await ctx.db
-          .query("entryTags")
-          .withIndex("by_entryId_and_tagId", (q) => q.eq("entryId", entry._id))
-          .take(MAX_ENTRY_TAGS_PER_DELETED_ENTRY);
-        for (const entryTag of entryTags) {
-          await ctx.db.delete(entryTag._id);
-          stats.entryTags.deleted += 1;
-        }
-
-        await ctx.db.delete(entry._id);
-        stats.entries.deleted += 1;
-      }
-    }
-
-    return stats;
-  },
-});
-
 export const verifyLiteratureSeedBatch = internalQuery({
   args: {
     works: v.array(
@@ -345,11 +278,6 @@ export const verifyLiteratureSeedBatch = internalQuery({
       canonicalKey: string;
       missing: "referent" | "referentDetail" | "tag";
     }> = [];
-    const unexpectedSeedEntries: Array<{
-      canonicalKey: string;
-      entryId: Id<"knowledgeEntries">;
-    }> = [];
-
     for (const work of args.works) {
       const referent = await getReferentByKey(
         ctx,
@@ -381,24 +309,12 @@ export const verifyLiteratureSeedBatch = internalQuery({
         });
       }
 
-      const entries = await getLegacySeededKnowledgeEntries(
-        ctx,
-        referent._id,
-        work,
-      );
-      for (const entry of entries) {
-        unexpectedSeedEntries.push({
-          canonicalKey: work.canonicalKey,
-          entryId: entry._id,
-        });
-      }
     }
 
     return {
       checked: args.works.length,
       missing,
-      ok: missing.length === 0 && unexpectedSeedEntries.length === 0,
-      unexpectedSeedEntries,
+      ok: missing.length === 0,
     };
   },
 });
@@ -691,134 +607,6 @@ async function getPrimaryTagByKey(
     .withIndex("by_knowledgeType_and_lookupKey", (q) =>
       q.eq("knowledgeType", knowledgeType).eq("lookupKey", lookupKey),
     )
-    .unique();
-}
-
-async function getLegacySeededKnowledgeEntries(
-  ctx: QueryCtx | MutationCtx,
-  representedReferentId: Id<"referents">,
-  work: LiteratureSeedIdentity,
-) {
-  const entries = await ctx.db
-    .query("knowledgeEntries")
-    .withIndex("by_representedReferentId", (q) =>
-      q.eq("representedReferentId", representedReferentId),
-    )
-    .take(MAX_SEEDED_ENTRIES_PER_REFERENT);
-
-  return entries.filter((entry) => isLegacySeededKnowledgeEntry(entry, work));
-}
-
-function isLegacySeededKnowledgeEntry(
-  entry: Doc<"knowledgeEntries">,
-  work: LiteratureSeedIdentity,
-) {
-  return (
-    entry.createdByUserId === undefined &&
-    entry.knowledgeType === work.knowledgeType &&
-    entry.title === work.title &&
-    entry.primaryTagLabel === work.title &&
-    entry.visibilityKind === "public" &&
-    entry.visibilityTargetKey === "public" &&
-    entry.discoverabilityKind === "public" &&
-    entry.discoverabilityTargetKey === "public"
-  );
-}
-
-async function deleteTypeDetail(
-  ctx: MutationCtx,
-  knowledgeType: LiteratureKnowledgeType,
-  entryId: Id<"knowledgeEntries">,
-) {
-  const detail = await getTypeDetailByEntryId(ctx, knowledgeType, entryId);
-  if (!detail) {
-    return false;
-  }
-
-  await ctx.db.delete(detail._id);
-  return true;
-}
-
-async function getTypeDetailByEntryId(
-  ctx: QueryCtx | MutationCtx,
-  knowledgeType: LiteratureKnowledgeType,
-  entryId: Id<"knowledgeEntries">,
-) {
-  if (knowledgeType === "book") {
-    return await getBookEntryByEntryId(ctx, entryId);
-  }
-  if (knowledgeType === "poem") {
-    return await getPoemEntryByEntryId(ctx, entryId);
-  }
-  if (knowledgeType === "shortStory") {
-    return await getShortStoryEntryByEntryId(ctx, entryId);
-  }
-  if (knowledgeType === "song") {
-    return await getSongEntryByEntryId(ctx, entryId);
-  }
-  if (knowledgeType === "series") {
-    return await getSeriesEntryByEntryId(ctx, entryId);
-  }
-  return await getEssayEntryByEntryId(ctx, entryId);
-}
-
-async function getBookEntryByEntryId(
-  ctx: QueryCtx | MutationCtx,
-  entryId: Id<"knowledgeEntries">,
-) {
-  return await ctx.db
-    .query("bookEntries")
-    .withIndex("by_entryId", (q) => q.eq("entryId", entryId))
-    .unique();
-}
-
-async function getPoemEntryByEntryId(
-  ctx: QueryCtx | MutationCtx,
-  entryId: Id<"knowledgeEntries">,
-) {
-  return await ctx.db
-    .query("poemEntries")
-    .withIndex("by_entryId", (q) => q.eq("entryId", entryId))
-    .unique();
-}
-
-async function getShortStoryEntryByEntryId(
-  ctx: QueryCtx | MutationCtx,
-  entryId: Id<"knowledgeEntries">,
-) {
-  return await ctx.db
-    .query("shortStoryEntries")
-    .withIndex("by_entryId", (q) => q.eq("entryId", entryId))
-    .unique();
-}
-
-async function getSongEntryByEntryId(
-  ctx: QueryCtx | MutationCtx,
-  entryId: Id<"knowledgeEntries">,
-) {
-  return await ctx.db
-    .query("songEntries")
-    .withIndex("by_entryId", (q) => q.eq("entryId", entryId))
-    .unique();
-}
-
-async function getSeriesEntryByEntryId(
-  ctx: QueryCtx | MutationCtx,
-  entryId: Id<"knowledgeEntries">,
-) {
-  return await ctx.db
-    .query("seriesEntries")
-    .withIndex("by_entryId", (q) => q.eq("entryId", entryId))
-    .unique();
-}
-
-async function getEssayEntryByEntryId(
-  ctx: QueryCtx | MutationCtx,
-  entryId: Id<"knowledgeEntries">,
-) {
-  return await ctx.db
-    .query("essayEntries")
-    .withIndex("by_entryId", (q) => q.eq("entryId", entryId))
     .unique();
 }
 

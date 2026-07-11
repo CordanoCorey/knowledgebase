@@ -3,32 +3,54 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { promisify } from "node:util";
+import {
+  formatConvexArgsForWindowsShell,
+  getConvexDeploymentArgs,
+  isLocalConvexTarget,
+  shouldPushWithConvexRun,
+} from "./seed-cli-args.mjs";
 
 const execFileAsync = promisify(execFile);
 const execAsync = promisify(exec);
 
 const sourcePath = "data/scripture/kjv-verses-1769.json";
 const sourceFileName = "kjv-verses-1769.json";
+const publicSourceUrl =
+  "https://raw.githubusercontent.com/farskipper/kjv/master/json/verses-1769.json";
+const publicSourceSha256 =
+  "43FBD2FD6A7AEBAF62C0C828A85072336143C1FE8233A4856A12DB1D5E5DF470";
 const sourceRepositoryUrl = "https://github.com/farskipper/kjv";
 const retrievedDate = "2026-06-10";
 const expectedVerseCount = 31102;
 const seedChunkSize = 5000;
 const skipPush = process.env.CONVEX_SEED_SCRIPTURE_SKIP_PUSH === "1";
+const convexDeploymentArgs = getConvexDeploymentArgs();
+const useLocalSource = isLocalConvexTarget(convexDeploymentArgs);
 
 if (!existsSync(sourcePath)) {
   throw new Error(`Missing local KJV source file: ${sourcePath}`);
 }
 
-const expectedSha256 = createHash("sha256")
+const localSourceSha256 = createHash("sha256")
   .update(readFileSync(sourcePath))
   .digest("hex")
   .toUpperCase();
+const expectedSha256 = useLocalSource ? localSourceSha256 : publicSourceSha256;
 
 console.log(`Seeding Scripture from ${sourcePath}`);
-console.log(`Local source SHA-256: ${expectedSha256}`);
+console.log(`Local source SHA-256: ${localSourceSha256}`);
+console.log(
+  useLocalSource
+    ? "Using local source server for a local Convex target"
+    : `Using public source URL for a cloud Convex target: ${publicSourceUrl}`,
+);
+console.log(`Expected fetched source SHA-256: ${expectedSha256}`);
 
-const localSourceServer = await serveLocalSourceFile(sourcePath, sourceFileName);
+const localSourceServer = useLocalSource
+  ? await serveLocalSourceFile(sourcePath, sourceFileName)
+  : null;
 try {
+  const sourceUrl = localSourceServer?.url ?? publicSourceUrl;
   for (
     let startOrdinal = 1;
     startOrdinal <= expectedVerseCount;
@@ -47,7 +69,7 @@ try {
         retrievedDate,
         seedStructure: startOrdinal === 1,
         sourceRepositoryUrl,
-        sourceUrl: localSourceServer.url,
+        sourceUrl,
         startOrdinal,
       },
       { push: startOrdinal === 1 && !skipPush },
@@ -58,7 +80,7 @@ try {
   const verification = await runConvex("seedScripture:verifySeed", {}, { push: false });
   console.log(verification);
 } finally {
-  await localSourceServer.close();
+  await localSourceServer?.close();
 }
 
 async function serveLocalSourceFile(path, fileName) {
@@ -102,11 +124,13 @@ async function serveLocalSourceFile(path, fileName) {
 
 async function runConvex(functionName, args, options) {
   const jsonArgs = JSON.stringify(args);
+  const shouldPush = options.push && shouldPushWithConvexRun(convexDeploymentArgs);
   if (process.platform === "win32") {
     const escapedJsonArgs = jsonArgs.replace(/"/g, '\\"');
-    const pushFlag = options.push ? " --push" : "";
+    const pushFlag = shouldPush ? " --push" : "";
+    const deploymentFlags = formatConvexArgsForWindowsShell(convexDeploymentArgs);
     const { stderr, stdout } = await execConvexOnWindows(
-      `npx convex run ${functionName} "${escapedJsonArgs}"${pushFlag}`,
+      `npx convex run ${functionName} "${escapedJsonArgs}"${pushFlag}${deploymentFlags}`,
     );
     if (stderr.trim()) {
       process.stderr.write(stderr);
@@ -116,9 +140,10 @@ async function runConvex(functionName, args, options) {
 
   const command = "npx";
   const commandArgs = ["convex", "run", functionName, jsonArgs];
-  if (options.push) {
+  if (shouldPush) {
     commandArgs.push("--push");
   }
+  commandArgs.push(...convexDeploymentArgs);
 
   const { stderr, stdout } = await execFileAsync(command, commandArgs, {
     maxBuffer: 1024 * 1024 * 20,

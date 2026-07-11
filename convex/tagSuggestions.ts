@@ -267,6 +267,12 @@ export const resolveRouteActiveTags = query({
     const resolvedTags: Array<ActiveTagSnapshot | null> = [];
 
     for (const tagKey of tagKeys) {
+      const biblePassageTarget = await resolveBiblePassageSearchTarget(ctx, tagKey);
+      if (biblePassageTarget) {
+        resolvedTags.push(toBiblePassageActiveTagSnapshot(biblePassageTarget));
+        continue;
+      }
+
       const tag = await resolveRouteTag(ctx, tagKey, access);
       resolvedTags.push(tag ? await toActiveTagSnapshot(ctx, tag, access) : null);
     }
@@ -1214,6 +1220,8 @@ function isSameBibleChapter(left: Doc<"bibleVerses">, right: Doc<"bibleVerses">)
 function toBiblePassageSuggestionFromTarget(
   target: ResolvedBiblePassageSearchTarget,
 ): TagSuggestion {
+  const tag = toBiblePassageActiveTagSnapshot(target);
+
   return {
     canonicalKey: target.canonicalKey,
     href: target.href,
@@ -1221,14 +1229,20 @@ function toBiblePassageSuggestionFromTarget(
     knowledgeType: "biblePassage",
     label: target.label,
     matchKind: "label",
-    tag: {
-      canonicalKey: target.canonicalKey,
-      href: target.href,
-      id: target.id,
-      knowledgeType: "biblePassage",
-      label: target.label,
-      passageString: target.passageString,
-    },
+    tag,
+  };
+}
+
+function toBiblePassageActiveTagSnapshot(
+  target: ResolvedBiblePassageSearchTarget,
+): ActiveTagSnapshot {
+  return {
+    canonicalKey: target.canonicalKey,
+    href: target.href,
+    id: target.id,
+    knowledgeType: "biblePassage",
+    label: target.label,
+    passageString: target.passageString,
   };
 }
 

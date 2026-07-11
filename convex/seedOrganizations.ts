@@ -186,14 +186,19 @@ export const verifyDefaultOrganizationsSeed = internalQuery({
       const detail = referent
         ? await getOrganizationReferentDetail(ctx, referent._id)
         : null;
-      const entries = referent
-        ? await getKnowledgeEntriesByReferent(ctx, referent._id, "organization")
+      const knowledgeEntries = referent
+        ? await ctx.db
+            .query("knowledgeEntries")
+            .withIndex("by_representedReferentId", (q) =>
+              q.eq("representedReferentId", referent._id),
+            )
+            .take(1)
         : [];
 
       organizations.push({
         canonicalKey: organization.canonicalKey,
         exists: Boolean(referent && detail),
-        hasKnowledgeEntry: entries.length > 0,
+        hasKnowledgeEntry: knowledgeEntries.length > 0,
         isActive: detail?.isActive ?? null,
         kind: detail?.organizationKind ?? null,
         name: referent?.canonicalName ?? null,
@@ -260,12 +265,6 @@ async function upsertOrganization(
     tagId,
     updatedAt: now,
   });
-  await removeLegacySeededEntry(ctx, {
-    knowledgeType: "organization",
-    primaryTagId: tagId,
-    representedReferentId: referentId,
-  });
-
   return { organizationReferentId: referentId, state: detailState };
 }
 
@@ -347,12 +346,6 @@ async function upsertUserProfile(
     updatedAt: now,
     userId: user.userId,
   });
-  await removeLegacySeededEntry(ctx, {
-    knowledgeType: "person",
-    primaryTagId: personTagId,
-    representedReferentId: personReferentId,
-  });
-
   if (existingProfile) {
     const patch: Partial<Doc<"userProfiles">> = {};
     if (existingProfile.personReferentId !== personReferentId) {
@@ -648,75 +641,6 @@ async function upsertOrganizationTagRecognition(
   });
 }
 
-async function removeLegacySeededEntry(
-  ctx: MutationCtx,
-  entry: {
-    knowledgeType: Doc<"knowledgeEntries">["knowledgeType"];
-    primaryTagId: Id<"tags">;
-    representedReferentId: Id<"referents">;
-  },
-) {
-  const legacyEntries = await getKnowledgeEntriesByReferent(
-    ctx,
-    entry.representedReferentId,
-    entry.knowledgeType,
-  );
-
-  for (const legacyEntry of legacyEntries) {
-    if (
-      legacyEntry.primaryTagId !== entry.primaryTagId ||
-      legacyEntry.createdByUserId !== undefined
-    ) {
-      continue;
-    }
-
-    await removeEntryTags(ctx, legacyEntry._id);
-    if (entry.knowledgeType === "person") {
-      await removePersonEntryDetail(ctx, legacyEntry._id);
-    }
-    if (entry.knowledgeType === "organization") {
-      await removeOrganizationEntryDetail(ctx, legacyEntry._id);
-    }
-    await ctx.db.delete(legacyEntry._id);
-  }
-}
-
-async function removeEntryTags(
-  ctx: MutationCtx,
-  entryId: Id<"knowledgeEntries">,
-) {
-  const entryTags = await ctx.db
-    .query("entryTags")
-    .withIndex("by_entryId_and_tagId", (q) => q.eq("entryId", entryId))
-    .take(100);
-  for (const entryTag of entryTags) {
-    await ctx.db.delete(entryTag._id);
-  }
-}
-
-async function removePersonEntryDetail(
-  ctx: MutationCtx,
-  entryId: Id<"knowledgeEntries">,
-) {
-  const personEntry = await ctx.db
-    .query("personEntries")
-    .withIndex("by_entryId", (q) => q.eq("entryId", entryId))
-    .unique();
-  if (personEntry) {
-    await ctx.db.delete(personEntry._id);
-  }
-}
-
-async function removeOrganizationEntryDetail(
-  ctx: MutationCtx,
-  entryId: Id<"knowledgeEntries">,
-) {
-  const organizationEntry = await getOrganizationEntryByEntryId(ctx, entryId);
-  if (organizationEntry) {
-    await ctx.db.delete(organizationEntry._id);
-  }
-}
-
 async function getReferentByKey(
   ctx: QueryCtx | MutationCtx,
   knowledgeType: KnowledgeType,
@@ -730,21 +654,6 @@ async function getReferentByKey(
     .unique();
 }
 
-async function getKnowledgeEntriesByReferent(
-  ctx: QueryCtx | MutationCtx,
-  representedReferentId: Id<"referents">,
-  knowledgeType: Doc<"knowledgeEntries">["knowledgeType"],
-) {
-  const entries = await ctx.db
-    .query("knowledgeEntries")
-    .withIndex("by_representedReferentId", (q) =>
-      q.eq("representedReferentId", representedReferentId),
-    )
-    .take(10);
-
-  return entries.filter((entry) => entry.knowledgeType === knowledgeType);
-}
-
 async function getOrganizationReferentDetail(
   ctx: QueryCtx | MutationCtx,
   referentId: Id<"referents">,
@@ -752,16 +661,6 @@ async function getOrganizationReferentDetail(
   return await ctx.db
     .query("organizationReferentDetails")
     .withIndex("by_referentId", (q) => q.eq("referentId", referentId))
-    .unique();
-}
-
-async function getOrganizationEntryByEntryId(
-  ctx: QueryCtx | MutationCtx,
-  entryId: Id<"knowledgeEntries">,
-) {
-  return await ctx.db
-    .query("organizationEntries")
-    .withIndex("by_entryId", (q) => q.eq("entryId", entryId))
     .unique();
 }
 

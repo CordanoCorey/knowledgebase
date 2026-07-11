@@ -50,6 +50,22 @@ Application email delivery uses the Convex Resend component through
 `convex/emailer.ts`. See `docs/emailer.md` for notification email usage,
 `RESEND_TEST_MODE`, and the `/resend-webhook` setup.
 
+## Seed data
+
+Seed scripts can target local, dev, or prod Convex deployments:
+
+```bash
+npm run seed:all -- --deployment dev
+npm run seed:all -- --deployment prod
+```
+
+`seed:all` runs the organization, Scripture, and literature seeders and each
+seeder verifies its result. Deploy production Convex functions before seeding
+prod, because `convex run --push` is intentionally disabled for production
+deployments. Seeders create application-level reference data only; Knowledge
+Entries are created through the contribution editor and are not part of a
+seed.
+
 ## Production Deployment
 
 Production is deployed by Vercel from the GitHub `prod` branch. The production
