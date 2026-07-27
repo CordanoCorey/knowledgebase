@@ -4463,8 +4463,8 @@ function ComponentScaffold({
   const requestSmartStorageRefresh = useMutation(
     api.smartStorage.requestRefreshForProposal,
   );
-  const requestSmartStorageEntryReprocessing = useMutation(
-    api.smartStorage.requestReprocessingForEntry,
+  const retrySmartStorageModelRun = useMutation(
+    api.smartStorage.retryModelRun,
   );
   const dismissSmartStorageRefresh = useMutation(
     api.smartStorage.dismissRefreshSuggestion,
@@ -4936,20 +4936,6 @@ function ComponentScaffold({
     refreshSmartStorageWizard((current) => current + 1);
   }
 
-  async function handleRequestSmartStorageEntryReprocessing(
-    session: SmartStorageSessionSummary,
-  ) {
-    if (session.acceptedPrimaryEntry === undefined) {
-      return;
-    }
-
-    await requestSmartStorageEntryReprocessing({
-      entryId: session.acceptedPrimaryEntry.id as Id<"knowledgeEntries">,
-      suggestionKind: "suggestedEdit",
-    });
-    refreshSmartStorageWizard((current) => current + 1);
-  }
-
   async function handleDismissSmartStorageRefresh(
     proposal: SmartStorageSessionProposalSummary,
   ) {
@@ -5006,6 +4992,17 @@ function ComponentScaffold({
       smartStorageRunId: runId as Id<"smartStorageRuns">,
     });
     refreshSmartStorageWizard((current) => current + 1);
+  }
+
+  async function handleRetrySmartStorageModelRun(
+    session: SmartStorageSessionSummary,
+  ) {
+    const result = await retrySmartStorageModelRun({
+      contributionSubmissionId:
+        session.contributionSubmission.id as Id<"contributionSubmissions">,
+    });
+    refreshSmartStorageWizard((current) => current + 1);
+    await continueSmartStorageModelFlow(result.smartStorageRunId);
   }
 
   function toConvexUploadedFiles(
@@ -5303,10 +5300,8 @@ function ComponentScaffold({
             onCreateBasicProposal={handleCreateBasicSmartStorageProposal}
             onDismissRefresh={handleDismissSmartStorageRefresh}
             onNavigateToHref={onNavigateToHref}
-            onRequestEntryReprocessing={
-              handleRequestSmartStorageEntryReprocessing
-            }
             onRequestRefresh={handleRequestSmartStorageRefresh}
+            onRetryModelRun={handleRetrySmartStorageModelRun}
             session={smartStorageWizardSession}
           />
         ) : null}
@@ -5890,8 +5885,8 @@ function SmartStorageSessionWizard({
   onCreateBasicProposal,
   onDismissRefresh,
   onNavigateToHref,
-  onRequestEntryReprocessing,
   onRequestRefresh,
+  onRetryModelRun,
   session,
 }: {
   existingEntryTargets: Record<string, string>;
@@ -5907,12 +5902,10 @@ function SmartStorageSessionWizard({
     proposal: SmartStorageSessionProposalSummary,
   ) => Promise<void>;
   onNavigateToHref: (href: string) => void;
-  onRequestEntryReprocessing: (
-    session: SmartStorageSessionSummary,
-  ) => Promise<void>;
   onRequestRefresh: (
     proposal: SmartStorageSessionProposalSummary,
   ) => Promise<void>;
+  onRetryModelRun: (session: SmartStorageSessionSummary) => Promise<void>;
   session: SmartStorageSessionSummary | null | undefined;
 }) {
   const [isCancelling, setIsCancelling] = useState(false);
@@ -5953,14 +5946,17 @@ function SmartStorageSessionWizard({
           </div>
           <div className="kb-smart-wizard-header-actions">
             {session ? (
-              <button
-                className="kb-smart-wizard-evidence-button"
-                onClick={() => setIsEvidenceOpen(true)}
-                type="button"
-              >
-                <Database aria-hidden="true" />
-                <span>Source evidence</span>
-              </button>
+              <>
+                <SmartStorageWizardSourceCounts session={session} />
+                <button
+                  className="kb-smart-wizard-evidence-button"
+                  onClick={() => setIsEvidenceOpen(true)}
+                  type="button"
+                >
+                  <Database aria-hidden="true" />
+                  <span>Evidence</span>
+                </button>
+              </>
             ) : null}
             <button
               aria-label="Finish later"
@@ -5989,15 +5985,17 @@ function SmartStorageSessionWizard({
 
         {session ? (
           <>
-            <SmartStorageWizardSourceCounts session={session} />
             <SmartStorageWizardProgress session={session} />
-            <SmartStorageWizardRunSummary session={session} />
+            {shouldShowSmartStorageRunSummary(session) ? (
+              <SmartStorageWizardRunSummary session={session} />
+            ) : null}
             {isFailedOrNoProposalSmartStorageSession(session) ? (
               <SmartStorageWizardFallbackPanel
                 isCancelling={isCancelling}
                 onCancelSession={handleCancelSession}
                 onClose={onClose}
                 onCreateBasicProposal={onCreateBasicProposal}
+                onRetryModelRun={onRetryModelRun}
                 session={session}
               />
             ) : (
@@ -6009,7 +6007,6 @@ function SmartStorageSessionWizard({
                 onDismissRefresh={onDismissRefresh}
                 onClose={onClose}
                 onNavigateToHref={onNavigateToHref}
-                onRequestEntryReprocessing={onRequestEntryReprocessing}
                 onRequestRefresh={onRequestRefresh}
                 session={session}
               />
@@ -6040,27 +6037,20 @@ function SmartStorageWizardSourceCounts({
   ].filter((item) => item.count > 0);
 
   return (
-    <section className="kb-smart-wizard-sources" aria-label="Bronze Sources saved">
-      <div>
+    <div className="kb-smart-wizard-sources" aria-label="Bronze Sources saved">
+      <span className="kb-smart-wizard-source-status">
         <Database aria-hidden="true" />
-        <span>
-          <strong>Sources saved</strong>
-          <small>Bronze Layer preserved before proposal generation.</small>
+        <strong>{formatCount(session.sourceCounts.total, "Source")}</strong>
+        <span className="kb-sr-only">
+          Sources saved. Bronze Layer preserved before proposal generation.
         </span>
-      </div>
-      <dl>
-        <div>
-          <dt>Total</dt>
-          <dd>{session.sourceCounts.total}</dd>
-        </div>
-        {sourceCounts.map((item) => (
-          <div key={item.label}>
-            <dt>{item.label}</dt>
-            <dd>{item.count}</dd>
-          </div>
-        ))}
-      </dl>
-    </section>
+      </span>
+      {sourceCounts.map((item) => (
+        <span key={item.label}>
+          <strong>{item.count}</strong> {item.label}
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -6069,10 +6059,11 @@ function SmartStorageWizardProgress({
 }: {
   session: SmartStorageSessionSummary;
 }) {
-  const run = session.activeRun ?? session.latestRun;
   const hasPrimarySaved = session.acceptedPrimaryEntry !== undefined;
-  const prerequisiteState =
-    session.state === "awaitingPrerequisites"
+  const isRecovering = isFailedOrNoProposalSmartStorageSession(session);
+  const isPreparing = session.activeRun !== undefined;
+  const setupStageState =
+    isRecovering || isPreparing || session.state === "awaitingPrerequisites"
       ? "active"
       : hasPrimarySaved || session.state === "primaryReady"
         ? "done"
@@ -6094,36 +6085,46 @@ function SmartStorageWizardProgress({
       <li data-state="done">
         <Check aria-hidden="true" />
         <span>
-          <strong>Bronze Sources</strong>
+          <strong>Sources saved</strong>
           <small>{formatCount(session.sourceCounts.total, "Source")} saved</small>
         </span>
       </li>
-      <li data-state={session.activeRun ? "active" : "done"}>
-        {session.activeRun ? (
+      <li data-state={setupStageState}>
+        {isPreparing ? (
           <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
+        ) : isRecovering ? (
+          <AlertTriangle aria-hidden="true" />
         ) : (
-          <Sparkles aria-hidden="true" />
+          <Shield aria-hidden="true" />
         )}
         <span>
-          <strong>Proposal generation</strong>
-          <small>{run ? formatSmartStorageRunStatus(run.status) : "Waiting"}</small>
-        </span>
-      </li>
-      <li data-state={prerequisiteState}>
-        <Shield aria-hidden="true" />
-        <span>
-          <strong>Prerequisites</strong>
+          <strong>
+            {isPreparing
+              ? "Preparing"
+              : isRecovering
+                ? "Recovery"
+                : "Required setup"}
+          </strong>
           <small>
-            {session.prerequisiteProposals.length > 0
-              ? formatCount(session.prerequisiteProposals.length, "required item")
-              : "No required setup"}
+            {isPreparing
+              ? formatSmartStorageRunStatus(
+                  session.activeRun?.status ?? "queued",
+                )
+              : isRecovering
+                ? "Sources remain safe"
+                : session.prerequisiteProposals.length > 0
+                  ? formatCount(
+                      session.prerequisiteProposals.length,
+                      "required item",
+                    )
+                  : "No prerequisites"}
           </small>
         </span>
       </li>
       <li data-state={primaryState}>
         <BookOpen aria-hidden="true" />
         <span>
-          <strong>Primary Intended Entry</strong>
+          <strong>Primary</strong>
           <small>{formatSmartStorageSessionState(session.state)}</small>
         </span>
       </li>
@@ -6193,15 +6194,18 @@ function SmartStorageWizardFallbackPanel({
   onCancelSession,
   onClose,
   onCreateBasicProposal,
+  onRetryModelRun,
   session,
 }: {
   isCancelling: boolean;
   onCancelSession: () => Promise<void>;
   onClose: () => void;
   onCreateBasicProposal: (session: SmartStorageSessionSummary) => Promise<void>;
+  onRetryModelRun: (session: SmartStorageSessionSummary) => Promise<void>;
   session: SmartStorageSessionSummary;
 }) {
   const [isCreating, setIsCreating] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
   const latestRun = session.latestRun;
   const isNoProposal = latestRun?.status === "noProposal";
   const canCancelSession = session.canCancel;
@@ -6212,6 +6216,15 @@ function SmartStorageWizardFallbackPanel({
       await onCreateBasicProposal(session);
     } finally {
       setIsCreating(false);
+    }
+  }
+
+  async function handleRetryModelRun() {
+    setIsRetrying(true);
+    try {
+      await onRetryModelRun(session);
+    } finally {
+      setIsRetrying(false);
     }
   }
 
@@ -6231,9 +6244,17 @@ function SmartStorageWizardFallbackPanel({
         <p className="kb-smart-run-error">{latestRun.errorMessage}</p>
       ) : null}
       <footer className="kb-smart-wizard-actions">
-        <button disabled title="Retry is not supported for this run yet." type="button">
-          <RotateCcw aria-hidden="true" />
-          <span>Retry model</span>
+        <button
+          disabled={isRetrying}
+          onClick={() => void handleRetryModelRun()}
+          type="button"
+        >
+          {isRetrying ? (
+            <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
+          ) : (
+            <RotateCcw aria-hidden="true" />
+          )}
+          <span>{isRetrying ? "Retrying model" : "Retry model"}</span>
         </button>
         <button
           className="kb-card-action-primary"
@@ -6275,7 +6296,6 @@ function SmartStorageWizardReview({
   onClose,
   onDismissRefresh,
   onNavigateToHref,
-  onRequestEntryReprocessing,
   onRequestRefresh,
   session,
 }: {
@@ -6292,9 +6312,6 @@ function SmartStorageWizardReview({
     proposal: SmartStorageSessionProposalSummary,
   ) => Promise<void>;
   onNavigateToHref: (href: string) => void;
-  onRequestEntryReprocessing: (
-    session: SmartStorageSessionSummary,
-  ) => Promise<void>;
   onRequestRefresh: (
     proposal: SmartStorageSessionProposalSummary,
   ) => Promise<void>;
@@ -6302,27 +6319,19 @@ function SmartStorageWizardReview({
 }) {
   const hasPrimarySaved = session.acceptedPrimaryEntry !== undefined;
   const hasPrerequisiteProposals = session.prerequisiteProposals.length > 0;
+  const activePrerequisiteProposal = session.prerequisiteProposals[0];
+  const remainingPrerequisiteCount = Math.max(
+    session.prerequisiteProposals.length - 1,
+    0,
+  );
   const canCancelSession = session.canCancel;
-  const [isRequestingEntryReprocessing, setIsRequestingEntryReprocessing] =
-    useState(false);
   const [isContinuationOpen, setIsContinuationOpen] = useState(false);
-
-  async function handleRequestEntryReprocessing() {
-    setIsRequestingEntryReprocessing(true);
-    try {
-      await onRequestEntryReprocessing(session);
-    } finally {
-      setIsRequestingEntryReprocessing(false);
-    }
-  }
 
   if (hasPrimarySaved) {
     return (
       <div className="kb-smart-wizard-review kb-smart-wizard-review-saved">
         <SmartStorageWizardSavedEntryFocus
-          isRequestingEntryReprocessing={isRequestingEntryReprocessing}
           onNavigateToHref={onNavigateToHref}
-          onRequestEntryReprocessing={handleRequestEntryReprocessing}
           session={session}
         />
 
@@ -6360,18 +6369,39 @@ function SmartStorageWizardReview({
   return (
     <div className="kb-smart-wizard-review">
       <section className="kb-smart-wizard-main" aria-label="Required Smart Storage review">
-        {session.prerequisiteProposals.map((proposal) => (
+        {activePrerequisiteProposal ? (
           <SmartStorageWizardProposalCard
-            existingEntryId={existingEntryTargets[proposal.id]}
-            key={proposal.id}
+            existingEntryId={existingEntryTargets[activePrerequisiteProposal.id]}
             onAccept={onAcceptProposal}
             onDismissRefresh={onDismissRefresh}
             onNavigateToHref={onNavigateToHref}
             onRequestRefresh={onRequestRefresh}
-            proposal={proposal}
+            proposal={activePrerequisiteProposal}
             tone="prerequisite"
           />
-        ))}
+        ) : null}
+
+        {remainingPrerequisiteCount > 0 ? (
+          <section
+            aria-label="Remaining prerequisite proposals"
+            className="kb-smart-wizard-setup-queue"
+          >
+            <Shield aria-hidden="true" />
+            <span>
+              <strong>
+                {formatCount(
+                  remainingPrerequisiteCount,
+                  "required item",
+                )}{" "}
+                {remainingPrerequisiteCount === 1 ? "remains" : "remain"}
+              </strong>
+              <small>
+                Review one prerequisite at a time before the Primary Intended
+                Entry unlocks.
+              </small>
+            </span>
+          </section>
+        ) : null}
 
         {hasPrerequisiteProposals && session.primaryProposal ? (
           <SmartStorageWizardLockedPrimarySummary
@@ -6423,14 +6453,10 @@ function SmartStorageWizardReview({
 }
 
 function SmartStorageWizardSavedEntryFocus({
-  isRequestingEntryReprocessing,
   onNavigateToHref,
-  onRequestEntryReprocessing,
   session,
 }: {
-  isRequestingEntryReprocessing: boolean;
   onNavigateToHref: (href: string) => void;
-  onRequestEntryReprocessing: () => Promise<void>;
   session: SmartStorageSessionSummary;
 }) {
   const entry = session.acceptedPrimaryEntry;
@@ -6459,20 +6485,6 @@ function SmartStorageWizardSavedEntryFocus({
         className="kb-smart-proposal-type"
         knowledgeType={acceptedEntry.knowledgeType}
       />
-      <button
-        disabled={isRequestingEntryReprocessing}
-        onClick={() => void onRequestEntryReprocessing()}
-        type="button"
-      >
-        {isRequestingEntryReprocessing ? (
-          <LoaderCircle aria-hidden="true" className="editor-auth-spin" />
-        ) : (
-          <RotateCcw aria-hidden="true" />
-        )}
-        <span>
-          {isRequestingEntryReprocessing ? "Reprocessing" : "Reprocess Entry"}
-        </span>
-      </button>
     </section>
   );
 }
@@ -6499,10 +6511,6 @@ function SmartStorageWizardLockedPrimarySummary({
         className="kb-smart-proposal-type"
         knowledgeType={proposal.currentProposal.knowledgeType}
       />
-      <button disabled type="button">
-        <Check aria-hidden="true" />
-        <span>Accept Primary Entry</span>
-      </button>
     </article>
   );
 }
@@ -6598,19 +6606,19 @@ function SmartStorageWizardContinuationBar({
       </button>
       {isOpen ? (
         <ol>
-          {proposals.map((proposal) => (
-            <li key={proposal.id}>
+          {firstProposal ? (
+            <li key={firstProposal.id}>
               <SmartStorageWizardProposalCard
-                existingEntryId={existingEntryTargets[proposal.id]}
+                existingEntryId={existingEntryTargets[firstProposal.id]}
                 onAccept={onAcceptProposal}
                 onDismissRefresh={onDismissRefresh}
                 onNavigateToHref={onNavigateToHref}
                 onRequestRefresh={onRequestRefresh}
-                proposal={proposal}
+                proposal={firstProposal}
                 tone="secondary"
               />
             </li>
-          ))}
+          ) : null}
         </ol>
       ) : null}
     </section>
@@ -6961,7 +6969,7 @@ function SmartStorageWizardProposalCard({
         </details>
       ) : null}
 
-      <footer className="kb-smart-wizard-actions">
+      <footer className="kb-smart-wizard-actions kb-smart-wizard-proposal-actions">
         {isStaleRefresh ? (
           <button
             className="kb-card-action-primary"
@@ -7046,6 +7054,13 @@ function isFailedOrNoProposalSmartStorageSession(
     session.primaryProposal === undefined &&
     (session.latestRun?.status === "failed" ||
       session.latestRun?.status === "noProposal")
+  );
+}
+
+function shouldShowSmartStorageRunSummary(session: SmartStorageSessionSummary) {
+  return (
+    session.activeRun !== undefined ||
+    isFailedOrNoProposalSmartStorageSession(session)
   );
 }
 
@@ -9734,14 +9749,17 @@ function TodoListPage({
   const requestSmartStorageRefresh = useMutation(
     api.smartStorage.requestRefreshForProposal,
   );
-  const requestSmartStorageEntryReprocessing = useMutation(
-    api.smartStorage.requestReprocessingForEntry,
+  const retrySmartStorageModelRun = useMutation(
+    api.smartStorage.retryModelRun,
   );
   const dismissSmartStorageRefresh = useMutation(
     api.smartStorage.dismissRefreshSuggestion,
   );
   const generateSmartStorageProposal = useMutation(
     api.smartStorage.generateDraftProposalForRun,
+  );
+  const executeSmartStorageModelRun = useAction(
+    api.smartStorage.executeModelRun,
   );
   const [activeSmartStorageSessionId, setActiveSmartStorageSessionId] =
     useState<Id<"contributionSubmissions"> | null>(null);
@@ -9876,18 +9894,20 @@ function TodoListPage({
     refreshSmartStorageWizard((current) => current + 1);
   }
 
-  async function handleRequestSmartStorageEntryReprocessing(
+  async function handleRetrySmartStorageModelRun(
     session: SmartStorageSessionSummary,
   ) {
-    if (session.acceptedPrimaryEntry === undefined) {
-      return;
-    }
-
-    await requestSmartStorageEntryReprocessing({
-      entryId: session.acceptedPrimaryEntry.id as Id<"knowledgeEntries">,
-      suggestionKind: "suggestedEdit",
+    const result = await retrySmartStorageModelRun({
+      contributionSubmissionId:
+        session.contributionSubmission.id as Id<"contributionSubmissions">,
     });
-    refreshSmartStorageWizard((current) => current + 1);
+    try {
+      await executeSmartStorageModelRun({
+        smartStorageRunId: result.smartStorageRunId,
+      });
+    } finally {
+      refreshSmartStorageWizard((current) => current + 1);
+    }
   }
 
   async function handleDismissSmartStorageRefresh(
@@ -10067,10 +10087,8 @@ function TodoListPage({
           onCreateBasicProposal={handleCreateBasicSmartStorageProposal}
           onDismissRefresh={handleDismissSmartStorageRefresh}
           onNavigateToHref={onNavigateToHref}
-          onRequestEntryReprocessing={
-            handleRequestSmartStorageEntryReprocessing
-          }
           onRequestRefresh={handleRequestSmartStorageRefresh}
+          onRetryModelRun={handleRetrySmartStorageModelRun}
           session={smartStorageWizardSession}
         />
       ) : null}

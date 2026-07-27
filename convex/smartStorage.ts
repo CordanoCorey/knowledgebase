@@ -1156,6 +1156,123 @@ export const getSessionSummary = query({
   },
 });
 
+export const retryModelRun = mutation({
+  args: {
+    contributionSubmissionId: v.id("contributionSubmissions"),
+  },
+  returns: v.object({
+    contributionSubmissionId: v.id("contributionSubmissions"),
+    smartStorageRunId: v.id("smartStorageRuns"),
+    status: v.literal("queued"),
+  }),
+  handler: async (ctx, args) => {
+    const access = await requireAppAccess(ctx);
+    const contributionSubmission = await ctx.db.get(
+      args.contributionSubmissionId,
+    );
+    if (
+      contributionSubmission === null ||
+      !canManageSmartStorageSubmission(contributionSubmission, access)
+    ) {
+      throw new Error("Unauthorized");
+    }
+    if (
+      contributionSubmission.submissionStatus === "accepted" ||
+      contributionSubmission.submissionStatus === "rejected" ||
+      contributionSubmission.submissionStatus === "cancelled"
+    ) {
+      throw new Error("This Smart Storage Session cannot be retried.");
+    }
+
+    const runs = await ctx.db
+      .query("smartStorageRuns")
+      .withIndex("by_contributionSubmissionId_and_createdAt", (q) =>
+        q.eq("contributionSubmissionId", args.contributionSubmissionId),
+      )
+      .order("desc")
+      .take(MAX_SESSION_RUNS);
+    if (runs.some((run) => isActiveSmartStorageRun(run))) {
+      throw new Error("Smart Storage proposal generation is already running.");
+    }
+
+    const latestRun = runs[0];
+    if (
+      latestRun === undefined ||
+      (latestRun.status !== "failed" && latestRun.status !== "noProposal")
+    ) {
+      throw new Error(
+        "Only a failed or no-proposal Smart Storage Run can be retried.",
+      );
+    }
+
+    const proposals = await listSessionProposals(
+      ctx,
+      args.contributionSubmissionId,
+    );
+    const primaryProposal = selectPrimaryProposal(
+      contributionSubmission,
+      [...proposals].sort((left, right) => left.createdAt - right.createdAt),
+    );
+    if (primaryProposal !== undefined) {
+      throw new Error(
+        "This Smart Storage Session already has a Primary Intended Entry proposal.",
+      );
+    }
+
+    const now = Date.now();
+    const smartStorageRunId = await ctx.db.insert("smartStorageRuns", {
+      contributionSubmissionId: args.contributionSubmissionId,
+      sourceId: latestRun.sourceId,
+      ...(latestRun.primarySourceId === undefined
+        ? {}
+        : { primarySourceId: latestRun.primarySourceId }),
+      status: "queued",
+      requestedKnowledgeType: latestRun.requestedKnowledgeType,
+      contributionTitle: latestRun.contributionTitle,
+      contributionBodyPreview: latestRun.contributionBodyPreview,
+      contextTags: latestRun.contextTags,
+      ...(latestRun.slotId === undefined ? {} : { slotId: latestRun.slotId }),
+      ...(latestRun.smartStorageContractVersionId === undefined
+        ? {}
+        : {
+            smartStorageContractVersionId:
+              latestRun.smartStorageContractVersionId,
+          }),
+      ...(latestRun.typeBehaviorSnapshotId === undefined
+        ? {}
+        : { typeBehaviorSnapshotId: latestRun.typeBehaviorSnapshotId }),
+      ...(latestRun.contractSnapshotVersion === undefined
+        ? {}
+        : { contractSnapshotVersion: latestRun.contractSnapshotVersion }),
+      ...(latestRun.contractSnapshotText === undefined
+        ? {}
+        : { contractSnapshotText: latestRun.contractSnapshotText }),
+      ...(latestRun.typeBehaviorSnapshotVersion === undefined
+        ? {}
+        : {
+            typeBehaviorSnapshotVersion:
+              latestRun.typeBehaviorSnapshotVersion,
+          }),
+      ...(latestRun.typeBehaviorSnapshotText === undefined
+        ? {}
+        : { typeBehaviorSnapshotText: latestRun.typeBehaviorSnapshotText }),
+      createdByUserId: access.userId,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await ctx.db.patch(args.contributionSubmissionId, {
+      submissionStatus: "processing",
+      updatedAt: now,
+    });
+
+    return {
+      contributionSubmissionId: args.contributionSubmissionId,
+      smartStorageRunId,
+      status: "queued" as const,
+    };
+  },
+});
+
 export const listReviewSlotsForCurrentUser = query({
   args: {
     limit: v.optional(v.number()),

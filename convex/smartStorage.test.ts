@@ -2194,6 +2194,65 @@ describe("Smart Storage contribution spine", () => {
     },
   );
 
+  test.each(["failed", "noProposal"] as const)(
+    "queues a fresh model Run when retrying a %s Smart Storage Session",
+    async (runStatus) => {
+      const t = convexTest({ schema, modules });
+      const userId = await t.run(insertAllowedUser);
+      const authed = t.withIdentity({ subject: `${userId}|test-session-retry` });
+      const startResult = await authed.mutation(
+        api.smartStorage.startFromContribution,
+        getLessonSmartStorageInput(),
+      );
+      const now = Date.now();
+      await t.run(async (ctx) => {
+        await ctx.db.patch(startResult.smartStorageRunId, {
+          completedAt: now,
+          errorMessage:
+            runStatus === "failed"
+              ? "The model request failed."
+              : "The model returned no structured proposal.",
+          status: runStatus,
+          updatedAt: now,
+        });
+      });
+
+      const retryResult = await authed.mutation(
+        api.smartStorage.retryModelRun,
+        {
+          contributionSubmissionId: startResult.contributionSubmissionId,
+        },
+      );
+
+      expect(retryResult).toMatchObject({
+        contributionSubmissionId: startResult.contributionSubmissionId,
+        status: "queued",
+      });
+      expect(retryResult.smartStorageRunId).not.toBe(
+        startResult.smartStorageRunId,
+      );
+
+      const session = await querySessionSummary(
+        authed,
+        startResult.contributionSubmissionId,
+      );
+      expect(session).toMatchObject({
+        activeRun: {
+          id: retryResult.smartStorageRunId,
+          status: "queued",
+        },
+        latestRun: {
+          id: retryResult.smartStorageRunId,
+          status: "queued",
+        },
+        sourceCounts: {
+          total: 1,
+        },
+        state: "preparingPrimaryProposal",
+      });
+    },
+  );
+
   test("derives awaitingPrerequisites when the primary Proposal needs resolution", async () => {
     const t = convexTest({ schema, modules });
     const userId = await t.run(insertAllowedUser);
