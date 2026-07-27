@@ -1833,6 +1833,19 @@ vi.mock("convex/react", () => ({
         status: "queued",
       };
     }
+    if (functionName === "smartStorage:retryModelRun") {
+      mockState.smartStorageSessionSummary = createMockSmartStorageSessionSummary({
+        activeRunStatus: "queued",
+        latestRunStatus: "queued",
+        state: "preparingPrimaryProposal",
+      });
+      return {
+        contributionSubmissionId:
+          "contribution-submission-raw-chapel-notes",
+        smartStorageRunId: "smart-storage-run-retry",
+        status: "queued",
+      };
+    }
     if (functionName === "smartStorage:generateUploadUrl") {
       return {
         uploadUrl: "https://upload.example/convex-storage",
@@ -3786,10 +3799,7 @@ describe("MVP Explore/Contribute loop", () => {
       "A source that should be preserved before enrichment.",
     );
     expect(proposalReview.textContent).toContain("Sources saved");
-    expect(proposalReview.textContent).toContain("AI result");
-    expect(proposalReview.textContent).toContain(
-      "Returned Primary Intended Entry for review.",
-    );
+    expect(proposalReview.textContent).not.toContain("AI result");
     expect(proposalReview.textContent).toContain("Primary Intended Entry");
     expect(proposalReview.textContent).toContain("Proposal Confidence");
     expect(proposalReview.textContent).toContain("Medium");
@@ -3801,7 +3811,7 @@ describe("MVP Explore/Contribute loop", () => {
     expect(
       proposalReview.querySelector('[aria-label="Smart Storage source evidence"]'),
     ).toBeNull();
-    await click(getButtonIn(proposalReview, "Source evidence"));
+    await click(getButtonIn(proposalReview, "Evidence"));
     const evidenceDrawer = getLabelledElement("Smart Storage source evidence");
     expect(evidenceDrawer.textContent).toContain("Source support");
     expect(evidenceDrawer.textContent).toContain("Text Excerpt");
@@ -3950,9 +3960,49 @@ describe("MVP Explore/Contribute loop", () => {
     );
     expect(wizardText).toContain("Later review work");
     expect(wizardText).toContain("Courage quote");
-    expect((getButtonIn(wizard, "Accept Primary Entry") as HTMLButtonElement).disabled).toBe(
-      true,
+    expect(
+      getLabelledElement("Locked Primary Intended Entry").querySelector("button"),
+    ).toBeNull();
+  });
+
+  test("keeps one prerequisite decision in focus while summarizing remaining setup", async () => {
+    window.history.replaceState({}, "", "http://localhost:3000/");
+
+    await renderApp();
+
+    const editor = getContributionEditor();
+    await setFieldValue(
+      getTextareaIn(editor),
+      "Courage in Christ's Kingdom\nSermon notes with two required people.",
     );
+    await click(getButtonIn(editor, "Store"));
+    await flushAsyncWork();
+
+    const session = createMockSmartStoragePrerequisiteSessionSummary();
+    const secondPrerequisite = createMockSmartStorageSessionProposal({
+      acceptabilityStatus: "ready",
+      id: "smart-storage-proposal-required-editor",
+      role: "prerequisite",
+    });
+    mockState.smartStorageSessionSummary = {
+      ...session,
+      prerequisiteProposals: [
+        session.prerequisiteProposals[0],
+        {
+          ...secondPrerequisite,
+          currentProposal: {
+            ...(secondPrerequisite.currentProposal as Record<string, unknown>),
+            title: "Miriam Carter",
+          },
+        },
+      ],
+    };
+    await rerenderApp();
+
+    const wizard = getLabelledElement("Smart Storage Session Wizard");
+    expect(wizard.textContent).toContain("Rev. Thomas Walker");
+    expect(wizard.textContent).toContain("1 required item remains");
+    expect(wizard.textContent).not.toContain("Miriam Carter");
   });
 
   test("Finish later closes the Smart Storage wizard without cancelling session work", async () => {
@@ -4027,6 +4077,12 @@ describe("MVP Explore/Contribute loop", () => {
           acceptabilityStatus: "ready",
           role: "secondary",
         }),
+        createMockSmartStorageSessionProposal({
+          acceptabilityStatus: "ready",
+          id: "smart-storage-proposal-secondary-application",
+          role: "secondary",
+          title: "Courage application",
+        }),
       ],
       primaryProposal: createMockSmartStorageSessionProposal({
         acceptabilityStatus: "accepted",
@@ -4042,6 +4098,13 @@ describe("MVP Explore/Contribute loop", () => {
     expect(wizard.textContent).toContain("Entry Saved");
     expect(wizard.textContent).toContain("Later review work");
     expect(wizard.textContent).toContain("Courage quote");
+    expect(wizard.textContent).not.toContain("Courage application");
+    expect(wizard.textContent).not.toContain("Reprocess Entry");
+
+    await click(getButtonIn(wizard, "Continue review"));
+
+    expect(wizard.textContent).toContain("Courage quote");
+    expect(wizard.textContent).not.toContain("Courage application");
 
     await click(getButtonIn(wizard, "Finish later"));
 
@@ -4391,6 +4454,46 @@ describe("MVP Explore/Contribute loop", () => {
       );
     },
   );
+
+  test("retries model generation from the preserved Smart Storage Session", async () => {
+    mockState.smartStorageModelRunResult = {
+      errorMessage: "OPENAI_API_KEY is not configured.",
+      executionStatus: "failed",
+      smartStorageRunId: "smart-storage-run-raw-chapel-notes",
+      status: "failed",
+    };
+
+    await renderApp();
+
+    const editor = getContributionEditor();
+    await setFieldValue(
+      getTextareaIn(editor),
+      "Raw chapel notes\nA source that should be preserved before enrichment.",
+    );
+    await click(getButtonIn(editor, "Store"));
+    await flushAsyncWork();
+    await rerenderApp();
+
+    const wizard = getLabelledElement("Smart Storage Session Wizard");
+    const retryButton = getButtonIn(wizard, "Retry model") as HTMLButtonElement;
+    expect(retryButton.disabled).toBe(false);
+    await click(retryButton);
+    await flushAsyncWork();
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        contributionSubmissionId:
+          "contribution-submission-raw-chapel-notes",
+        functionName: "smartStorage:retryModelRun",
+      }),
+    );
+    expect(mockState.actionCalls).toContainEqual(
+      expect.objectContaining({
+        functionName: "smartStorage:executeModelRun",
+        smartStorageRunId: "smart-storage-run-retry",
+      }),
+    );
+  });
 
   test("opens organization settings as an organization subroute", async () => {
     window.history.replaceState(
