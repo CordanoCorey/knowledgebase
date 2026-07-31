@@ -639,6 +639,11 @@ describe("Contribution Editor rendering", () => {
       });
 
       expect(editor.getAttribute("data-expanded")).toBe("true");
+      expect(editor.textContent).toContain("Contribution details");
+      expect(editor.textContent).toContain("Attachments and metadata");
+
+      const collapseButton = getButton(editor, "Collapse contribution editor");
+      expect(collapseButton.textContent).toContain("Done");
 
       await act(async () => {
         textarea.blur();
@@ -647,7 +652,7 @@ describe("Contribution Editor rendering", () => {
 
       expect(editor.getAttribute("data-expanded")).toBe("true");
 
-      await click(getButton(editor, "Collapse contribution editor"));
+      await click(collapseButton);
 
       expect(editor.getAttribute("data-expanded")).toBe("false");
       expect(

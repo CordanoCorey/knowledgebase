@@ -8939,6 +8939,14 @@ summary,
   gap: 11px;
 }
 
+.kb-contribution-options-panel {
+  display: contents;
+}
+
+.kb-contribution-options-header {
+  display: none;
+}
+
 .kb-contribution-metadata-row {
   display: flex;
   flex-wrap: wrap;
@@ -11277,6 +11285,83 @@ summary,
   gap: 0 10px;
 }
 
+.kb-rail-focus-workspace .kb-contribution-options-panel {
+  display: grid;
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin: 0 12px;
+  overflow: hidden;
+  border: 0 solid var(--kb-line);
+  border-radius: 10px;
+  background: transparent;
+  transition:
+    margin var(--kb-motion-slow) var(--kb-ease-enter),
+    border-width var(--kb-motion-base) var(--kb-ease-standard),
+    box-shadow var(--kb-motion-base) var(--kb-ease-standard);
+}
+
+.kb-rail-focus-workspace
+  .kb-contribution-editor[data-expanded="true"]
+  .kb-contribution-options-panel {
+  margin-bottom: 12px;
+  border-width: 1px;
+  background: var(--kb-gradient-control);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 38%),
+    0 8px 18px rgb(20 24 26 / 6%);
+}
+
+.kb-rail-focus-workspace
+  .kb-contribution-editor[data-expanded="true"]
+  .kb-contribution-options-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  gap: 12px;
+  padding: 10px 10px 10px 14px;
+  border-bottom: 1px solid var(--kb-line);
+  background: var(--kb-gradient-toolbar);
+}
+
+.kb-rail-focus-workspace .kb-contribution-options-heading {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 9px;
+}
+
+.kb-rail-focus-workspace .kb-contribution-options-heading > svg {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  color: var(--kb-primary-dark);
+}
+
+.kb-rail-focus-workspace .kb-contribution-options-heading > span {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.kb-rail-focus-workspace .kb-contribution-options-heading strong,
+.kb-rail-focus-workspace .kb-contribution-options-heading small {
+  overflow-wrap: anywhere;
+}
+
+.kb-rail-focus-workspace .kb-contribution-options-heading strong {
+  color: var(--kb-text);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.kb-rail-focus-workspace .kb-contribution-options-heading small {
+  color: var(--kb-muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
 .kb-rail-focus-workspace .kb-contribution-metadata-row {
   grid-column: 1 / -1;
   max-height: 0;
@@ -11294,7 +11379,7 @@ summary,
   .kb-contribution-editor[data-expanded="true"]
   .kb-contribution-metadata-row {
   max-height: 180px;
-  padding-bottom: 12px;
+  padding: 12px 14px 14px;
   opacity: 1;
   pointer-events: auto;
 }
@@ -11346,7 +11431,7 @@ summary,
   .kb-contribution-editor[data-expanded="true"]
   .kb-contribution-source-tools {
   max-height: 640px;
-  padding-bottom: 12px;
+  padding: 12px 14px 0;
   opacity: 1;
   pointer-events: auto;
 }
@@ -11370,7 +11455,7 @@ summary,
   .kb-contribution-editor[data-expanded="true"]
   .kb-contribution-quote-attribution {
   max-height: 120px;
-  margin-bottom: 12px;
+  margin: 0 14px 14px;
   padding-block: 9px;
   opacity: 1;
   pointer-events: auto;
@@ -11584,33 +11669,37 @@ summary,
 .kb-rail-focus-workspace
   .kb-contribution-editor[data-expanded="true"]
   .kb-contribution-collapse-button {
-  display: grid;
+  display: inline-flex;
 }
 
 .kb-rail-focus-workspace .kb-contribution-collapse-button {
-  grid-column: 1 / -1;
-  justify-self: end;
-  width: 38px;
-  height: 38px;
-  margin: -4px 12px 12px;
-  place-items: center;
-  border: 1px solid rgb(165 172 176 / 38%);
-  border-radius: 8px;
-  color: #4f565b;
-  background: rgb(255 255 255 / 68%);
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1px solid var(--kb-line);
+  border-radius: 999px;
+  color: var(--kb-primary-dark);
+  background: var(--kb-gradient-control);
+  box-shadow: var(--kb-shadow-xs);
   cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .kb-rail-focus-workspace .kb-contribution-collapse-button:hover,
 .kb-rail-focus-workspace .kb-contribution-collapse-button:focus-visible {
-  border-color: rgb(88 94 98 / 46%);
-  color: #181b1d;
+  border-color: var(--kb-primary);
+  background: var(--kb-gradient-tool-hover);
+  box-shadow: 0 0 0 3px var(--kb-focus-ring);
   outline: none;
 }
 
 .kb-rail-focus-workspace .kb-contribution-collapse-button svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 
 .kb-rail-focus-workspace .kb-contribution-status {
