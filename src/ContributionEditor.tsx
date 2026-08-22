@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   Bold,
   CheckCircle2,
+  ChevronUp,
   Italic,
   ImagePlus,
   Link,
@@ -10,10 +11,10 @@ import {
   LoaderCircle,
   LockKeyhole,
   Send,
+  SlidersHorizontal,
   Sparkles,
   Trash2,
   UploadCloud,
-  X,
 } from "lucide-react";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -808,15 +809,38 @@ export function ContributionEditor({
 
       <form className="kb-contribution-form" onSubmit={handleSubmit}>
         {primaryField === "title" ? titleField : bodyField}
-        {sourceTools}
-        <div className="kb-contribution-metadata-row">
-          {typeField}
-          {organizationField}
-          {primaryField === "title" ? bodyField : titleField}
-          {addTitleButton}
-          {modeChip}
+        <div className="kb-contribution-options-panel">
+          {isExpanded ? (
+            <div className="kb-contribution-options-header">
+              <div className="kb-contribution-options-heading">
+                <SlidersHorizontal aria-hidden="true" />
+                <span>
+                  <strong>Contribution details</strong>
+                  <small>Attachments and metadata</small>
+                </span>
+              </div>
+              <button
+                aria-label="Collapse contribution editor"
+                className="kb-contribution-collapse-button"
+                onClick={handleCollapseEditor}
+                title="Collapse contribution editor"
+                type="button"
+              >
+                <ChevronUp aria-hidden="true" />
+                <span>Done</span>
+              </button>
+            </div>
+          ) : null}
+          {sourceTools}
+          <div className="kb-contribution-metadata-row">
+            {typeField}
+            {organizationField}
+            {primaryField === "title" ? bodyField : titleField}
+            {addTitleButton}
+            {modeChip}
+          </div>
+          {quoteAttributionAcknowledgement}
         </div>
-        {quoteAttributionAcknowledgement}
 
         <button
           className="kb-contribution-submit"
@@ -846,18 +870,6 @@ export function ContributionEditor({
               <Send aria-hidden="true" />
             )}
             <span>{secondarySubmitLabel}</span>
-          </button>
-        ) : null}
-
-        {isExpanded ? (
-          <button
-            aria-label="Collapse contribution editor"
-            className="kb-contribution-collapse-button"
-            onClick={handleCollapseEditor}
-            title="Collapse contribution editor"
-            type="button"
-          >
-            <X aria-hidden="true" />
           </button>
         ) : null}
       </form>

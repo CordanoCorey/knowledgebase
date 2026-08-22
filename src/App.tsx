@@ -4484,6 +4484,7 @@ function ComponentScaffold({
   const knowledgePageActionTarget = getKnowledgePageActionTarget({
     activeTags,
     label,
+    organizations: appAccess.organizations,
     routeId,
     routeState,
   });
@@ -5718,11 +5719,13 @@ function getKnowledgePageIdentity(
 function getKnowledgePageActionTarget({
   activeTags,
   label,
+  organizations = [],
   routeId,
   routeState,
 }: {
   activeTags: ActiveTag[];
   label: string;
+  organizations?: AllowedAppAccess["organizations"];
   routeId: PageId;
   routeState: RouteState;
 }): KnowledgePageActionTarget | null {
@@ -5752,6 +5755,29 @@ function getKnowledgePageActionTarget({
       return getBiblePassageActionTarget(activeTag);
     }
 
+    if (activeTag.knowledgeType === "organization") {
+      const organization = findOrganizationMembershipForActiveTag(
+        activeTag,
+        organizations,
+      );
+      if (organization) {
+        return {
+          href: getOrganizationHomeHrefFromId(
+            organization.organizationReferentId,
+          ),
+          label: organization.name,
+          organizationReferentId: organization.organizationReferentId,
+          pageKey: getOrganizationPageKey(
+            organization.organizationReferentId,
+          ),
+          pageKind: "organization",
+          secondaryLabel: formatOrganizationKind(
+            organization.organizationKind,
+          ),
+        };
+      }
+    }
+
     return {
       href: activeTag.href,
       label: activeTag.label,
@@ -5777,6 +5803,27 @@ function getKnowledgePageActionTarget({
   }
 
   return null;
+}
+
+function findOrganizationMembershipForActiveTag(
+  activeTag: ActiveTag,
+  organizations: AllowedAppAccess["organizations"],
+) {
+  for (const lookupValue of [
+    activeTag.canonicalKey,
+    activeTag.id,
+    activeTag.label,
+  ]) {
+    const organization = findMatchingOrganizationMembership(
+      lookupValue,
+      organizations,
+    );
+    if (organization) {
+      return organization;
+    }
+  }
+
+  return undefined;
 }
 
 function getBiblePassageActionTarget(activeTag: ActiveTag): KnowledgePageActionTarget {
