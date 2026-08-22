@@ -1,0 +1,7 @@
+[2m10:11:36 PM[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [31m[Unhandled rejection] [1mTypeError[22m: Failed to fetch
+[39m > ConvexHttpClient.action node_modules/convex/dist/esm/browser/http_client.js:369:38
+ > Object.unauthenticatedCall node_modules/@convex-dev/auth/dist/react/index.js:52:15
+ > node_modules/@convex-dev/auth/dist/react/client.js:111:36
+ > node_modules/@convex-dev/auth/dist/react/client.js:129:27
+ > node_modules/@convex-dev/auth/dist/react/client.js:189:20
+

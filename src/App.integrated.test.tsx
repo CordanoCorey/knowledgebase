@@ -5618,6 +5618,66 @@ describe("MVP Explore/Contribute loop", () => {
     ).toBeTruthy();
   });
 
+  test("recognizes a pinned Organization from its Referent Page", async () => {
+    const originalTagSuggestions = mockState.tagSuggestions;
+    mockState.tagSuggestions = [
+      ...originalTagSuggestions,
+      {
+        canonicalKey: "ruler-of-kings-church",
+        href: "/goto/ruler-of-kings-church",
+        id: "ruler-of-kings-church",
+        knowledgeType: "organization",
+        label: "Ruler of Kings Church",
+        tag: {
+          canonicalKey: "ruler-of-kings-church",
+          href: "/goto/ruler-of-kings-church",
+          id: "ruler-of-kings-church",
+          knowledgeType: "organization",
+          label: "Ruler of Kings Church",
+        },
+      },
+    ];
+    window.history.replaceState(
+      {},
+      "",
+      "http://localhost:3000/goto/ruler-of-kings-church",
+    );
+
+    await renderApp();
+
+    expect(
+      getButton("Unpin Ruler of Kings Church").getAttribute("aria-pressed"),
+    ).toBe("true");
+
+    await click(getButton("Unpin Ruler of Kings Church"));
+    await rerenderApp();
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        functionName: "pinnedKnowledgePages:unpinKnowledgePage",
+        pageKey: "organization:churchOrganizationReferent",
+      }),
+    );
+    expect(
+      getButton("Pin Ruler of Kings Church").getAttribute("aria-pressed"),
+    ).toBe("false");
+
+    await click(getButton("Pin Ruler of Kings Church"));
+    await rerenderApp();
+
+    expect(mockState.mutationCalls).toContainEqual(
+      expect.objectContaining({
+        functionName: "pinnedKnowledgePages:pinOrganizationPage",
+        organizationReferentId: "churchOrganizationReferent",
+      }),
+    );
+    expect(
+      getButton("Unpin Ruler of Kings Church").getAttribute("aria-pressed"),
+    ).toBe("true");
+
+    mockState.tagSuggestions = originalTagSuggestions;
+  });
+
   test("toggles an Organization bookmark without changing sidebar pins", async () => {
     window.history.replaceState(
       {},
