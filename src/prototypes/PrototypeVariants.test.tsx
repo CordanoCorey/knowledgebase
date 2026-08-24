@@ -5,6 +5,9 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { HeaderSidebarPrototype } from "./HeaderSidebarPrototype";
 import { LayoutPrototype } from "./LayoutPrototype";
+import {
+  MissingKnowledgeJourneyPrototype,
+} from "./MissingKnowledgeJourneyPrototype";
 import { SmartStorageWorkflowPrototype } from "./SmartStorageWorkflowPrototype";
 
 describe("prototype variant switchers", () => {
@@ -134,6 +137,48 @@ describe("prototype variant switchers", () => {
     expect(window.location.search).toContain("variant=A");
   });
 
+  test("MissingKnowledgeJourneyPrototype keeps journey state while comparing variants", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      "http://localhost:3000/?prototype=missing-knowledge-journey&variant=A",
+    );
+
+    await act(async () => {
+      root.render(
+        <MissingKnowledgeJourneyPrototype
+          onToggleTheme={vi.fn()}
+          theme="light"
+        />,
+      );
+    });
+
+    expect(text()).toContain("A · Progressive result");
+    expect(text()).toContain("Desert Fathers");
+
+    await click(getLabeledControl("Search"));
+    expect(text()).toContain("What is missing?");
+    await click(getLabeledControl("Request an answer"));
+    expect(text()).toContain("Give the missing answer a durable place");
+
+    await click(getButton("Next missing knowledge variant"));
+    expect(text()).toContain("B · Persistent journey");
+    expect(text()).toContain("Give the missing answer a durable place");
+    expect(window.location.search).toContain("variant=B");
+
+    await click(getLabeledControl("Create this Question"));
+    expect(text()).toContain("Who should contribute the answer?");
+    await click(getLabeledControl("Direct to experts"));
+    expect(text()).toContain("Recommended Context Experts");
+
+    await click(getButton("Next missing knowledge variant"));
+    expect(text()).toContain("C · Focused handoff");
+    expect(text()).toContain("Recommended Context Experts");
+
+    await click(getButton("Next missing knowledge variant"));
+    expect(text()).toContain("A · Progressive result");
+  });
+
   async function click(element: Element) {
     await act(async () => {
       element.dispatchEvent(
@@ -158,6 +203,14 @@ describe("prototype variant switchers", () => {
       throw new Error(`Missing button: ${label}`);
     }
     return button;
+  }
+
+  function getLabeledControl(label: string) {
+    const control = container.querySelector(`[aria-label="${label}"]`);
+    if (!(control instanceof HTMLElement)) {
+      throw new Error(`Missing control: ${label}`);
+    }
+    return control;
   }
 
   function text() {

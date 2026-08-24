@@ -30,6 +30,7 @@ import {
   Compass,
   Database,
   ExternalLink,
+  FileQuestion,
   FlaskConical,
   ImagePlus,
   Landmark,
@@ -144,6 +145,9 @@ import {
 } from "./knowledgeContracts";
 import { HeaderSidebarPrototype } from "./prototypes/HeaderSidebarPrototype";
 import { LayoutPrototype } from "./prototypes/LayoutPrototype";
+import {
+  MissingKnowledgeJourneyPrototype,
+} from "./prototypes/MissingKnowledgeJourneyPrototype";
 import { SmartStorageWorkflowPrototype } from "./prototypes/SmartStorageWorkflowPrototype";
 
 // React composition root: shared domain logic stays in plain TypeScript modules,
@@ -195,6 +199,7 @@ type PageId =
   | "organization-settings"
   | "smart-storage-playground"
   | "smart-storage-workflow-prototype"
+  | "missing-knowledge-journey-prototype"
   | "layout-prototype"
   | "header-sidebar-prototype"
   | "analytics"
@@ -865,6 +870,15 @@ const ROUTES: RouteDefinition[] = [
     relatedRouteIds: ["smart-storage-playground", "layout-prototype"],
   },
   {
+    id: "missing-knowledge-journey-prototype",
+    label: "Missing Knowledge Journey Prototype",
+    href: "/playground/prototypes/missing-knowledge-journey",
+    pattern: "/playground/prototypes/missing-knowledge-journey?variant=",
+    icon: FileQuestion,
+    components: [],
+    relatedRouteIds: ["smart-storage-workflow-prototype", "layout-prototype"],
+  },
+  {
     id: "layout-prototype",
     label: "Layout Prototype",
     href: "/playground/prototypes/layout",
@@ -951,6 +965,7 @@ const SYSTEM_ADMIN_ROUTE_IDS: PageId[] = ["system-admin"];
 const DEV_SYSTEM_ADMIN_ROUTE_IDS: PageId[] = ["smart-storage-playground"];
 const PROTOTYPE_ROUTE_IDS: PageId[] = [
   "smart-storage-workflow-prototype",
+  "missing-knowledge-journey-prototype",
   "layout-prototype",
   "header-sidebar-prototype",
 ];
@@ -1713,7 +1728,8 @@ export default function App() {
   if (
     import.meta.env.DEV &&
     !isAuthenticated &&
-    routeState.route.id === "header-sidebar-prototype"
+    (routeState.route.id === "header-sidebar-prototype" ||
+      routeState.route.id === "missing-knowledge-journey-prototype")
   ) {
     return (
       <PrototypeRoute
@@ -1926,6 +1942,13 @@ function getPrototypeRouteIdFromSearch(search: string): PageId | null {
 
   if (prototypeId === "smart-storage-workflow" || prototypeId === "smart-storage") {
     return "smart-storage-workflow-prototype";
+  }
+
+  if (
+    prototypeId === "missing-knowledge" ||
+    prototypeId === "missing-knowledge-journey"
+  ) {
+    return "missing-knowledge-journey-prototype";
   }
 
   return null;
@@ -3383,6 +3406,15 @@ function PrototypeRoute({
   if (routeId === "smart-storage-workflow-prototype") {
     return (
       <SmartStorageWorkflowPrototype onToggleTheme={onToggleTheme} theme={theme} />
+    );
+  }
+
+  if (routeId === "missing-knowledge-journey-prototype") {
+    return (
+      <MissingKnowledgeJourneyPrototype
+        onToggleTheme={onToggleTheme}
+        theme={theme}
+      />
     );
   }
 
