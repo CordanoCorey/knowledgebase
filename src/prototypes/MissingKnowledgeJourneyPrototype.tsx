@@ -70,6 +70,7 @@ type JourneyVariantProps = {
 };
 
 type JourneyActions = {
+  acceptSmartStorageProposal: () => void;
   chooseMissingAnswer: () => void;
   chooseNamedThing: () => void;
   confirmIdentity: () => void;
@@ -82,6 +83,7 @@ type JourneyActions = {
   setIdentityDecision: (identityDecision: IdentityDecision) => void;
   setNamedThingType: (namedThingType: JourneyState["namedThingType"]) => void;
   setQuery: (query: string) => void;
+  startSmartStorage: () => void;
   submitSlot: () => void;
   toggleExpert: (expertId: string) => void;
 };
@@ -92,7 +94,7 @@ const VARIANTS: Array<{
 }> = [
   { key: "A", label: "Progressive result" },
   { key: "B", label: "Persistent journey" },
-  { key: "C", label: "Focused handoff" },
+  { key: "C", label: "Smart Storage handoff" },
 ];
 
 const EXPERTS: Expert[] = [
@@ -117,16 +119,16 @@ const EXPERTS: Expert[] = [
 ];
 
 const SAMPLE_QUERIES: Record<Scenario, string> = {
-  namedThing: "Desert Fathers",
+  namedThing: "J.R.R. Tolkien",
   missingAnswer: "How did the Desert Fathers understand attention?",
 };
 
 const STAGE_LABELS: Record<JourneyStage, string> = {
   search: "Search",
-  choose: "Choose intent",
-  identity: "Confirm identity",
-  question: "Question context",
-  slot: "Request answer",
+  choose: "No results",
+  identity: "Smart Storage review",
+  question: "Smart Storage review",
+  slot: "Question page",
   complete: "Done",
 };
 
@@ -136,7 +138,7 @@ function createInitialState(scenario: Scenario): JourneyState {
     audience: "open",
     completionKind: null,
     identityDecision: "different",
-    namedThingType: "Topic",
+    namedThingType: scenario === "namedThing" ? "Person" : "Topic",
     query: SAMPLE_QUERIES[scenario],
     questionResolution: null,
     scenario,
@@ -198,6 +200,20 @@ export function MissingKnowledgeJourneyPrototype({
 
   const actions = useMemo<JourneyActions>(
     () => ({
+      acceptSmartStorageProposal: () =>
+        setState((current) =>
+          current.stage === "question"
+            ? {
+                ...current,
+                questionResolution: "new",
+                stage: "slot",
+              }
+            : {
+                ...current,
+                completionKind: "referent",
+                stage: "complete",
+              },
+        ),
       chooseMissingAnswer: () =>
         setState((current) => ({
           ...current,
@@ -245,6 +261,22 @@ export function MissingKnowledgeJourneyPrototype({
       setNamedThingType: (namedThingType) =>
         setState((current) => ({ ...current, namedThingType })),
       setQuery: (query) => setState((current) => ({ ...current, query })),
+      startSmartStorage: () =>
+        setState((current) => {
+          const proposal = inferSmartStorageProposal(current.query);
+          return proposal === "Question"
+            ? {
+                ...current,
+                scenario: "missingAnswer",
+                stage: "question",
+              }
+            : {
+                ...current,
+                namedThingType: proposal,
+                scenario: "namedThing",
+                stage: "identity",
+              };
+        }),
       submitSlot: () =>
         setState((current) => ({
           ...current,
@@ -274,7 +306,7 @@ export function MissingKnowledgeJourneyPrototype({
       >
         {variant === "A" ? <ProgressiveResultVariant actions={actions} state={state} /> : null}
         {variant === "B" ? <PersistentJourneyVariant actions={actions} state={state} /> : null}
-        {variant === "C" ? <FocusedHandoffVariant actions={actions} state={state} /> : null}
+        {variant === "C" ? <SmartStorageHandoffVariant actions={actions} state={state} /> : null}
         <StatePanel state={state} />
       </PrototypeFrame>
 
@@ -347,6 +379,7 @@ function PrototypeFrame({
           <span>Prototype sample</span>
           <div role="group" aria-label="Prototype scenario">
             <button
+              aria-label="Missing named thing"
               aria-pressed={scenario === "namedThing"}
               onClick={() => onChangeScenario("namedThing")}
               type="button"
@@ -354,6 +387,7 @@ function PrototypeFrame({
               Missing named thing
             </button>
             <button
+              aria-label="Missing answer"
               aria-pressed={scenario === "missingAnswer"}
               onClick={() => onChangeScenario("missingAnswer")}
               type="button"
@@ -435,46 +469,191 @@ function PersistentJourneyVariant({ actions, state }: JourneyVariantProps) {
   );
 }
 
-function FocusedHandoffVariant({ actions, state }: JourneyVariantProps) {
-  return (
-    <section className="mkjp-variant mkjp-focused" aria-labelledby="mkjp-c-heading">
-      <div className="mkjp-focused-background" aria-hidden="true">
-        <div className="mkjp-ghost-search" />
-        <div className="mkjp-ghost-row" />
-        <div className="mkjp-ghost-row mkjp-ghost-row-short" />
-      </div>
+function SmartStorageHandoffVariant({ actions, state }: JourneyVariantProps) {
+  if (state.stage === "identity" || state.stage === "question") {
+    return <SmartStorageProposalReview actions={actions} state={state} />;
+  }
 
-      <section className="mkjp-focus-dialog" role="dialog" aria-modal="false" aria-labelledby="mkjp-c-heading">
-        <header>
+  if (state.stage === "slot") {
+    return <QuestionPageAfterSmartStorage actions={actions} state={state} />;
+  }
+
+  if (state.stage === "complete") {
+    return (
+      <section className="mkjp-variant mkjp-c-complete" aria-labelledby="mkjp-c-heading">
+        <header className="mkjp-variant-heading">
           <div>
-            <p className="mkjp-eyebrow">C · Focused handoff</p>
-            <h1 id="mkjp-c-heading">One decision at a time</h1>
+            <p className="mkjp-eyebrow">C · Smart Storage handoff</p>
+            <h1 id="mkjp-c-heading">Open the saved destination</h1>
           </div>
-          <button aria-label="Restart journey" onClick={actions.reset} type="button">
-            <X aria-hidden="true" />
-          </button>
+        </header>
+        <div className="mkjp-progressive-body">
+          <Completion actions={actions} state={state} surface="smart-storage" />
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="mkjp-variant mkjp-c-root-search" aria-labelledby="mkjp-c-heading">
+      <header className="mkjp-variant-heading">
+        <div>
+          <p className="mkjp-eyebrow">C · Smart Storage handoff</p>
+          <h1 id="mkjp-c-heading">Search first. Save only when nothing matches.</h1>
+        </div>
+        <span className="mkjp-stage-pill">Root Search</span>
+      </header>
+
+      <SearchBar actions={actions} state={state} />
+
+      <section className="mkjp-c-results" aria-live="polite">
+        {state.stage === "search" ? (
+          <div className="mkjp-c-search-idle">
+            <Search aria-hidden="true" />
+            <h2>Find an existing Tag</h2>
+            <p>Root Search checks accessible Tags by canonical name and alias.</p>
+          </div>
+        ) : (
+          <SingleSmartStorageEmptyState actions={actions} state={state} />
+        )}
+      </section>
+    </section>
+  );
+}
+
+function SingleSmartStorageEmptyState({ actions, state }: JourneyVariantProps) {
+  return (
+    <section className="mkjp-c-empty" aria-labelledby="mkjp-c-empty-heading">
+      <div className="mkjp-c-empty-count">
+        <span>0</span>
+        <small>matching Tags</small>
+      </div>
+      <div className="mkjp-c-empty-copy">
+        <p className="mkjp-eyebrow">No accessible Referent matched</p>
+        <h2 id="mkjp-c-empty-heading">Nothing found for “{state.query}”</h2>
+        <p>
+          Smart Storage can identify what this is and use the normal review
+          workflow before anything is saved.
+        </p>
+      </div>
+      <button
+        aria-label="Save with Smart Storage"
+        className="mkjp-primary-button mkjp-c-save-button"
+        onClick={actions.startSmartStorage}
+        type="button"
+      >
+        <Sparkles aria-hidden="true" />
+        Save with Smart Storage
+      </button>
+    </section>
+  );
+}
+
+function SmartStorageProposalReview({ actions, state }: JourneyVariantProps) {
+  const isQuestion = state.stage === "question";
+  const knowledgeType = isQuestion ? "Question" : state.namedThingType;
+  const entryTitle = isQuestion ? normalizeQuestion(state.query) : state.query;
+
+  return (
+    <section
+      aria-labelledby="mkjp-smart-storage-heading"
+      className="mkjp-variant mkjp-smart-storage-review"
+    >
+      <header className="mkjp-smart-storage-header">
+        <div>
+          <p className="mkjp-eyebrow">Normal Smart Storage workflow</p>
+          <h1 id="mkjp-smart-storage-heading">Review one suggested {knowledgeType}</h1>
+        </div>
+        <button aria-label="Cancel Smart Storage" onClick={actions.reset} type="button">
+          <X aria-hidden="true" />
+        </button>
+      </header>
+
+      <ol className="mkjp-smart-storage-progress" aria-label="Smart Storage progress">
+        <li data-state="complete"><Check aria-hidden="true" /><span><strong>Input</strong><small>Captured</small></span></li>
+        <li data-state="active"><Sparkles aria-hidden="true" /><span><strong>Review</strong><small>Suggested {knowledgeType}</small></span></li>
+        <li data-state="pending"><BookOpen aria-hidden="true" /><span><strong>Save</strong><small>Waiting for acceptance</small></span></li>
+      </ol>
+
+      <section className="mkjp-smart-proposal">
+        <header>
+          <span className="mkjp-smart-proposal-icon">
+            {isQuestion ? <FileQuestion aria-hidden="true" /> : <UserRound aria-hidden="true" />}
+          </span>
+          <div>
+            <p className="mkjp-eyebrow">Smart Storage suggests {knowledgeType}</p>
+            <h2>{entryTitle}</h2>
+          </div>
+          <span className="mkjp-confidence">High confidence</span>
         </header>
 
-        <div className="mkjp-focus-progress">
-          <span>{STAGE_LABELS[state.stage]}</span>
+        <dl className="mkjp-smart-facts">
+          <div><dt>Knowledge Type</dt><dd>{knowledgeType}</dd></div>
+          <div><dt>Identity check</dt><dd>No Known Referent matched</dd></div>
+          <div><dt>Primary result</dt><dd>One {knowledgeType} Knowledge Entry</dd></div>
+        </dl>
+
+        <details className="mkjp-machinery">
+          <summary>Why did Smart Storage suggest {knowledgeType}?</summary>
+          <p>
+            The submitted name, punctuation, and surrounding identity evidence
+            best match the {knowledgeType} contract. No accessible canonical
+            name or alias resolved to an existing Known Referent.
+          </p>
+        </details>
+
+        <section className="mkjp-atomic-preview" aria-labelledby="mkjp-atomic-heading">
           <div>
-            {getJourneySteps(state).map((step) => (
-              <i data-active={step.stage === state.stage} data-complete={step.complete} key={step.stage} />
-            ))}
+            <p className="mkjp-eyebrow">Accepted together</p>
+            <h3 id="mkjp-atomic-heading">One atomic Gold-layer write</h3>
+            <p>If any part fails, none of these records remain saved.</p>
           </div>
-        </div>
-
-        {state.stage === "search" ? <SearchBar actions={actions} state={state} focus /> : null}
-        {state.stage !== "search" ? (
-          <div className="mkjp-focus-query">
-            <Search aria-hidden="true" />
-            <span>{state.query}</span>
-            <button onClick={actions.reset} type="button">Change</button>
-          </div>
-        ) : null}
-
-        <JourneyPanel actions={actions} state={state} surface="focused" />
+          <ol>
+            <li><BookOpen aria-hidden="true" /><span><strong>Knowledge Entry</strong><small>{knowledgeType}: {entryTitle}</small></span></li>
+            <li><ArrowRight aria-hidden="true" className="mkjp-atomic-arrow" /></li>
+            <li><Tag aria-hidden="true" /><span><strong>Represented Referent</strong><small>{entryTitle}</small></span></li>
+            <li><ArrowRight aria-hidden="true" className="mkjp-atomic-arrow" /></li>
+            <li><Tag aria-hidden="true" /><span><strong>Canonical Tag</strong><small>{entryTitle}</small></span></li>
+          </ol>
+        </section>
       </section>
+
+      <footer className="mkjp-smart-storage-actions">
+        <button className="mkjp-secondary-button" onClick={actions.reset} type="button">Cancel</button>
+        <button
+          aria-label={`Accept ${knowledgeType}`}
+          className="mkjp-primary-button"
+          onClick={actions.acceptSmartStorageProposal}
+          type="button"
+        >
+          Accept {knowledgeType}
+          <ArrowRight aria-hidden="true" />
+        </button>
+      </footer>
+    </section>
+  );
+}
+
+function QuestionPageAfterSmartStorage({ actions, state }: JourneyVariantProps) {
+  return (
+    <section className="mkjp-variant mkjp-question-after-storage" aria-labelledby="mkjp-question-page-heading">
+      <header>
+        <div>
+          <p className="mkjp-eyebrow">Question Knowledge Page</p>
+          <h1 id="mkjp-question-page-heading">{normalizeQuestion(state.query)}</h1>
+          <span className="mkjp-saved-badge"><Check aria-hidden="true" /> Saved through Smart Storage</span>
+        </div>
+        <button className="mkjp-secondary-button" type="button">Open Question</button>
+      </header>
+
+      <div className="mkjp-question-page-grid">
+        <section className="mkjp-question-answer-feed" aria-labelledby="mkjp-question-feed-heading">
+          <p className="mkjp-eyebrow">Answer Feed</p>
+          <h2 id="mkjp-question-feed-heading">No Answers yet</h2>
+          <p>The Question exists now. Requesting an Answer is a separate action on this page, not another Root Search branch.</p>
+        </section>
+        <KnowledgeSlotForm actions={actions} state={state} surface="question-page" />
+      </div>
     </section>
   );
 }
@@ -819,6 +998,7 @@ function KnowledgeSlotForm({
       <footer className="mkjp-panel-actions">
         <button className="mkjp-secondary-button" onClick={actions.reset} type="button">Cancel</button>
         <button
+          aria-label="Create Knowledge Slot"
           className="mkjp-primary-button"
           disabled={state.audience === "experts" && state.selectedExpertIds.length === 0}
           onClick={actions.submitSlot}
@@ -859,6 +1039,14 @@ function Completion({
             ? `An open ${state.answerType} Knowledge Slot now lives in this Question context.`
             : `A ${state.answerType} Knowledge Slot was directed to ${state.selectedExpertIds.length} Context Experts.`}
       </p>
+      {isReferent && !openedExistingReferent ? (
+        <dl className="mkjp-transaction-receipt" aria-label="Atomic save result">
+          <div><dt>Knowledge Entry</dt><dd>{state.namedThingType}: {state.query}</dd></div>
+          <div><dt>Represents</dt><dd>{state.query} Referent</dd></div>
+          <div><dt>Canonical Tag</dt><dd>{state.query}</dd></div>
+          <div><dt>Transaction</dt><dd>Committed together</dd></div>
+        </dl>
+      ) : null}
       <div className="mkjp-completion-actions">
         <button className="mkjp-primary-button" type="button">
           <BookOpen aria-hidden="true" /> Open {isReferent ? "Page" : "Question"}
@@ -999,9 +1187,33 @@ function normalizeQuestion(query: string) {
   return trimmed.endsWith("?") ? trimmed : `${trimmed}?`;
 }
 
+function inferSmartStorageProposal(
+  query: string,
+): "Question" | JourneyState["namedThingType"] {
+  const normalized = query.trim().toLowerCase();
+  if (
+    normalized.endsWith("?") ||
+    /^(how|what|when|where|who|why|does|do|did|is|are|can|should)\b/.test(
+      normalized,
+    )
+  ) {
+    return "Question";
+  }
+
+  if (normalized.includes("tolkien")) {
+    return "Person";
+  }
+
+  if (normalized.includes("lord of the rings")) {
+    return "Book";
+  }
+
+  return "Topic";
+}
+
 function readVariant(): VariantKey {
   const value = new URLSearchParams(window.location.search).get("variant");
-  return VARIANTS.some((item) => item.key === value) ? (value as VariantKey) : "A";
+  return VARIANTS.some((item) => item.key === value) ? (value as VariantKey) : "C";
 }
 
 function isEditableEventTarget(target: EventTarget | null) {

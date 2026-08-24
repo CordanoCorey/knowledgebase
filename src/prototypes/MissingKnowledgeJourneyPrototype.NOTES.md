@@ -1,43 +1,43 @@
 # Missing Knowledge Journey Prototype
 
-Question: What end-to-end interaction should let a User search existing Tags, add an unmatched named thing through Smart Storage identity confirmation, and—when the missing thing is an answer—enter or create a Question context and submit a Knowledge Slot that may be open or directed to recommended Context Experts, while making the underlying machinery feel simple?
+Question: What end-to-end interaction should let a User search existing Tags, add an unmatched named thing through Smart Storage, and—when Smart Storage identifies the missing thing as a Question—request a future Answer without making Root Search into a second creation workflow?
 
 Prototype location: `src/prototypes/MissingKnowledgeJourneyPrototype.tsx`
 
-Run URL: `/?prototype=missing-knowledge-journey&variant=A`
+Run URL: `/?prototype=missing-knowledge-journey&variant=C`
 
 Run command: `npm run dev`
 
 This is a throwaway, read-only prototype. It uses in-memory state and no real Convex mutations.
 
-## How to compare
+## Human verdict
 
-1. Use **Prototype sample** to try both **Missing named thing** and **Missing answer**.
-2. Search, choose the intended branch, and continue until the resulting Knowledge Page or Knowledge Slot is shown.
-3. Switch variants with the floating arrows or the keyboard left/right arrows. Journey state stays in memory so the same decision can be compared across layouts.
-4. On the missing-answer branch, compare an open request with a request directed to recommended Context Experts.
+`C · Smart Storage handoff` is the selected direction, with the original custom four-step handoff removed.
 
-## Variants
+The rejected prototypes asked the User to decide whether an unmatched search meant “add a named thing” or “request an answer,” then introduced a separate identity or Question workflow. That duplicates Smart Storage’s responsibility and makes Root Search behave like a creation wizard.
 
-- `A · Progressive result`: Keeps the handoff inline where an empty Root Search result appears. It emphasizes continuity and makes the intent fork the central decision.
-- `B · Persistent journey`: Uses a stable left-side journey and right-side outcome preview. It emphasizes orientation and exposes exactly when durable objects come into existence.
-- `C · Focused handoff`: Moves each decision into one focused dialog while the search surface recedes. It emphasizes simplicity at the cost of less surrounding context.
+## Resolved workflow
 
-## Shared constraints
+1. Root Search finds accessible existing Tags by canonical name or alias.
+2. When there is no match, the empty result has one creation action: **Save with Smart Storage**.
+3. Smart Storage receives the search text and uses its normal contract, classification, evidence, identity-match, and proposal-review workflow. Root Search does not ask the User to pick a Knowledge Type first.
+4. For a query such as `J.R.R. Tolkien`, Smart Storage may propose a Person. The User accepts or cancels that normal Smart Storage proposal.
+5. Accepting a genuinely new Person proposal atomically creates the Person Knowledge Entry, its same-typed Represented Referent, and its canonical Tag. If any part fails, none of them remain saved.
+6. A current identity check still runs at acceptance. If the Referent has become known, acceptance redirects or stops rather than creating a duplicate.
+7. If Smart Storage proposes and the User accepts a Question, the result is the normal Question Knowledge Page. Creating an open or expert-directed Knowledge Slot is a separate action from that page, not another Root Search branch and not an extra Smart Storage proposal.
 
-- Root Search only finds existing accessible Tags by name or alias. Searching never creates durable knowledge.
-- An unmatched result requires an explicit choice between adding a named thing and requesting an answer.
-- Named-thing creation performs a current identity check and confirms Knowledge Type before atomically creating its Knowledge Entry, same-typed Represented Referent, and canonical Tag.
-- A missing answer becomes durable only when the User enters an existing Question context or confirms a new Question.
-- One Knowledge Slot requests one Answer Knowledge Entry type in that Question context.
-- The request is either open to the accessible audience or directed to selected recommended Context Experts.
-- The prototype does not expose Role selection, a generic chat composer, or backend record terminology as primary controls.
+## Variant record
 
-## Verdict placeholder
+- `A · Progressive result`: rejected because its unmatched result exposes a separate intent fork and custom identity workflow.
+- `B · Persistent journey`: rejected because it turns the handoff into a multi-step creation journey alongside Smart Storage.
+- `C · Smart Storage handoff`: selected and refined. Root Search shows empty results and one Save action; the normal Smart Storage review owns classification and identity confirmation.
 
-- Preferred base:
-- Pieces to borrow from other variants:
-- Should the unmatched Root Search result show both intents immediately, or should wording infer and foreground one?
-- Should a similar existing Question be a peer choice or a secondary escape hatch?
-- Should expert direction happen during Knowledge Slot creation or after an open slot exists?
-- Changes required before an implementation-ready specification:
+## Implementation constraints captured by the prototype
+
+- Searching never creates durable knowledge.
+- Root Search does not create a bare Known Referent and does not ask the User to classify the query.
+- The search text enters the existing Smart Storage workflow rather than a new search-specific wizard.
+- Smart Storage acceptance creates the Knowledge Entry, Represented Referent, and canonical Tag in one transaction.
+- A Knowledge Entry and its Represented Referent have the same Knowledge Type.
+- A Question is one Knowledge Type. A Knowledge Slot remains a singular workflow request created from the Question context.
+- The prototype does not expose a Role selector, a generic chat composer, or backend record terminology as primary controls.

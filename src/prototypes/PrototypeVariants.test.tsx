@@ -137,11 +137,11 @@ describe("prototype variant switchers", () => {
     expect(window.location.search).toContain("variant=A");
   });
 
-  test("MissingKnowledgeJourneyPrototype keeps journey state while comparing variants", async () => {
+  test("MissingKnowledgeJourneyPrototype routes unmatched searches through Smart Storage", async () => {
     window.history.replaceState(
       null,
       "",
-      "http://localhost:3000/?prototype=missing-knowledge-journey&variant=A",
+      "http://localhost:3000/?prototype=missing-knowledge-journey&variant=C",
     );
 
     await act(async () => {
@@ -153,30 +153,38 @@ describe("prototype variant switchers", () => {
       );
     });
 
-    expect(text()).toContain("A · Progressive result");
-    expect(text()).toContain("Desert Fathers");
+    expect(text()).toContain("C · Smart Storage handoff");
+    expect(text()).toContain("J.R.R. Tolkien");
 
     await click(getLabeledControl("Search"));
-    expect(text()).toContain("What is missing?");
-    await click(getLabeledControl("Request an answer"));
-    expect(text()).toContain("Give the missing answer a durable place");
+    expect(text()).toContain("Nothing found for “J.R.R. Tolkien”");
+    expect(text()).toContain("Save with Smart Storage");
+    expect(text()).not.toContain("What is missing?");
 
-    await click(getButton("Next missing knowledge variant"));
-    expect(text()).toContain("B · Persistent journey");
-    expect(text()).toContain("Give the missing answer a durable place");
-    expect(window.location.search).toContain("variant=B");
+    await click(getLabeledControl("Save with Smart Storage"));
+    expect(text()).toContain("Review one suggested Person");
+    expect(text()).toContain("One atomic Gold-layer write");
+    expect(text()).toContain("Represented Referent");
 
-    await click(getLabeledControl("Create this Question"));
+    await click(getLabeledControl("Accept Person"));
+    expect(text()).toContain("Knowledge Page ready");
+    expect(text()).toContain("Committed together");
+
+    await click(getLabeledControl("Missing answer"));
+    await click(getLabeledControl("Search"));
+    await click(getLabeledControl("Save with Smart Storage"));
+    expect(text()).toContain("Review one suggested Question");
+
+    await click(getLabeledControl("Accept Question"));
+    expect(text()).toContain("Question Knowledge Page");
+    expect(text()).toContain("No Answers yet");
     expect(text()).toContain("Who should contribute the answer?");
     await click(getLabeledControl("Direct to experts"));
     expect(text()).toContain("Recommended Context Experts");
 
-    await click(getButton("Next missing knowledge variant"));
-    expect(text()).toContain("C · Focused handoff");
-    expect(text()).toContain("Recommended Context Experts");
-
-    await click(getButton("Next missing knowledge variant"));
-    expect(text()).toContain("A · Progressive result");
+    await click(getLabeledControl("Create Knowledge Slot"));
+    expect(text()).toContain("Answer requested");
+    expect(text()).toContain("directed to 2 Context Experts");
   });
 
   async function click(element: Element) {
