@@ -1,5 +1,7 @@
-// PROTOTYPE: Five header/sidebar variants, switchable via ?prototype=header-sidebar&variant=, on a throwaway shell.
-// This file is intentionally isolated from production route logic.
+// PROTOTYPE: Three persistent application-frame variants, switchable via
+// ?prototype=header-sidebar&variant=, on the existing prototype route.
+// The Dashboard body is deliberately held neutral so this answers the frame
+// question without deciding the separate Dashboard hierarchy ticket.
 import {
   useCallback,
   useEffect,
@@ -8,116 +10,119 @@ import {
   type ReactNode,
 } from "react";
 import {
-  BarChart3,
   Bell,
   BookOpen,
   Bookmark,
   CalendarDays,
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   Compass,
+  Home,
   Landmark,
-  LayoutDashboard,
+  Layers3,
+  ListTodo,
   LogOut,
+  Menu,
   Moon,
-  PanelLeft,
   Search,
   Settings,
-  Shield,
   Sun,
   UserCircle,
   Users,
+  X,
 } from "lucide-react";
 import profilePlaceholderUrl from "../assets/profile-placeholder.png";
 import { LogeionBrand } from "../components/LogeionBrand";
 import "./headerSidebarPrototype.css";
 
-const VARIANT_ORDER = ["A", "B", "C", "D", "E"] as const;
+const VARIANT_ORDER = ["A", "B", "C"] as const;
 type VariantKey = (typeof VARIANT_ORDER)[number];
 type ThemePreference = "light" | "dark";
-type IconComponent = ComponentType<{ "aria-hidden"?: "true"; className?: string }>;
+type OpenPanel = "places" | "account" | null;
+type IconComponent = ComponentType<{
+  "aria-hidden"?: "true";
+  className?: string;
+}>;
 
 type HeaderSidebarPrototypeProps = {
   onToggleTheme: () => void;
   theme: ThemePreference;
 };
 
-type VariantDefinition = {
-  component: ComponentType<HeaderSidebarPrototypeProps>;
-  label: string;
+type FrameVariantProps = HeaderSidebarPrototypeProps & {
+  onPanelChange: (panel: OpenPanel) => void;
+  openPanel: OpenPanel;
 };
 
-type PrototypeNavItem = {
-  badge?: number;
-  detail?: string;
+type PlaceItem = {
+  detail: string;
   icon: IconComponent;
-  id: string;
+  label: string;
+  reason: "Dashboard" | "Pinned" | "Frequent" | "Recent";
+  roles: string[];
+};
+
+type PersistentDestination = {
+  badge?: number;
+  icon: IconComponent;
+  id: "dashboard" | "places" | "calendar" | "notifications";
   label: string;
 };
 
-const KNOWLEDGE_ITEMS: PrototypeNavItem[] = [
-  {
-    detail: "All accessible knowledge",
-    icon: LayoutDashboard,
-    id: "dashboard",
-    label: "Dashboard",
-  },
-  {
-    detail: "School",
-    icon: BookOpen,
-    id: "arche-classical-academy",
-    label: "Arche Classical Academy",
-  },
-  {
-    detail: "Church",
-    icon: Landmark,
-    id: "ruler-of-kings-church",
-    label: "Ruler of Kings Church",
-  },
-  {
-    detail: "Family",
-    icon: Users,
-    id: "gelbaugh-family",
-    label: "Gelbaugh Family",
-  },
-  {
-    detail: "Study circle",
-    icon: Compass,
-    id: "westminster-study-circle",
-    label: "Westminster Study Circle",
-  },
-];
-
-const WORK_ITEMS: PrototypeNavItem[] = [
+const PERSISTENT_DESTINATIONS: PersistentDestination[] = [
+  { icon: Home, id: "dashboard", label: "Dashboard" },
+  { icon: Layers3, id: "places", label: "Places" },
   { icon: CalendarDays, id: "calendar", label: "Calendar" },
   { badge: 4, icon: Bell, id: "notifications", label: "Notifications" },
 ];
 
-const ADMIN_ITEMS: PrototypeNavItem[] = [
-  { detail: "Application administration", icon: Landmark, id: "system-admin", label: "System Admin" },
+const PLACE_ITEMS: PlaceItem[] = [
+  {
+    detail: "Accessible Root Knowledge Context",
+    icon: Home,
+    label: "Dashboard",
+    reason: "Dashboard",
+    roles: ["Baseline personal capacity"],
+  },
+  {
+    detail: "School",
+    icon: BookOpen,
+    label: "Arche Classical Academy",
+    reason: "Pinned",
+    roles: ["Administrator", "Teacher", "Parent"],
+  },
+  {
+    detail: "Church",
+    icon: Landmark,
+    label: "Ruler of Kings Church",
+    reason: "Frequent",
+    roles: ["Member", "Ministry lead"],
+  },
+  {
+    detail: "Family",
+    icon: Users,
+    label: "Gelbaugh Family",
+    reason: "Pinned",
+    roles: ["Parent"],
+  },
+  {
+    detail: "Study circle",
+    icon: Compass,
+    label: "Westminster Study Circle",
+    reason: "Recent",
+    roles: ["Baseline personal capacity"],
+  },
 ];
 
-const ACCOUNT_ITEMS: PrototypeNavItem[] = [
-  { icon: UserCircle, id: "profile", label: "Profile" },
-  { icon: Bookmark, id: "bookmarks", label: "Bookmarks" },
-  { icon: Settings, id: "settings", label: "Settings" },
-  { icon: LogOut, id: "sign-out", label: "Sign Out" },
-];
-
-const ROLE_OPTIONS = [
-  "System Admin - Application administration",
-  "Admin - Arche Classical Academy",
-  "Admin - Ruler of Kings Church",
-  "Member - Gelbaugh Family",
-];
-
-const VARIANTS: Record<VariantKey, VariantDefinition> = {
-  A: { component: GroupedRailVariant, label: "Grouped thin rail" },
-  B: { component: KnowledgeRailUserHeaderVariant, label: "Knowledge rail, user header" },
-  C: { component: ThreeStackRailVariant, label: "Three stack rail" },
-  D: { component: KnowledgeShelfVariant, label: "Knowledge shelf header" },
-  E: { component: CommandBarVariant, label: "Command bar shell" },
+const VARIANTS: Record<
+  VariantKey,
+  { component: ComponentType<FrameVariantProps>; label: string }
+> = {
+  A: { component: SidebarFrame, label: "Quiet labeled sidebar" },
+  B: { component: HeaderFrame, label: "Header with place menu" },
+  C: { component: RailAndDrawerFrame, label: "Compact rail and drawer" },
 };
 
 export function HeaderSidebarPrototype({
@@ -125,6 +130,7 @@ export function HeaderSidebarPrototype({
   theme,
 }: HeaderSidebarPrototypeProps) {
   const [variant, setVariant] = useState<VariantKey>(() => readVariantFromUrl());
+  const [openPanel, setOpenPanel] = useState<OpenPanel>("places");
   const activeVariant = VARIANTS[variant];
   const ActiveVariant = activeVariant.component;
 
@@ -134,6 +140,7 @@ export function HeaderSidebarPrototype({
     url.searchParams.set("variant", next);
     window.history.replaceState(null, "", url);
     setVariant(next);
+    setOpenPanel("places");
   }, []);
 
   const cycleVariant = useCallback(
@@ -147,7 +154,10 @@ export function HeaderSidebarPrototype({
   );
 
   useEffect(() => {
-    const syncFromLocation = () => setVariant(readVariantFromUrl());
+    const syncFromLocation = () => {
+      setVariant(readVariantFromUrl());
+      setOpenPanel("places");
+    };
     window.addEventListener("popstate", syncFromLocation);
     return () => window.removeEventListener("popstate", syncFromLocation);
   }, []);
@@ -175,7 +185,12 @@ export function HeaderSidebarPrototype({
 
   return (
     <>
-      <ActiveVariant onToggleTheme={onToggleTheme} theme={theme} />
+      <ActiveVariant
+        onPanelChange={setOpenPanel}
+        onToggleTheme={onToggleTheme}
+        openPanel={openPanel}
+        theme={theme}
+      />
       <PrototypeSwitcher
         current={variant}
         label={activeVariant.label}
@@ -188,11 +203,7 @@ export function HeaderSidebarPrototype({
 
 function readVariantFromUrl(): VariantKey {
   const variant = new URL(window.location.href).searchParams.get("variant");
-  return isVariantKey(variant) ? variant : "A";
-}
-
-function isVariantKey(value: string | null): value is VariantKey {
-  return value === "A" || value === "B" || value === "C" || value === "D" || value === "E";
+  return variant === "A" || variant === "B" || variant === "C" ? variant : "A";
 }
 
 function isTextEntryTarget(target: EventTarget | null) {
@@ -234,215 +245,175 @@ function PrototypeSwitcher({
   );
 }
 
-function GroupedRailVariant({ onToggleTheme, theme }: HeaderSidebarPrototypeProps) {
+function SidebarFrame({
+  onPanelChange,
+  onToggleTheme,
+  openPanel,
+  theme,
+}: FrameVariantProps) {
   return (
     <PrototypeFrame className="hsp-variant-a" theme={theme}>
-      <ThinRail ariaLabel="Primary navigation">
-        <RailBrand />
-        <RailGroup label="Knowledge">
-          <RailItem active item={KNOWLEDGE_ITEMS[0]} />
-          {KNOWLEDGE_ITEMS.slice(1, 4).map((item) => (
-            <RailItem item={item} key={item.id} />
+      <aside className="hsp-sidebar" aria-label="Application frame">
+        <BrandLink />
+        <nav className="hsp-sidebar-nav" aria-label="Persistent destinations">
+          {PERSISTENT_DESTINATIONS.map((item) => (
+            <DestinationButton
+              active={item.id === "dashboard"}
+              expanded={item.id === "places" && openPanel === "places"}
+              item={item}
+              key={item.id}
+              onClick={() =>
+                item.id === "places"
+                  ? onPanelChange(openPanel === "places" ? null : "places")
+                  : undefined
+              }
+            />
           ))}
-          <RailMore count={1} title="Westminster Study Circle" />
-        </RailGroup>
-        <RailGroup label="Work" push>
-          {WORK_ITEMS.map((item) => (
-            <RailItem item={item} key={item.id} />
-          ))}
-        </RailGroup>
-        <RailGroup label="Admin">
-          {ADMIN_ITEMS.map((item) => (
-            <RailItem item={item} key={item.id} />
-          ))}
-        </RailGroup>
-        <AccountIconStack onToggleTheme={onToggleTheme} theme={theme} />
-      </ThinRail>
-
-      <main className="hsp-stage">
-        <HeaderBar className="hsp-header-a">
-          <a className="hsp-brand-full" href="/" aria-label="Logeion dashboard">
-            <LogeionBrand />
-          </a>
-          <RoleSelect />
-          <SearchBox />
-        </HeaderBar>
-        <DemoWorkspace eyebrow="Dashboard" title="All Accessible Knowledge" />
-      </main>
-    </PrototypeFrame>
-  );
-}
-
-function KnowledgeRailUserHeaderVariant({
-  onToggleTheme,
-  theme,
-}: HeaderSidebarPrototypeProps) {
-  return (
-    <PrototypeFrame className="hsp-variant-b" theme={theme}>
-      <ThinRail ariaLabel="Knowledge navigation">
-        <RailBrand />
-        <RailGroup label="Knowledge">
-          {KNOWLEDGE_ITEMS.slice(0, 4).map((item, index) => (
-            <RailItem active={index === 0} item={item} key={item.id} />
-          ))}
-          <RailMore count={1} title="Westminster Study Circle" />
-        </RailGroup>
-        <div className="hsp-rail-account-anchor">
-          <AvatarButton />
-        </div>
-      </ThinRail>
-
-      <main className="hsp-stage">
-        <HeaderBar className="hsp-header-b">
-          <a className="hsp-brand-mark-word" href="/" aria-label="Logeion dashboard">
-            <LogeionBrand />
-          </a>
-          <SearchBox />
-          <RolePill />
-        </HeaderBar>
-        <nav className="hsp-header-strip" aria-label="User and administration pages">
-          <NavPillGroup label="Work" items={WORK_ITEMS} />
-          <NavPillGroup label="Admin" items={ADMIN_ITEMS} />
-          <AccountPillGroup onToggleTheme={onToggleTheme} theme={theme} />
         </nav>
-        <DemoWorkspace eyebrow="Knowledge" title="Dashboard and pinned pages stay in the rail" />
-      </main>
-    </PrototypeFrame>
-  );
-}
-
-function ThreeStackRailVariant({ onToggleTheme, theme }: HeaderSidebarPrototypeProps) {
-  return (
-    <PrototypeFrame className="hsp-variant-c" theme={theme}>
-      <aside className="hsp-three-stack-rail" aria-label="Primary navigation">
-        <div className="hsp-three-brand">
-          <RailBrand />
-        </div>
-        <div className="hsp-three-panel hsp-three-panel-knowledge">
-          <span>Know</span>
-          <RailItem active item={KNOWLEDGE_ITEMS[0]} />
-          {KNOWLEDGE_ITEMS.slice(1, 4).map((item) => (
-            <RailItem item={item} key={item.id} />
-          ))}
-          <RailMore count={1} title="Westminster Study Circle" />
-        </div>
-        <div className="hsp-three-panel hsp-three-panel-work">
-          <span>Work</span>
-          {WORK_ITEMS.map((item) => (
-            <RailItem item={item} key={item.id} />
-          ))}
-        </div>
-        <div className="hsp-three-panel hsp-three-panel-user">
-          <span>Me</span>
-          {ADMIN_ITEMS.map((item) => (
-            <RailItem item={item} key={item.id} />
-          ))}
-          <RailIconButton
-            icon={theme === "dark" ? Sun : Moon}
-            label={theme === "dark" ? "Light theme" : "Dark theme"}
-            onClick={onToggleTheme}
+        {openPanel === "places" ? <PlaceNavigator presentation="inline" /> : null}
+        <div className="hsp-sidebar-account">
+          <AvatarButton
+            expanded={openPanel === "account"}
+            label="Corey Gelbaugh"
+            onClick={() =>
+              onPanelChange(openPanel === "account" ? null : "account")
+            }
+            showName
           />
-          <AvatarButton />
+          {openPanel === "account" ? (
+            <AccountMenu onToggleTheme={onToggleTheme} theme={theme} />
+          ) : null}
         </div>
       </aside>
-
       <main className="hsp-stage">
-        <HeaderBar className="hsp-header-c">
-          <div className="hsp-context-trail" aria-label="Current knowledge path">
-            <span>Dashboard</span>
-            <ChevronRight aria-hidden="true" />
-            <strong>All Accessible Knowledge</strong>
-          </div>
-          <RoleSelect />
-          <SearchBox compact />
-          <AccountMenuRow />
-        </HeaderBar>
-        <DemoWorkspace eyebrow="Pinned Knowledge Pages" title="Arche, church, and family pages remain adjacent to Dashboard" />
-      </main>
-    </PrototypeFrame>
-  );
-}
-
-function KnowledgeShelfVariant({ onToggleTheme, theme }: HeaderSidebarPrototypeProps) {
-  return (
-    <PrototypeFrame className="hsp-variant-d" theme={theme}>
-      <ThinRail ariaLabel="Application navigation">
-        <RailBrand />
-        <RailGroup label="App">
-          <RailItem active item={KNOWLEDGE_ITEMS[0]} />
-          {WORK_ITEMS.map((item) => (
-            <RailItem item={item} key={item.id} />
-          ))}
-          {ADMIN_ITEMS.map((item) => (
-            <RailItem item={item} key={item.id} />
-          ))}
-        </RailGroup>
-        <AccountIconStack onToggleTheme={onToggleTheme} theme={theme} />
-      </ThinRail>
-
-      <main className="hsp-stage">
-        <HeaderBar className="hsp-header-d">
-          <a className="hsp-brand-compact" href="/" aria-label="Logeion dashboard">
-            <LogeionBrand />
-          </a>
-          <RolePill />
-          <SearchBox compact />
-        </HeaderBar>
-        <section className="hsp-knowledge-shelf" aria-label="Knowledge pages">
-          <div>
-            <span>Knowledge Pages</span>
-            <strong>Dashboard plus pinned contexts</strong>
-          </div>
-          <div className="hsp-shelf-items">
-            {KNOWLEDGE_ITEMS.map((item, index) => (
-              <WideNavChip active={index === 0} item={item} key={item.id} />
-            ))}
-          </div>
-        </section>
-        <DemoWorkspace eyebrow="Workspace" title="Knowledge pages get the shelf; app and user pages stay in the rail" />
-      </main>
-    </PrototypeFrame>
-  );
-}
-
-function CommandBarVariant({ onToggleTheme, theme }: HeaderSidebarPrototypeProps) {
-  return (
-    <PrototypeFrame className="hsp-variant-e" theme={theme}>
-      <ThinRail ariaLabel="Primary navigation">
-        <RailBrand />
-        <RailGroup label="K">
-          <RailItem active item={KNOWLEDGE_ITEMS[0]} />
-          {KNOWLEDGE_ITEMS.slice(1, 4).map((item) => (
-            <RailItem item={item} key={item.id} />
-          ))}
-          <RailMore count={1} title="Westminster Study Circle" />
-        </RailGroup>
-        <RailGroup label="U" push>
-          {WORK_ITEMS.map((item) => (
-            <RailItem item={item} key={item.id} />
-          ))}
-          {ADMIN_ITEMS.map((item) => (
-            <RailItem item={item} key={item.id} />
-          ))}
-        </RailGroup>
-        <AvatarButton />
-      </ThinRail>
-
-      <main className="hsp-stage">
-        <header className="hsp-command-header">
-          <a className="hsp-brand-command" href="/" aria-label="Logeion dashboard">
-            <LogeionBrand />
-          </a>
-          <SearchBox command />
-          <RolePill />
-          <AccountToolbar onToggleTheme={onToggleTheme} theme={theme} />
+        <header className="hsp-content-header">
+          <CurrentPlace />
+          <RootSearch />
         </header>
-        <section className="hsp-command-secondary" aria-label="Navigation groups">
-          <NavPillGroup label="Knowledge" items={KNOWLEDGE_ITEMS} />
-          <NavPillGroup label="Work" items={WORK_ITEMS} />
-          <NavPillGroup label="Admin" items={ADMIN_ITEMS} />
-        </section>
-        <DemoWorkspace eyebrow="Search Everything" title="The command bar makes search the primary header action" />
+        <WorkspaceCanvas frameNote="Places stay visible inside the labeled sidebar." />
+      </main>
+    </PrototypeFrame>
+  );
+}
+
+function HeaderFrame({
+  onPanelChange,
+  onToggleTheme,
+  openPanel,
+  theme,
+}: FrameVariantProps) {
+  return (
+    <PrototypeFrame className="hsp-variant-b" theme={theme}>
+      <header className="hsp-global-header">
+        <BrandLink />
+        <nav className="hsp-header-destinations" aria-label="Persistent destinations">
+          {PERSISTENT_DESTINATIONS.map((item) => (
+            <DestinationButton
+              active={item.id === "dashboard"}
+              expanded={item.id === "places" && openPanel === "places"}
+              item={item}
+              key={item.id}
+              onClick={() =>
+                item.id === "places"
+                  ? onPanelChange(openPanel === "places" ? null : "places")
+                  : undefined
+              }
+            />
+          ))}
+        </nav>
+        <RootSearch compact />
+        <AvatarButton
+          expanded={openPanel === "account"}
+          label="Account"
+          onClick={() => onPanelChange(openPanel === "account" ? null : "account")}
+        />
+      </header>
+      {openPanel === "places" ? (
+        <div className="hsp-header-popover hsp-header-popover-places">
+          <PlaceNavigator presentation="mega" />
+        </div>
+      ) : null}
+      {openPanel === "account" ? (
+        <div className="hsp-header-popover hsp-header-popover-account">
+          <AccountMenu onToggleTheme={onToggleTheme} theme={theme} />
+        </div>
+      ) : null}
+      <main className="hsp-stage hsp-stage-full">
+        <div className="hsp-page-trail">
+          <CurrentPlace />
+        </div>
+        <WorkspaceCanvas frameNote="A single header owns every persistent destination." />
+      </main>
+    </PrototypeFrame>
+  );
+}
+
+function RailAndDrawerFrame({
+  onPanelChange,
+  onToggleTheme,
+  openPanel,
+  theme,
+}: FrameVariantProps) {
+  return (
+    <PrototypeFrame className="hsp-variant-c" theme={theme}>
+      <aside className="hsp-rail" aria-label="Persistent destinations">
+        <BrandLink compact />
+        <nav>
+          {PERSISTENT_DESTINATIONS.map((item) => (
+            <DestinationButton
+              active={item.id === "dashboard"}
+              expanded={item.id === "places" && openPanel === "places"}
+              iconOnly
+              item={item}
+              key={item.id}
+              onClick={() =>
+                item.id === "places"
+                  ? onPanelChange(openPanel === "places" ? null : "places")
+                  : undefined
+              }
+            />
+          ))}
+        </nav>
+        <AvatarButton
+          expanded={openPanel === "account"}
+          label="Account"
+          onClick={() => onPanelChange(openPanel === "account" ? null : "account")}
+        />
+      </aside>
+      {openPanel === "places" ? (
+        <aside className="hsp-drawer" aria-label="Places navigator">
+          <div className="hsp-drawer-heading">
+            <div>
+              <p>Navigator</p>
+              <h2>Places</h2>
+            </div>
+            <button aria-label="Close Places" onClick={() => onPanelChange(null)} type="button">
+              <X aria-hidden="true" />
+            </button>
+          </div>
+          <PlaceNavigator presentation="drawer" />
+        </aside>
+      ) : null}
+      {openPanel === "account" ? (
+        <aside className="hsp-drawer hsp-account-drawer" aria-label="Account menu">
+          <div className="hsp-drawer-heading">
+            <div>
+              <p>User</p>
+              <h2>Corey Gelbaugh</h2>
+            </div>
+            <button aria-label="Close Account" onClick={() => onPanelChange(null)} type="button">
+              <X aria-hidden="true" />
+            </button>
+          </div>
+          <AccountMenu onToggleTheme={onToggleTheme} theme={theme} />
+        </aside>
+      ) : null}
+      <main className="hsp-stage">
+        <header className="hsp-content-header">
+          <CurrentPlace />
+          <RootSearch />
+        </header>
+        <WorkspaceCanvas frameNote="A compact rail opens a focused navigator drawer." />
       </main>
     </PrototypeFrame>
   );
@@ -464,340 +435,229 @@ function PrototypeFrame({
   );
 }
 
-function ThinRail({
-  ariaLabel,
-  children,
-}: {
-  ariaLabel: string;
-  children: ReactNode;
-}) {
+function BrandLink({ compact = false }: { compact?: boolean }) {
   return (
-    <aside className="hsp-thin-rail" aria-label={ariaLabel}>
-      {children}
-    </aside>
-  );
-}
-
-function RailBrand() {
-  return (
-    <a className="hsp-rail-brand" href="/" aria-label="Logeion dashboard" title="Logeion dashboard">
-      <LogeionBrand density="compact" />
+    <a className="hsp-brand" href="/" aria-label="Logeion Dashboard">
+      <LogeionBrand density={compact ? "compact" : "full"} />
     </a>
   );
 }
 
-function RailGroup({
-  children,
-  label,
-  push = false,
-}: {
-  children: ReactNode;
-  label: string;
-  push?: boolean;
-}) {
-  return (
-    <nav className={push ? "hsp-rail-group hsp-rail-group-push" : "hsp-rail-group"} aria-label={label}>
-      <span className="hsp-rail-group-label">{label}</span>
-      {children}
-    </nav>
-  );
-}
-
-function RailItem({
+function DestinationButton({
   active = false,
+  expanded = false,
+  iconOnly = false,
   item,
-}: {
-  active?: boolean;
-  item: PrototypeNavItem;
-}) {
-  return (
-    <a
-      aria-current={active ? "page" : undefined}
-      aria-label={item.label}
-      className={active ? "hsp-rail-item hsp-rail-item-active" : "hsp-rail-item"}
-      href="#"
-      title={item.detail ? `${item.label} - ${item.detail}` : item.label}
-    >
-      <item.icon aria-hidden="true" />
-      {item.badge ? <span className="hsp-badge">{item.badge}</span> : null}
-    </a>
-  );
-}
-
-function RailMore({ count, title }: { count: number; title: string }) {
-  return (
-    <button
-      aria-label={`${count} more pinned Knowledge Pages`}
-      className="hsp-rail-more"
-      title={title}
-      type="button"
-    >
-      +{count}
-    </button>
-  );
-}
-
-function RailIconButton({
-  icon: Icon,
-  label,
   onClick,
 }: {
-  icon: IconComponent;
-  label: string;
+  active?: boolean;
+  expanded?: boolean;
+  iconOnly?: boolean;
+  item: PersistentDestination;
   onClick?: () => void;
 }) {
   return (
     <button
-      aria-label={label}
-      className="hsp-rail-item hsp-rail-button"
+      aria-current={active ? "page" : undefined}
+      aria-expanded={item.id === "places" ? expanded : undefined}
+      aria-label={iconOnly ? item.label : undefined}
+      className={active ? "hsp-destination hsp-destination-active" : "hsp-destination"}
       onClick={onClick}
-      title={label}
+      title={iconOnly ? item.label : undefined}
       type="button"
     >
-      <Icon aria-hidden="true" />
+      <item.icon aria-hidden="true" />
+      {iconOnly ? null : <span>{item.label}</span>}
+      {item.badge ? <strong className="hsp-notification-badge">{item.badge}</strong> : null}
+      {item.id === "places" && !iconOnly ? <ChevronDown aria-hidden="true" /> : null}
     </button>
   );
 }
 
-function HeaderBar({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className: string;
-}) {
-  return <header className={`hsp-header ${className}`}>{children}</header>;
+function PlaceNavigator({ presentation }: { presentation: "drawer" | "inline" | "mega" }) {
+  return (
+    <section className={`hsp-place-navigator hsp-place-${presentation}`} aria-label="Places">
+      <div className="hsp-place-intro">
+        <div>
+          <p>{presentation === "mega" ? "Your places" : "Places"}</p>
+          <span>Pinned, frequent, and recent together</span>
+        </div>
+        <button type="button">All places <span>12</span></button>
+      </div>
+      <div className="hsp-place-list">
+        {PLACE_ITEMS.map((place, index) => (
+          <button
+            aria-current={index === 0 ? "page" : undefined}
+            className="hsp-place-item"
+            key={place.label}
+            type="button"
+          >
+            <span className="hsp-place-icon">
+              <place.icon aria-hidden="true" />
+            </span>
+            <span className="hsp-place-copy">
+              <span className="hsp-place-title-row">
+                <strong>{place.label}</strong>
+                <small>{place.reason}</small>
+              </span>
+              <span className="hsp-place-detail">{place.detail}</span>
+              <span className="hsp-role-summary" aria-label={`Applicable roles: ${place.roles.join(", ")}`}>
+                {place.roles.map((role) => (
+                  <span key={role}>{role}</span>
+                ))}
+              </span>
+            </span>
+            {index === 0 ? <Check aria-hidden="true" className="hsp-current-check" /> : null}
+          </button>
+        ))}
+      </div>
+      <p className="hsp-role-note">
+        Role labels summarize every capacity that applies at a destination. They are not controls.
+      </p>
+    </section>
+  );
 }
 
-function RoleSelect() {
+function RootSearch({ compact = false }: { compact?: boolean }) {
   return (
-    <label className="hsp-role-select">
-      <span>Active Role</span>
-      <select aria-label="Active Role" defaultValue={ROLE_OPTIONS[0]}>
-        {ROLE_OPTIONS.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
+    <label className={compact ? "hsp-root-search hsp-root-search-compact" : "hsp-root-search"}>
+      <Search aria-hidden="true" />
+      <input aria-label="Search Everything" placeholder="Search everything you can access" type="search" />
+      <kbd>/</kbd>
     </label>
   );
 }
 
-function RolePill() {
+function CurrentPlace() {
   return (
-    <button className="hsp-role-pill" type="button" aria-label="Active Role">
-      <Shield aria-hidden="true" />
-      <span>
-        <small>Active Role</small>
-        System Admin
-      </span>
-      <ChevronDown aria-hidden="true" />
-    </button>
-  );
-}
-
-function SearchBox({
-  command = false,
-  compact = false,
-}: {
-  command?: boolean;
-  compact?: boolean;
-}) {
-  const className = [
-    "hsp-search-wrap",
-    compact ? "hsp-search-wrap-compact" : "",
-    command ? "hsp-search-wrap-command" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  return (
-    <div className={className}>
-      <span>Search Everything</span>
-      <label className="hsp-search">
-        <Search aria-hidden="true" />
-        <input aria-label="Search Everything" type="text" placeholder="Search everything you can access" />
-      </label>
+    <div className="hsp-current-place">
+      <span>Dashboard</span>
+      <small>Accessible Root Knowledge Context</small>
     </div>
   );
 }
 
-function AccountIconStack({
+function AvatarButton({
+  expanded,
+  label,
+  onClick,
+  showName = false,
+}: {
+  expanded: boolean;
+  label: string;
+  onClick: () => void;
+  showName?: boolean;
+}) {
+  return (
+    <button
+      aria-expanded={expanded}
+      aria-label="Open account menu"
+      className="hsp-avatar-button"
+      onClick={onClick}
+      type="button"
+    >
+      <img alt="" aria-hidden="true" src={profilePlaceholderUrl} />
+      {showName ? (
+        <span>
+          <strong>{label}</strong>
+          <small>Account and personal views</small>
+        </span>
+      ) : null}
+      {showName ? <ChevronDown aria-hidden="true" /> : null}
+    </button>
+  );
+}
+
+function AccountMenu({
   onToggleTheme,
   theme,
 }: HeaderSidebarPrototypeProps) {
   return (
-    <nav className="hsp-account-icons" aria-label="Account menu">
-      <AvatarButton />
-      <RailIconButton icon={Bookmark} label="Bookmarks" />
-      <RailIconButton icon={Settings} label="Settings" />
-      <RailIconButton
-        icon={theme === "dark" ? Sun : Moon}
-        label={theme === "dark" ? "Light theme" : "Dark theme"}
-        onClick={onToggleTheme}
-      />
-      <RailIconButton icon={LogOut} label="Sign Out" />
+    <nav className="hsp-account-menu" aria-label="Account and personal views">
+      <AccountMenuItem badge={3} icon={ListTodo} label="To-do" />
+      <AccountMenuItem icon={UserCircle} label="Profile" />
+      <AccountMenuItem icon={Bookmark} label="Commonplace Book" />
+      <AccountMenuItem icon={Settings} label="Settings" />
+      <div className="hsp-account-divider" />
+      <button onClick={onToggleTheme} type="button">
+        {theme === "dark" ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
+        <span>{theme === "dark" ? "Light theme" : "Dark theme"}</span>
+      </button>
+      <AccountMenuItem icon={Landmark} label="Administration" />
+      <AccountMenuItem icon={LogOut} label="Sign out" />
     </nav>
   );
 }
 
-function AvatarButton() {
+function AccountMenuItem({
+  badge,
+  icon: Icon,
+  label,
+}: {
+  badge?: number;
+  icon: IconComponent;
+  label: string;
+}) {
   return (
-    <button className="hsp-avatar-button" type="button" aria-label="Profile" title="Profile">
-      <img src={profilePlaceholderUrl} alt="" aria-hidden="true" />
-      <span aria-hidden="true" />
+    <button type="button">
+      <Icon aria-hidden="true" />
+      <span>{label}</span>
+      {badge ? <strong>{badge}</strong> : null}
     </button>
   );
 }
 
-function NavPillGroup({
-  items,
-  label,
-}: {
-  items: PrototypeNavItem[];
-  label: string;
-}) {
-  return (
-    <div className="hsp-pill-group">
-      <span>{label}</span>
-      <div>
-        {items.map((item, index) => (
-          <WideNavChip active={index === 0 && label === "Knowledge"} item={item} key={item.id} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function AccountPillGroup({
-  onToggleTheme,
-  theme,
-}: HeaderSidebarPrototypeProps) {
-  return (
-    <div className="hsp-pill-group hsp-account-pill-group">
-      <span>Me</span>
-      <div>
-        {ACCOUNT_ITEMS.map((item) => (
-          <WideNavChip item={item} key={item.id} />
-        ))}
-        <button className="hsp-wide-chip" type="button" onClick={onToggleTheme}>
-          {theme === "dark" ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
-          <span>{theme === "dark" ? "Light theme" : "Dark theme"}</span>
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function AccountToolbar({
-  onToggleTheme,
-  theme,
-}: HeaderSidebarPrototypeProps) {
-  return (
-    <div className="hsp-account-toolbar" aria-label="Account menu">
-      <button type="button" aria-label="Profile" title="Profile">
-        <UserCircle aria-hidden="true" />
-      </button>
-      <button type="button" aria-label="Bookmarks" title="Bookmarks">
-        <Bookmark aria-hidden="true" />
-      </button>
-      <button type="button" aria-label="Settings" title="Settings">
-        <Settings aria-hidden="true" />
-      </button>
-      <button
-        aria-label={theme === "dark" ? "Light theme" : "Dark theme"}
-        onClick={onToggleTheme}
-        title={theme === "dark" ? "Light theme" : "Dark theme"}
-        type="button"
-      >
-        {theme === "dark" ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
-      </button>
-      <button type="button" aria-label="Sign Out" title="Sign Out">
-        <LogOut aria-hidden="true" />
-      </button>
-    </div>
-  );
-}
-
-function AccountMenuRow() {
-  return (
-    <div className="hsp-account-menu-row" aria-label="Account menu">
-      <AvatarButton />
-      <span>Profile</span>
-      <span>Bookmarks</span>
-      <span>Settings</span>
-      <span>Sign Out</span>
-    </div>
-  );
-}
-
-function WideNavChip({
-  active = false,
-  item,
-}: {
-  active?: boolean;
-  item: PrototypeNavItem;
-}) {
-  return (
-    <a
-      aria-current={active ? "page" : undefined}
-      className={active ? "hsp-wide-chip hsp-wide-chip-active" : "hsp-wide-chip"}
-      href="#"
-      title={item.detail ? `${item.label} - ${item.detail}` : item.label}
-    >
-      <item.icon aria-hidden="true" />
-      <span>{item.label}</span>
-      {item.badge ? <strong>{item.badge}</strong> : null}
-    </a>
-  );
-}
-
-function DemoWorkspace({
-  eyebrow,
-  title,
-}: {
-  eyebrow: string;
-  title: string;
-}) {
+function WorkspaceCanvas({ frameNote }: { frameNote: string }) {
   return (
     <section className="hsp-workspace" aria-labelledby="hsp-workspace-title">
-      <header>
+      <div className="hsp-prototype-state" role="note">
+        <Menu aria-hidden="true" />
+        <span><strong>Frame question only.</strong> {frameNote} Dashboard composition is held neutral.</span>
+      </div>
+      <header className="hsp-workspace-heading">
         <div>
-          <p>{eyebrow}</p>
-          <h1 id="hsp-workspace-title">{title}</h1>
+          <p>Dashboard</p>
+          <h1 id="hsp-workspace-title">All Accessible Knowledge</h1>
         </div>
-        <div className="hsp-workspace-metrics" aria-label="Workspace summary">
-          <span>
-            <strong>3</strong>
-            pinned
-          </span>
-          <span>
-            <strong>4</strong>
-            unread
-          </span>
-          <span>
-            <strong>1</strong>
-            admin area
-          </span>
+        <div className="hsp-active-here">
+          <span>Active here</span>
+          <strong>Baseline personal capacity</strong>
+          <small>Role summaries are informational, never selectable.</small>
         </div>
       </header>
-      <div className="hsp-preview-grid">
-        <article>
-          <PanelLeft aria-hidden="true" />
-          <h2>Knowledge Pages</h2>
-          <p>Dashboard, school, church, family, and one overflow pinned page.</p>
-        </article>
-        <article>
-          <CalendarDays aria-hidden="true" />
-          <h2>User Work</h2>
-          <p>Calendar and notifications are grouped away from knowledge destinations.</p>
-        </article>
-        <article>
-          <BarChart3 aria-hidden="true" />
-          <h2>Role And Search</h2>
-          <p>Active role and global search stay available without widening the sidebar.</p>
-        </article>
+      <div className="hsp-neutral-context">
+        <div>
+          <span>Knowledge Navigator</span>
+          <strong>All Accessible Knowledge</strong>
+        </div>
+        <button type="button">Add context</button>
+      </div>
+      <div className="hsp-neutral-grid">
+        <section>
+          <p>Contribution Editor</p>
+          <h2>Add what you know</h2>
+          <div className="hsp-composer-placeholder">
+            Contribute an Answer, Question, Event, or other Knowledge Entry
+          </div>
+        </section>
+        <section>
+          <p>Answer Feed</p>
+          <h2>Relevant knowledge</h2>
+          <article>
+            <span className="hsp-avatar-placeholder">CG</span>
+            <div>
+              <strong>A familiar Knowledge Page has new activity</strong>
+              <small>Representative content only</small>
+            </div>
+          </article>
+          <article>
+            <span className="hsp-avatar-placeholder">AP</span>
+            <div>
+              <strong>A recent contribution in an accessible context</strong>
+              <small>Representative content only</small>
+            </div>
+          </article>
+        </section>
       </div>
     </section>
   );

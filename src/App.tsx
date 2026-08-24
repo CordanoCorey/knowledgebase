@@ -1707,6 +1707,23 @@ export default function App() {
     });
   }
 
+  // PROTOTYPE: keep the active frame comparison one URL away for HITL review,
+  // even in a clean local browser. Production builds and authenticated
+  // non-admin sessions still use the normal access gates below.
+  if (
+    import.meta.env.DEV &&
+    !isAuthenticated &&
+    routeState.route.id === "header-sidebar-prototype"
+  ) {
+    return (
+      <PrototypeRoute
+        onToggleTheme={toggleTheme}
+        routeId={routeState.route.id}
+        theme={theme}
+      />
+    );
+  }
+
   if (isLoading) {
     return (
       <main className="kb-auth-page" data-theme={theme} aria-busy="true">

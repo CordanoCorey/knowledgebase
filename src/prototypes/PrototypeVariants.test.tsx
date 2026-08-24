@@ -28,7 +28,7 @@ describe("prototype variant switchers", () => {
     window.history.replaceState(
       null,
       "",
-      "http://localhost:3000/?prototype=header-sidebar&variant=D",
+      "http://localhost:3000/?prototype=header-sidebar&variant=B",
     );
     const toggleTheme = vi.fn();
 
@@ -36,22 +36,25 @@ describe("prototype variant switchers", () => {
       root.render(<HeaderSidebarPrototype onToggleTheme={toggleTheme} theme="light" />);
     });
 
-    expect(text()).toContain("D - Knowledge shelf header");
+    expect(text()).toContain("B - Header with place menu");
     expect(text()).toContain("Arche Classical Academy");
+    expect(text()).toContain("Administrator");
+    expect(text()).toContain("Teacher");
+    expect(text()).toContain("Role labels summarize every capacity");
 
     await click(getButton("Next variant"));
-    expect(text()).toContain("E - Command bar shell");
-    expect(window.location.search).toContain("variant=E");
+    expect(text()).toContain("C - Compact rail and drawer");
+    expect(window.location.search).toContain("variant=C");
 
     await keyDown("ArrowLeft");
-    expect(text()).toContain("D - Knowledge shelf header");
+    expect(text()).toContain("B - Header with place menu");
 
     const searchInput = container.querySelector("input");
     if (!(searchInput instanceof HTMLInputElement)) {
       throw new Error("Missing prototype search input.");
     }
     await keyDown("ArrowLeft", searchInput);
-    expect(text()).toContain("D - Knowledge shelf header");
+    expect(text()).toContain("B - Header with place menu");
   });
 
   test("LayoutPrototype falls back to A and wraps from T to A", async () => {

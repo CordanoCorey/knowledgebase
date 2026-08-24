@@ -6840,13 +6840,13 @@ describe("MVP Explore/Contribute loop", () => {
     window.history.replaceState(
       {},
       "",
-      "http://localhost:3000/?prototype=header-sidebar&variant=D",
+      "http://localhost:3000/?prototype=header-sidebar&variant=C",
     );
 
     await renderApp();
 
     expect(container.querySelector(".hsp-shell")).toBeTruthy();
-    expect(container.textContent).toContain("D - Knowledge shelf header");
+    expect(container.textContent).toContain("C - Compact rail and drawer");
   });
 
   test("renders the notifications route with filterable user notices", async () => {
