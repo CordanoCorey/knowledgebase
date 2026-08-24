@@ -40,7 +40,7 @@ import "./headerSidebarPrototype.css";
 const VARIANT_ORDER = ["A", "B", "C"] as const;
 type VariantKey = (typeof VARIANT_ORDER)[number];
 type ThemePreference = "light" | "dark";
-type OpenPanel = "places" | "account" | null;
+type OpenPanel = "places" | "contents" | "account" | null;
 type IconComponent = ComponentType<{
   "aria-hidden"?: "true";
   className?: string;
@@ -130,7 +130,9 @@ export function HeaderSidebarPrototype({
   theme,
 }: HeaderSidebarPrototypeProps) {
   const [variant, setVariant] = useState<VariantKey>(() => readVariantFromUrl());
-  const [openPanel, setOpenPanel] = useState<OpenPanel>("places");
+  const [openPanel, setOpenPanel] = useState<OpenPanel>(() =>
+    readVariantFromUrl() === "C" ? "contents" : "places",
+  );
   const activeVariant = VARIANTS[variant];
   const ActiveVariant = activeVariant.component;
 
@@ -140,7 +142,7 @@ export function HeaderSidebarPrototype({
     url.searchParams.set("variant", next);
     window.history.replaceState(null, "", url);
     setVariant(next);
-    setOpenPanel("places");
+    setOpenPanel(next === "C" ? "contents" : "places");
   }, []);
 
   const cycleVariant = useCallback(
@@ -155,8 +157,9 @@ export function HeaderSidebarPrototype({
 
   useEffect(() => {
     const syncFromLocation = () => {
-      setVariant(readVariantFromUrl());
-      setOpenPanel("places");
+      const next = readVariantFromUrl();
+      setVariant(next);
+      setOpenPanel(next === "C" ? "contents" : "places");
     };
     window.addEventListener("popstate", syncFromLocation);
     return () => window.removeEventListener("popstate", syncFromLocation);
@@ -361,7 +364,7 @@ function RailAndDrawerFrame({
         <nav>
           {PERSISTENT_DESTINATIONS.map((item) => (
             <DestinationButton
-              active={item.id === "dashboard"}
+              active={item.id === "places" && openPanel === "places"}
               expanded={item.id === "places" && openPanel === "places"}
               iconOnly
               item={item}
@@ -380,6 +383,20 @@ function RailAndDrawerFrame({
           onClick={() => onPanelChange(openPanel === "account" ? null : "account")}
         />
       </aside>
+      {openPanel === "contents" ? (
+        <aside className="hsp-drawer" aria-label="Knowledge Page contents">
+          <div className="hsp-drawer-heading">
+            <div>
+              <p>Knowledge Page</p>
+              <h2>On this page</h2>
+            </div>
+            <button aria-label="Close Page Contents" onClick={() => onPanelChange(null)} type="button">
+              <X aria-hidden="true" />
+            </button>
+          </div>
+          <KnowledgePageContents />
+        </aside>
+      ) : null}
       {openPanel === "places" ? (
         <aside className="hsp-drawer" aria-label="Places navigator">
           <div className="hsp-drawer-heading">
@@ -409,11 +426,20 @@ function RailAndDrawerFrame({
         </aside>
       ) : null}
       <main className="hsp-stage">
-        <header className="hsp-content-header">
-          <CurrentPlace />
+        <header className="hsp-content-header hsp-content-header-page">
+          <KnowledgePageHeader
+            expanded={openPanel === "contents"}
+            onClick={() => onPanelChange(openPanel === "contents" ? null : "contents")}
+          />
           <RootSearch />
         </header>
-        <WorkspaceCanvas frameNote="A compact rail opens a focused navigator drawer." />
+        <WorkspaceCanvas
+          contextTitle="Arche Classical Academy"
+          eyebrow="Knowledge Page"
+          frameNote="The header identifies the current Knowledge Page and opens its contents; the same drawer switches to Places from the rail."
+          showActiveHere={false}
+          title="Arche Classical Academy"
+        />
       </main>
     </PrototypeFrame>
   );
@@ -459,7 +485,7 @@ function DestinationButton({
   return (
     <button
       aria-current={active ? "page" : undefined}
-      aria-expanded={item.id === "places" ? expanded : undefined}
+      aria-expanded={onClick ? expanded : undefined}
       aria-label={iconOnly ? item.label : undefined}
       className={active ? "hsp-destination hsp-destination-active" : "hsp-destination"}
       onClick={onClick}
@@ -537,6 +563,81 @@ function CurrentPlace() {
   );
 }
 
+function KnowledgePageHeader({
+  expanded,
+  onClick,
+}: {
+  expanded: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      aria-expanded={expanded}
+      aria-label="Open Page Contents"
+      className="hsp-header-page-identity"
+      onClick={onClick}
+      type="button"
+    >
+      <span className="hsp-header-page-icon">
+        <BookOpen aria-hidden="true" />
+      </span>
+      <span className="hsp-header-page-copy">
+        <small>Places / School</small>
+        <strong>Arche Classical Academy</strong>
+        <span className="hsp-header-active-roles" aria-label="Active Roles: Administrator, Teacher, Parent">
+          <span>Administrator</span>
+          <span>Teacher</span>
+          <span>Parent</span>
+        </span>
+      </span>
+      <span className="hsp-header-contents-label">
+        <Menu aria-hidden="true" />
+        Contents
+      </span>
+    </button>
+  );
+}
+
+function KnowledgePageContents() {
+  const sections = [
+    ["01", "Overview", "Page identity and recent activity"],
+    ["02", "Knowledge Navigator", "Active Knowledge Context"],
+    ["03", "Contribution Editor", "Add knowledge in this context"],
+    ["04", "Answer Feed", "Answers and open Knowledge Slots"],
+    ["05", "Context Experts", "People who can help here"],
+  ] as const;
+
+  return (
+    <section className="hsp-page-contents">
+      <div className="hsp-page-contents-summary">
+        <BookOpen aria-hidden="true" />
+        <div>
+          <strong>Arche Classical Academy</strong>
+          <span>A stable rundown of the modules on this Knowledge Page.</span>
+        </div>
+      </div>
+      <nav aria-label="On this page">
+        {sections.map(([index, label, detail], sectionIndex) => (
+          <button
+            aria-current={sectionIndex === 0 ? "location" : undefined}
+            key={label}
+            type="button"
+          >
+            <span>{index}</span>
+            <span>
+              <strong>{label}</strong>
+              <small>{detail}</small>
+            </span>
+          </button>
+        ))}
+      </nav>
+      <p>
+        The drawer changes with the current surface: page contents on a Knowledge Page, Places from the rail, and account destinations from the avatar.
+      </p>
+    </section>
+  );
+}
+
 function AvatarButton({
   expanded,
   label,
@@ -607,7 +708,19 @@ function AccountMenuItem({
   );
 }
 
-function WorkspaceCanvas({ frameNote }: { frameNote: string }) {
+function WorkspaceCanvas({
+  contextTitle = "All Accessible Knowledge",
+  eyebrow = "Dashboard",
+  frameNote,
+  showActiveHere = true,
+  title = "All Accessible Knowledge",
+}: {
+  contextTitle?: string;
+  eyebrow?: string;
+  frameNote: string;
+  showActiveHere?: boolean;
+  title?: string;
+}) {
   return (
     <section className="hsp-workspace" aria-labelledby="hsp-workspace-title">
       <div className="hsp-prototype-state" role="note">
@@ -616,19 +729,21 @@ function WorkspaceCanvas({ frameNote }: { frameNote: string }) {
       </div>
       <header className="hsp-workspace-heading">
         <div>
-          <p>Dashboard</p>
-          <h1 id="hsp-workspace-title">All Accessible Knowledge</h1>
+          <p>{eyebrow}</p>
+          <h1 id="hsp-workspace-title">{title}</h1>
         </div>
-        <div className="hsp-active-here">
-          <span>Active here</span>
-          <strong>Baseline personal capacity</strong>
-          <small>Role summaries are informational, never selectable.</small>
-        </div>
+        {showActiveHere ? (
+          <div className="hsp-active-here">
+            <span>Active here</span>
+            <strong>Baseline personal capacity</strong>
+            <small>Role summaries are informational, never selectable.</small>
+          </div>
+        ) : null}
       </header>
       <div className="hsp-neutral-context">
         <div>
           <span>Knowledge Navigator</span>
-          <strong>All Accessible Knowledge</strong>
+          <strong>{contextTitle}</strong>
         </div>
         <button type="button">Add context</button>
       </div>

@@ -44,6 +44,13 @@ describe("prototype variant switchers", () => {
 
     await click(getButton("Next variant"));
     expect(text()).toContain("C - Compact rail and drawer");
+    expect(text()).toContain("On this page");
+    expect(text()).toContain("Arche Classical Academy");
+    expect(
+      container.querySelector(
+        '[aria-label="Active Roles: Administrator, Teacher, Parent"]',
+      ),
+    ).toBeTruthy();
     expect(window.location.search).toContain("variant=C");
 
     await keyDown("ArrowLeft");
