@@ -25,7 +25,7 @@ The current User's permission-filtered view of the Root Knowledge Context. Root-
 _Avoid_: Global Knowledge Context, public knowledge, all private knowledge
 
 **Root Search**:
-The internal name for search across the current User's Accessible Root Knowledge Context, independent of the current Active Knowledge Context. User-facing copy may say Search Everything, but product and implementation language should avoid Global Search for this concept.
+The internal name for finding existing accessible Tags by name or alias across the current User's Accessible Root Knowledge Context, independent of the current Active Knowledge Context. User-facing copy may say Search Everything, but product and implementation language should avoid Global Search for this concept.
 _Avoid_: Global Search, Context search, public search, Global Knowledge Context search
 
 **Tag**:
@@ -192,6 +192,10 @@ _Avoid_: Knowledge Page, personal Knowledge Context, private page
 A User relationship to a Knowledge Page that saves it in the User's personal saved set for later reference and may inform user-specific tagging or Knowledge Context recommendations. Bookmarking does not place the Knowledge Page in sidebar navigation or subscribe the User to notifications about it.
 _Avoid_: Pin, subscription, notification, favorite
 
+**Commonplace Book**:
+The set of all Bookmarks saved by a User.
+_Avoid_: Bookmark, Pinned Knowledge Pages, subscription list, personal Knowledge Context
+
 **Pinned Knowledge Page**:
 A User relationship to a Knowledge Page that keeps the Knowledge Page easy to return to, especially from sidebar navigation. Pinning a Knowledge Page does not itself subscribe the User to notifications about that Knowledge Page.
 _Avoid_: Subscription, notification, role, folder
@@ -201,8 +205,8 @@ A Pinned Knowledge Page automatically seeded from a User's affiliation with a Sc
 _Avoid_: Required page, role, permanent navigation
 
 **Dashboard**:
-The user-facing place for Explore and Contribute when the Knowledge Navigator has no active Tags and the user is located in the Accessible Root Knowledge Context.
-_Avoid_: Home page, global context page
+The User-scoped place for Explore and Contribute when the Knowledge Navigator has no active Tags and the active User is located in the Accessible Root Knowledge Context. It may prominently surface Organizations through the User's relationships, but it is never an Organization's dashboard.
+_Avoid_: Home page, global context page, Organization dashboard
 
 **Topic**:
 A Knowledge Type for a named subject of discussion that Knowledge Entries can address, argue about, explain, illustrate, or apply.
@@ -229,7 +233,7 @@ The query-only input inside the Knowledge Navigator for finding existing Tags of
 _Avoid_: Knowledge Composer, contribution box, ask box
 
 **Root Search Input**:
-The query-only header input for searching the Accessible Root Knowledge Context independent of the Active Knowledge Context or navigating to an existing Tag's Referent Page. It does not create Knowledge Entries, Knowledge Requests, Questions, Contributions, Sources, or Tags.
+The query-only header input for finding existing accessible Tags by name or alias and navigating to their Referent Pages, independent of the Active Knowledge Context. It does not itself create Knowledge Entries, Knowledge Requests, Questions, Contributions, Sources, or Tags.
 _Avoid_: Global Search Input, Knowledge Composer, Global Knowledge Context search, public search
 
 **Words**:
@@ -308,9 +312,9 @@ _Avoid_: Membership Claim, account merge, email match
 The capacity in which a Person relates to a Referent, Knowledge Entry, Knowledge Slot, Membership, Organization, Group, or other domain object, such as author of a Book, speaker for a Sermon, student in a Group, parent in a Family, invitee to an Event, or administrator through a Membership.
 _Avoid_: Knowledge Type, user type
 
-**Active Role**:
-The Role a User is currently acting in while using the application, often derived from a Membership Role, such as teacher, student, parent, church member, or administrator. Active Role may be unset by default, meaning no single Role is foregrounded even though the User may still be eligible to act through all their Roles; when set, there is only one Active Role at a time, and it remains distinct from the User's current Knowledge Page or Active Knowledge Context.
-_Avoid_: Knowledge Page, Active Knowledge Context, account, Membership
+**Active Roles**:
+The complete set of Roles through which the active User relates to the current Knowledge Page. All applicable Roles are active concurrently; when none applies, the User acts through baseline personal capacity rather than through a fabricated Role.
+_Avoid_: Active Role, role switcher, selected Role, account type
 
 **User**:
 A person with access to the application through an account. Every User is linked to one Person Knowledge Entry so the User can be tagged through that Person, but not every Person is a User.
@@ -321,7 +325,7 @@ A contact value, such as an email address, that can support matching or claiming
 _Avoid_: Person, User, account identity
 
 **Organization**:
-A Knowledge Type for a collective body recognized by the application, including a School, Church, Family, or Community, that can recognize Tags, receive Knowledge Slots, and participate in Visibility Scopes.
+A Knowledge Type for a collective body recognized by the application, including a School, Church, Family, or Community, that can recognize Tags, receive Knowledge Slots, and participate in Visibility Scopes. An Organization does not authenticate; Users act in relation to it through Memberships and Roles.
 _Avoid_: Account, workspace, tenant
 
 **Group**:
@@ -333,7 +337,7 @@ The relationship between a Person and an Organization or Group, whether or not t
 _Avoid_: Invitation, account membership, user group
 
 **Membership Role**:
-The Role a Person has within a Membership, such as member, administrator, teacher, student, parent, or church member. A Membership Role qualifies the Person's relationship to the Organization or Group; it is distinct from the Membership itself and may inform the User's Active Role.
+The Role a Person has within a Membership, such as member, administrator, teacher, student, parent, or church member. A Membership Role qualifies the Person's relationship to the Organization or Group; it is distinct from the Membership itself and may be among the User's Active Roles.
 _Avoid_: Membership, account type, permission
 
 **Pending Membership**:
@@ -440,13 +444,21 @@ _Avoid_: Completion, submission, done
 A user-facing task projection of a pending Smart Storage Proposal, shown with Knowledge Slot-like card and to-do behavior while preserving the Smart Storage Proposal as the durable Silver Layer review object. A Review Slot may ask the user to accept a proposed entry, resolve a reference, assign review, refresh stale Silver material, or otherwise finish Smart Storage review work.
 _Avoid_: Knowledge Slot, Composer Draft, draft entry
 
+**To-do List**:
+The set of all unresolved Knowledge Slots and Review Slots assigned to the active User.
+_Avoid_: Generic task list, Notification inbox, calendar
+
 **Subscription**:
-A user's standing interest in activity within a Knowledge Context, Organization, Knowledge Slot, or Event.
-_Avoid_: Alert, follow, notification setting
+A User's standing interest in activity within a Knowledge Context, Organization, Knowledge Slot, or Event. Subscription activity is eligible for the User's Answer Feed, while an independent alert setting determines whether new activity also creates Notifications.
+_Avoid_: Alert, follow, notification setting, bell
 
 **Notification**:
-A user-visible notice that relevant activity occurred within a Subscription, assigned Knowledge Slot, or Event participation.
-_Avoid_: Message, feed item
+A User-directed notice of relevant activity, such as assignment of a Knowledge Slot or Review Slot, new activity from a Subscription with alerts enabled, or a system-level announcement. A Notification links to the affected task or Knowledge Page and has read state independent of whether the underlying work is resolved.
+_Avoid_: Message, feed item, To-do item
+
+**Canon**:
+A curated collection of Referents, such as the Books and readings in a School's curriculum.
+_Avoid_: Series, folder, Answer Feed
 
 **Source**:
 Raw user-provided material submitted to the application, such as an uploaded file, pasted text, note, URL, or other input.
