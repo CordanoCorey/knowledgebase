@@ -3,6 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { DashboardHierarchyPrototype } from "./DashboardHierarchyPrototype";
 import { HeaderSidebarPrototype } from "./HeaderSidebarPrototype";
 import { LayoutPrototype } from "./LayoutPrototype";
 import { SmartStorageWorkflowPrototype } from "./SmartStorageWorkflowPrototype";
@@ -62,6 +63,48 @@ describe("prototype variant switchers", () => {
     }
     await keyDown("ArrowLeft", searchInput);
     expect(text()).toContain("B - Header with place menu");
+  });
+
+  test("DashboardHierarchyPrototype compares hierarchy variants without moving To-do into the Dashboard", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      "http://localhost:3000/?prototype=dashboard-hierarchy&variant=A",
+    );
+
+    await act(async () => {
+      root.render(
+        <DashboardHierarchyPrototype onToggleTheme={vi.fn()} theme="light" />,
+      );
+    });
+
+    expect(text()).toContain("A - Guided priority stack");
+    expect(text()).toContain("Needs attention");
+    expect(text()).toContain("Return");
+    expect(text()).toContain("Contribute");
+    expect(text()).toContain("Explore");
+    expect(text()).not.toContain("To-do");
+
+    await click(getButton("Open account menu"));
+    expect(text()).toContain("To-do");
+    expect(text()).toContain("Commonplace Book");
+
+    await click(getButton("Next variant"));
+    expect(text()).toContain("B - Two-lane daily desk");
+    expect(text()).toContain("Attention, then return");
+    expect(text()).toContain("Add, find, ask, or browse");
+    expect(window.location.search).toContain("variant=B");
+
+    await keyDown("ArrowRight");
+    expect(text()).toContain("C - Quiet continuous workspace");
+    expect(text()).toContain("4 unread notifications");
+
+    const searchInput = container.querySelector('input[aria-label="Search Everything"]');
+    if (!(searchInput instanceof HTMLInputElement)) {
+      throw new Error("Missing Dashboard prototype Root Search input.");
+    }
+    await keyDown("ArrowLeft", searchInput);
+    expect(text()).toContain("C - Quiet continuous workspace");
   });
 
   test("LayoutPrototype falls back to A and wraps from T to A", async () => {

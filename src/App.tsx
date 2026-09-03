@@ -142,6 +142,7 @@ import {
   REPRESENTATION_ROLE_OPTIONS,
   supportsRepresentativeThumbnail,
 } from "./knowledgeContracts";
+import { DashboardHierarchyPrototype } from "./prototypes/DashboardHierarchyPrototype";
 import { HeaderSidebarPrototype } from "./prototypes/HeaderSidebarPrototype";
 import { LayoutPrototype } from "./prototypes/LayoutPrototype";
 import { SmartStorageWorkflowPrototype } from "./prototypes/SmartStorageWorkflowPrototype";
@@ -197,6 +198,7 @@ type PageId =
   | "smart-storage-workflow-prototype"
   | "layout-prototype"
   | "header-sidebar-prototype"
+  | "dashboard-hierarchy-prototype"
   | "analytics"
   | "profile"
   | "settings"
@@ -883,6 +885,15 @@ const ROUTES: RouteDefinition[] = [
     relatedRouteIds: ["smart-storage-playground", "layout-prototype"],
   },
   {
+    id: "dashboard-hierarchy-prototype",
+    label: "Dashboard Hierarchy Prototype",
+    href: "/playground/prototypes/dashboard-hierarchy",
+    pattern: "/?prototype=dashboard-hierarchy&variant=",
+    icon: LayoutDashboard,
+    components: [],
+    relatedRouteIds: ["header-sidebar-prototype", "layout-prototype"],
+  },
+  {
     id: "profile",
     label: "Profile",
     href: "/profile",
@@ -953,6 +964,7 @@ const PROTOTYPE_ROUTE_IDS: PageId[] = [
   "smart-storage-workflow-prototype",
   "layout-prototype",
   "header-sidebar-prototype",
+  "dashboard-hierarchy-prototype",
 ];
 const SIDEBAR_VISIBLE_PIN_LIMIT = 3;
 
@@ -1707,13 +1719,14 @@ export default function App() {
     });
   }
 
-  // PROTOTYPE: keep the active frame comparison one URL away for HITL review,
+  // PROTOTYPE: keep active frame and Dashboard comparisons one URL away for HITL review,
   // even in a clean local browser. Production builds and authenticated
   // non-admin sessions still use the normal access gates below.
   if (
     import.meta.env.DEV &&
     !isAuthenticated &&
-    routeState.route.id === "header-sidebar-prototype"
+    (routeState.route.id === "header-sidebar-prototype" ||
+      routeState.route.id === "dashboard-hierarchy-prototype")
   ) {
     return (
       <PrototypeRoute
@@ -1922,6 +1935,10 @@ function getPrototypeRouteIdFromSearch(search: string): PageId | null {
 
   if (prototypeId === "header-sidebar") {
     return "header-sidebar-prototype";
+  }
+
+  if (prototypeId === "dashboard-hierarchy") {
+    return "dashboard-hierarchy-prototype";
   }
 
   if (prototypeId === "smart-storage-workflow" || prototypeId === "smart-storage") {
@@ -3378,6 +3395,10 @@ function PrototypeRoute({
 
   if (routeId === "header-sidebar-prototype") {
     return <HeaderSidebarPrototype onToggleTheme={onToggleTheme} theme={theme} />;
+  }
+
+  if (routeId === "dashboard-hierarchy-prototype") {
+    return <DashboardHierarchyPrototype onToggleTheme={onToggleTheme} theme={theme} />;
   }
 
   if (routeId === "smart-storage-workflow-prototype") {
