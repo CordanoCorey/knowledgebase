@@ -85,12 +85,13 @@ const VARIANTS: Record<VariantKey, VariantDefinition> = {
   },
   C: {
     component: QuietContinuum,
-    label: "Quiet continuous workspace",
+    label: "Condensed Dashboard stream",
     sections: [
       { label: "Attention", detail: "Compact Notification strip" },
       { label: "Return", detail: "Familiar-place ribbon" },
+      { label: "Trending", detail: "Distinct Knowledge Context momentum" },
       { label: "Contribute", detail: "Inline Contribution Editor" },
-      { label: "Explore", detail: "Continuous Answer Feed" },
+      { label: "Answer Feed", detail: "Subscribed, popular, and recent knowledge" },
     ],
   },
 };
@@ -150,8 +151,8 @@ const FEED_ITEMS = [
     context: "Household worship · Psalms",
     excerpt:
       "A compact order for choosing, learning, and returning to a Psalm across the week.",
-    meta: "Guide · 6 min read",
-    source: "Recommended",
+    meta: "Guide · Posted 42 min ago",
+    source: "Recent",
     title: "A weekly Psalm rhythm",
   },
   {
@@ -602,10 +603,6 @@ function DailySplit({ onOpenPanel }: DashboardVariantProps) {
 function QuietContinuum({ onOpenPanel }: DashboardVariantProps) {
   return (
     <div className="dhp-variant dhp-quiet-continuum">
-      <DashboardIntro
-        detail="A dense, continuous path with no dashboard card grid."
-        title="Continue your knowledge work"
-      />
       <section className="dhp-notification-strip" aria-label="Needs attention">
         <span className="dhp-strip-icon"><Bell aria-hidden="true" /></span>
         <div>
@@ -631,15 +628,14 @@ function QuietContinuum({ onOpenPanel }: DashboardVariantProps) {
           <Layers3 aria-hidden="true" />
         </button>
       </section>
-      <ContributionEditor presentation="line" />
-      <section className="dhp-continuous-explore" aria-labelledby="dhp-c-explore">
-        <div className="dhp-continuous-heading">
-          <div>
-            <p>Explore</p>
-            <h2 id="dhp-c-explore">From across your accessible knowledge</h2>
-          </div>
-          <TrendingRow inline />
-        </div>
+      <section className="dhp-trending-ribbon" aria-label="Trending Knowledge Contexts">
+        <TrendingRow inline />
+      </section>
+      <section className="dhp-condensed-contribution" aria-label="Contribute">
+        <span>Contribute</span>
+        <ContributionEditor presentation="line" />
+      </section>
+      <section className="dhp-dashboard-feed" aria-label="Dashboard Answer Feed">
         <FeedList editorial />
       </section>
     </div>

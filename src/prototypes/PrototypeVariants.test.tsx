@@ -96,15 +96,20 @@ describe("prototype variant switchers", () => {
     expect(window.location.search).toContain("variant=B");
 
     await keyDown("ArrowRight");
-    expect(text()).toContain("C - Quiet continuous workspace");
+    expect(text()).toContain("C - Condensed Dashboard stream");
     expect(text()).toContain("4 unread notifications");
+    expect(text()).not.toContain("From across your accessible knowledge");
+    expect(text()).not.toContain("Explore");
+    expect(text()).toContain("Subscribed");
+    expect(text()).toContain("Popular");
+    expect(text()).toContain("Recent");
 
     const searchInput = container.querySelector('input[aria-label="Search Everything"]');
     if (!(searchInput instanceof HTMLInputElement)) {
       throw new Error("Missing Dashboard prototype Root Search input.");
     }
     await keyDown("ArrowLeft", searchInput);
-    expect(text()).toContain("C - Quiet continuous workspace");
+    expect(text()).toContain("C - Condensed Dashboard stream");
   });
 
   test("LayoutPrototype falls back to A and wraps from T to A", async () => {
