@@ -1,6 +1,21 @@
 # Responsive frame decision prototype — #33
 
-Status: proposed; human comparison pending. No product redesign is implemented.
+Status: human feedback recorded; A is a fallback preference for responsive frame
+behavior only. None of the visual treatments is approved. No product redesign
+is implemented.
+
+## Human feedback and scope boundary
+
+The User dislikes all three visual treatments and would choose A if required.
+This is not approval to replace or restyle the homepage. Preserve the Dashboard
+composition already decided in #25 and the shared frame hierarchy from #26.
+The body content in this prototype is a fixture for testing navigation, focus,
+and scrolling; it is not a proposed homepage design.
+
+Use A only as the preferred direction for responsive/accessibility behavior
+when refining the existing design. Exact dimensions, breakpoints, styling, and
+the proposed interaction details below remain unconfirmed. #33 stays open;
+do not promote any of these prototype renderings into the application.
 
 Run `npm run dev -- --port 5178 --strictPort`, then open
 `http://localhost:5178/?prototype=header-sidebar&responsive=1&variant=A`.
