@@ -144,6 +144,7 @@ import {
 } from "./knowledgeContracts";
 import { DashboardHierarchyPrototype } from "./prototypes/DashboardHierarchyPrototype";
 import { HeaderSidebarPrototype } from "./prototypes/HeaderSidebarPrototype";
+import { ResponsiveFramePrototype } from "./prototypes/ResponsiveFramePrototype";
 import { LayoutPrototype } from "./prototypes/LayoutPrototype";
 import { SmartStorageWorkflowPrototype } from "./prototypes/SmartStorageWorkflowPrototype";
 
@@ -3394,6 +3395,9 @@ function PrototypeRoute({
   }
 
   if (routeId === "header-sidebar-prototype") {
+    if (new URLSearchParams(window.location.search).has("responsive")) {
+      return <ResponsiveFramePrototype />;
+    }
     return <HeaderSidebarPrototype onToggleTheme={onToggleTheme} theme={theme} />;
   }
 
